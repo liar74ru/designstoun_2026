@@ -30,8 +30,8 @@ class ProductController extends Controller
         }
 
         // Сортировка
-        $sortField = $request->get('sort', 'name');
-        $sortDirection = $request->get('direction', 'asc');
+        $sortField = $request->input('sort', 'name');
+        $sortDirection = $request->input('direction', 'asc');
 
         // Применяем фильтры и получаем товары
         $filterService = new ProductFilterService($request);
