@@ -36,39 +36,91 @@
             </div>
         @endif
 
-        <!-- Статистика -->
+        <!-- Навигационные плитки -->
         <div class="row mb-4">
+            <!-- Товары (текущий раздел) -->
             <div class="col-md-3">
-                <div class="card bg-primary text-white">
-                    <div class="card-body">
-                        <h5 class="card-title">Всего товаров</h5>
-                        <h2>{{ $products->total() }}</h2>
+                <a href="{{ route('products.index') }}" class="text-decoration-none">
+                    <div class="card bg-primary text-white h-100 shadow-sm hover-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="card-title mb-1">Товары</h5>
+                                    <h2 class="mb-0">{{ $products->total() }}</h2>
+                                    <small>всего наименований</small>
+                                </div>
+                                <i class="bi bi-box display-4 opacity-50"></i>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent border-0 text-end">
+                            <small>Перейти <i class="bi bi-arrow-right"></i></small>
+                        </div>
                     </div>
-                </div>
+                </a>
             </div>
+
+            <!-- Склады -->
             <div class="col-md-3">
-                <div class="card bg-success text-white">
-                    <div class="card-body">
-                        <h5 class="card-title">В наличии</h5>
-                        <h2>{{ $products->sum('quantity') }} шт.</h2>
+                <a href="{{ '#' }}" class="text-decoration-none">
+{{--                    route('warehouses.index') ??--}}
+                    <div class="card bg-success text-white h-100 shadow-sm hover-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="card-title mb-1">Склады</h5>
+{{--                                    <h2 class="mb-0">{{ App\Models\Warehouse::count() }}</h2>--}}
+                                    <small>мест хранения</small>
+                                </div>
+                                <i class="bi bi-building display-4 opacity-50"></i>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent border-0 text-end">
+                            <small>Перейти <i class="bi bi-arrow-right"></i></small>
+                        </div>
                     </div>
-                </div>
+                </a>
             </div>
+
+            <!-- Группы товаров -->
             <div class="col-md-3">
-                <div class="card bg-info text-white">
-                    <div class="card-body">
-                        <h5 class="card-title">Общая стоимость</h5>
-                        <h2>{{ number_format($products->sum('price'), 0, ',', ' ') }} ₽</h2>
+                <a href="{{ route('products.groups') }}" class="text-decoration-none">
+                    <div class="card bg-warning text-dark h-100 shadow-sm hover-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="card-title mb-1">Группы</h5>
+                                    <h2 class="mb-0">{{ App\Models\ProductGroup::count() }}</h2>
+                                    <small>категорий товаров</small>
+                                </div>
+                                <i class="bi bi-folder display-4 opacity-50"></i>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent border-0 text-end">
+                            <small>Перейти <i class="bi bi-arrow-right"></i></small>
+                        </div>
                     </div>
-                </div>
+                </a>
             </div>
+
+            <!-- Место для будущей плитки -->
             <div class="col-md-3">
-                <div class="card bg-warning text-dark">
-                    <div class="card-body">
-                        <h5 class="card-title">Групп товаров</h5>
-                        <h2>{{ App\Models\ProductGroup::count() }}</h2>
+                <a href="#" class="text-decoration-none">
+                    <div class="card bg-secondary text-white h-100 shadow-sm hover-card opacity-75">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="card-title mb-1">Заказы</h5>
+                                    <h2 class="mb-0">0</h2>
+                                    <small>в работе</small>
+                                </div>
+                                <i class="bi bi-cart display-4 opacity-50"></i>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent border-0 text-end">
+                            <small>Скоро <i class="bi bi-arrow-right"></i></small>
+                        </div>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
 
@@ -428,6 +480,71 @@
 
         .dropdown-menu::-webkit-scrollbar-thumb:hover {
             background: #555;
+        }
+
+        /* Стили для навигационных плиток */
+        .hover-card {
+            transition: all 0.3s ease;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.2) !important;
+        }
+
+        .hover-card .display-4 {
+            transition: transform 0.3s ease;
+        }
+
+        .hover-card:hover .display-4 {
+            transform: scale(1.1);
+        }
+
+        .hover-card .card-footer {
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.1));
+            padding: 0.5rem 1rem;
+        }
+
+        /* Разные цвета для разных плиток */
+        .bg-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .bg-success {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .bg-warning {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .bg-secondary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        /* Анимация появления плиток */
+        .row.mb-4 .col-md-3 {
+            animation: slideInUp 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        .row.mb-4 .col-md-3:nth-child(1) { animation-delay: 0.1s; }
+        .row.mb-4 .col-md-3:nth-child(2) { animation-delay: 0.2s; }
+        .row.mb-4 .col-md-3:nth-child(3) { animation-delay: 0.3s; }
+        .row.mb-4 .col-md-3:nth-child(4) { animation-delay: 0.4s; }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 @endpush

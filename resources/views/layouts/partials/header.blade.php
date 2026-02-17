@@ -33,12 +33,6 @@
                                     👥 Работники
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('products.groups') ? 'active' : '' }}"
-                                   href="{{ route('products.groups') }}">
-                                    <i class="bi bi-folder"></i> Группы
-                                </a>
-                            </li>
                         </ul>
                     </div>
                 </nav>
