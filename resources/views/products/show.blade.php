@@ -1,91 +1,180 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Товар {{ $product->name }}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
-        h1 { margin-top: 0; }
-        .nav { margin-bottom: 20px; }
-        .nav a { padding: 8px 12px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; }
-        .info-card { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #dee2e6; }
-        .label { font-weight: bold; color: #495057; width: 30%; }
-        .value { color: #212529; width: 70%; }
-        .price-current { font-size: 24px; color: #28a745; font-weight: bold; }
-        .price-old { text-decoration: line-through; color: #999; margin-left: 10px; }
-        .in-stock { color: #28a745; font-weight: bold; }
-        .out-of-stock { color: #dc3545; font-weight: bold; }
-        .refresh-btn { background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px; }
-        .attributes { margin-top: 20px; }
-        .attribute-tag { background: #e9ecef; padding: 4px 8px; border-radius: 4px; margin: 0 5px 5px 0; display: inline-block; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <div class="nav">
-        <a href="{{ route('products.index') }}">← Назад к списку</a>
-    </div>
+@extends('layouts.app')
 
-    <h1>{{ $product->name }}</h1>
+@section('title', $product->name)
 
-    <div class="info-card">
-        <div class="info-row">
-            <span class="label">Артикул:</span>
-            <span class="value">{{ $product->sku }}</span>
-        </div>
-        <div class="info-row">
-            <span class="label">Цена:</span>
-            <span class="value">
-                    <span class="price-current">{{ number_format($product->price, 2, ',', ' ') }} ₽</span>
-                    @if($product->old_price)
-                    <span class="price-old">{{ number_format($product->old_price, 2, ',', ' ') }} ₽</span>
-                    <span style="color: #dc3545;">(-{{ $product->discount_percent }}%)</span>
-                @endif
-                </span>
-        </div>
-        <div class="info-row">
-            <span class="label">Наличие:</span>
-            <span class="value">
-                    @if($product->in_stock)
-                    <span class="in-stock">✅ В наличии: {{ $product->quantity }} шт.</span>
-                @else
-                    <span class="out-of-stock">❌ Нет в наличии</span>
-                @endif
-                </span>
-        </div>
-        <div class="info-row">
-            <span class="label">Описание:</span>
-            <span class="value">{{ $product->description ?: 'Нет описания' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="label">ID в МойСклад:</span>
-            <span class="value">{{ $product->moysklad_id }}</span>
-        </div>
-        <div class="info-row">
-            <span class="label">Дата создания:</span>
-            <span class="value">{{ $product->created_at->format('d.m.Y H:i') }}</span>
-        </div>
-        <div class="info-row">
-            <span class="label">Последнее обновление:</span>
-            <span class="value">{{ $product->updated_at->format('d.m.Y H:i') }}</span>
+@section('content')
+    <div class="container py-4">
+        <!-- Навигация -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="{{ route('products.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> К списку товаров
+                </a>
+            </div>
+            <div class="btn-group">
+                <a href="{{ route('products.refresh', $product->moysklad_id) }}"
+                   class="btn btn-warning"
+                   onclick="return confirm('Обновить данные товара из МойСклад?')">
+                    <i class="bi bi-arrow-repeat"></i> Обновить
+                </a>
+                <form action="{{ route('products.destroy', $product->moysklad_id) }}"
+                      method="POST"
+                      class="d-inline"
+                      onsubmit="return confirm('Вы уверены, что хотите удалить товар "{{ $product->name }}" из локальной базы?')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Удалить
+                </button>
+                </form>
+            </div>
         </div>
 
-        @if($product->attributes && count($product->attributes) > 0)
-            <div class="attributes">
-                <div class="label">Дополнительные атрибуты:</div>
-                <div style="margin-top: 10px;">
-                    @foreach($product->attributes as $key => $value)
-                        @if($value)
-                            <span class="attribute-tag"><strong>{{ $key }}:</strong> {{ $value }}</span>
+        <!-- Информация о товаре -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h4 class="mb-0">{{ $product->name }}</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h5 class="text-muted mb-3">Основная информация</h5>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th style="width: 150px;">Артикул:</th>
+                                        <td><span class="badge bg-secondary">{{ $product->sku ?? '—' }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <th>ID в МойСклад:</th>
+                                        <td><small class="text-muted">{{ $product->moysklad_id }}</small></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Статус:</th>
+                                        <td>
+                                            @if($product->is_active)
+                                                <span class="badge bg-success">Активен</span>
+                                            @else
+                                                <span class="badge bg-secondary">Неактивен</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Дата добавления:</th>
+                                        <td>{{ $product->created_at->format('d.m.Y H:i') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Последнее обновление:</th>
+                                        <td>{{ $product->updated_at->format('d.m.Y H:i') }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-muted mb-3">Цена и наличие</h5>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th style="width: 150px;">Цена:</th>
+                                        <td>
+                                        <span class="h4 text-primary">
+                                            {{ number_format($product->price, 2, ',', ' ') }} ₽
+                                        </span>
+                                        </td>
+                                    </tr>
+                                    @if($product->old_price)
+                                        <tr>
+                                            <th>Старая цена:</th>
+                                            <td>
+                                        <span class="text-muted text-decoration-line-through">
+                                            {{ number_format($product->old_price, 2, ',', ' ') }} ₽
+                                        </span>
+                                                <span class="badge bg-danger ms-2">
+                                            -{{ $product->discount_percent }}%
+                                        </span>
+                                            </td>
+                                        </tr>
+                                    @endif
+                                    <tr>
+                                        <th>Количество:</th>
+                                        <td>
+                                            @if($product->quantity > 0)
+                                                <span class="badge bg-success" style="font-size: 1rem;">
+                                                {{ $product->quantity }} шт.
+                                            </span>
+                                            @else
+                                                <span class="badge bg-danger" style="font-size: 1rem;">
+                                                Нет в наличии
+                                            </span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        @if($product->description)
+                            <div class="mb-4">
+                                <h5 class="text-muted mb-3">Описание</h5>
+                                <div class="p-3 bg-light rounded">
+                                    {{ $product->description }}
+                                </div>
+                            </div>
                         @endif
-                    @endforeach
+                    </div>
                 </div>
             </div>
-        @endif
-    </div>
 
-    <a href="{{ route('products.refresh', $product->moysklad_id) }}" class="refresh-btn">🔄 Обновить из МойСклад</a>
-</div>
-</body>
-</html>
+            <div class="col-md-4">
+                <!-- Дополнительные атрибуты -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Дополнительные атрибуты</h5>
+                    </div>
+                    <div class="card-body">
+                        @php
+                            $attributes = json_decode($product->attributes, true) ?? [];
+                        @endphp
+
+                        @if(!empty($attributes))
+                            <table class="table table-sm">
+                                @foreach($attributes as $key => $value)
+                                    @if($value)
+                                        <tr>
+                                            <th>{{ ucfirst($key) }}:</th>
+                                            <td>{{ $value }}</td>
+                                        </tr>
+                                    @endif
+                                @endforeach
+                            </table>
+                        @else
+                            <p class="text-muted mb-0">Нет дополнительных атрибутов</p>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Краткая статистика -->
+                <div class="card shadow-sm bg-light">
+                    <div class="card-body">
+                        <h5 class="mb-3">Быстрые действия</h5>
+                        <div class="d-grid gap-2">
+                            <a href="{{ route('products.refresh', $product->moysklad_id) }}"
+                               class="btn btn-warning"
+                               onclick="return confirm('Обновить данные товара из МойСклад?')">
+                                <i class="bi bi-arrow-repeat"></i> Обновить из МойСклад
+                            </a>
+                            <form action="{{ route('products.destroy', $product->moysklad_id) }}"
+                                  method="POST"
+                                  onsubmit="return confirm('Вы уверены?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger w-100">
+                                    <i class="bi bi-trash"></i> Удалить из базы
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection

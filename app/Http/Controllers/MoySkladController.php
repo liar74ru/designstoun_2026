@@ -28,9 +28,6 @@ class MoySkladController extends Controller
                 "maxResults" => 50,
             ]))->getList();
 
-            // Для отладки - посмотрим структуру
-            // dd($orders);
-
             return view('moysklad.orders', compact('list'));
 
         } catch (\Exception $e) {

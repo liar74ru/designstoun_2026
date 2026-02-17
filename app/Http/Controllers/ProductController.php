@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class ProductController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource with sorting.
      */
     public function index(Request $request)
     {
@@ -19,9 +19,23 @@ class ProductController extends Controller
             return $this->fetchFromMoySklad($request);
         }
 
-        // Иначе показываем товары из БД
-        $products = Product::latest()->paginate(20);
-        return view('products.index', compact('products'));
+        // Сортировка
+        $sortField = $request->get('sort', 'name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        // Разрешенные поля для сортировки
+        $allowedSorts = ['name', 'sku', 'price', 'quantity', 'created_at'];
+
+        if (!in_array($sortField, $allowedSorts)) {
+            $sortField = 'name';
+        }
+
+        // Иначе показываем товары из БД с сортировкой
+        $products = Product::orderBy($sortField, $sortDirection)
+            ->paginate(50)
+            ->withQueryString(); // Сохраняем параметры сортировки в пагинации
+
+        return view('products.index', compact('products', 'sortField', 'sortDirection'));
     }
 
     /**
@@ -65,8 +79,7 @@ class ProductController extends Controller
      */
     public function edit($id)
     {
-        $product = Product::where('moysklad_id', $id)->firstOrFail();
-        return view('products.edit', compact('product'));
+        abort(404);
     }
 
     /**
@@ -100,7 +113,7 @@ class ProductController extends Controller
         $product->delete();
 
         return redirect()->route('products.index')
-            ->with('success', 'Товар удален');
+            ->with('success', 'Товар "'.$product->name.'" удален из локальной базы');
     }
 
     /**
@@ -120,7 +133,7 @@ class ProductController extends Controller
             $response = Http::withBasicAuth($login, $password)
                 ->withHeaders(['Accept-Encoding' => 'gzip'])
                 ->get('https://api.moysklad.ru/api/remap/1.2/entity/product', [
-                    'limit' => 100,
+                    'limit' => 1000, // Увеличиваем лимит до 1000
                     'order' => 'updated,desc',
                 ]);
 
@@ -132,29 +145,32 @@ class ProductController extends Controller
             $data = $response->json();
             $moyskladProducts = $data['rows'] ?? [];
             $synced = 0;
+            $updated = 0;
             $errors = 0;
 
             foreach ($moyskladProducts as $item) {
                 try {
                     $price = 0;
+                    $oldPrice = null;
+
                     if (isset($item['salePrices']) && count($item['salePrices']) > 0) {
                         $price = $item['salePrices'][0]['value'] / 100;
+
+                        if (isset($item['salePrices'][1])) {
+                            $oldPrice = $item['salePrices'][1]['value'] / 100;
+                        }
                     }
 
-                    // Получаем SKU, если его нет - генерируем уникальный из ID
+                    // Получаем SKU
                     $sku = $item['article'] ?? $item['code'] ?? null;
 
-                    // Если SKU пустой или уже существует, генерируем уникальный
-                    if (!$sku) {
-                        $sku = 'MS_' . substr($item['id'], 0, 8);
-                    }
+                    // Проверяем существование товара
+                    $existingProduct = Product::where('moysklad_id', $item['id'])->first();
 
-                    // Проверяем, есть ли товар с таким SKU
-                    $existingProduct = Product::where('sku', $sku)->first();
-
-                    if ($existingProduct && $existingProduct->moysklad_id !== $item['id']) {
-                        // Если SKU занят другим товаром, генерируем уникальный
-                        $sku = $sku . '_' . substr($item['id'], -4);
+                    if ($existingProduct) {
+                        $updated++;
+                    } else {
+                        $synced++;
                     }
 
                     Product::updateOrCreate(
@@ -164,11 +180,19 @@ class ProductController extends Controller
                             'sku' => $sku,
                             'description' => $item['description'] ?? null,
                             'price' => $price,
+                            'old_price' => $oldPrice,
                             'quantity' => $item['stock'] ?? 0,
                             'is_active' => true,
+                            'attributes' => json_encode([
+                                'code' => $item['code'] ?? null,
+                                'article' => $item['article'] ?? null,
+                                'weight' => $item['weight'] ?? null,
+                                'volume' => $item['volume'] ?? null,
+                                'path_name' => $item['pathName'] ?? null,
+                                'updated' => $item['updated'] ?? null,
+                            ]),
                         ]
                     );
-                    $synced++;
 
                 } catch (\Exception $e) {
                     $errors++;
@@ -179,9 +203,9 @@ class ProductController extends Controller
                 }
             }
 
-            $message = "Синхронизация завершена. Обновлено товаров: $synced";
+            $message = "Синхронизация завершена. Добавлено: $synced, обновлено: $updated";
             if ($errors > 0) {
-                $message .= ", пропущено: $errors (проверьте логи)";
+                $message .= ", ошибок: $errors (проверьте логи)";
             }
 
             return redirect()->route('products.index')
@@ -214,8 +238,14 @@ class ProductController extends Controller
             $item = $response->json();
 
             $price = 0;
+            $oldPrice = null;
+
             if (isset($item['salePrices']) && count($item['salePrices']) > 0) {
                 $price = $item['salePrices'][0]['value'] / 100;
+
+                if (isset($item['salePrices'][1])) {
+                    $oldPrice = $item['salePrices'][1]['value'] / 100;
+                }
             }
 
             $product = Product::updateOrCreate(
@@ -225,7 +255,15 @@ class ProductController extends Controller
                     'sku' => $item['article'] ?? $item['code'] ?? '',
                     'description' => $item['description'] ?? '',
                     'price' => $price,
+                    'old_price' => $oldPrice,
                     'quantity' => $item['stock'] ?? 0,
+                    'attributes' => json_encode([
+                        'code' => $item['code'] ?? null,
+                        'article' => $item['article'] ?? null,
+                        'weight' => $item['weight'] ?? null,
+                        'volume' => $item['volume'] ?? null,
+                        'path_name' => $item['pathName'] ?? null,
+                    ]),
                 ]
             );
 
@@ -277,7 +315,6 @@ class ProductController extends Controller
                     }
                 }
 
-                // Создаем объект со ВСЕМИ возможными свойствами
                 return (object) [
                     'moysklad_id' => $item['id'] ?? null,
                     'name' => $item['name'] ?? 'Без названия',
