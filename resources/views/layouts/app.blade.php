@@ -18,6 +18,8 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/css/custom.css', 'resources/js/app.js'])
+    @vite(['resources/js/tree-view.js'])
+    @vite(['resources/js/dropdown-tree.js'])
     @stack('styles')
     {{--        @include('layouts.partials.header')--}}
 </head>

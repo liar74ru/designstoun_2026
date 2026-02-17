@@ -45,5 +45,8 @@ Route::resource('workers', WorkerController::class)->except([
     'show'
 ]);
 
+Route::get('/products/groups/tree', [ProductController::class, 'groups'])
+    ->name('products.groups');
+
 
 require __DIR__.'/auth.php';

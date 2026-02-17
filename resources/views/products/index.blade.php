@@ -12,7 +12,7 @@
 
             <div class="btn-group">
                 <a href="{{ route('products.sync') }}" class="btn btn-success"
-                   onclick="return confirm('Загрузить/обновить товары из МойСклад?')">
+                   onclick="return confirm('Загрузить/обновить товары и группы из МойСклад?')">
                     <i class="bi bi-cloud-download"></i> Синхронизировать
                 </a>
                 <a href="{{ route('products.create') }}" class="btn btn-primary">
@@ -38,7 +38,7 @@
 
         <!-- Статистика -->
         <div class="row mb-4">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card bg-primary text-white">
                     <div class="card-body">
                         <h5 class="card-title">Всего товаров</h5>
@@ -46,7 +46,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card bg-success text-white">
                     <div class="card-body">
                         <h5 class="card-title">В наличии</h5>
@@ -54,13 +54,123 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card bg-info text-white">
                     <div class="card-body">
                         <h5 class="card-title">Общая стоимость</h5>
                         <h2>{{ number_format($products->sum('price'), 0, ',', ' ') }} ₽</h2>
                     </div>
                 </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body">
+                        <h5 class="card-title">Групп товаров</h5>
+                        <h2>{{ App\Models\ProductGroup::count() }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="GET" action="{{ route('products.index') }}" class="row g-3">
+                    <!-- Поиск -->
+                    <div class="col-md-4">
+                        <label class="form-label">Поиск</label>
+                        <input type="text" name="search" class="form-control"
+                               placeholder="Название, артикул..."
+                               value="{{ request('search') }}">
+                    </div>
+
+                    <!-- Фильтр по группе с древовидной структурой -->
+                    <div class="col-md-3">
+                        <label class="form-label">Группа товаров</label>
+                        <div class="dropdown-tree" id="groupFilterDropdown">
+                            <!-- Кнопка для открытия -->
+                            <button class="btn btn-outline-secondary w-100 text-start d-flex justify-content-between align-items-center dropdown-toggle"
+                                    type="button"
+                                    id="groupDropdownBtn"
+                                    data-bs-toggle="dropdown"
+                                    data-bs-auto-close="outside"
+                                    aria-expanded="false">
+            <span class="truncate-text">
+                @if(request('group'))
+                    @php
+                        $selectedGroup = App\Models\ProductGroup::where('moysklad_id', request('group'))->first();
+                    @endphp
+                    <i class="bi bi-folder me-1"></i>
+                    {{ $selectedGroup ? $selectedGroup->name : 'Выбрана группа' }}
+                @else
+                    <i class="bi bi-folder me-1"></i>
+                    Все группы
+                @endif
+            </span>
+                            </button>
+
+                            <!-- Выпадающее меню с деревом -->
+                            <div class="dropdown-menu w-100 p-0" aria-labelledby="groupDropdownBtn" style="max-height: 400px; overflow-y: auto;">
+                                <div class="p-2">
+                                    <!-- Ссылка на все группы -->
+                                    <a href="{{ route('products.index', array_merge(request()->except(['group', 'page']), ['group' => ''])) }}"
+                                       class="dropdown-item d-flex align-items-center justify-content-between {{ !request('group') ? 'active' : '' }}">
+                    <span>
+                        <i class="bi bi-folder me-2"></i>
+                        Все группы
+                    </span>
+                                        <span class="badge {{ !request('group') ? 'bg-light text-primary' : 'bg-secondary' }}">
+                        {{ App\Models\Product::count() }}
+                    </span>
+                                    </a>
+
+                                    <div class="dropdown-divider"></div>
+
+                                    <!-- Дерево групп -->
+                                    <div class="tree-filter-wrapper">
+                                        @include('products.partials.tree-filter', ['groups' => $groupsTree, 'level' => 0])
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            Всего групп: {{ App\Models\ProductGroup::count() }},
+                            товаров: {{ App\Models\Product::count() }}
+                        </small>
+                    </div>
+
+                    <!-- Фильтр по наличию -->
+                    <div class="col-md-2">
+                        <label class="form-label">Наличие</label>
+                        <select name="in_stock" class="form-select">
+                            <option value="">Все</option>
+                            <option value="1" {{ request('in_stock') == '1' ? 'selected' : '' }}>В наличии</option>
+                            <option value="0" {{ request('in_stock') == '0' ? 'selected' : '' }}>Нет в наличии</option>
+                        </select>
+                    </div>
+
+                    <!-- Фильтр по цене -->
+                    <div class="col-md-3">
+                        <label class="form-label">Цена</label>
+                        <div class="input-group">
+                            <input type="number" name="price_from" class="form-control"
+                                   placeholder="От" value="{{ request('price_from') }}">
+                            <input type="number" name="price_to" class="form-control"
+                                   placeholder="До" value="{{ request('price_to') }}">
+                        </div>
+                    </div>
+
+                    <!-- Кнопки -->
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Применить фильтры
+                        </button>
+                        <a href="{{ route('products.index') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Сбросить
+                        </a>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -72,7 +182,7 @@
                         <thead class="table-light">
                         <tr>
                             <th>
-                                <a href="{{ route('products.index', ['sort' => 'name', 'direction' => $sortField == 'name' && $sortDirection == 'asc' ? 'desc' : 'asc']) }}"
+                                <a href="{{ route('products.index', array_merge(request()->all(), ['sort' => 'name', 'direction' => $sortField == 'name' && $sortDirection == 'asc' ? 'desc' : 'asc'])) }}"
                                    class="text-decoration-none text-dark">
                                     Название
                                     @if($sortField == 'name')
@@ -80,8 +190,9 @@
                                     @endif
                                 </a>
                             </th>
+                            <th>Группа</th>
                             <th>
-                                <a href="{{ route('products.index', ['sort' => 'sku', 'direction' => $sortField == 'sku' && $sortDirection == 'asc' ? 'desc' : 'asc']) }}"
+                                <a href="{{ route('products.index', array_merge(request()->all(), ['sort' => 'sku', 'direction' => $sortField == 'sku' && $sortDirection == 'asc' ? 'desc' : 'asc'])) }}"
                                    class="text-decoration-none text-dark">
                                     Артикул
                                     @if($sortField == 'sku')
@@ -90,7 +201,7 @@
                                 </a>
                             </th>
                             <th>
-                                <a href="{{ route('products.index', ['sort' => 'price', 'direction' => $sortField == 'price' && $sortDirection == 'asc' ? 'desc' : 'asc']) }}"
+                                <a href="{{ route('products.index', array_merge(request()->all(), ['sort' => 'price', 'direction' => $sortField == 'price' && $sortDirection == 'asc' ? 'desc' : 'asc'])) }}"
                                    class="text-decoration-none text-dark">
                                     Цена
                                     @if($sortField == 'price')
@@ -99,7 +210,7 @@
                                 </a>
                             </th>
                             <th>
-                                <a href="{{ route('products.index', ['sort' => 'quantity', 'direction' => $sortField == 'quantity' && $sortDirection == 'asc' ? 'desc' : 'asc']) }}"
+                                <a href="{{ route('products.index', array_merge(request()->all(), ['sort' => 'quantity', 'direction' => $sortField == 'quantity' && $sortDirection == 'asc' ? 'desc' : 'asc'])) }}"
                                    class="text-decoration-none text-dark">
                                     Остаток
                                     @if($sortField == 'quantity')
@@ -107,7 +218,6 @@
                                     @endif
                                 </a>
                             </th>
-                            <th>Статус</th>
                             <th class="text-center">Действия</th>
                         </tr>
                         </thead>
@@ -124,6 +234,17 @@
                                     @endif
                                 </td>
                                 <td>
+                                    @if($product->group_name)
+                                        <span class="badge bg-info text-dark"
+                                              title="{{ $product->group_name }}">
+                                            <i class="bi bi-folder"></i>
+                                            {{ Str::limit($product->group_name, 20) }}
+                                        </span>
+                                    @else
+                                        <span class="badge bg-secondary">Без группы</span>
+                                    @endif
+                                </td>
+                                <td>
                                     <span class="badge bg-secondary">{{ $product->sku ?? '—' }}</span>
                                 </td>
                                 <td>
@@ -133,7 +254,9 @@
                                         <small class="text-muted text-decoration-line-through">
                                             {{ number_format($product->old_price, 2, ',', ' ') }} ₽
                                         </small>
-                                        <span class="badge bg-danger">-{{ $product->discount_percent }}%</span>
+                                        @if($product->discount_percent)
+                                            <span class="badge bg-danger">-{{ $product->discount_percent }}%</span>
+                                        @endif
                                     @endif
                                 </td>
                                 <td>
@@ -141,13 +264,6 @@
                                         <span class="badge bg-success">{{ $product->quantity }} шт.</span>
                                     @else
                                         <span class="badge bg-danger">Нет</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($product->is_active)
-                                        <span class="badge bg-success">Активен</span>
-                                    @else
-                                        <span class="badge bg-secondary">Неактивен</span>
                                     @endif
                                 </td>
                                 <td>
@@ -192,21 +308,126 @@
                     Показано {{ $products->firstItem() }} - {{ $products->lastItem() }} из {{ $products->total() }} товаров
                 </div>
                 <div>
-                    {{ $products->links() }}
+                    {{ $products->withQueryString()->links() }}
                 </div>
             </div>
         @else
             <div class="text-center py-5">
                 <div class="display-1 text-muted mb-4">📦</div>
                 <h3 class="text-muted mb-3">Товары не найдены</h3>
-                <p class="mb-4">Загрузите товары из МойСклад или добавьте вручную</p>
+                <p class="mb-4">
+                    @if(request()->anyFilled(['search', 'group', 'in_stock', 'price_from', 'price_to']))
+                        По заданным критериям ничего не найдено.
+                    @else
+                        Загрузите товары из МойСклад или добавьте вручную.
+                    @endif
+                </p>
                 <a href="{{ route('products.sync') }}" class="btn btn-success btn-lg me-2">
                     <i class="bi bi-cloud-download"></i> Загрузить из МойСклад
                 </a>
                 <a href="{{ route('products.create') }}" class="btn btn-primary btn-lg">
                     <i class="bi bi-plus-circle"></i> Добавить вручную
                 </a>
+                @if(request()->anyFilled(['search', 'group', 'in_stock', 'price_from', 'price_to']))
+                    <a href="{{ route('products.index') }}" class="btn btn-outline-secondary btn-lg ms-2">
+                        <i class="bi bi-x-circle"></i> Сбросить фильтры
+                    </a>
+                @endif
             </div>
         @endif
     </div>
 @endsection
+
+@push('styles')
+    <style>
+        /* Фикс для дропдауна */
+        .dropdown-tree {
+            position: relative;
+            width: 100%;
+        }
+
+        .dropdown-tree .dropdown-menu {
+            max-width: 100%;
+            min-width: 100%;
+            width: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0.5rem 0;
+            font-size: 0.9rem;
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* Стили для дерева внутри дропдауна */
+        .tree-filter {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .tree-filter-item {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .tree-filter-item .group-link {
+            max-width: calc(100% - 24px);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tree-filter-children {
+            width: 100%;
+            overflow-x: hidden;
+        }
+
+        /* Кнопка дропдауна */
+        #groupDropdownBtn {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding-right: 2rem;
+            position: relative;
+        }
+
+        #groupDropdownBtn::after {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Анимации */
+        .tree-filter-children {
+            transition: all 0.2s ease;
+        }
+
+        .tree-filter-toggle {
+            transition: transform 0.2s;
+        }
+
+        .tree-filter-toggle:hover {
+            background-color: #e9ecef !important;
+            border-radius: 4px;
+        }
+
+        /* Скроллбар */
+        .dropdown-menu::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .dropdown-menu::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .dropdown-menu::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        .dropdown-menu::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+@endpush

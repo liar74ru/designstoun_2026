@@ -12,6 +12,8 @@ class Product extends Model
 
     protected $fillable = [
         'moysklad_id',
+        'group_id',
+        'group_name',
         'name',
         'sku',
         'description',
@@ -28,6 +30,14 @@ class Product extends Model
         'is_active' => 'boolean',
         'attributes' => 'array',
     ];
+
+    /**
+     * Получить группу товара
+     */
+    public function group()
+    {
+        return $this->belongsTo(ProductGroup::class, 'group_id', 'moysklad_id');
+    }
 
     /**
      * Получить отформатированную цену
