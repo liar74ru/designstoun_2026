@@ -6,7 +6,6 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use App\Services\MoySkladService;
 use App\Services\ProductGroupService;
-use App\Services\ProductFilterService;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\Enums\FilterOperator;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -44,12 +43,6 @@ class ProductController extends Controller
             ])
             ->defaultSort('id')
             ->paginate(15);
-
-        // Применяем фильтры и получаем товары
-//        $filterService = new ProductFilterService($request);
-//        $products = $filterService->applySorting($sortField, $sortDirection)
-//            ->paginate(15)
-//            ->withQueryString();
 
         // Получаем дерево групп для фильтра
         $groupsTree = $this->productGroupService->getGroupsTree();
