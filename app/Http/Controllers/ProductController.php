@@ -24,11 +24,6 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        // Если есть параметр ?moysklad - показываем товары из API
-        if ($request->has('moysklad')) {
-            return $this->fetchFromMoySklad($request);
-        }
-
         // Сортировка
         $sortField = $request->input('sort', 'name');
         $sortDirection = $request->input('direction', 'asc');
@@ -203,23 +198,5 @@ class ProductController extends Controller
 
         return redirect()->route('products.show', $product->moysklad_id)
             ->with('success', 'Товар обновлен');
-    }
-
-    /**
-     * Получить товары из МойСклад (для отображения)
-     */
-    private function fetchFromMoySklad(Request $request)
-    {
-        $result = $this->moySkladService->fetchProductsList(50);
-
-        if ($result['error']) {
-            return redirect()->route('products.index')
-                ->with('error', $result['error']);
-        }
-
-        return view('products.moysklad', [
-            'products' => $result['products'],
-            'total' => $result['total']
-        ]);
     }
 }

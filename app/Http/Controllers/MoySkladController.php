@@ -17,12 +17,6 @@ class MoySkladController extends Controller
                 env('MOYSKLAD_PASSWORD')
             );
 
-            // Получаем список заказов (правильный способ для этой библиотеки)
-//            $orders = CustomerOrder::query($sklad)
-//                ->maxResults(10)
-//                ->orderBy('moment', 'desc')
-//                ->getList();
-
             $list = Product::query($sklad, QuerySpecs::create([
                 "offset" => 15,
                 "maxResults" => 50,
