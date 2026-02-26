@@ -131,9 +131,9 @@
                     <!-- Поиск -->
                     <div class="col-md-4">
                         <label class="form-label">Поиск</label>
-                        <input type="text" name="search" class="form-control"
+                        <input type="text" name="filter[search]" class="form-control"
                                placeholder="Название, артикул..."
-                               value="{{ request('search') }}">
+                               value="{{ request('filter.search') }}">
                     </div>
 
                     <!-- Фильтр по группе с древовидной структурой -->
@@ -147,40 +147,44 @@
                                     data-bs-toggle="dropdown"
                                     data-bs-auto-close="outside"
                                     aria-expanded="false">
-                                <span class="truncate-text">
-                                    @if(request('group'))
-                                        @php
-                                        $selectedGroup = App\Models\ProductGroup::where('moysklad_id', request('group'))->first();
-                                        @endphp
-                                        <i class="bi bi-folder me-1"></i>
-                                        {{ $selectedGroup ? $selectedGroup->name : 'Выбрана группа' }}
-                                    @else
-                                        <i class="bi bi-folder me-1"></i>
-                                        Все группы
-                                   @endif
-                                </span>
+            <span class="truncate-text">
+                @if(request('filter.group_id'))  {{-- Изменено с request('group') --}}
+                @php
+                    $selectedGroup = App\Models\ProductGroup::where('moysklad_id', request('filter.group_id'))->first();
+                @endphp
+                <i class="bi bi-folder me-1"></i>
+                {{ $selectedGroup ? $selectedGroup->name : 'Выбрана группа' }}
+                @else
+                    <i class="bi bi-folder me-1"></i>
+                    Все группы
+                @endif
+            </span>
                             </button>
 
                             <!-- Выпадающее меню с деревом -->
                             <div class="dropdown-menu w-100 p-0" aria-labelledby="groupDropdownBtn" style="max-height: 400px; overflow-y: auto;">
                                 <div class="p-2">
                                     <!-- Ссылка на все группы -->
-                                    <a href="{{ route('products.index', array_merge(request()->except(['group', 'page']), ['group' => ''])) }}"
-                                       class="dropdown-item d-flex align-items-center justify-content-between {{ !request('group') ? 'active' : '' }}">
+                                    <a href="{{ route('products.index', array_merge(request()->except(['filter.group_id', 'page']), ['filter[group_id]' => ''])) }}"
+                                    class="dropdown-item d-flex align-items-center justify-content-between {{ !request('filter.group_id') ? 'active' : '' }}">
                                         <span>
-                                            <i class="bi bi-folder me-2"></i>
-                                            Все группы
-                                        </span>
-                                        <span class="badge {{ !request('group') ? 'bg-light text-primary' : 'bg-secondary' }}">
+                        <i class="bi bi-folder me-2"></i>
+                        Все группы
+                    </span>
+                                        <span class="badge {{ !request('filter.group_id') ? 'bg-light text-primary' : 'bg-secondary' }}">
                                             {{ App\Models\Product::count() }}
-                                        </span>
+                    </span>
                                     </a>
 
                                     <div class="dropdown-divider"></div>
 
                                     <!-- Дерево групп -->
                                     <div class="tree-filter-wrapper">
-                                        @include('products.partials.tree-filter', ['groups' => $groupsTree, 'level' => 0])
+                                        @include('products.partials.tree-filter', [
+                                            'groups' => $groupsTree,
+                                            'level' => 0,
+                                            'activeGroup' => request('filter.group_id')
+                                        ])
                                     </div>
                                 </div>
                             </div>

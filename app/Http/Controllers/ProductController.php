@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use App\Services\MoySkladService;
 use App\Services\ProductGroupService;
 use App\Services\ProductFilterService;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\Enums\FilterOperator;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class ProductController extends Controller
 {
@@ -28,11 +31,25 @@ class ProductController extends Controller
         $sortField = $request->input('sort', 'name');
         $sortDirection = $request->input('direction', 'asc');
 
+        $products = QueryBuilder::for(Product::class)
+            ->allowedFilters([
+                AllowedFilter::callback('search', function($query, $value) {
+                    $query->where(function($q) use ($value) {
+                        $q->where('name', 'ILIKE', "%{$value}%")
+                            ->orWhere('sku', 'ILIKE', "%{$value}%")
+                            ->orWhere('description', 'ILIKE', "%{$value}%");
+                    });
+                }),
+                AllowedFilter::exact('group_id'),
+            ])
+            ->defaultSort('id')
+            ->paginate(15);
+
         // Применяем фильтры и получаем товары
-        $filterService = new ProductFilterService($request);
-        $products = $filterService->applySorting($sortField, $sortDirection)
-            ->paginate(50)
-            ->withQueryString();
+//        $filterService = new ProductFilterService($request);
+//        $products = $filterService->applySorting($sortField, $sortDirection)
+//            ->paginate(15)
+//            ->withQueryString();
 
         // Получаем дерево групп для фильтра
         $groupsTree = $this->productGroupService->getGroupsTree();
