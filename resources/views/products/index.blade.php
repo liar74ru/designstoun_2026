@@ -140,25 +140,25 @@
                     <div class="col-md-3">
                         <label class="form-label">Группа товаров</label>
                         <div class="dropdown-tree" id="groupFilterDropdown">
-                            <!-- Кнопка для открытия -->
+                            <!-- Кнопка для открытия и текст на ней (выбранная категория или Все группы по умолчанию) -->
                             <button class="btn btn-outline-secondary w-100 text-start d-flex justify-content-between align-items-center dropdown-toggle"
                                     type="button"
                                     id="groupDropdownBtn"
                                     data-bs-toggle="dropdown"
                                     data-bs-auto-close="outside"
                                     aria-expanded="false">
-            <span class="truncate-text">
-                @if(request('group'))
-                    @php
-                        $selectedGroup = App\Models\ProductGroup::where('moysklad_id', request('group'))->first();
-                    @endphp
-                    <i class="bi bi-folder me-1"></i>
-                    {{ $selectedGroup ? $selectedGroup->name : 'Выбрана группа' }}
-                @else
-                    <i class="bi bi-folder me-1"></i>
-                    Все группы
-                @endif
-            </span>
+                                <span class="truncate-text">
+                                    @if(request('group'))
+                                        @php
+                                        $selectedGroup = App\Models\ProductGroup::where('moysklad_id', request('group'))->first();
+                                        @endphp
+                                        <i class="bi bi-folder me-1"></i>
+                                        {{ $selectedGroup ? $selectedGroup->name : 'Выбрана группа' }}
+                                    @else
+                                        <i class="bi bi-folder me-1"></i>
+                                        Все группы
+                                   @endif
+                                </span>
                             </button>
 
                             <!-- Выпадающее меню с деревом -->
@@ -167,13 +167,13 @@
                                     <!-- Ссылка на все группы -->
                                     <a href="{{ route('products.index', array_merge(request()->except(['group', 'page']), ['group' => ''])) }}"
                                        class="dropdown-item d-flex align-items-center justify-content-between {{ !request('group') ? 'active' : '' }}">
-                    <span>
-                        <i class="bi bi-folder me-2"></i>
-                        Все группы
-                    </span>
+                                        <span>
+                                            <i class="bi bi-folder me-2"></i>
+                                            Все группы
+                                        </span>
                                         <span class="badge {{ !request('group') ? 'bg-light text-primary' : 'bg-secondary' }}">
-                        {{ App\Models\Product::count() }}
-                    </span>
+                                            {{ App\Models\Product::count() }}
+                                        </span>
                                     </a>
 
                                     <div class="dropdown-divider"></div>
