@@ -351,19 +351,13 @@ class MoySkladService
             $response = $this->ms->query()->entity()->store()->get();
 
             // Правильное получение массива складов
-            $stores = $response->rows ?? $response ?? [];
+            $stores = $response->rows ?? [];
 
             // Если это не массив, попробуем получить правильно
             if (!is_array($stores) && is_object($stores)) {
                 // Если это итератор или коллекция
                 $stores = iterator_to_array($stores);
             }
-
-            Log::info('Получены склады от МойСклада', [
-                'count' => count($stores),
-                'response_type' => gettype($response),
-                'stores_type' => gettype($stores)
-            ]);
 
             if (empty($stores)) {
                 $result['success'] = true;
@@ -376,18 +370,18 @@ class MoySkladService
 
             foreach ($stores as $store) {
                 try {
-                    // Безопасное получение данных
                     $storeId = $store->id ?? null;
-                    if (!$storeId) {
-                        Log::warning('Склад без ID пропущен');
-                        continue;
-                    }
 
                     $parentId = null;
                     if (isset($store->parent) && isset($store->parent->meta) && isset($store->parent->meta->href)) {
                         $parentId = basename($store->parent->meta->href);
+                        // Проверяем, что parentId не 'store'
+                        if ($parentId === 'store') {
+                            $parentId = null;
+                        }
                     }
 
+                    // Проверяем существование склада по ID
                     $existing = Store::where('id', $storeId)->first();
 
                     if ($existing) {
@@ -399,6 +393,7 @@ class MoySkladService
                     Store::updateOrCreate(
                         ['id' => $storeId],
                         [
+                            'id' => $storeId,
                             'name' => $store->name ?? '',
                             'code' => $store->code ?? null,
                             'external_code' => $store->externalCode ?? null,
@@ -423,19 +418,8 @@ class MoySkladService
                         ]
                     );
 
-                    Log::info('Склад сохранен', [
-                        'store_id' => $storeId,
-                        'name' => $store->name ?? 'unknown'
-                    ]);
-
                 } catch (\Exception $e) {
                     $result['errors']++;
-                    Log::warning('Ошибка при сохранении склада', [
-                        'store_id' => $store->id ?? 'unknown',
-                        'name' => $store->name ?? 'unknown',
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
-                    ]);
                 }
             }
 
