@@ -27,6 +27,11 @@
                                     Прием камня
                                 </a>
                             </li>
+                            <li class="nav-item mx-2">
+                                <a href="{{ route('raw-batches.index') }}" class="nav-link text-dark px-3 py-2 rounded">
+                                    Перемещение сырья
+                                </a>
+                            </li>
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('workers.*') ? 'active' : '' }}"
                                    href="{{ route('workers.index') }}">

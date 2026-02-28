@@ -14,7 +14,9 @@ class StoneReception extends Model
         'product_id',
         'store_id',
         'quantity',
-        'notes'
+        'notes',
+        'raw_material_batch_id',
+        'raw_quantity_used'
     ];
 
     protected $casts = [
@@ -112,5 +114,10 @@ class StoneReception extends Model
                 $stock->save();
             }
         });
+    }
+
+    public function rawMaterialBatch()
+    {
+        return $this->belongsTo(RawMaterialBatch::class);
     }
 }

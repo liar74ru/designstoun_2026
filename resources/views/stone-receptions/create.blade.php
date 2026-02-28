@@ -54,6 +54,34 @@
                                 </select>
                             </div>
 
+                            <!-- После выбора продукта (или в любом удобном месте) -->
+                            <div class="mb-3">
+                                <label class="form-label">Партия сырья <span class="text-danger">*</span></label>
+                                <select name="raw_material_batch_id" class="form-select @error('raw_material_batch_id') is-invalid @enderror" required>
+                                    <option value="">— Выберите партию сырья —</option>
+                                    @foreach($activeBatches as $batch)
+                                        <option value="{{ $batch->id }}" {{ old('raw_material_batch_id', session('copy_from.raw_material_batch_id')) == $batch->id ? 'selected' : '' }}
+                                        data-product="{{ $batch->product->name }}" data-worker="{{ $batch->currentWorker->name ?? '—' }}" data-remaining="{{ $batch->remaining_quantity }}">
+                                            {{ $batch->product->name }} (остаток: {{ number_format($batch->remaining_quantity, 3) }}) — {{ $batch->currentWorker->name ?? 'Без пильщика' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('raw_material_batch_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Расход сырья (м²) <span class="text-danger">*</span></label>
+                                <input type="number" step="0.001" min="0.001" name="raw_quantity_used"
+                                       class="form-control @error('raw_quantity_used') is-invalid @enderror"
+                                       value="{{ old('raw_quantity_used', session('copy_from.raw_quantity_used')) }}" required>
+                                @error('raw_quantity_used')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                                <small class="text-muted">Сколько сырья израсходовано на эту приемку</small>
+                            </div>
+
                             <!-- Склад (фиксированный) -->
                             <div class="mb-3">
                                 <label class="form-label">Склад</label>

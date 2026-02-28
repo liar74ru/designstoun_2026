@@ -23,7 +23,7 @@
                 </form>
 
                 <!-- Sync Stocks by Stores Button (NEW) -->
-                <form method="POST" action="{{ route('index.stocks.sync-all') }}" class="inline">
+                <form method="POST" action="{{ route('stores.stocks.sync-all') }}" class="inline">
                     @csrf
                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
                             onclick="return confirm('Обновить остатки по ВСЕМ складам из МойСклад? Это может занять некоторое время.')">

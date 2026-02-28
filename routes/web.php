@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RawMaterialBatchController;
 use App\Http\Controllers\StoneReceptionController;
 use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
@@ -61,6 +62,26 @@ Route::post('/stores/{store}/stocks-sync', [StoreController::class, 'syncStoreSt
 Route::resource('stone-receptions', StoneReceptionController::class);
 Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])
     ->name('stone-receptions.copy');
+
+
+    Route::resource('raw-batches', RawMaterialBatchController::class)->except(['edit', 'update']);
+
+    // Дополнительные маршруты для передачи и возврата
+    Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])
+        ->name('raw-batches.transfer.form');
+    Route::post('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transfer'])
+        ->name('raw-batches.transfer');
+
+    Route::get('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'returnForm'])
+        ->name('raw-batches.return.form');
+    Route::post('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'return'])
+        ->name('raw-batches.return');
+
+    // Маршруты для приемок
+    Route::resource('stone-receptions', StoneReceptionController::class);
+    Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])
+        ->name('stone-receptions.copy');
+
 
 
 require __DIR__.'/auth.php';
