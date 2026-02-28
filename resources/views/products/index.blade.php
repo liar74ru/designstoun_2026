@@ -11,6 +11,15 @@
             </h1>
 
             <div class="btn-group">
+                <!-- НОВАЯ КНОПКА: синхронизация остатков по складам -->
+                <form action="{{ route('products.stocks.sync-all-by-stores') }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-info me-2"
+                            onclick="return confirm('Обновить остатки по складам для ВСЕХ товаров? Это может занять несколько минут.')">
+                        <i class="bi bi-boxes"></i> Обновить остатки по складам
+                    </button>
+                </form>
+
                 <a href="{{ route('products.sync') }}" class="btn btn-success"
                    onclick="return confirm('Загрузить/обновить товары и группы из МойСклад?')">
                     <i class="bi bi-cloud-download"></i> Синхронизировать

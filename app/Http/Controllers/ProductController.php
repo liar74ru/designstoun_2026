@@ -241,6 +241,22 @@ class ProductController extends Controller
         }
     }
 
+    /**
+     * Массовая синхронизация остатков по складам для всех товаров
+     */
+    public function syncAllProductsStocks(StockSyncService $stockSyncService)
+    {
+        $result = $stockSyncService->syncAllProductsStocksByStores();
+
+        if ($result['success']) {
+            return redirect()->route('products.index')
+                ->with('success', $result['message']);
+        } else {
+            return redirect()->route('products.index')
+                ->with('error', $result['message']);
+        }
+    }
+
     public function syncAllStocks(StockSyncService $stockSyncService)
     {
         $result = $stockSyncService->syncAllStocks();

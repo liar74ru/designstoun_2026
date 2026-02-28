@@ -31,6 +31,7 @@
                             <th>#</th>
                             <th>Имя</th>
                             <th>Должность</th>
+                            <th>Отдел</th> <!-- НОВЫЙ СТОЛБЕЦ -->
                             <th>Email</th>
                             <th>Телефон</th>
                             <th>Дата добавления</th>
@@ -43,10 +44,25 @@
                                 <td>{{ $worker->id }}</td>
                                 <td class="fw-bold">{{ $worker->name }}</td>
                                 <td>{{ $worker->position ?? '—' }}</td>
+                                <!-- НОВАЯ ЯЧЕЙКА: Отдел -->
+                                <td>
+                                    @if($worker->department)
+                                        <span class="badge bg-info text-dark">
+                                            <i class="bi bi-building"></i>
+                                            {{ $worker->department->name }}
+                                        </span>
+                                        @if($worker->department->code)
+                                            <br>
+                                            <small class="text-muted">{{ $worker->department->code }}</small>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
                                 <td>
                                     @if($worker->email)
                                         <a href="mailto:{{ $worker->email }}" class="text-decoration-none">
-                                            {{ $worker->email }}
+                                            <i class="bi bi-envelope"></i> {{ $worker->email }}
                                         </a>
                                     @else
                                         —
@@ -55,7 +71,7 @@
                                 <td>
                                     @if($worker->phone)
                                         <a href="tel:{{ $worker->phone }}" class="text-decoration-none">
-                                            {{ $worker->phone }}
+                                            <i class="bi bi-telephone"></i> {{ $worker->phone }}
                                         </a>
                                     @else
                                         —

@@ -48,6 +48,28 @@
                                 @enderror
                             </div>
 
+                            <!-- НОВОЕ ПОЛЕ: Отдел (выпадающий список) -->
+                            <div class="mb-3">
+                                <label for="department_id" class="form-label">Отдел</label>
+                                <select class="form-select @error('department_id') is-invalid @enderror"
+                                        id="department_id"
+                                        name="department_id">
+                                    <option value="">— Выберите отдел —</option>
+                                    @foreach($departments as $department)
+                                        <option value="{{ $department->id }}"
+                                            {{ old('department_id') == $department->id ? 'selected' : '' }}>
+                                            {{ $department->name }}
+                                            @if($department->code)
+                                                ({{ $department->code }})
+                                            @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('department_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
                             <!-- Поле Email -->
                             <div class="mb-3">
                                 <label for="email" class="form-label">Email</label>

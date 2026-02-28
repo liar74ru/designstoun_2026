@@ -6,15 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 
 class Worker extends Model
 {
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
         'phone',
         'position',
+        'department_id'
     ];
+
+    /**
+     * Отдел сотрудника
+     */
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\Worker;
 use Illuminate\Http\Request;
 
@@ -21,7 +22,8 @@ class WorkerController extends Controller
      */
     public function create()
     {
-        return view('workers.create');
+        $departments = Department::orderBy('name')->get();
+        return view('workers.create', compact('departments'));
     }
 
     /**
@@ -32,6 +34,7 @@ class WorkerController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
+            'department_id' => 'nullable|exists:departments,id',
             'phone' => 'nullable|string|max:20',
             'position' => 'nullable|string|max:255',
         ]);

@@ -172,22 +172,6 @@
                                         </tr>
                                         </thead>
                                         <tbody>
-                                        {{-- ОТЛАДКА --}}
-                                        <div class="alert alert-info">
-                                            <h4>Отладка:</h4>
-                                            <p>1. $product существует: {{ $product ? 'да' : 'нет' }}</p>
-                                            <p>2. Метод stocks(): {{ method_exists($product, 'stocks') ? 'да' : 'нет' }}</p>
-                                            <p>3. stocks загружены: {{ $product->relationLoaded('stocks') ? 'да' : 'нет' }}</p>
-                                            <p>4. stocks количество: {{ $product->stocks ? $product->stocks->count() : 'null' }}</p>
-                                            @if($product->stocks && $product->stocks->count() > 0)
-                                                <p>5. Первый stock quantity: {{ $product->stocks->first()->quantity }}</p>
-                                                <p>6. Первый stock store_id: {{ $product->stocks->first()->store_id }}</p>
-                                                <p>6. id связь с продуктом: {{ $product->stocks->first()->product_id }}</p>
-                                                <p>6. id связь с продуктом: {{ $product->id }}
-                                                </p> <p>6. id связь с продуктом: {{ $product->moysklad_id }}</p>
-                                            @endif
-                                            <p>7. SQL лог: {{ \Illuminate\Support\Facades\DB::getQueryLog() ? json_encode(\Illuminate\Support\Facades\DB::getQueryLog()) : 'пусто' }}</p>
-                                        </div>
                                         @foreach($product->stocks as $stock)
                                             <tr>
                                                 <td>
