@@ -3,9 +3,9 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\MoySkladController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\StoreController;
 
 Route::get('/', function () {
     return view('home');
@@ -40,6 +40,10 @@ Route::resource('workers', WorkerController::class)->except([
 
 Route::get('/products/groups/tree', [ProductController::class, 'groups'])
     ->name('products.groups');
+
+Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
+Route::get('/stores/{store}', [StoreController::class, 'show'])->name('stores.show');
+Route::post('/stores/sync', [StoreController::class, 'sync'])->name('stores.sync');
 
 
 require __DIR__.'/auth.php';

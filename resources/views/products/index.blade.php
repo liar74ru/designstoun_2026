@@ -61,8 +61,7 @@
 
             <!-- Склады -->
             <div class="col-md-3">
-                <a href="{{ '#' }}" class="text-decoration-none">
-{{--                    route('warehouses.index') ??--}}
+                <a href="{{ route('stores.index') }}" class="text-decoration-none">
                     <div class="card bg-success text-white h-100 shadow-sm hover-card">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
