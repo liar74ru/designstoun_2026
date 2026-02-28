@@ -4,6 +4,9 @@ start:
 start-frontend:
 	npm run dev
 
+db:
+	sudo service postgresql start
+
 install: setup
 
 setup:

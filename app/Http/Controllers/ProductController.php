@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use App\Services\MoySkladService;
 use App\Services\ProductGroupService;
 use Spatie\QueryBuilder\AllowedFilter;
-use Spatie\QueryBuilder\Enums\FilterOperator;
 use Spatie\QueryBuilder\QueryBuilder;
 
 class ProductController extends Controller
