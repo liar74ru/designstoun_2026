@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StoneReceptionController;
 use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
@@ -56,6 +57,10 @@ Route::post('/stores/stocks/sync-all', [StoreController::class, 'syncAllStocks']
 // Синхронизация остатков для конкретного склада
 Route::post('/stores/{store}/stocks-sync', [StoreController::class, 'syncStoreStocks'])
     ->name('stores.stocks.sync');
+
+Route::resource('stone-receptions', StoneReceptionController::class);
+Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])
+    ->name('stone-receptions.copy');
 
 
 require __DIR__.'/auth.php';
