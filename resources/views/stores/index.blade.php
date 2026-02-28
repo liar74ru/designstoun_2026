@@ -9,16 +9,31 @@
                 <p class="text-gray-600 mt-2">Управление складами МойСклада</p>
             </div>
 
-            <!-- Sync Button -->
-            <form method="POST" action="{{ route('stores.sync') }}" class="inline">
-                @csrf
-                <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
-                    Синхронизировать
-                </button>
-            </form>
+            <!-- Action Buttons -->
+            <div class="flex space-x-3">
+                <!-- Sync Stores Button -->
+                <form method="POST" action="{{ route('stores.sync') }}" class="inline">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Синхронизировать склады
+                    </button>
+                </form>
+
+                <!-- Sync Stocks by Stores Button (NEW) -->
+                <form method="POST" action="{{ route('stores.stocks.sync-all') }}" class="inline">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+                            onclick="return confirm('Обновить остатки по ВСЕМ складам из МойСклад? Это может занять некоторое время.')">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Обновить остатки по складам
+                    </button>
+                </form>
+            </div>
         </div>
 
         <!-- Flash Messages -->
@@ -109,9 +124,23 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-sm">
-                                <a href="{{ route('stores.show', $store) }}" class="text-blue-600 hover:text-blue-800 mr-4">
-                                    Подробнее
-                                </a>
+                                <div class="flex items-center space-x-3">
+                                    <a href="{{ route('stores.show', $store) }}" class="text-blue-600 hover:text-blue-800">
+                                        Подробнее
+                                    </a>
+
+                                    <!-- Sync stocks for specific store (NEW) -->
+                                    <form method="POST" action="{{ route('stores.stocks.sync', $store->id) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-green-600 hover:text-green-800"
+                                                onclick="return confirm('Обновить остатки для склада "{{ $store->name }}" ?')">
+                                        <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        Обновить остатки
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @endforeach
@@ -126,15 +155,26 @@
                 </svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">Нет складов</h3>
                 <p class="text-gray-600 mb-6">Выполните синхронизацию для загрузки складов из МойСклада</p>
-                <form method="POST" action="{{ route('stores.sync') }}" class="inline">
-                    @csrf
-                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                        </svg>
-                        Синхронизировать скадлы
-                    </button>
-                </form>
+                <div class="flex justify-center space-x-3">
+                    <form method="POST" action="{{ route('stores.sync') }}" class="inline">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Синхронизировать склады
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('stores.stocks.sync-all') }}" class="inline">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Обновить остатки
+                        </button>
+                    </form>
+                </div>
             </div>
         @endif
     </div>

@@ -45,5 +45,18 @@ Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
 Route::get('/stores/{store}', [StoreController::class, 'show'])->name('stores.show');
 Route::post('/stores/sync', [StoreController::class, 'sync'])->name('stores.sync');
 
+// Массовая синхронизация остатков по всем складам
+Route::post('/stores/stocks/sync-all', [StoreController::class, 'syncAllStocks'])
+    ->name('stores.stocks.sync-all');
+
+// Синхронизация остатков для конкретного склада
+Route::post('/stores/{store}/stocks-sync', [StoreController::class, 'syncStoreStocks'])
+    ->name('stores.stocks.sync');
+
+Route::post('/products/stocks/sync-all', [ProductController::class, 'syncAllStocks'])
+    ->name('products.stocks.sync-all');
+
+Route::post('/products/{moyskladId}/stocks-sync', [ProductController::class, 'syncStocks'])
+    ->name('products.stocks.sync');
 
 require __DIR__.'/auth.php';

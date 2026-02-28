@@ -198,10 +198,10 @@
                     <!-- Фильтр по наличию -->
                     <div class="col-md-2">
                         <label class="form-label">Наличие</label>
-                        <select name="in_stock" class="form-select">
+                        <select name="filter[in_stock]" class="form-select">
                             <option value="">Все</option>
-                            <option value="1" {{ request('in_stock') == '1' ? 'selected' : '' }}>В наличии</option>
-                            <option value="0" {{ request('in_stock') == '0' ? 'selected' : '' }}>Нет в наличии</option>
+                            <option value="1" {{ request('filter.in_stock') == '1' ? 'selected' : '' }}>В наличии</option>
+                            <option value="0" {{ request('filter.in_stock') == '0' ? 'selected' : '' }}>Нет в наличии</option>
                         </select>
                     </div>
 

@@ -74,4 +74,19 @@ class Product extends Model
 
         return round((($this->old_price - $this->price) / $this->old_price) * 100);
     }
+    /**
+     * Остатки товара по складам
+     */
+    public function stocks()
+    {
+        return $this->hasMany(ProductStock::class, 'product_id');
+    }
+
+    /**
+     * Общее количество товара на всех складах
+     */
+    public function getTotalQuantityAttribute()
+    {
+        return $this->stocks()->sum('quantity');
+    }
 }

@@ -49,7 +49,7 @@ class Store extends Model
      */
     public function stocks(): HasMany
     {
-        return $this->hasMany(ProductStock::class, 'store_id', 'id');
+        return $this->hasMany(ProductStock::class, 'store_id');
     }
 
     /**

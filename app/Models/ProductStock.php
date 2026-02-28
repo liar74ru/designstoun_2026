@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProductStock extends Model
@@ -17,83 +16,41 @@ class ProductStock extends Model
         'store_id',
         'quantity',
         'reserved',
+        'in_transit',
         'available',
-        'notes',
+        'notes'
     ];
 
     protected $casts = [
-        'quantity' => 'integer',
-        'reserved' => 'integer',
-        'available' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'quantity' => 'float',
+        'reserved' => 'float',
+        'in_transit' => 'float',
+        'available' => 'float',
     ];
 
     /**
-     * Получить товар
+     * Связь с товаром
      */
-    public function product(): BelongsTo
+    public function product()
     {
-        return $this->belongsTo(Product::class, 'product_id', 'id');
+        return $this->belongsTo(Product::class, 'product_id');
     }
 
     /**
-     * Получить склад
+     * Связь со складом
      */
-    public function store(): BelongsTo
+    public function store()
     {
-        return $this->belongsTo(Store::class, 'store_id', 'id');
+        return $this->belongsTo(Store::class, 'store_id');
     }
 
     /**
-     * Обновить доступное количество
+     * Автоматический расчет доступного количества
      */
-    public function updateAvailable(): void
+    protected static function booted()
     {
-        $this->available = max(0, $this->quantity - $this->reserved);
-        $this->save();
-    }
-
-    /**
-     * Увеличить остаток (поступление)
-     */
-    public function addQuantity(int $amount, ?string $notes = null): void
-    {
-        $this->quantity += $amount;
-        if ($notes) {
-            $this->notes = ($this->notes ? $this->notes . "\n" : '') . $notes;
-        }
-        $this->updateAvailable();
-    }
-
-    /**
-     * Уменьшить остаток (отпуск)
-     */
-    public function removeQuantity(int $amount, ?string $notes = null): void
-    {
-        $this->quantity = max(0, $this->quantity - $amount);
-        if ($notes) {
-            $this->notes = ($this->notes ? $this->notes . "\n" : '') . $notes;
-        }
-        $this->updateAvailable();
-    }
-
-    /**
-     * Зарезервировать товар
-     */
-    public function reserve(int $amount): void
-    {
-        $this->reserved += $amount;
-        $this->updateAvailable();
-    }
-
-    /**
-     * Отменить резервирование
-     */
-    public function unreserve(int $amount): void
-    {
-        $this->reserved = max(0, $this->reserved - $amount);
-        $this->updateAvailable();
+        static::saving(function ($stock) {
+            $stock->available = $stock->quantity - $stock->reserved;
+        });
     }
 }

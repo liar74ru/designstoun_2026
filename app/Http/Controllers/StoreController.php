@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Store;
 use App\Services\MoySkladService;
+use App\Services\StockSyncService;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 
@@ -56,6 +57,37 @@ class StoreController extends Controller
         } else {
             return redirect()->route('stores.index')
                 ->with('error', $result['message']);
+        }
+    }
+    /**
+     * Синхронизировать остатки по всем складам
+     */
+    public function syncAllStocks(StockSyncService $stockSyncService)
+    {
+        $result = $stockSyncService->syncAllStocksByStores();
+
+        if ($result['success']) {
+            return redirect()->route('stores.index')
+                ->with('success', $result['message']);
+        } else {
+            return redirect()->route('stores.index')
+                ->with('error', $result['message']);
+        }
+    }
+
+    /**
+     * Синхронизировать остатки для конкретного склада
+     */
+    public function syncStoreStocks(Store $store, StockSyncService $stockSyncService)
+    {
+        $result = $stockSyncService->syncStocksByStore($store->id);
+
+        if ($result['success']) {
+            return redirect()->route('stores.index')
+                ->with('success', "Склад '{$store->name}': {$result['message']}");
+        } else {
+            return redirect()->route('stores.index')
+                ->with('error', "Склад '{$store->name}': {$result['message']}");
         }
     }
 }

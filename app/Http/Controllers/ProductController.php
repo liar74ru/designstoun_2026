@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Services\StockSyncService;
 use Illuminate\Http\Request;
 use App\Services\MoySkladService;
 use App\Services\ProductGroupService;
@@ -39,9 +40,18 @@ class ProductController extends Controller
                     });
                 }),
                 AllowedFilter::exact('group_id'),
+                AllowedFilter::callback('in_stock', function($query, $value) {
+                    if ($value === '1') {
+                        $query->where('quantity', '>', 0);
+                    } elseif ($value === '0') {
+                        $query->where('quantity', '=', 0);
+                    }
+                }),
             ])
             ->defaultSort('id')
-            ->paginate(15);
+            ->allowedSorts(['name', 'sku', 'price', 'quantity', 'created_at'])
+            ->paginate(15)
+            ->withQueryString(); // Сохраняем параметры фильтрации в пагинации
 
         // Получаем дерево групп для фильтра
         $groupsTree = $this->productGroupService->getGroupsTree();
@@ -81,7 +91,10 @@ class ProductController extends Controller
      */
     public function show($id)
     {
-        $product = Product::where('moysklad_id', $id)->firstOrFail();
+        $product = Product::with(['stocks.store'])  // Загружаем остатки и связанные склады
+        ->where('moysklad_id', $id)
+            ->firstOrFail();
+
         return view('products.show', compact('product'));
     }
 
@@ -207,5 +220,37 @@ class ProductController extends Controller
 
         return redirect()->route('products.show', $product->moysklad_id)
             ->with('success', 'Товар обновлен');
+    }
+
+    /**
+     * Синхронизация остатков для конкретного товара
+     */
+    public function syncStocks($moyskladId)
+    {
+        // Создаем экземпляр сервиса напрямую
+        $stockSyncService = new StockSyncService();
+
+        $result = $stockSyncService->updateProductStocksByMoyskladId($moyskladId);
+
+        if ($result['success']) {
+            return redirect()->route('products.show', $moyskladId)
+                ->with('success', $result['message']);
+        } else {
+            return redirect()->route('products.show', $moyskladId)
+                ->with('error', $result['message']);
+        }
+    }
+
+    public function syncAllStocks(StockSyncService $stockSyncService)
+    {
+        $result = $stockSyncService->syncAllStocks();
+
+        if ($result['success']) {
+            return redirect()->route('products.index')
+                ->with('success', $result['message']);
+        } else {
+            return redirect()->route('products.index')
+                ->with('error', $result['message']);
+        }
     }
 }
