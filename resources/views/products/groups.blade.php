@@ -19,7 +19,7 @@
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <div class="tree-view">
-                            @include('products.partials.group-tree', ['groups' => $groupsTree])
+                            @include('components.group-tree', ['groups' => $groupsTree])
                         </div>
                     </div>
                 </div>

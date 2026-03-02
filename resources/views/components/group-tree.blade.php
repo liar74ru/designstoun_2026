@@ -20,7 +20,7 @@
 
                 @if(!empty($group['children']))
                     <div class="children" style="display: none;">
-                        @include('products.partials.group-tree', ['groups' => $group['children']])
+                        @include('components.group-tree', ['groups' => $group['children']])
                     </div>
                 @endif
             </li>

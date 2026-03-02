@@ -82,15 +82,27 @@
 
                     // Фильтруем товары
                     let count = 0;
+                    const filteredProducts = [];
+
                     for (const [productName, id] of Object.entries(allProducts)) {
                         if ((filterQuery === '' || matchesParts(productName, filterQuery)) && count < maxResults) {
-                            const option = document.createElement('option');
-                            option.value = productName;
-                            option.setAttribute('data-id', id);
-                            datalist.appendChild(option);
+                            filteredProducts.push({ name: productName, id: id });
                             count++;
                         }
                     }
+
+                    // Если остался только один вариант, не выводим список
+                    if (filteredProducts.length === 1) {
+                        return;
+                    }
+
+                    // Добавляем варианты в datalist
+                    filteredProducts.forEach(product => {
+                        const option = document.createElement('option');
+                        option.value = product.name;
+                        option.setAttribute('data-id', product.id);
+                        datalist.appendChild(option);
+                    });
                 }
 
                 // При вводе текста фильтруем товары
