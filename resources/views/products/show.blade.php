@@ -59,6 +59,10 @@
                                         <td><span class="badge bg-secondary">{{ $product->code ?? '—' }}</span></td>
                                     </tr>
                                     <tr>
+                                        <th>group_name:</th>
+                                        <td><span class="badge bg-secondary">{{ $product->group_name ?? '—' }}</span></td>
+                                    </tr>
+                                    <tr>
                                         <th>ID в МойСклад:</th>
                                         <td><small class="text-muted">{{ $product->moysklad_id }}</small></td>
                                     </tr>

@@ -42,19 +42,19 @@
                             </div>
 
                             <!-- Продукт -->
-                            <div class="mb-3">
-                                <label class="form-label">Продукт <span class="text-danger">*</span></label>
-                                <select name="product_id" class="form-select @error('product_id') is-invalid @enderror" required>
-                                    <option value="">— Выберите продукт —</option>
-                                    @foreach($products as $product)
-                                        <option value="{{ $product->id }}" {{ old('product_id', session('copy_from.product_id')) == $product->id ? 'selected' : '' }}>
-                                            {{ $product->name }} ({{ $product->sku }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            <!-- Используем компонент поиска товаров -->
+                            <x-product-search
+                                :products="$products"
+                                name="product_id"
+                                label="Продукт"
+                                placeholder="Начните вводить название или артикул..."
+                                required="true"
+                                :value="old('product_id', session('copy_from.product_id'))"
+                                :error="$errors->first('product_id')"
+                                :maxResults="10"
+                            />
 
-                            <!-- После выбора продукта (или в любом удобном месте) -->
+                            <!-- Партия Сырья -->
                             <div class="mb-3">
                                 <label class="form-label">Партия сырья <span class="text-danger">*</span></label>
                                 <select name="raw_material_batch_id" class="form-select @error('raw_material_batch_id') is-invalid @enderror" required>
@@ -72,7 +72,7 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label">Расход сырья (м²) <span class="text-danger">*</span></label>
+                                <label class="form-label">Расход сырья (м3) <span class="text-danger">*</span></label>
                                 <input type="number" step="0.001" min="0.001" name="raw_quantity_used"
                                        class="form-control @error('raw_quantity_used') is-invalid @enderror"
                                        value="{{ old('raw_quantity_used', session('copy_from.raw_quantity_used')) }}" required>
@@ -92,7 +92,7 @@
 
                             <!-- Количество -->
                             <div class="mb-3">
-                                <label class="form-label">Количество (м²) <span class="text-danger">*</span></label>
+                                <label class="form-label">Количество (м2) <span class="text-danger">*</span></label>
                                 <input type="number"
                                        step="0.001"
                                        min="0"

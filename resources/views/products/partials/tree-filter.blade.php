@@ -14,7 +14,7 @@
                         <span style="width: 24px; flex-shrink: 0; display: inline-block;"></span>
                     @endif
 
-                    <a href="{{ route('products.index', array_merge(request()->except(['page']), ['filter[group_id]' => $group['id']])) }}"
+                    <a href="{{ route('products.index', array_merge(request()->query(), ['filter[group_id]' => $group['id'], 'page' => 1])) }}"
                        class="text-decoration-none d-flex align-items-center flex-grow-1 py-1 px-2 rounded group-link"
                        style="min-width: 0; {{ isset($activeGroup) && $activeGroup == $group['id'] ? 'background-color: #0d6efd; color: white;' : 'color: #212529;' }}"
                        onmouseover="this.style.backgroundColor='{{ isset($activeGroup) && $activeGroup == $group['id'] ? '#0b5ed7' : '#f8f9fa' }}'"

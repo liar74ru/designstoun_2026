@@ -51,7 +51,7 @@
                     <!-- Auth кнопки - скрываем на очень маленьких экранах -->
                     <div class="d-none d-sm-flex align-items-center me-3">
                         @auth
-                            <a href="{{ route('profile.edit') }}" class="auth-button">
+                            <a href="{{ route('profile.edit') }}" class="btn btn-primary">
                                 {{ __('Profile') }}
                             </a>
                             <a href="{{ route('logout') }}"
@@ -65,10 +65,10 @@
                                 @csrf
                             </form>
                         @else
-                            <a href="{{ route('login') }}" class="auth-button">
+                            <a href="{{ route('login') }}" class="btn btn-primary">
                                 {{ __('Login')}}
                             </a>
-                            <a href="{{ route('register') }}" class="auth-button ml-2">
+                            <a href="{{ route('register') }}" class="btn btn-primary ml-2">
                                 {{ __('Register')}}
                             </a>
                         @endauth

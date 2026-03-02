@@ -12,8 +12,8 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class ProductController extends Controller
 {
-    private $moySkladService;
-    private $productGroupService;
+    private MoySkladService $moySkladService;
+    private ProductGroupService $productGroupService;
 
     public function __construct(MoySkladService $moySkladService, ProductGroupService $productGroupService)
     {
@@ -39,7 +39,15 @@ class ProductController extends Controller
                             ->orWhere('description', 'ILIKE', "%{$value}%");
                     });
                 }),
-                AllowedFilter::exact('group_id'),
+                AllowedFilter::callback('group_id', function($query, $value) {
+                    // Получаем ID выбранной группы и всех её детей через сервис
+                    $groupIds = $this->productGroupService->getGroupAndChildrenIds($value);
+
+                    if (!empty($groupIds)) {
+                        // Фильтруем товары по найденным ID групп
+                        $query->whereIn('group_id', $groupIds);
+                    }
+                }),
                 AllowedFilter::callback('in_stock', function($query, $value) {
                     if ($value === '1') {
                         $query->where('quantity', '>', 0);
@@ -49,9 +57,9 @@ class ProductController extends Controller
                 }),
             ])
             ->defaultSort('id')
-            ->allowedSorts(['name', 'sku', 'price', 'quantity', 'created_at'])
+            ->allowedSorts(['name', 'sku', 'price', 'quantity', 'group_id', 'created_at'])
             ->paginate(15)
-            ->withQueryString(); // Сохраняем параметры фильтрации в пагинации
+            ->withQueryString();
 
         // Получаем дерево групп для фильтра
         $groupsTree = $this->productGroupService->getGroupsTree();

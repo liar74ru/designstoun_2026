@@ -37,7 +37,6 @@
     <main style="padding-top: 70px;">
         @yield('content')
     </main>
-
     <!-- Footer -->
     @include('layouts.partials.footer')
 </div>

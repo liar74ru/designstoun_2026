@@ -64,23 +64,23 @@ Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController:
     ->name('stone-receptions.copy');
 
 
-    Route::resource('raw-batches', RawMaterialBatchController::class)->except(['edit', 'update']);
+Route::resource('raw-batches', RawMaterialBatchController::class)->except(['edit', 'update']);
 
-    // Дополнительные маршруты для передачи и возврата
-    Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])
-        ->name('raw-batches.transfer.form');
-    Route::post('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transfer'])
-        ->name('raw-batches.transfer');
+// Дополнительные маршруты для передачи и возврата
+Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])
+    ->name('raw-batches.transfer.form');
+Route::post('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transfer'])
+    ->name('raw-batches.transfer');
 
-    Route::get('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'returnForm'])
-        ->name('raw-batches.return.form');
-    Route::post('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'return'])
-        ->name('raw-batches.return');
+Route::get('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'returnForm'])
+    ->name('raw-batches.return.form');
+Route::post('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'return'])
+    ->name('raw-batches.return');
 
-    // Маршруты для приемок
-    Route::resource('stone-receptions', StoneReceptionController::class);
-    Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])
-        ->name('stone-receptions.copy');
+// Маршруты для приемок
+Route::resource('stone-receptions', StoneReceptionController::class);
+Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])
+    ->name('stone-receptions.copy');
 
 
 

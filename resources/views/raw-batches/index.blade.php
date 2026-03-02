@@ -31,10 +31,10 @@
                 <form method="GET" class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label">Статус</label>
-                        <select name="status" class="form-select">
+                        <select name="filter[status]" class="form-select">
                             <option value="">Все</option>
                             @foreach($statuses as $value => $label)
-                                <option value="{{ $value }}" {{ request('status') == $value ? 'selected' : '' }}>
+                                <option value="{{ $value }}" {{ request('filter.status') == $value ? 'selected' : '' }}>
                                     {{ $label }}
                                 </option>
                             @endforeach
@@ -42,29 +42,38 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Пильщик</label>
-                        <select name="worker_id" class="form-select">
+                        <select name="filter[current_worker_id]" class="form-select"> <!-- Изменено здесь -->
                             <option value="">Все</option>
                             @foreach($workers as $worker)
-                                <option value="{{ $worker->id }}" {{ request('worker_id') == $worker->id ? 'selected' : '' }}>
+                                <option value="{{ $worker->id }}" {{ request('filter.current_worker_id') == $worker->id ? 'selected' : '' }}>
                                     {{ $worker->name }}
                                 </option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Продукт</label>
-                        <select name="product_id" class="form-select">
+                        <label class="form-label">Сырьё</label>
+                        <select name="filter[product_id]" class="form-select">
                             <option value="">Все</option>
                             @foreach($products as $product)
-                                <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>
+                                <option value="{{ $product->id }}" {{ request('filter.product_id') == $product->id ? 'selected' : '' }}>
                                     {{ $product->name }}
                                 </option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-3">
+                        <label class="form-label">Группа товаров</label>
+                        <x-group-filter
+                            :groups="$groupsTree"
+                            :activeGroupId="request('filter.group_id')"
+                            formId="filterForm"
+                            inputName="filter[group_id]"
+                        />
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label">Поиск по номеру</label>
-                        <input type="text" name="search" class="form-control" value="{{ request('search') }}">
+                        <input type="text" name="filter[batch_number]" class="form-control" value="{{ request('filter.batch_number') }}"> <!-- Изменено здесь -->
                     </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-primary">Применить</button>

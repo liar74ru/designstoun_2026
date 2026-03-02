@@ -4,52 +4,69 @@ namespace App\Http\Controllers;
 
 use App\Models\RawMaterialBatch;
 use App\Models\Product;
+use App\Models\RawMaterialMovement;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Models\ProductStock;
+use App\Services\ProductGroupService;
 use App\Traits\ManagesStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class RawMaterialBatchController extends Controller
 {
     use ManagesStock;
+
+    private ProductGroupService $productGroupService;
+
+    public function __construct(ProductGroupService $productGroupService)
+    {
+        $this->productGroupService = $productGroupService;
+    }
 
     /**
      * Список партий с фильтрацией.
      */
     public function index(Request $request)
     {
-        $query = RawMaterialBatch::with(['product', 'currentStore', 'currentWorker']);
+        $baseQuery = RawMaterialBatch::with(['product', 'currentStore', 'currentWorker']);
 
-        // Фильтр по статусу
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
+        $batches = QueryBuilder::for($baseQuery)
+            ->allowedFilters([
+                AllowedFilter::exact('status'),
+                AllowedFilter::exact('current_worker_id'),
+                AllowedFilter::partial('batch_number'),
+                AllowedFilter::exact('product_id'),
+                AllowedFilter::callback('group_id', function($query, $value) {
+                    if (!empty($value)) {
+                        // Получаем ID выбранной группы и всех её детей через сервис
+                        $groupIds = $this->productGroupService->getGroupAndChildrenIds($value);
 
-        // Фильтр по пильщику
-        if ($request->filled('worker_id')) {
-            $query->where('current_worker_id', $request->worker_id);
-        }
+                        if (!empty($groupIds)) {
+                            // Фильтруем партии товаров по найденным ID групп
+                            $query->whereHas('product', function($q) use ($groupIds) {
+                                $q->whereIn('group_id', $groupIds);
+                            });
+                        }
+                    }
+                }),
+            ])
 
-        // Фильтр по продукту
-        if ($request->filled('product_id')) {
-            $query->where('product_id', $request->product_id);
-        }
-
-        // Поиск по номеру партии
-        if ($request->filled('search')) {
-            $query->where('batch_number', 'like', '%' . $request->search . '%');
-        }
-
-        $batches = $query->orderBy('created_at', 'desc')->paginate(15);
+            ->defaultSort('-created_at')
+            ->allowedSorts(['batch_number', 'created_at', 'quantity'])
+            ->paginate(15)
+            ->withQueryString();
 
         // Для фильтров в шаблоне
         $workers = Worker::orderBy('name')->get();
         $products = Product::orderBy('name')->get();
         $statuses = ['active' => 'Активные', 'used' => 'Израсходованы', 'returned' => 'Возвращены'];
 
-        return view('raw-batches.index', compact('batches', 'workers', 'products', 'statuses'));
+        $groupsTree = $this->productGroupService->getGroupsTree();
+
+        return view('raw-batches.index', compact('batches', 'workers', 'products', 'statuses', 'groupsTree'));
     }
 
     /**
@@ -122,7 +139,7 @@ class RawMaterialBatchController extends Controller
             ]);
 
             // Запись перемещения
-            \App\Models\RawMaterialMovement::create([
+            RawMaterialMovement::create([
                 'batch_id'       => $batch->id,
                 'from_store_id'  => $data['from_store_id'],
                 'to_store_id'    => $data['to_store_id'],
@@ -213,7 +230,7 @@ class RawMaterialBatchController extends Controller
         DB::transaction(function () use ($batch, $data) {
             $oldWorker = $batch->current_worker_id;
 
-            \App\Models\RawMaterialMovement::create([
+            RawMaterialMovement::create([
                 'batch_id'       => $batch->id,
                 'from_store_id'  => null,
                 'to_store_id'    => null,
@@ -263,7 +280,7 @@ class RawMaterialBatchController extends Controller
             $oldStore = $batch->current_store_id;
             $quantity = $batch->remaining_quantity;
 
-            \App\Models\RawMaterialMovement::create([
+            RawMaterialMovement::create([
                 'batch_id'       => $batch->id,
                 'from_store_id'  => $oldStore,
                 'to_store_id'    => $data['to_store_id'],

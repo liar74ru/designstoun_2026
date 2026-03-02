@@ -10,8 +10,9 @@
                 <i class="bi bi-box"></i> Товары в локальной базе
             </h1>
 
+            <!-- КНОПКИ: синхронизации -->
             <div class="btn-group">
-                <!-- НОВАЯ КНОПКА: синхронизация остатков по складам -->
+                <!-- КНОПКА: синхронизация остатков по складам -->
                 <form action="{{ route('products.stocks.sync-all-by-stores') }}" method="POST" class="d-inline">
                     @csrf
                     <button type="submit" class="btn btn-info me-2"
@@ -20,6 +21,7 @@
                     </button>
                 </form>
 
+                <!-- КНОПКА: синхронизация товаров и групп -->
                 <a href="{{ route('products.sync') }}" class="btn btn-success"
                    onclick="return confirm('Загрузить/обновить товары и группы из МойСклад?')">
                     <i class="bi bi-cloud-download"></i> Синхронизировать
@@ -135,7 +137,7 @@
         <!-- Фильтры -->
         <div class="card mb-4">
             <div class="card-body">
-                <form method="GET" action="{{ route('products.index') }}" class="row g-3">
+                <form method="GET" action="{{ route('products.index') }}" class="row g-3" id="filterForm">
                     <!-- Поиск -->
                     <div class="col-md-4">
                         <label class="form-label">Поиск</label>
@@ -144,64 +146,15 @@
                                value="{{ request('filter.search') }}">
                     </div>
 
-                    <!-- Фильтр по группе с древовидной структурой -->
+                    <!-- Фильтр по группе товаров (компонент) -->
                     <div class="col-md-3">
                         <label class="form-label">Группа товаров</label>
-                        <div class="dropdown-tree" id="groupFilterDropdown">
-                            <!-- Кнопка для открытия и текст на ней (выбранная категория или Все группы по умолчанию) -->
-                            <button class="btn btn-outline-secondary w-100 text-start d-flex justify-content-between align-items-center dropdown-toggle"
-                                    type="button"
-                                    id="groupDropdownBtn"
-                                    data-bs-toggle="dropdown"
-                                    data-bs-auto-close="outside"
-                                    aria-expanded="false">
-            <span class="truncate-text">
-                @if(request('filter.group_id'))  {{-- Изменено с request('group') --}}
-                @php
-                    $selectedGroup = App\Models\ProductGroup::where('moysklad_id', request('filter.group_id'))->first();
-                @endphp
-                <i class="bi bi-folder me-1"></i>
-                {{ $selectedGroup ? $selectedGroup->name : 'Выбрана группа' }}
-                @else
-                    <i class="bi bi-folder me-1"></i>
-                    Все группы
-                @endif
-            </span>
-                            </button>
-
-                            <!-- Выпадающее меню с деревом -->
-                            <div class="dropdown-menu w-100 p-0" aria-labelledby="groupDropdownBtn" style="max-height: 400px; overflow-y: auto;">
-                                <div class="p-2">
-                                    <!-- Ссылка на все группы -->
-                                    <a href="{{ route('products.index', array_merge(request()->except(['filter.group_id', 'page']), ['filter[group_id]' => ''])) }}"
-                                    class="dropdown-item d-flex align-items-center justify-content-between {{ !request('filter.group_id') ? 'active' : '' }}">
-                                        <span>
-                        <i class="bi bi-folder me-2"></i>
-                        Все группы
-                    </span>
-                                        <span class="badge {{ !request('filter.group_id') ? 'bg-light text-primary' : 'bg-secondary' }}">
-                                            {{ App\Models\Product::count() }}
-                    </span>
-                                    </a>
-
-                                    <div class="dropdown-divider"></div>
-
-                                    <!-- Дерево групп -->
-                                    <div class="tree-filter-wrapper">
-                                        @include('products.partials.tree-filter', [
-                                            'groups' => $groupsTree,
-                                            'level' => 0,
-                                            'activeGroup' => request('filter.group_id')
-                                        ])
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <small class="text-muted">
-                            <i class="bi bi-info-circle"></i>
-                            Всего групп: {{ App\Models\ProductGroup::count() }},
-                            товаров: {{ App\Models\Product::count() }}
-                        </small>
+                        <x-group-filter
+                            :groups="$groupsTree"
+                            :activeGroupId="request('filter.group_id')"
+                            formId="filterForm"
+                            inputName="filter[group_id]"
+                        />
                     </div>
 
                     <!-- Фильтр по наличию -->
