@@ -60,7 +60,8 @@ class WorkerController extends Controller
      */
     public function edit(Worker $worker)
     {
-        return view('workers.edit', compact('worker'));
+        $departments = Department::orderBy('name')->get();
+        return view('workers.edit', compact('worker', 'departments'));
     }
 
     /**

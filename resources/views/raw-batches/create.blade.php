@@ -15,24 +15,34 @@
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-body p-4">
-                        <form method="POST" action="{{ route('raw-batches.store') }}">
+                        <form method="POST" action="{{ route('raw-movement.store') }}">
                             @csrf
 
                             <!-- Продукт (сырьё) -->
-                            <div class="mb-3">
-                                <label class="form-label">Продукт (сырьё) <span class="text-danger">*</span></label>
-                                <select name="product_id" class="form-select @error('product_id') is-invalid @enderror" required>
-                                    <option value="">— Выберите сырьё —</option>
-                                    @foreach($products as $product)
-                                        <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>
-                                            {{ $product->name }} ({{ $product->sku }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('product_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+                            <x-product-search
+                                :products="$products"
+                                name="product_id"
+                                label="Сырье"
+                                placeholder="Начните вводить название или артикул..."
+                                required="true"
+                                :value="old('product_id', session('copy_from.product_id'))"
+                                :error="$errors->first('product_id')"
+                                :maxResults="10"
+                            />
+{{--                            <div class="mb-3">--}}
+{{--                                <label class="form-label">Продукт (сырьё) <span class="text-danger">*</span></label>--}}
+{{--                                <select name="product_id" class="form-select @error('product_id') is-invalid @enderror" required>--}}
+{{--                                    <option value="">— Выберите сырьё —</option>--}}
+{{--                                    @foreach($products as $product)--}}
+{{--                                        <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>--}}
+{{--                                            {{ $product->name }} ({{ $product->sku }})--}}
+{{--                                        </option>--}}
+{{--                                    @endforeach--}}
+{{--                                </select>--}}
+{{--                                @error('product_id')--}}
+{{--                                <div class="invalid-feedback">{{ $message }}</div>--}}
+{{--                                @enderror--}}
+{{--                            </div>--}}
 
                             <!-- Количество -->
                             <div class="mb-3">

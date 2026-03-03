@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RawMaterialBatchController;
+use App\Http\Controllers\RawMaterialMovementController;
 use App\Http\Controllers\StoneReceptionController;
 use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
@@ -64,7 +65,7 @@ Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController:
     ->name('stone-receptions.copy');
 
 
-Route::resource('raw-batches', RawMaterialBatchController::class)->except(['edit', 'update']);
+Route::resource('raw-batches', RawMaterialBatchController::class)->except(['edit', 'update', 'store']);
 
 // Дополнительные маршруты для передачи и возврата
 Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])
@@ -74,7 +75,7 @@ Route::post('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 
 
 Route::get('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'returnForm'])
     ->name('raw-batches.return.form');
-Route::post('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'return'])
+Route::post('raw-batches/{batch}/return', [RawMaterialMovementController::class, 'return'])
     ->name('raw-batches.return');
 
 // Маршруты для приемок
@@ -82,6 +83,8 @@ Route::resource('stone-receptions', StoneReceptionController::class);
 Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])
     ->name('stone-receptions.copy');
 
+Route::post('raw-batches/create', [RawMaterialMovementController::class, 'store'])
+    ->name('raw-movement.store');
 
 
 require __DIR__.'/auth.php';

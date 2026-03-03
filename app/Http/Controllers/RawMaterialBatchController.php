@@ -96,7 +96,6 @@ class RawMaterialBatchController extends Controller
      */
     public function create()
     {
-        // Только продукты, которые могут быть сырьём (можно добавить условие, если есть is_raw)
         $products = Product::orderBy('name')->get();
         $stores = Store::orderBy('name')->get();
         $workers = Worker::orderBy('name')->get();
@@ -107,57 +106,57 @@ class RawMaterialBatchController extends Controller
     /**
      * Сохранение новой партии.
      */
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'product_id'       => 'required|exists:products,id',
-            'quantity'         => 'required|numeric|min:0.001',
-            'worker_id'        => 'required|exists:workers,id',
-            'from_store_id'    => 'required|exists:stores,id',
-            'to_store_id'      => 'required|exists:stores,id',
-            'batch_number'     => 'nullable|string|max:255',
-        ]);
-
-        // Проверка наличия сырья на складе-источнике
-        $sourceStock = ProductStock::where('product_id', $data['product_id'])
-            ->where('store_id', $data['from_store_id'])
-            ->first();
-
-        if (!$sourceStock || $sourceStock->quantity < $data['quantity']) {
-            return back()->withErrors(['quantity' => 'Недостаточно сырья на складе.'])->withInput();
-        }
-
-        DB::transaction(function () use ($data) {
-            $batch = RawMaterialBatch::create([
-                'product_id'          => $data['product_id'],
-                'initial_quantity'    => $data['quantity'],
-                'remaining_quantity'  => $data['quantity'],
-                'current_store_id'    => $data['to_store_id'],
-                'current_worker_id'   => $data['worker_id'],
-                'batch_number'        => $data['batch_number'],
-                'status'              => 'active',
-            ]);
-
-            // Запись перемещения
-            RawMaterialMovement::create([
-                'batch_id'       => $batch->id,
-                'from_store_id'  => $data['from_store_id'],
-                'to_store_id'    => $data['to_store_id'],
-                'from_worker_id' => null,
-                'to_worker_id'   => $data['worker_id'],
-                'moved_by'       => auth()->id(), // предполагается, что пользователь авторизован
-                'movement_type'  => 'create',
-                'quantity'       => $data['quantity'],
-            ]);
-
-            // Обновление остатков
-            $this->adjustStock($data['product_id'], $data['from_store_id'], -$data['quantity']);
-            $this->adjustStock($data['product_id'], $data['to_store_id'], +$data['quantity']);
-        });
-
-        return redirect()->route('raw-batches.index')
-            ->with('success', 'Партия сырья успешно создана.');
-    }
+//    public function store(Request $request)
+//    {
+//        $data = $request->validate([
+//            'product_id'       => 'required|exists:products,id',
+//            'quantity'         => 'required|numeric|min:0.001',
+//            'worker_id'        => 'required|exists:workers,id',
+//            'from_store_id'    => 'required|exists:stores,id',
+//            'to_store_id'      => 'required|exists:stores,id',
+//            'batch_number'     => 'nullable|string|max:255',
+//        ]);
+//
+//        // Проверка наличия сырья на складе-источнике
+//        $sourceStock = ProductStock::where('product_id', $data['product_id'])
+//            ->where('store_id', $data['from_store_id'])
+//            ->first();
+//
+//        if (!$sourceStock || $sourceStock->quantity < $data['quantity']) {
+//            return back()->withErrors(['quantity' => 'Недостаточно сырья на складе.'])->withInput();
+//        }
+//
+//        DB::transaction(function () use ($data) {
+//            $batch = RawMaterialBatch::create([
+//                'product_id'          => $data['product_id'],
+//                'initial_quantity'    => $data['quantity'],
+//                'remaining_quantity'  => $data['quantity'],
+//                'current_store_id'    => $data['to_store_id'],
+//                'current_worker_id'   => $data['worker_id'],
+//                'batch_number'        => $data['batch_number'],
+//                'status'              => 'active',
+//            ]);
+//
+//            // Запись перемещения
+//            RawMaterialMovement::create([
+//                'batch_id'       => $batch->id,
+//                'from_store_id'  => $data['from_store_id'],
+//                'to_store_id'    => $data['to_store_id'],
+//                'from_worker_id' => null,
+//                'to_worker_id'   => $data['worker_id'],
+//                'moved_by'       => auth()->id(), // предполагается, что пользователь авторизован
+//                'movement_type'  => 'create',
+//                'quantity'       => $data['quantity'],
+//            ]);
+//
+//            // Обновление остатков
+//            $this->adjustStock($data['product_id'], $data['from_store_id'], -$data['quantity']);
+//            $this->adjustStock($data['product_id'], $data['to_store_id'], +$data['quantity']);
+//        });
+//
+//        return redirect()->route('raw-batches.index')
+//            ->with('success', 'Партия сырья успешно создана.');
+//    }
 
     /**
      * Форма редактирования (если нужна).
@@ -266,43 +265,43 @@ class RawMaterialBatchController extends Controller
     /**
      * Обработка возврата.
      */
-    public function return(Request $request, RawMaterialBatch $batch)
-    {
-        if (!$batch->isActive()) {
-            return back()->withErrors(['batch' => 'Эта партия уже неактивна.']);
-        }
-
-        $data = $request->validate([
-            'to_store_id' => 'required|exists:stores,id',
-        ]);
-
-        DB::transaction(function () use ($batch, $data) {
-            $oldStore = $batch->current_store_id;
-            $quantity = $batch->remaining_quantity;
-
-            RawMaterialMovement::create([
-                'batch_id'       => $batch->id,
-                'from_store_id'  => $oldStore,
-                'to_store_id'    => $data['to_store_id'],
-                'from_worker_id' => $batch->current_worker_id,
-                'to_worker_id'   => null,
-                'moved_by'       => auth()->id(),
-                'movement_type'  => 'return_to_store',
-                'quantity'       => $quantity,
-            ]);
-
-            // Обновление остатков
-            $this->adjustStock($batch->product_id, $oldStore, -$quantity);
-            $this->adjustStock($batch->product_id, $data['to_store_id'], +$quantity);
-
-            // Обновление партии
-            $batch->current_store_id = $data['to_store_id'];
-            $batch->current_worker_id = null;
-            $batch->status = 'returned';
-            $batch->save();
-        });
-
-        return redirect()->route('raw-batches.show', $batch)
-            ->with('success', 'Партия возвращена на склад.');
-    }
+//    public function return(Request $request, RawMaterialBatch $batch)
+//    {
+//        if (!$batch->isActive()) {
+//            return back()->withErrors(['batch' => 'Эта партия уже неактивна.']);
+//        }
+//
+//        $data = $request->validate([
+//            'to_store_id' => 'required|exists:stores,id',
+//        ]);
+//
+//        DB::transaction(function () use ($batch, $data) {
+//            $oldStore = $batch->current_store_id;
+//            $quantity = $batch->remaining_quantity;
+//
+//            RawMaterialMovement::create([
+//                'batch_id'       => $batch->id,
+//                'from_store_id'  => $oldStore,
+//                'to_store_id'    => $data['to_store_id'],
+//                'from_worker_id' => $batch->current_worker_id,
+//                'to_worker_id'   => null,
+//                'moved_by'       => auth()->id(),
+//                'movement_type'  => 'return_to_store',
+//                'quantity'       => $quantity,
+//            ]);
+//
+//            // Обновление остатков
+//            $this->adjustStock($batch->product_id, $oldStore, -$quantity);
+//            $this->adjustStock($batch->product_id, $data['to_store_id'], +$quantity);
+//
+//            // Обновление партии
+//            $batch->current_store_id = $data['to_store_id'];
+//            $batch->current_worker_id = null;
+//            $batch->status = 'returned';
+//            $batch->save();
+//        });
+//
+//        return redirect()->route('raw-batches.show', $batch)
+//            ->with('success', 'Партия возвращена на склад.');
+//    }
 }
