@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class StoneReception extends Model
 {
@@ -11,16 +12,14 @@ class StoneReception extends Model
     protected $fillable = [
         'receiver_id',
         'cutter_id',
-        'product_id',
         'store_id',
-        'quantity',
-        'notes',
         'raw_material_batch_id',
-        'raw_quantity_used'
+        'raw_quantity_used',
+        'notes'
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:3',
+        'raw_quantity_used' => 'decimal:3',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -42,14 +41,6 @@ class StoneReception extends Model
     }
 
     /**
-     * Продукт
-     */
-    public function product()
-    {
-        return $this->belongsTo(Product::class);
-    }
-
-    /**
      * Склад
      */
     public function store()
@@ -58,11 +49,51 @@ class StoneReception extends Model
     }
 
     /**
-     * Получить последние 10 приемок
+     * Партия сырья
+     */
+    public function rawMaterialBatch()
+    {
+        return $this->belongsTo(RawMaterialBatch::class);
+    }
+
+    /**
+     * Позиции приемки (продукты)
+     */
+    public function items()
+    {
+        return $this->hasMany(StoneReceptionItem::class);
+    }
+
+    /**
+     * Получить общее количество продукции
+     */
+    public function getTotalQuantityAttribute()
+    {
+        return $this->items->sum('quantity');
+    }
+
+    /**
+     * Получить список продуктов через позиции
+     */
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'stone_reception_items')
+            ->withPivot('quantity')
+            ->withTimestamps();
+    }
+
+    /**
+     * Получить последние приемки
      */
     public static function getLastReceptions($limit = 10)
     {
-        return self::with(['receiver', 'cutter', 'product', 'store'])
+        return self::with([
+            'receiver',
+            'cutter',
+            'store',
+            'items.product',
+            'rawMaterialBatch.product'
+        ])
             ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->get();
@@ -75,49 +106,100 @@ class StoneReception extends Model
     {
         $this->receiver_id = $other->receiver_id;
         $this->cutter_id = $other->cutter_id;
-        $this->product_id = $other->product_id;
         $this->store_id = $other->store_id;
-        $this->quantity = $other->quantity;
+        $this->raw_material_batch_id = $other->raw_material_batch_id;
+        $this->raw_quantity_used = $other->raw_quantity_used;
         $this->notes = $other->notes;
 
         return $this;
     }
 
-    protected static function booted()
+    /**
+     * Обновить остатки на складе и в партии сырья
+     */
+    public function updateStocks()
     {
-        static::created(function ($reception) {
-            // Найти или создать запись в product_stocks для этого склада
-            $stock = ProductStock::firstOrCreate([
-                'product_id' => $reception->product_id,
-                'store_id' => $reception->store_id
-            ]);
+        DB::transaction(function () {
+            // Добавляем готовую продукцию на склад
+            foreach ($this->items as $item) {
+                $stock = ProductStock::firstOrCreate([
+                    'product_id' => $item->product_id,
+                    'store_id' => $this->store_id
+                ]);
 
-            // Увеличить количество
-            $stock->quantity += $reception->quantity;
-            $stock->save();
-        });
-
-        static::updated(function ($reception) {
-            // Логика обновления остатка при изменении
-            // Сложнее - нужно учитывать разницу
-        });
-
-        static::deleted(function ($reception) {
-            // Уменьшить количество при удалении
-            $stock = ProductStock::where([
-                'product_id' => $reception->product_id,
-                'store_id' => $reception->store_id
-            ])->first();
-
-            if ($stock) {
-                $stock->quantity -= $reception->quantity;
+                $stock->quantity += $item->quantity;
                 $stock->save();
+            }
+
+            // Списываем сырье из партии
+            if ($this->rawMaterialBatch) {
+                $batch = $this->rawMaterialBatch;
+                $batch->remaining_quantity -= $this->raw_quantity_used;
+
+                // Если сырье закончилось, меняем статус партии
+                if ($batch->remaining_quantity <= 0) {
+                    $batch->status = 'used';
+                    $batch->remaining_quantity = 0;
+                }
+                $batch->save();
+
+                // Создаем запись о списании сырья
+                RawMaterialMovement::create([
+                    'batch_id' => $batch->id,
+                    'from_store_id' => $this->store_id,
+                    'to_store_id' => null,
+                    'from_worker_id' => $this->cutter_id,
+                    'to_worker_id' => null,
+                    'moved_by' => $this->receiver_id,
+                    'movement_type' => 'use',
+                    'quantity' => $this->raw_quantity_used,
+                ]);
             }
         });
     }
 
-    public function rawMaterialBatch()
+    protected static function booted()
     {
-        return $this->belongsTo(RawMaterialBatch::class);
+        static::created(function ($reception) {
+            $reception->updateStocks();
+        });
+
+        static::deleted(function ($reception) {
+            // Уменьшаем количество готовой продукции при удалении
+            foreach ($reception->items as $item) {
+                $stock = ProductStock::where([
+                    'product_id' => $item->product_id,
+                    'store_id' => $reception->store_id
+                ])->first();
+
+                if ($stock) {
+                    $stock->quantity -= $item->quantity;
+                    $stock->save();
+                }
+            }
+
+            // Возвращаем сырье обратно в партию
+            if ($reception->rawMaterialBatch) {
+                $batch = $reception->rawMaterialBatch;
+                $batch->remaining_quantity += $reception->raw_quantity_used;
+
+                if ($batch->remaining_quantity > 0) {
+                    $batch->status = 'active';
+                }
+                $batch->save();
+
+                // Создаем запись о возврате сырья
+                RawMaterialMovement::create([
+                    'batch_id' => $batch->id,
+                    'from_store_id' => null,
+                    'to_store_id' => $reception->store_id,
+                    'from_worker_id' => null,
+                    'to_worker_id' => $reception->cutter_id,
+                    'moved_by' => $reception->receiver_id,
+                    'movement_type' => 'return_to_store',
+                    'quantity' => $reception->raw_quantity_used,
+                ]);
+            }
+        });
     }
 }

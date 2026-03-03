@@ -27,8 +27,10 @@
                         <tr>
                             <th>#</th>
                             <th>Дата</th>
-                            <th>Продукт</th>
-                            <th>Количество</th>
+                            <th>Продукция</th>
+                            <th>Всего</th>
+                            <th>Сырье</th>
+                            <th>Расход</th>
                             <th>Приемщик</th>
                             <th>Пильщик</th>
                             <th>Склад</th>
@@ -41,14 +43,36 @@
                                 <td>{{ $reception->id }}</td>
                                 <td>{{ $reception->created_at->format('d.m.Y H:i') }}</td>
                                 <td>
-                                    <a href=" {{ route('products.show', $reception->product->moysklad_id) }} ">
-                                    <strong>{{ $reception->product->name }}</strong>
-                                    </a>
-                                    <br>
-                                    <small class="text-muted">{{ $reception->product->sku }}</small>
+                                    @foreach($reception->items as $item)
+                                        <div class="mb-1">
+                                            <a href="{{ route('products.show', $item->product->moysklad_id) }}">
+                                                <strong>{{ $item->product->name }}</strong>
+                                            </a>
+                                            <br>
+                                            <small class="text-muted">{{ $item->product->sku }}</small>
+                                            <span class="badge bg-info ms-2">{{ number_format($item->quantity, 3) }} м²</span>
+                                        </div>
+                                        @if(!$loop->last)
+                                            <hr class="my-1">
+                                        @endif
+                                    @endforeach
                                 </td>
                                 <td>
-                                    <span class="badge bg-primary">{{ number_format($reception->quantity, 3) }} м²</span>
+                                    <span class="badge bg-primary">{{ number_format($reception->total_quantity, 3) }} м²</span>
+                                </td>
+                                <td>
+                                    @if($reception->rawMaterialBatch)
+                                        <a href="{{ route('raw-batches.show', $reception->rawMaterialBatch) }}">
+                                            {{ $reception->rawMaterialBatch->product->name }}
+                                        </a>
+                                        <br>
+                                        <small class="text-muted">Партия #{{ $reception->rawMaterialBatch->id }}</small>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning">{{ number_format($reception->raw_quantity_used, 3) }} м³</span>
                                 </td>
                                 <td>{{ $reception->receiver->name }}</td>
                                 <td>{{ $reception->cutter->name ?? '—' }}</td>
@@ -60,10 +84,15 @@
                                            title="Редактировать">
                                             <i class="bi bi-pencil"></i>
                                         </a>
+                                        <a href="{{ route('stone-receptions.show', $reception) }}"
+                                           class="btn btn-sm btn-outline-info"
+                                           title="Просмотр">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
                                         <form action="{{ route('stone-receptions.destroy', $reception) }}"
                                               method="POST"
                                               class="d-inline"
-                                              onsubmit="return confirm('Удалить приемку?')">
+                                              onsubmit="return confirm('Удалить приемку? Это также удалит все позиции продукции.')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
