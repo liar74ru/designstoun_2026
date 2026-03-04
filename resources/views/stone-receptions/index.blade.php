@@ -123,24 +123,37 @@
                                                 <i class="bi bi-pencil"></i>
                                             </a>
                                         @endif
+
+                                        <!-- Кнопка копирования (доступна всегда) -->
+                                        <form action="{{ route('stone-receptions.copy', $reception) }}"
+                                              method="POST"
+                                              class="d-inline"
+                                              title="Копировать">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-info">
+                                                <i class="bi bi-copy"></i>
+                                            </button>
+                                        </form>
+
                                         <a href="{{ route('stone-receptions.show', $reception) }}"
                                            class="btn btn-sm btn-outline-info"
                                            title="Просмотр">
                                             <i class="bi bi-eye"></i>
                                         </a>
-                                            <!-- В колонке Действия, после других кнопок -->
-                                            @if($reception->status != 'active')
-                                                <form action="{{ route('stone-receptions.reset-status', $reception) }}"
-                                                      method="POST"
-                                                      class="d-inline"
-                                                      onsubmit="return confirm('Сбросить статус приемки на Активна?')">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <button type="submit" class="btn btn-sm btn-outline-warning" title="Сбросить статус">
-                                                        <i class="bi bi-arrow-counterclockwise"></i>
-                                                    </button>
-                                                </form>
-                                            @endif
+
+                                        @if($reception->status != 'active')
+                                            <form action="{{ route('stone-receptions.reset-status', $reception) }}"
+                                                  method="POST"
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Сбросить статус приемки на Активна?')">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="btn btn-sm btn-outline-warning" title="Сбросить статус">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+
                                         @if($reception->status == 'active')
                                             <form action="{{ route('stone-receptions.destroy', $reception) }}"
                                                   method="POST"

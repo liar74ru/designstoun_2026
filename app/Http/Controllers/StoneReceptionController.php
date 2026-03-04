@@ -37,7 +37,7 @@ class StoneReceptionController extends Controller
             'products' => Product::orderBy('name')->get(),
             'stores' => Store::orderBy('name')->get(),
             'defaultStore' => Store::find(env('DEFAULT_STORE_ID', self::DEFAULT_STORE_ID)),
-            'activeBatches' => collect(), // По умолчанию пусто
+            'activeBatches' => collect(),
         ];
 
         // Если редактируем приемку
@@ -45,9 +45,52 @@ class StoneReceptionController extends Controller
             $reception->load('items', 'rawMaterialBatch.currentWorker');
             $data['stoneReception'] = $reception;
 
-            // Для редактирования показываем партии пильщика из этой приемки
+            // Получаем активные партии для пильщика из этой приемки
             if ($reception->cutter_id) {
-                $data['activeBatches'] = $this->getActiveBatches($reception->cutter_id);
+                $batches = $this->getActiveBatches($reception->cutter_id);
+
+                // Всегда добавляем текущую партию (даже если она неактивна)
+                if ($reception->rawMaterialBatch) {
+                    $currentBatch = $reception->rawMaterialBatch;
+
+                    // Проверяем, есть ли уже эта партия в списке
+                    $exists = $batches->contains('id', $currentBatch->id);
+
+                    if (!$exists) {
+                        // Создаем копию с правильным отображением
+                        $currentBatchCopy = clone $currentBatch;
+                        $currentBatchCopy->remaining_quantity = $currentBatch->remaining_quantity + $reception->raw_quantity_used;
+                        $batches->prepend($currentBatchCopy);
+                    }
+                }
+
+                $data['activeBatches'] = $batches;
+            }
+        }// Если редактируем приемку
+        if ($reception) {
+            $reception->load('items', 'rawMaterialBatch.currentWorker');
+            $data['stoneReception'] = $reception;
+
+            // Получаем активные партии для пильщика из этой приемки
+            if ($reception->cutter_id) {
+                $batches = $this->getActiveBatches($reception->cutter_id);
+
+                // Всегда добавляем текущую партию (даже если она неактивна)
+                if ($reception->rawMaterialBatch) {
+                    $currentBatch = $reception->rawMaterialBatch;
+
+                    // Проверяем, есть ли уже эта партия в списке
+                    $exists = $batches->contains('id', $currentBatch->id);
+
+                    if (!$exists) {
+                        // Создаем копию с правильным отображением
+                        $currentBatchCopy = clone $currentBatch;
+                        $currentBatchCopy->remaining_quantity = $currentBatch->remaining_quantity + $reception->raw_quantity_used;
+                        $batches->prepend($currentBatchCopy);
+                    }
+                }
+
+                $data['activeBatches'] = $batches;
             }
         }
         // Если создаем новую приемку и выбран пильщик
@@ -93,13 +136,13 @@ class StoneReceptionController extends Controller
     /**
      * Показывает форму для создания новой приемки
      */
-    /**
-     * Показывает форму для создания новой приемки
-     */
     public function create(Request $request)
     {
         // Получаем ID пильщика из GET параметра
         $cutterId = $request->input('cutter_id');
+
+        // Получаем ID партии из GET параметра
+        $batchId = $request->input('raw_material_batch_id');
 
         // Получаем данные формы
         $data = $this->getFormData(null, $cutterId);
@@ -107,14 +150,18 @@ class StoneReceptionController extends Controller
         // Добавляем последние приемки
         $data['lastReceptions'] = $this->getLastReceptions();
 
-        // ВАЖНО: Получаем партии ТОЛЬКО для выбранного пильщика
+        // Получаем партии для выбранного пильщика
         if ($cutterId) {
             $data['filteredBatches'] = $this->getActiveBatches($cutterId);
         } else {
-            $data['filteredBatches'] = collect(); // Пустая коллекция, если пильщик не выбран
+            $data['filteredBatches'] = collect();
         }
 
         $data['selectedCutterId'] = $cutterId;
+        $data['selectedBatchId'] = $batchId;
+
+        // Получаем данные для копирования из сессии
+        $data['copiedData'] = session('copy_data');
 
         return view('stone-receptions.create', $data);
     }
@@ -138,8 +185,22 @@ class StoneReceptionController extends Controller
             throw $e;
         }
 
-        // Проверяем, достаточно ли сырья в выбранной партии
-        if (!$this->checkBatchStock($data['raw_material_batch_id'], $data['raw_quantity_used'])) {
+        // Проверяем, выбран ли пильщик
+        if (!$request->input('cutter_id')) {
+            return back()
+                ->withErrors(['cutter_id' => 'Выберите пильщика'])
+                ->withInput();
+        }
+
+        // Проверяем остаток в выбранной партии
+        $batch = RawMaterialBatch::find($data['raw_material_batch_id']);
+        if (!$batch) {
+            return back()
+                ->withErrors(['raw_material_batch_id' => 'Партия сырья не найдена'])
+                ->withInput();
+        }
+
+        if ($batch->remaining_quantity < $data['raw_quantity_used']) {
             return back()
                 ->withErrors(['raw_quantity_used' => 'Недостаточно сырья в выбранной партии'])
                 ->withInput();
@@ -148,7 +209,7 @@ class StoneReceptionController extends Controller
         try {
             // Используем транзакцию для гарантии целостности данных
             DB::transaction(function () use ($data) {
-                // Создаем запись о приемке
+                // Создаем запись о приемке (updateStocks() вызовется автоматически через booted())
                 $reception = StoneReception::create($this->prepareReceptionData($data));
 
                 // Добавляем позиции (какие продукты получили)
@@ -160,7 +221,10 @@ class StoneReceptionController extends Controller
                 ]);
             });
 
-            return redirect()->route('stone-receptions.create')
+            // Очищаем данные копирования из сессии
+            session()->forget('copy_data');
+
+            return redirect()->route('stone-receptions.create', ['cutter_id' => $request->input('cutter_id')])
                 ->with('success', 'Приемка успешно создана');
 
         } catch (\Exception $e) {
@@ -311,28 +375,57 @@ class StoneReceptionController extends Controller
      * @param StoneReception $stoneReception Приемка для копирования
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function copy(StoneReception $stoneReception)
+    public function copy(Request $request, StoneReception $stoneReception)
     {
         try {
-            // Загружаем связанные данные
+            // Загружаем позиции приемки
             $stoneReception->load('items');
 
-            // Сохраняем данные в сессии для предзаполнения формы
-            session()->flash('copy_from', [
-                'reception' => $this->prepareReceptionData($stoneReception->toArray(), false, true),
+            // Формируем данные для копирования
+            $copyData = [
+                'receiver_id' => $stoneReception->receiver_id,
+                'notes' => $stoneReception->notes . ' (копия)',
                 'products' => $stoneReception->items->map(fn($item) => [
                     'product_id' => $item->product_id,
                     'quantity' => $item->quantity,
                 ])->toArray()
-            ]);
+            ];
+
+            // Получаем текущие значения из формы
+            $currentCutterId = $request->input('cutter_id');
+            $currentBatchId = $request->input('raw_material_batch_id');
+
+            // Сохраняем в сессию данные для копирования
+            session()->put('copy_data', $copyData);
+
+            // Если есть текущий пильщик, сохраняем его в отдельную сессию
+            if ($currentCutterId) {
+                session()->put('copy_cutter_id', $currentCutterId);
+            }
+
+            // Если есть текущая партия, сохраняем её
+            if ($currentBatchId) {
+                session()->put('copy_batch_id', $currentBatchId);
+            }
 
             Log::info('Приемка скопирована', [
                 'original_id' => $stoneReception->id,
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
+                'current_cutter_id' => $currentCutterId,
+                'current_batch_id' => $currentBatchId
             ]);
 
-            return redirect()->route('stone-receptions.create')
-                ->with('success', 'Данные скопированы. Измените при необходимости.');
+            // Формируем URL с параметрами
+            $params = [];
+            if ($currentCutterId) {
+                $params['cutter_id'] = $currentCutterId;
+            }
+            if ($currentBatchId) {
+                $params['raw_material_batch_id'] = $currentBatchId;
+            }
+
+            return redirect()->route('stone-receptions.create', $params)
+                ->with('success', 'Продукты скопированы. Проверьте данные и сохраните приемку.');
 
         } catch (\Exception $e) {
             Log::error('Ошибка при копировании приемки', [
@@ -340,8 +433,8 @@ class StoneReceptionController extends Controller
                 'reception_id' => $stoneReception->id
             ]);
 
-            return redirect()->route('stone-receptions.index')
-                ->withErrors(['error' => 'Произошла ошибка при копировании приемки']);
+            return redirect()->route('stone-receptions.create')
+                ->withErrors(['error' => 'Ошибка при копировании: ' . $e->getMessage()]);
         }
     }
 
