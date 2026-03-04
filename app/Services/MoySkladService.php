@@ -5,15 +5,13 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Models\Store;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Evgeek\Moysklad\MoySklad;
-use Evgeek\Moysklad\Api\Record\Objects\Entities\Product as MsProduct;
-use Evgeek\Moysklad\Api\Record\Collections\Entities\ProductCollection;
 
 class MoySkladService
 {
-    private $ms;
     private $token;
+    private $baseUrl = 'https://api.moysklad.ru/api/remap/1.2';
 
     public function __construct()
     {
@@ -22,13 +20,6 @@ class MoySkladService
         if (empty($this->token)) {
             Log::warning('MOYSKLAD_TOKEN не установлен в .env файле');
         }
-
-        try {
-            $this->ms = new MoySklad([$this->token]);
-        } catch (\Exception $e) {
-            Log::error('Ошибка инициализации MoySklad клиента', ['error' => $e->getMessage()]);
-            $this->ms = null;
-        }
     }
 
     /**
@@ -36,7 +27,55 @@ class MoySkladService
      */
     public function hasCredentials(): bool
     {
-        return !empty($this->token) && $this->ms !== null;
+        return !empty($this->token);
+    }
+
+    /**
+     * Выполнить GET запрос к API МойСклад
+     */
+    private function getRequest(string $endpoint, array $query = [])
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->token,
+                'Accept-Encoding' => 'gzip',
+                'Content-Type' => 'application/json',
+            ])->get($this->baseUrl . $endpoint, $query);
+
+            if (!$response->successful()) {
+                Log::error('Ошибка API МойСклад', [
+                    'endpoint' => $endpoint,
+                    'status' => $response->status(),
+                    'response' => $response->json()
+                ]);
+                return null;
+            }
+
+            return $response->json();
+
+        } catch (\Exception $e) {
+            Log::error('Исключение при запросе к API МойСклад', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Извлечь ID из href
+     */
+    private function extractIdFromHref(?string $href): ?string
+    {
+        if (!$href) {
+            return null;
+        }
+
+        if (preg_match('/([a-f0-9\-]{36})$/', $href, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
     /**
@@ -44,139 +83,140 @@ class MoySkladService
      */
     public function syncGroups(): array
     {
-        $result = ['success' => false, 'synced' => 0, 'message' => ''];
+        $result = [
+            'success' => false,
+            'synced' => 0,
+            'updated' => 0,
+            'deleted' => 0,
+            'errors' => 0,
+            'message' => ''
+        ];
 
         if (!$this->hasCredentials()) {
-            $result['message'] = 'MoySklad клиент не инициализирован. Проверьте MOYSKLAD_TOKEN';
+            $result['message'] = 'MoySklad токен не установлен';
+            Log::error('Попытка синхронизации групп без токена');
             return $result;
         }
 
         try {
-            $groups = $this->ms->query()->entity()->productfolder()->get();
-            $synced = 0;
+            Log::info('Начинаем синхронизацию групп товаров');
 
-            foreach ($groups as $group) {
-                try {
-                    $parentId = null;
-                    if (isset($group->productFolder->meta->href)) {
-                        $parentId = basename($group->productFolder->meta->href);
+            $offset = 0;
+            $limit = 100;
+            $totalProcessed = 0;
+
+            // Собираем все ID групп из МойСклад
+            $moyskladGroupIds = [];
+
+            do {
+                $data = $this->getRequest('/entity/productfolder', [
+                    'limit' => $limit,
+                    'offset' => $offset
+                ]);
+
+                if (!$data || !isset($data['rows'])) {
+                    Log::error('Не удалось получить группы товаров из API');
+                    break;
+                }
+
+                $groups = $data['rows'];
+
+                foreach ($groups as $groupData) {
+                    try {
+                        // Сохраняем ID для последующего удаления
+                        $moyskladGroupIds[] = $groupData['id'];
+
+                        // Извлекаем parent_id если есть
+                        $parentId = null;
+                        if (isset($groupData['productFolder']['meta']['href'])) {
+                            $parentId = $this->extractIdFromHref($groupData['productFolder']['meta']['href']);
+                        }
+
+                        // Проверяем существование группы
+                        $existingGroup = ProductGroup::where('moysklad_id', $groupData['id'])->first();
+
+                        if ($existingGroup) {
+                            $result['updated']++;
+                        } else {
+                            $result['synced']++;
+                        }
+
+                        // Сохраняем группу
+                        ProductGroup::updateOrCreate(
+                            ['moysklad_id' => $groupData['id']],
+                            [
+                                'name' => $groupData['name'] ?? '',
+                                'path_name' => $groupData['pathName'] ?? '',
+                                'code' => $groupData['code'] ?? null,
+                                'external_code' => $groupData['externalCode'] ?? null,
+                                'parent_id' => $parentId,
+                                'attributes' => json_encode($groupData),
+                            ]
+                        );
+
+                        $totalProcessed++;
+
+                    } catch (\Exception $e) {
+                        $result['errors']++;
+                        Log::warning('Ошибка при сохранении группы', [
+                            'group_id' => $groupData['id'] ?? 'unknown',
+                            'error' => $e->getMessage()
+                        ]);
                     }
+                }
 
-                    ProductGroup::updateOrCreate(
-                        ['moysklad_id' => $group->id],
-                        [
-                            'name' => $group->name ?? '',
-                            'path_name' => $group->pathName ?? '',
-                            'code' => $group->code ?? null,
-                            'external_code' => $group->externalCode ?? null,
-                            'parent_id' => $parentId,
-                            'attributes' => json_encode($group),
-                        ]
-                    );
-                    $synced++;
-                } catch (\Exception $e) {
-                    Log::warning('Ошибка при сохранении группы', [
-                        'group_id' => $group->id ?? 'unknown',
-                        'error' => $e->getMessage()
-                    ]);
+                $offset += $limit;
+
+                // Небольшая задержка чтобы не превысить лимиты API
+                if (count($groups) === $limit) {
+                    usleep(500000); // 0.5 секунды
+                }
+
+            } while (count($groups) === $limit);
+
+            // Удаляем группы, которых нет в МойСклад
+            if (!empty($moyskladGroupIds)) {
+                $deletedCount = ProductGroup::whereNotIn('moysklad_id', $moyskladGroupIds)->delete();
+                $result['deleted'] = $deletedCount;
+
+                if ($deletedCount > 0) {
+                    Log::info('Удалены группы, отсутствующие в МойСклад', ['count' => $deletedCount]);
+
+                    // Также нужно обновить group_id у товаров, которые были в удаленных группах
+                    // Можно либо установить group_id = null, либо удалить такие товары
+                    Product::whereNotNull('group_id')
+                        ->whereNotIn('group_id', $moyskladGroupIds)
+                        ->update(['group_id' => null, 'group_name' => null]);
+
+                    Log::info('Обновлены товары с удаленными группами');
                 }
             }
 
+            // Очищаем кэш дерева групп
+            $this->clearGroupsCache();
+
             $result['success'] = true;
-            $result['synced'] = $synced;
-            $result['message'] = "Синхронизировано групп: $synced";
+            $result['message'] = "Синхронизация групп завершена. Всего обработано: $totalProcessed, добавлено: {$result['synced']}, обновлено: {$result['updated']}, удалено: {$result['deleted']}";
+
+            if ($result['errors'] > 0) {
+                $result['message'] .= ", ошибок: {$result['errors']}";
+            }
+
+            Log::info($result['message']);
 
         } catch (\Exception $e) {
-            Log::error('Ошибка синхронизации групп', ['error' => $e->getMessage()]);
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
+            Log::error('Ошибка синхронизации групп', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $result['message'] = 'Ошибка синхронизации групп: ' . $e->getMessage();
         }
 
         return $result;
     }
 
     /**
-     * Обработка товара (общий код для синхронизации)
-     */
-    private function processProduct($item, &$result, $groupsCache): void
-    {
-        try {
-            // Цены
-            $price = 0;
-            $oldPrice = null;
-
-            if (isset($item->salePrices) && count($item->salePrices) > 0) {
-                $price = $item->salePrices[0]->value / 100;
-                if (isset($item->salePrices[1])) {
-                    $oldPrice = $item->salePrices[1]->value / 100;
-                }
-            }
-
-            // Артикул
-            $sku = $item->article ?? $item->code ?? null;
-
-            // Группа
-            $groupId = null;
-            $groupName = null;
-
-            if (isset($item->productFolder->meta->href)) {
-                $groupId = basename($item->productFolder->meta->href);
-                $groupName = $groupsCache[$groupId] ?? null;
-
-                if (!$groupName) {
-                    $group = ProductGroup::where('moysklad_id', $groupId)->first();
-                    if ($group) {
-                        $groupName = $group->name;
-                        $groupsCache[$groupId] = $groupName;
-                    }
-                }
-            }
-
-            // Статистика
-            $existingProduct = Product::where('moysklad_id', $item->id)->first();
-
-            if ($existingProduct) {
-                $result['updated']++;
-            } else {
-                $result['synced']++;
-            }
-
-            // Сохранение
-            Product::updateOrCreate(
-                ['moysklad_id' => $item->id],
-                [
-                    'name' => $item->name ?? 'Без названия',
-                    'group_id' => $groupId,
-                    'group_name' => $groupName,
-                    'sku' => $sku,
-                    'description' => $item->description ?? null,
-                    'price' => $price,
-                    'old_price' => $oldPrice,
-                    'quantity' => $item->stock ?? 0,
-                    'is_active' => true,
-                    'attributes' => json_encode([
-                        'code' => $item->code ?? null,
-                        'article' => $item->article ?? null,
-                        'weight' => $item->weight ?? null,
-                        'volume' => $item->volume ?? null,
-                        'path_name' => $item->pathName ?? null,
-                        'updated' => $item->updated ?? null,
-                        'external_code' => $item->externalCode ?? null,
-                    ]),
-                ]
-            );
-
-        } catch (\Exception $e) {
-            $result['errors']++;
-            Log::warning('Ошибка при сохранении товара', [
-                'moysklad_id' => $item->id ?? 'unknown',
-                'name' => $item->name ?? 'unknown',
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Синхронизация всех товаров с использованием библиотеки evgeek/moysklad
+     * Синхронизация всех товаров
      */
     public function syncProducts(): array
     {
@@ -189,34 +229,45 @@ class MoySkladService
         ];
 
         if (!$this->hasCredentials()) {
-            $result['message'] = 'MoySklad клиент не инициализирован. Проверьте MOYSKLAD_TOKEN';
+            $result['message'] = 'MoySklad токен не установлен';
             return $result;
         }
 
         try {
+            Log::info('Начинаем синхронизацию товаров');
+
+            // Получаем кэш групп для быстрого доступа
+            $groupsCache = ProductGroup::pluck('name', 'moysklad_id')->toArray();
+
             $offset = 0;
             $limit = 100;
             $totalProcessed = 0;
-            $groupsCache = ProductGroup::pluck('name', 'moysklad_id')->toArray();
 
             do {
-                $response = $this->ms->query()
-                    ->entity()
-                    ->product()
-                    ->order('updated', 'desc')
-                    ->limit($limit)
-                    ->offset($offset)
-                    ->get();
+                $data = $this->getRequest('/entity/product', [
+                    'limit' => $limit,
+                    'offset' => $offset,
+                    'order' => 'updated,desc'
+                ]);
 
-                $products = $response->rows ?? [];
-
-                if (empty($products)) {
+                if (!$data || !isset($data['rows'])) {
+                    Log::error('Не удалось получить товары из API');
                     break;
                 }
 
-                foreach ($products as $item) {
-                    $this->processProduct($item, $result, $groupsCache);
-                    $totalProcessed++;
+                $products = $data['rows'];
+
+                foreach ($products as $productData) {
+                    try {
+                        $this->processProduct($productData, $result, $groupsCache);
+                        $totalProcessed++;
+                    } catch (\Exception $e) {
+                        $result['errors']++;
+                        Log::warning('Ошибка при обработке товара', [
+                            'product_id' => $productData['id'] ?? 'unknown',
+                            'error' => $e->getMessage()
+                        ]);
+                    }
                 }
 
                 $offset += $limit;
@@ -228,66 +279,148 @@ class MoySkladService
             } while (count($products) === $limit);
 
             $result['success'] = true;
-            $result['message'] = "Синхронизация завершена. Всего обработано: $totalProcessed, добавлено: {$result['synced']}, обновлено: {$result['updated']}";
+            $result['message'] = "Синхронизация товаров завершена. Всего обработано: $totalProcessed, добавлено: {$result['synced']}, обновлено: {$result['updated']}";
 
             if ($result['errors'] > 0) {
                 $result['message'] .= ", ошибок: {$result['errors']}";
             }
 
+            Log::info($result['message']);
+
         } catch (\Exception $e) {
-            Log::error('Ошибка синхронизации товаров', ['error' => $e->getMessage()]);
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
+            Log::error('Ошибка синхронизации товаров', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $result['message'] = 'Ошибка синхронизации товаров: ' . $e->getMessage();
         }
 
         return $result;
     }
 
     /**
+     * Обработка одного товара
+     */
+    private function processProduct(array $productData, array &$result, array $groupsCache): void
+    {
+        // Цены
+        $price = 0;
+        $oldPrice = null;
+
+        if (isset($productData['salePrices']) && count($productData['salePrices']) > 0) {
+            $price = $productData['salePrices'][0]['value'] / 100;
+
+            if (isset($productData['salePrices'][1])) {
+                $oldPrice = $productData['salePrices'][1]['value'] / 100;
+            }
+        }
+
+        // Артикул
+        $sku = $productData['article'] ?? $productData['code'] ?? null;
+
+        // Группа
+        $groupId = null;
+        $groupName = null;
+
+        if (isset($productData['productFolder']['meta']['href'])) {
+            $groupId = $this->extractIdFromHref($productData['productFolder']['meta']['href']);
+            $groupName = $groupsCache[$groupId] ?? null;
+
+            if (!$groupName && $groupId) {
+                $group = ProductGroup::where('moysklad_id', $groupId)->first();
+                if ($group) {
+                    $groupName = $group->name;
+                    $groupsCache[$groupId] = $groupName;
+                }
+            }
+        }
+
+        // Статистика
+        $existingProduct = Product::where('moysklad_id', $productData['id'])->first();
+
+        if ($existingProduct) {
+            $result['updated']++;
+        } else {
+            $result['synced']++;
+        }
+
+        // Сохранение
+        Product::updateOrCreate(
+            ['moysklad_id' => $productData['id']],
+            [
+                'name' => $productData['name'] ?? 'Без названия',
+                'group_id' => $groupId,
+                'group_name' => $groupName,
+                'sku' => $sku,
+                'description' => $productData['description'] ?? null,
+                'price' => $price,
+                'old_price' => $oldPrice,
+                'quantity' => $productData['stock'] ?? 0,
+                'is_active' => true,
+                'attributes' => json_encode([
+                    'code' => $productData['code'] ?? null,
+                    'article' => $productData['article'] ?? null,
+                    'weight' => $productData['weight'] ?? null,
+                    'volume' => $productData['volume'] ?? null,
+                    'path_name' => $productData['pathName'] ?? null,
+                    'updated' => $productData['updated'] ?? null,
+                    'external_code' => $productData['externalCode'] ?? null,
+                ]),
+            ]
+        );
+    }
+
+    /**
      * Получить товар по ID
      */
-    public function fetchProduct($id): ?object
+    public function fetchProduct(string $id): ?array
     {
         if (!$this->hasCredentials()) {
-            Log::error('Попытка получить товар без учетных данных');
+            Log::error('Попытка получить товар без токена');
             return null;
         }
 
         try {
-            $product = $this->ms->query()->entity()->product()->byId($id)->get();
-            return $product;
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->token,
+                'Accept-Encoding' => 'gzip',
+            ])->get($this->baseUrl . '/entity/product/' . $id);
+
+            if (!$response->successful()) {
+                Log::error('Ошибка получения товара', [
+                    'id' => $id,
+                    'status' => $response->status()
+                ]);
+                return null;
+            }
+
+            return $response->json();
+
         } catch (\Exception $e) {
-            Log::error('Ошибка получения товара', ['id' => $id, 'error' => $e->getMessage()]);
+            Log::error('Ошибка получения товара', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
             return null;
         }
     }
 
     /**
-     * Поиск товаров
+     * Очистка кэша дерева групп
      */
-    public function searchProducts(string $query): ?array
+    private function clearGroupsCache(): void
     {
-        if (!$this->hasCredentials()) {
-            Log::error('Попытка поиска товаров без учетных данных');
-            return null;
-        }
-
         try {
-            $products = $this->ms->query()
-                ->entity()
-                ->product()
-                ->filter('name', '~', $query)
-                ->get();
-            return $products->rows ?? [];
+            cache()->forget('product_groups_tree');
         } catch (\Exception $e) {
-            Log::error('Ошибка поиска товаров', ['query' => $query, 'error' => $e->getMessage()]);
-            return null;
+            // Игнорируем ошибки кэша
         }
     }
 
     /**
-     * Синхронизация только измененных товаров
+     * Синхронизация всех складов
      */
-    public function syncUpdatedProducts(\DateTime $fromDate = null): array
+    public function syncStores(): array
     {
         $result = [
             'success' => false,
@@ -298,206 +431,102 @@ class MoySkladService
         ];
 
         if (!$this->hasCredentials()) {
-            $result['message'] = 'MoySklad клиент не инициализирован. Проверьте MOYSKLAD_TOKEN';
+            $result['message'] = 'MoySklad токен не установлен';
             return $result;
         }
 
         try {
-            $query = $this->ms->query()->entity()->product()->order('updated', 'desc');
+            Log::info('Начинаем синхронизацию складов');
 
-            if ($fromDate) {
-                $query = $query->filter('updated', '>', $fromDate->format('Y-m-d H:i:s'));
-            }
+            $data = $this->getRequest('/entity/store');
 
-            $response = $query->get();
-            $products = $response->rows ?? [];
-
-            $groupsCache = ProductGroup::pluck('name', 'moysklad_id')->toArray();
-
-            foreach ($products as $item) {
-                $this->processProduct($item, $result, $groupsCache);
-            }
-
-            $result['success'] = true;
-            $result['message'] = "Синхронизация изменений завершена. Добавлено: {$result['synced']}, обновлено: {$result['updated']}";
-
-            if ($result['errors'] > 0) {
-                $result['message'] .= ", ошибок: {$result['errors']}";
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка синхронизации изменений товаров', ['error' => $e->getMessage()]);
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
-        }
-
-        return $result;
-    }
-
-    /**
-     * Синхронизация всех складов
-     */
-    public function syncStores(): array
-    {
-        $result = ['success' => false, 'synced' => 0, 'updated' => 0, 'errors' => 0, 'message' => ''];
-
-        if (!$this->hasCredentials()) {
-            $result['message'] = 'MoySklad клиент не инициализирован. Проверьте MOYSKLAD_TOKEN';
-            Log::error('Попытка синхронизации без учетных данных');
-            return $result;
-        }
-
-        try {
-            // Получаем ответ от API
-            $response = $this->ms->query()->entity()->store()->get();
-
-            // Правильное получение массива складов
-            $stores = $response->rows ?? [];
-
-            // Если это не массив, попробуем получить правильно
-            if (!is_array($stores) && is_object($stores)) {
-                // Если это итератор или коллекция
-                $stores = iterator_to_array($stores);
-            }
-
-            if (empty($stores)) {
-                $result['success'] = true;
-                $result['message'] = "Склады не найдены. Проверьте доступность данных в МойСклада";
+            if (!$data || !isset($data['rows'])) {
+                $result['message'] = 'Не удалось получить склады из API';
                 return $result;
             }
 
-            $synced = 0;
-            $updated = 0;
+            $stores = $data['rows'];
 
-            foreach ($stores as $store) {
+            foreach ($stores as $storeData) {
                 try {
-                    $storeId = $store->id ?? null;
+                    $storeId = $storeData['id'] ?? null;
+
+                    if (!$storeId) {
+                        continue;
+                    }
 
                     $parentId = null;
-                    if (isset($store->parent) && isset($store->parent->meta) && isset($store->parent->meta->href)) {
-                        $parentId = basename($store->parent->meta->href);
+                    if (isset($storeData['parent']['meta']['href'])) {
+                        $parentId = $this->extractIdFromHref($storeData['parent']['meta']['href']);
                         // Проверяем, что parentId не 'store'
                         if ($parentId === 'store') {
                             $parentId = null;
                         }
                     }
 
-                    // Проверяем существование склада по ID
+                    $ownerId = null;
+                    if (isset($storeData['owner']['meta']['href'])) {
+                        $ownerId = $this->extractIdFromHref($storeData['owner']['meta']['href']);
+                    }
+
+                    // Проверяем существование склада
                     $existing = Store::where('id', $storeId)->first();
 
                     if ($existing) {
-                        $updated++;
+                        $result['updated']++;
                     } else {
-                        $synced++;
+                        $result['synced']++;
                     }
 
                     Store::updateOrCreate(
                         ['id' => $storeId],
                         [
-                            'id' => $storeId,
-                            'name' => $store->name ?? '',
-                            'code' => $store->code ?? null,
-                            'external_code' => $store->externalCode ?? null,
-                            'description' => $store->description ?? null,
-                            'address' => $store->address ?? null,
-                            'address_full' => (isset($store->addressFull) && is_array($store->addressFull))
-                                ? json_encode($store->addressFull)
-                                : null,
-                            'archived' => (bool)($store->archived ?? false),
-                            'shared' => (bool)($store->shared ?? false),
-                            'path_name' => $store->pathName ?? null,
-                            'account_id' => $store->accountId ?? null,
-                            'owner_id' => (isset($store->owner) && isset($store->owner->meta) && isset($store->owner->meta->href))
-                                ? basename($store->owner->meta->href)
-                                : null,
+                            'name' => $storeData['name'] ?? '',
+                            'code' => $storeData['code'] ?? null,
+                            'external_code' => $storeData['externalCode'] ?? null,
+                            'description' => $storeData['description'] ?? null,
+                            'address' => $storeData['address'] ?? null,
+                            'address_full' => isset($storeData['addressFull']) ? json_encode($storeData['addressFull']) : null,
+                            'archived' => (bool)($storeData['archived'] ?? false),
+                            'shared' => (bool)($storeData['shared'] ?? false),
+                            'path_name' => $storeData['pathName'] ?? null,
+                            'account_id' => $storeData['accountId'] ?? null,
+                            'owner_id' => $ownerId,
                             'parent_id' => $parentId,
                             'attributes' => json_encode([
-                                'zones' => $store->zones ?? [],
-                                'slots' => $store->slots ?? [],
-                                'meta' => $store->meta ?? null,
+                                'zones' => $storeData['zones'] ?? [],
+                                'slots' => $storeData['slots'] ?? [],
+                                'meta' => $storeData['meta'] ?? null,
                             ]),
                         ]
                     );
 
                 } catch (\Exception $e) {
                     $result['errors']++;
+                    Log::warning('Ошибка при сохранении склада', [
+                        'store_id' => $storeData['id'] ?? 'unknown',
+                        'error' => $e->getMessage()
+                    ]);
                 }
             }
 
             $result['success'] = true;
-            $result['synced'] = $synced;
-            $result['updated'] = $updated;
-            $result['message'] = "Синхронизировано складов: $synced, обновлено: $updated";
+            $result['message'] = "Синхронизировано складов: {$result['synced']}, обновлено: {$result['updated']}";
 
             if ($result['errors'] > 0) {
                 $result['message'] .= ", ошибок: {$result['errors']}";
             }
+
+            Log::info($result['message']);
 
         } catch (\Exception $e) {
             Log::error('Ошибка синхронизации складов', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
+            $result['message'] = 'Ошибка синхронизации складов: ' . $e->getMessage();
         }
 
         return $result;
-    }
-
-    public function fetchStore($id): ?object
-    {
-        if (!$this->hasCredentials()) {
-            Log::error('Попытка получить склад без учетных данных');
-            return null;
-        }
-
-        try {
-            $store = $this->ms->query()->entity()->store()->byId($id)->get();
-            return $store;
-        } catch (\Exception $e) {
-            Log::error('Ошибка получения склада', ['id' => $id, 'error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    /**
-     * Поиск складов
-     */
-    public function searchStores(string $query): ?array
-    {
-        if (!$this->hasCredentials()) {
-            return null;
-        }
-
-        try {
-            $stores = $this->ms->query()
-                ->entity()
-                ->store()
-                ->filter('name', '~', $query)
-                ->get();
-            return $stores->rows ?? [];
-        } catch (\Exception $e) {
-            Log::error('Ошибка поиска складов', ['query' => $query, 'error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    public function syncAll(): array
-    {
-        $startTime = microtime(true);
-
-        $results = [
-            'groups' => $this->syncGroups(),
-            'stores' => $this->syncStores(),
-            'products' => $this->syncProducts(),
-        ];
-
-        $executionTime = round(microtime(true) - $startTime, 2);
-
-        return [
-            'success' => $results['groups']['success'] && $results['stores']['success'] && $results['products']['success'],
-            'data' => $results,
-            'execution_time' => $executionTime . 's',
-            'message' => "Синхронизация завершена за {$executionTime}s. Группы: {$results['groups']['message']}, Склады: {$results['stores']['message']}, Товары: {$results['products']['message']}"
-        ];
     }
 }

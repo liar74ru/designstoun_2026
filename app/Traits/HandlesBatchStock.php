@@ -10,19 +10,28 @@ trait HandlesBatchStock
     /**
      * Получает активные партии сырья
      */
-    protected function getActiveBatches(StoneReception $reception = null)
+    protected function getActiveBatches($workerId = null)
     {
-        $batches = RawMaterialBatch::with(['product', 'currentWorker'])
+        $query = RawMaterialBatch::with(['product', 'currentWorker'])
             ->where('status', 'active')
-            ->where('remaining_quantity', '>', 0)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->where('remaining_quantity', '>', 0);
 
-        // Добавляем текущую партию, если она не в списке активных
-        if ($reception && $reception->rawMaterialBatch &&
-            !$batches->contains('id', $reception->raw_material_batch_id)) {
-            $batches->prepend($reception->rawMaterialBatch);
+        if ($workerId) {
+            $query->where('current_worker_id', $workerId);
         }
+
+        $batches = $query->orderBy('created_at', 'desc')->get();
+
+        // Временное логирование
+        \Log::info('getActiveBatches возвращает:', [
+            'worker_id' => $workerId,
+            'count' => $batches->count(),
+            'batches' => $batches->map(fn($b) => [
+                'id' => $b->id,
+                'product' => $b->product->name,
+                'remaining' => $b->remaining_quantity
+            ])->toArray()
+        ]);
 
         return $batches;
     }

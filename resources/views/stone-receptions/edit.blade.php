@@ -41,8 +41,7 @@
                                 <div class="col-md-6 mb-3">
                                     <label for="receiver_id" class="form-label">Приемщик <span class="text-danger">*</span></label>
                                     <select name="receiver_id" id="receiver_id" class="form-select @error('receiver_id') is-invalid @enderror" required>
-                                        <option value="">— Выберите приемщика —</option>
-                                        @foreach($workers as $worker)
+                                        @foreach($masterWorkers as $worker)
                                             <option value="{{ $worker->id }}" {{ old('receiver_id', $stoneReception->receiver_id) == $worker->id ? 'selected' : '' }}>
                                                 {{ $worker->name }}
                                             </option>
@@ -74,7 +73,7 @@
                                 <div class="col-md-8 mb-3">
                                     <label for="raw_material_batch_id" class="form-label">Партия сырья <span class="text-danger">*</span></label>
                                     <select name="raw_material_batch_id" id="raw_material_batch_id" class="form-select @error('raw_material_batch_id') is-invalid @enderror" required>
-                                        <option value="">— Выберите партию сырья —</option>
+{{--                                        <option value="">— Выберите партию сырья —</option>--}}
                                         @foreach($activeBatches as $batch)
                                             <option value="{{ $batch->id }}"
                                                     data-remaining="{{ $batch->remaining_quantity }}"

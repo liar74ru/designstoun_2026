@@ -4,7 +4,6 @@
 
 @section('content')
     <div class="container py-4">
-        <!-- Заголовок и навигация -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2 mb-0">✏️ Редактирование работника</h1>
 
@@ -13,7 +12,6 @@
             </a>
         </div>
 
-        <!-- Форма редактирования -->
         <div class="row justify-content-center">
             <div class="col-md-8">
                 <div class="card shadow-sm">
@@ -22,7 +20,7 @@
                             @csrf
                             @method('PUT')
 
-                            <!-- Поле Имя (обязательное) -->
+                            <!-- Поле Имя -->
                             <div class="mb-3">
                                 <label for="name" class="form-label">Имя <span class="text-danger">*</span></label>
                                 <input type="text"
@@ -38,18 +36,25 @@
 
                             <!-- Поле Должность -->
                             <div class="mb-3">
-                                <label for="position" class="form-label">Должность</label>
-                                <input type="text"
-                                       class="form-control @error('position') is-invalid @enderror"
-                                       id="position"
-                                       name="position"
-                                       value="{{ old('position', $worker->position) }}">
+                                <label for="position" class="form-label">Должность <span class="text-danger">*</span></label>
+                                <select class="form-select @error('position') is-invalid @enderror"
+                                        id="position"
+                                        name="position"
+                                        required>
+                                    <option value="">— Выберите должность —</option>
+                                    @foreach(App\Models\Worker::POSITIONS as $position)
+                                        <option value="{{ $position }}"
+                                            {{ old('position', $worker->position) == $position ? 'selected' : '' }}>
+                                            {{ $position }}
+                                        </option>
+                                    @endforeach
+                                </select>
                                 @error('position')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
-                            <!-- НОВОЕ ПОЛЕ: Отдел (выпадающий список) -->
+                            <!-- Поле Отдел -->
                             <div class="mb-3">
                                 <label for="department_id" class="form-label">Отдел</label>
                                 <select class="form-select @error('department_id') is-invalid @enderror"
@@ -58,7 +63,7 @@
                                     <option value="">— Выберите отдел —</option>
                                     @foreach($departments as $department)
                                         <option value="{{ $department->id }}"
-                                            {{ old('department_id') == $department->id ? 'selected' : '' }}>
+                                            {{ old('department_id', $worker->department_id) == $department->id ? 'selected' : '' }}>
                                             {{ $department->name }}
                                             @if($department->code)
                                                 ({{ $department->code }})
@@ -97,18 +102,10 @@
                                 @enderror
                             </div>
 
-                            <!-- Информация о создании/обновлении -->
-                            <div class="alert alert-light small mb-3">
-                                <div>Создан: {{ $worker->created_at->format('d.m.Y H:i') }}</div>
-                                @if($worker->updated_at != $worker->created_at)
-                                    <div>Обновлен: {{ $worker->updated_at->format('d.m.Y H:i') }}</div>
-                                @endif
-                            </div>
-
                             <!-- Кнопки -->
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-circle"></i> Обновить
+                                    <i class="bi bi-check-circle"></i> Сохранить изменения
                                 </button>
                                 <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary">
                                     Отмена

@@ -100,7 +100,8 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/stone-receptions/{stoneReception}/reset-status',
         [StoneReceptionController::class, 'resetStatus'])
         ->name('stone-receptions.reset-status');
-
+    Route::get('/products/groups/sync', [ProductController::class, 'syncGroups'])
+        ->name('products.groups.sync');
 });
 
 

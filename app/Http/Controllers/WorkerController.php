@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Department;
 use App\Models\Worker;
+use App\Models\Department;
 use Illuminate\Http\Request;
 
 class WorkerController extends Controller
@@ -13,7 +13,7 @@ class WorkerController extends Controller
      */
     public function index()
     {
-        $workers = Worker::latest()->paginate(10);
+        $workers = Worker::with('department')->orderBy('name')->paginate(15);
         return view('workers.index', compact('workers'));
     }
 
@@ -31,15 +31,15 @@ class WorkerController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
+            'position' => 'required|string|in:' . implode(',', Worker::POSITIONS),
+            'email' => 'nullable|email|unique:workers,email',
+            'phone' => 'nullable|string|max:50',
             'department_id' => 'nullable|exists:departments,id',
-            'phone' => 'nullable|string|max:20',
-            'position' => 'nullable|string|max:255',
         ]);
 
-        Worker::create($request->all());
+        Worker::create($validated);
 
         return redirect()->route('workers.index')
             ->with('success', 'Работник успешно добавлен');
@@ -50,9 +50,7 @@ class WorkerController extends Controller
      */
     public function show(Worker $worker)
     {
-        // Закомментировано для будущего использования
-        // return view('workers.show', compact('worker'));
-        abort(404);
+        return view('workers.show', compact('worker'));
     }
 
     /**
@@ -69,14 +67,15 @@ class WorkerController extends Controller
      */
     public function update(Request $request, Worker $worker)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:20',
-            'position' => 'nullable|string|max:255',
+            'position' => 'required|string|in:' . implode(',', Worker::POSITIONS),
+            'email' => 'nullable|email|unique:workers,email,' . $worker->id,
+            'phone' => 'nullable|string|max:50',
+            'department_id' => 'nullable|exists:departments,id',
         ]);
 
-        $worker->update($request->all());
+        $worker->update($validated);
 
         return redirect()->route('workers.index')
             ->with('success', 'Работник успешно обновлен');

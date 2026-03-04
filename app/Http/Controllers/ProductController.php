@@ -264,7 +264,26 @@ class ProductController extends Controller
                 ->with('error', $result['message']);
         }
     }
+    /**
+     * Синхронизация только групп
+     */
+    public function syncGroups()
+    {
+        if (!$this->moySkladService->hasCredentials()) {
+            return redirect()->route('products.groups')
+                ->with('error', 'Логин или пароль МойСклад не найдены в .env');
+        }
 
+        $result = $this->moySkladService->syncGroups();
+
+        if ($result['success']) {
+            return redirect()->route('products.groups')
+                ->with('success', $result['message']);
+        } else {
+            return redirect()->route('products.groups')
+                ->with('error', $result['message']);
+        }
+    }
     public function syncAllStocks(StockSyncService $stockSyncService)
     {
         $result = $stockSyncService->syncAllStocks();

@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/StoneReceptionBatchController.php
 
 namespace App\Http\Controllers;
 

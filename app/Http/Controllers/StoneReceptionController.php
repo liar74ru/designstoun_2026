@@ -24,20 +24,35 @@ class StoneReceptionController extends Controller
     const DEFAULT_STORE_ID = '0b1972f7-5e59-11ec-0a80-0698000bf502';
 
     /**
-     * Загружает общие данные для форм create и edit
+     * Загружает общие данные для форм создания и редактирования
+     *
+     * @param StoneReception|null $reception Приемка для редактирования (опционально)
+     * @return array Массив с данными для формы
      */
-    private function getFormData(StoneReception $reception = null)
+    private function getFormData(StoneReception $reception = null, $selectedCutterId = null)
     {
         $data = [
+            'masterWorkers' => Worker::where('position', 'Мастер')->orderBy('name')->get(),
             'workers' => Worker::orderBy('name')->get(),
             'products' => Product::orderBy('name')->get(),
             'stores' => Store::orderBy('name')->get(),
             'defaultStore' => Store::find(env('DEFAULT_STORE_ID', self::DEFAULT_STORE_ID)),
-            'activeBatches' => $this->getActiveBatches($reception),
+            'activeBatches' => collect(), // По умолчанию пусто
         ];
 
+        // Если редактируем приемку
         if ($reception) {
-            $data['stoneReception'] = $reception->load('items');
+            $reception->load('items', 'rawMaterialBatch.currentWorker');
+            $data['stoneReception'] = $reception;
+
+            // Для редактирования показываем партии пильщика из этой приемки
+            if ($reception->cutter_id) {
+                $data['activeBatches'] = $this->getActiveBatches($reception->cutter_id);
+            }
+        }
+        // Если создаем новую приемку и выбран пильщик
+        elseif ($selectedCutterId) {
+            $data['activeBatches'] = $this->getActiveBatches($selectedCutterId);
         }
 
         return $data;
@@ -45,6 +60,9 @@ class StoneReceptionController extends Controller
 
     /**
      * Получает последние приемки для отображения
+     *
+     * @param int $limit Количество последних приемок
+     * @return \Illuminate\Database\Eloquent\Collection
      */
     private function getLastReceptions($limit = 10)
     {
@@ -55,7 +73,7 @@ class StoneReceptionController extends Controller
     }
 
     /**
-     * Display a listing of the resource.
+     * Отображает список всех приемок
      */
     public function index()
     {
@@ -67,31 +85,52 @@ class StoneReceptionController extends Controller
             'rawMaterialBatch.product'
         ])
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(20); // Постраничная навигация по 20 записей
 
         return view('stone-receptions.index', compact('receptions'));
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Показывает форму для создания новой приемки
      */
-    public function create()
+    /**
+     * Показывает форму для создания новой приемки
+     */
+    public function create(Request $request)
     {
-        $data = $this->getFormData();
+        // Получаем ID пильщика из GET параметра
+        $cutterId = $request->input('cutter_id');
+
+        // Получаем данные формы
+        $data = $this->getFormData(null, $cutterId);
+
+        // Добавляем последние приемки
         $data['lastReceptions'] = $this->getLastReceptions();
+
+        // ВАЖНО: Получаем партии ТОЛЬКО для выбранного пильщика
+        if ($cutterId) {
+            $data['filteredBatches'] = $this->getActiveBatches($cutterId);
+        } else {
+            $data['filteredBatches'] = collect(); // Пустая коллекция, если пильщик не выбран
+        }
+
+        $data['selectedCutterId'] = $cutterId;
 
         return view('stone-receptions.create', $data);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Сохраняет новую приемку в базу данных
+     *
+     * @param Request $request HTTP запрос с данными формы
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
         Log::info('Данные формы:', $request->all());
 
         try {
-            // Валидация данных
+            // Проверяем корректность введенных данных
             $data = $this->validateReception($request, true);
             Log::info('Валидация пройдена', $data);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -99,10 +138,7 @@ class StoneReceptionController extends Controller
             throw $e;
         }
 
-        // Валидация данных
-        $data = $this->validateReception($request, true);
-
-        // Проверка остатка сырья
+        // Проверяем, достаточно ли сырья в выбранной партии
         if (!$this->checkBatchStock($data['raw_material_batch_id'], $data['raw_quantity_used'])) {
             return back()
                 ->withErrors(['raw_quantity_used' => 'Недостаточно сырья в выбранной партии'])
@@ -110,15 +146,13 @@ class StoneReceptionController extends Controller
         }
 
         try {
+            // Используем транзакцию для гарантии целостности данных
             DB::transaction(function () use ($data) {
-                // Создаем приемку
+                // Создаем запись о приемке
                 $reception = StoneReception::create($this->prepareReceptionData($data));
 
-                // Создаем позиции продуктов
+                // Добавляем позиции (какие продукты получили)
                 $this->createReceptionItems($reception, $data['products']);
-
-                // Обновляем остатки
-                $reception->updateStocks();
 
                 Log::info('Приемка успешно создана', [
                     'reception_id' => $reception->id,
@@ -142,7 +176,9 @@ class StoneReceptionController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Показывает форму для редактирования существующей приемки
+     *
+     * @param StoneReception $stoneReception Приемка для редактирования
      */
     public function edit(StoneReception $stoneReception)
     {
@@ -153,7 +189,11 @@ class StoneReceptionController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Обновляет существующую приемку в базе данных
+     *
+     * @param Request $request HTTP запрос с данными формы
+     * @param StoneReception $stoneReception Приемка для обновления
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, StoneReception $stoneReception)
     {
@@ -162,14 +202,54 @@ class StoneReceptionController extends Controller
 
         try {
             DB::transaction(function () use ($stoneReception, $data) {
-                // Обрабатываем изменения в партии сырья
-                $this->handleBatchChanges($stoneReception, $data);
+                // Сначала возвращаем сырье в старую партию (если она изменилась)
+                if ($stoneReception->raw_material_batch_id != $data['raw_material_batch_id']) {
+                    // Возврат в старую партию
+                    $oldBatch = RawMaterialBatch::find($stoneReception->raw_material_batch_id);
+                    if ($oldBatch) {
+                        $oldBatch->remaining_quantity += $stoneReception->raw_quantity_used;
+                        $oldBatch->save();
+                    }
+
+                    // Проверка и списание из новой партии
+                    $newBatch = RawMaterialBatch::find($data['raw_material_batch_id']);
+                    if (!$newBatch || $newBatch->remaining_quantity < $data['raw_quantity_used']) {
+                        throw new \Exception('Недостаточно сырья в новой партии');
+                    }
+                    $newBatch->remaining_quantity -= $data['raw_quantity_used'];
+                    $newBatch->save();
+                }
+                // Если партия та же, но изменилось количество
+                elseif ($stoneReception->raw_quantity_used != $data['raw_quantity_used']) {
+                    $batch = RawMaterialBatch::find($data['raw_material_batch_id']);
+                    $diff = $data['raw_quantity_used'] - $stoneReception->raw_quantity_used;
+
+                    if ($diff > 0 && $batch->remaining_quantity < $diff) {
+                        throw new \Exception('Недостаточно сырья в партии');
+                    }
+
+                    $batch->remaining_quantity -= $diff;
+                    $batch->save();
+                }
 
                 // Обновляем основную информацию
-                $stoneReception->update($this->prepareReceptionData($data, false));
+                $stoneReception->update([
+                    'receiver_id' => $data['receiver_id'],
+                    'cutter_id' => $data['cutter_id'] ?? null,
+                    'store_id' => $data['store_id'],
+                    'raw_material_batch_id' => $data['raw_material_batch_id'],
+                    'raw_quantity_used' => $data['raw_quantity_used'],
+                    'notes' => $data['notes'] ?? null,
+                ]);
 
                 // Обновляем позиции продуктов
-                $this->updateReceptionItems($stoneReception, $data['products']);
+                $stoneReception->items()->delete();
+                foreach ($data['products'] as $product) {
+                    $stoneReception->items()->create([
+                        'product_id' => $product['product_id'],
+                        'quantity' => $product['quantity'],
+                    ]);
+                }
 
                 Log::info('Приемка успешно обновлена', [
                     'reception_id' => $stoneReception->id,
@@ -183,8 +263,7 @@ class StoneReceptionController extends Controller
         } catch (\Exception $e) {
             Log::error('Ошибка при обновлении приемки', [
                 'error' => $e->getMessage(),
-                'reception_id' => $stoneReception->id,
-                'data' => $data
+                'reception_id' => $stoneReception->id
             ]);
 
             return back()
@@ -194,11 +273,15 @@ class StoneReceptionController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Удаляет приемку из базы данных
+     *
+     * @param StoneReception $stoneReception Приемка для удаления
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(StoneReception $stoneReception)
     {
         try {
+            // Используем транзакцию для гарантии целостности данных
             DB::transaction(function () use ($stoneReception) {
                 $stoneReception->delete();
 
@@ -223,13 +306,18 @@ class StoneReceptionController extends Controller
     }
 
     /**
-     * Copy the specified resource.
+     * Копирует существующую приемку для создания новой
+     *
+     * @param StoneReception $stoneReception Приемка для копирования
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function copy(StoneReception $stoneReception)
     {
         try {
+            // Загружаем связанные данные
             $stoneReception->load('items');
 
+            // Сохраняем данные в сессии для предзаполнения формы
             session()->flash('copy_from', [
                 'reception' => $this->prepareReceptionData($stoneReception->toArray(), false, true),
                 'products' => $stoneReception->items->map(fn($item) => [
@@ -258,25 +346,30 @@ class StoneReceptionController extends Controller
     }
 
     /**
-     * Подготавливает данные для создания/обновления приемки
+     * Подготавливает данные для создания или обновления приемки
+     *
+     * @param array $data Исходные данные
+     * @param bool $forCreate true для создания, false для обновления
+     * @param bool $forCopy true для копирования
+     * @return array Подготовленные данные
      */
     private function prepareReceptionData(array $data, bool $forCreate = true, bool $forCopy = false): array
     {
         $prepared = [
-            'receiver_id' => $data['receiver_id'],
-            'cutter_id' => $data['cutter_id'] ?? null,
-            'store_id' => $data['store_id'],
-            'raw_material_batch_id' => $data['raw_material_batch_id'],
-            'raw_quantity_used' => $data['raw_quantity_used'],
-            'notes' => $data['notes'] ?? null,
+            'receiver_id' => $data['receiver_id'], // Кто принял
+            'cutter_id' => $data['cutter_id'] ?? null, // Кто обработал
+            'store_id' => $data['store_id'], // Склад назначения
+            'raw_material_batch_id' => $data['raw_material_batch_id'], // Партия сырья
+            'raw_quantity_used' => $data['raw_quantity_used'], // Использовано сырья
+            'notes' => $data['notes'] ?? null, // Примечания
         ];
 
         // Для копирования не нужно добавлять временные метки
         if (!$forCopy) {
             if ($forCreate) {
-                $prepared['created_at'] = now();
+                $prepared['created_at'] = now(); // Дата создания
             }
-            $prepared['updated_at'] = now();
+            $prepared['updated_at'] = now(); // Дата обновления
         }
 
         return $prepared;
@@ -284,6 +377,9 @@ class StoneReceptionController extends Controller
 
     /**
      * Создает позиции продуктов для приемки
+     *
+     * @param StoneReception $reception Приемка
+     * @param array $products Массив продуктов с количествами
      */
     private function createReceptionItems(StoneReception $reception, array $products): void
     {
@@ -297,6 +393,9 @@ class StoneReceptionController extends Controller
 
     /**
      * Обновляет позиции продуктов для приемки
+     *
+     * @param StoneReception $reception Приемка
+     * @param array $products Новый массив продуктов
      */
     private function updateReceptionItems(StoneReception $reception, array $products): void
     {
@@ -306,16 +405,20 @@ class StoneReceptionController extends Controller
         // Создаем новые позиции
         $this->createReceptionItems($reception, $products);
     }
+
     /**
-     * Сбросить статус приемки на активный (для тестирования)
+     * Сбрасывает статус приемки на активный (для тестирования)
+     *
+     * @param StoneReception $stoneReception Приемка для сброса статуса
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function resetStatus(StoneReception $stoneReception)
     {
         // Используем константу из модели
         $stoneReception->update([
-            'status' => StoneReception::STATUS_ACTIVE,
-            'moysklad_processing_id' => null,
-            'synced_at' => null
+            'status' => StoneReception::STATUS_ACTIVE, // Статус "Активна"
+            'moysklad_processing_id' => null, // Очищаем ID обработки в МойСклад
+            'synced_at' => null // Очищаем дату синхронизации
         ]);
 
         Log::info('Статус приемки сброшен', [
@@ -325,5 +428,4 @@ class StoneReceptionController extends Controller
 
         return back()->with('success', 'Статус приемки сброшен на Активна');
     }
-
 }

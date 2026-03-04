@@ -12,11 +12,15 @@ class ProductGroupService
      */
     public function getGroupsTree()
     {
-        $allGroups = ProductGroup::with(['products', 'children'])->get();
-        $rootGroups = $allGroups->whereNull('parent_id');
+        // Загружаем сразу с counts
+        $allGroups = ProductGroup::withCount('products')
+            ->with(['children'])
+            ->get();
 
+        $rootGroups = $allGroups->whereNull('parent_id');
         return $this->buildTree($rootGroups, $allGroups);
     }
+
 
     /**
      * Построить дерево групп рекурсивно
@@ -26,16 +30,13 @@ class ProductGroupService
         $tree = [];
 
         foreach ($groups as $group) {
-            $productsCount = $group->products()->count();
+            $productsCount = $group->products_count; // Уже загружено
             $children = $allGroups->where('parent_id', $group->moysklad_id);
             $childrenTree = $this->buildTree($children, $allGroups);
 
-            $totalProducts = $productsCount;
-            foreach ($childrenTree as $child) {
-                $totalProducts += $child['total_products'];
-            }
+            $totalProducts = $productsCount + array_sum(array_column($childrenTree, 'total_products'));
 
-            $item = [
+            $tree[] = [
                 'id' => $group->moysklad_id,
                 'name' => $group->name,
                 'path' => $group->full_path,
@@ -44,8 +45,6 @@ class ProductGroupService
                 'products_count' => $productsCount,
                 'total_products' => $totalProducts,
             ];
-
-            $tree[] = $item;
         }
 
         return $tree;

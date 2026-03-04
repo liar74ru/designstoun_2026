@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class StoneReception extends Model
 {
@@ -196,6 +197,15 @@ class StoneReception extends Model
             // Списываем сырье из партии
             if ($this->rawMaterialBatch) {
                 $batch = $this->rawMaterialBatch;
+
+                // ДИАГНОСТИКА: логируем ДО изменения
+                Log::info('updateStocks - ДО списания', [
+                    'batch_id' => $batch->id,
+                    'old_remaining' => $batch->remaining_quantity,
+                    'used' => $this->raw_quantity_used,
+                    'status_before' => $batch->status
+                ]);
+
                 $batch->remaining_quantity -= $this->raw_quantity_used;
 
                 // Если сырье закончилось, меняем статус партии
@@ -204,6 +214,13 @@ class StoneReception extends Model
                     $batch->remaining_quantity = 0;
                 }
                 $batch->save();
+
+                // ДИАГНОСТИКА: логируем ПОСЛЕ изменения
+                Log::info('updateStocks - ПОСЛЕ списания', [
+                    'batch_id' => $batch->id,
+                    'new_remaining' => $batch->remaining_quantity,
+                    'status_after' => $batch->status
+                ]);
 
                 // Создаем запись о списании сырья
                 RawMaterialMovement::create([

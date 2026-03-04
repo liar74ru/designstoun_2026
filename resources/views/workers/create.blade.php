@@ -35,20 +35,27 @@
                                 @enderror
                             </div>
 
-                            <!-- Поле Должность -->
+                            <!-- Поле Должность (обязательное, выпадающий список) -->
                             <div class="mb-3">
-                                <label for="position" class="form-label">Должность</label>
-                                <input type="text"
-                                       class="form-control @error('position') is-invalid @enderror"
-                                       id="position"
-                                       name="position"
-                                       value="{{ old('position') }}">
+                                <label for="position" class="form-label">Должность <span class="text-danger">*</span></label>
+                                <select class="form-select @error('position') is-invalid @enderror"
+                                        id="position"
+                                        name="position"
+                                        required>
+                                    <option value="">— Выберите должность —</option>
+                                    @foreach(App\Models\Worker::POSITIONS as $position)
+                                        <option value="{{ $position }}"
+                                            {{ old('position') == $position ? 'selected' : '' }}>
+                                            {{ $position }}
+                                        </option>
+                                    @endforeach
+                                </select>
                                 @error('position')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
-                            <!-- НОВОЕ ПОЛЕ: Отдел (выпадающий список) -->
+                            <!-- Поле Отдел (выпадающий список) -->
                             <div class="mb-3">
                                 <label for="department_id" class="form-label">Отдел</label>
                                 <select class="form-select @error('department_id') is-invalid @enderror"

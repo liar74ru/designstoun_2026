@@ -9,18 +9,51 @@
                 <i class="bi bi-folder"></i> Группы товаров
             </h1>
 
-            <a href="{{ route('products.index') }}" class="btn btn-outline-primary">
-                <i class="bi bi-box"></i> К товарам
-            </a>
+            <div class="btn-group">
+                {{-- Кнопка синхронизации групп --}}
+                <a href="{{ route('products.groups.sync') }}" class="btn btn-success"
+                   onclick="return confirm('Синхронизировать группы с МойСклад?')">
+                    <i class="bi bi-arrow-repeat"></i> Синхронизировать группы
+                </a>
+
+                <a href="{{ route('products.index') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-box"></i> К товарам
+                </a>
+            </div>
         </div>
+
+        {{-- Добавим отображение сообщений об успехе/ошибке --}}
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle"></i> {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle"></i> {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
 
         <div class="row">
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-body">
-                        <div class="tree-view">
-                            @include('components.group-tree', ['groups' => $groupsTree])
-                        </div>
+                        @if(empty($groupsTree))
+                            <div class="text-center py-5">
+                                <i class="bi bi-folder-x" style="font-size: 3rem; color: #ccc;"></i>
+                                <p class="text-muted mt-3">Нет групп для отображения</p>
+                                <a href="{{ route('products.groups.sync') }}" class="btn btn-success">
+                                    <i class="bi bi-arrow-repeat"></i> Синхронизировать группы
+                                </a>
+                            </div>
+                        @else
+                            <div class="tree-view">
+                                @include('components.group-tree', ['groups' => $groupsTree])
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -45,6 +78,25 @@
                                 Групп с товарами: <strong>{{ $stats['products_in_groups'] }}</strong>
                             </li>
                         </ul>
+
+                        {{-- Добавим информацию о последней синхронизации --}}
+                        @if(isset($stats['last_sync']) && $stats['last_sync'])
+                            <hr>
+                            <small class="text-muted">
+                                <i class="bi bi-clock"></i> Последняя синхронизация: {{ $stats['last_sync'] }}
+                            </small>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Добавим подсказку --}}
+                <div class="card shadow-sm mt-3">
+                    <div class="card-body">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            Группы синхронизируются автоматически при синхронизации товаров.
+                            Но вы также можете выполнить синхронизацию только групп.
+                        </small>
                     </div>
                 </div>
             </div>
@@ -96,6 +148,10 @@
 
         .tree-view .children {
             margin-left: 20px;
+        }
+
+        .btn-group .btn {
+            margin-right: 5px;
         }
     </style>
 @endpush
