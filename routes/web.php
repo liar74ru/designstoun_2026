@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RawMaterialBatchController;
 use App\Http\Controllers\RawMaterialMovementController;
+use App\Http\Controllers\StoneReceptionBatchController;
 use App\Http\Controllers\StoneReceptionController;
 use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
@@ -85,6 +86,22 @@ Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController:
 
 Route::post('raw-batches/create', [RawMaterialMovementController::class, 'store'])
     ->name('raw-movement.store');
+
+Route::middleware(['auth'])->group(function () {
+    // Массовые операции с приемками
+    Route::post('/stone-receptions/batch/send-to-processing',
+        [StoneReceptionBatchController::class, 'sendToProcessing'])
+        ->name('stone-receptions.batch.send-to-processing');
+
+    Route::get('/stone-receptions/batch/stats',
+        [StoneReceptionBatchController::class, 'getStats'])
+        ->name('stone-receptions.batch.stats');
+
+    Route::patch('/stone-receptions/{stoneReception}/reset-status',
+        [StoneReceptionController::class, 'resetStatus'])
+        ->name('stone-receptions.reset-status');
+
+});
 
 
 require __DIR__.'/auth.php';

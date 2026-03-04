@@ -88,6 +88,17 @@ class StoneReceptionController extends Controller
      */
     public function store(Request $request)
     {
+        Log::info('Данные формы:', $request->all());
+
+        try {
+            // Валидация данных
+            $data = $this->validateReception($request, true);
+            Log::info('Валидация пройдена', $data);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Ошибка валидации:', $e->errors());
+            throw $e;
+        }
+
         // Валидация данных
         $data = $this->validateReception($request, true);
 
@@ -295,4 +306,24 @@ class StoneReceptionController extends Controller
         // Создаем новые позиции
         $this->createReceptionItems($reception, $products);
     }
+    /**
+     * Сбросить статус приемки на активный (для тестирования)
+     */
+    public function resetStatus(StoneReception $stoneReception)
+    {
+        // Используем константу из модели
+        $stoneReception->update([
+            'status' => StoneReception::STATUS_ACTIVE,
+            'moysklad_processing_id' => null,
+            'synced_at' => null
+        ]);
+
+        Log::info('Статус приемки сброшен', [
+            'reception_id' => $stoneReception->id,
+            'user_id' => auth()->id()
+        ]);
+
+        return back()->with('success', 'Статус приемки сброшен на Активна');
+    }
+
 }

@@ -167,6 +167,73 @@
 
 @push('scripts')
     <script>
+        // Глобальная функция для инициализации поиска
+        window.initSingleProductSearch = function(wrapper) {
+            const searchInput = wrapper.querySelector('.product-search-input');
+            const hiddenInput = wrapper.querySelector('input[type="hidden"]');
+            const datalist = wrapper.querySelector('datalist');
+
+            if (!searchInput || !hiddenInput || !datalist) return;
+
+            // Получаем данные продуктов из атрибута
+            let allProducts = {};
+            try {
+                allProducts = JSON.parse(searchInput.dataset.products);
+            } catch(e) {
+                return;
+            }
+
+            const maxResults = parseInt(searchInput.dataset.maxResults) || 10;
+
+            // Функция для проверки, содержит ли строка все части запроса
+            function matchesParts(text, query) {
+                const parts = query.toLowerCase().split(/\s+/).filter(p => p.length > 0);
+                return parts.every(part => text.toLowerCase().includes(part));
+            }
+
+            // Функция для обновления datalist
+            function updateDatalist(filterQuery = '') {
+                datalist.innerHTML = '';
+
+                let count = 0;
+                for (const [productName, id] of Object.entries(allProducts)) {
+                    if ((filterQuery === '' || matchesParts(productName, filterQuery)) && count < maxResults) {
+                        const option = document.createElement('option');
+                        option.value = productName;
+                        option.setAttribute('data-id', id);
+                        datalist.appendChild(option);
+                        count++;
+                    }
+                }
+            }
+
+            // Обработчик ввода
+            searchInput.addEventListener('input', function() {
+                updateDatalist(this.value);
+            });
+
+            // Обработчик выбора
+            searchInput.addEventListener('change', function() {
+                const selectedValue = allProducts[this.value];
+                if (selectedValue) {
+                    hiddenInput.value = selectedValue;
+                } else {
+                    hiddenInput.value = '';
+                }
+            });
+
+            // Инициализация datalist
+            updateDatalist();
+
+            // Если есть предустановленное значение в скрытом поле, устанавливаем текст в поиск
+            if (hiddenInput.value) {
+                const productEntry = Object.entries(allProducts).find(([name, id]) => id == hiddenInput.value);
+                if (productEntry) {
+                    searchInput.value = productEntry[0];
+                }
+            }
+        };
+
         document.addEventListener('DOMContentLoaded', function() {
             let productCount = 0;
             const container = document.getElementById('products-container');
@@ -204,53 +271,53 @@
 
             // Функция добавления нового продукта
             function addProduct(productData = null) {
+                const productsData = @json($products->mapWithKeys(function($product) {
+                    return [$product->name . ' (' . $product->sku . ')' => $product->id];
+                }));
+
                 const productHtml = `
-            <div class="product-item card mb-2" data-index="${productCount}">
-                <div class="card-body p-2">
-                    <div class="row g-2 align-items-center">
-                        <div class="col-md-7">
-                            <div class="product-search-wrapper">
-                                <input type="text"
-                                       class="form-control product-search-input"
-                                       list="products-list-product_${productCount}"
-                                       placeholder="Начните вводить название или артикул..."
-                                       id="productInput-product_${productCount}"
-                                       data-target="productIdHidden-product_${productCount}"
-                                       data-max-results="10"
-                                       data-products='${JSON.stringify(@json($products->mapWithKeys(function($product) {
-                                           return [$product->name . ' (' . $product->sku . ')' => $product->id];
-                                       })))}'
-                                       ${productData ? `value="${Object.entries(@json($products->mapWithKeys(function($product) {
-                                           return [$product->name . ' (' . $product->sku . ')' => $product->id];
-                                       }))).find(([name, id]) => id == productData.product_id)?.[0] || ''}"` : ''}
-                                       required>
-                                <datalist id="products-list-product_${productCount}"></datalist>
-                                <input type="hidden"
-                                       name="products[${productCount}][product_id]"
-                                       id="productIdHidden-product_${productCount}"
-                                       value="${productData ? productData.product_id : ''}"
-                                       required>
+                    <div class="product-item card mb-2" data-index="${productCount}">
+                        <div class="card-body p-2">
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-7">
+                                    <div class="product-search-wrapper">
+                                        <input type="text"
+                                               class="form-control product-search-input"
+                                               list="products-list-product_${productCount}"
+                                               placeholder="Начните вводить название или артикул..."
+                                               id="productInput-product_${productCount}"
+                                               data-target="productIdHidden-product_${productCount}"
+                                               data-max-results="10"
+                                               data-products='${JSON.stringify(productsData)}'
+                                               ${productData ? `value="${Object.entries(productsData).find(([name, id]) => id == productData.product_id)?.[0] || ''}"` : ''}
+                                               required>
+                                        <datalist id="products-list-product_${productCount}"></datalist>
+                                        <input type="hidden"
+                                               name="products[${productCount}][product_id]"
+                                               id="productIdHidden-product_${productCount}"
+                                               value="${productData ? productData.product_id : ''}"
+                                               required>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number"
+                                           step="0.001"
+                                           min="0.001"
+                                           name="products[${productCount}][quantity]"
+                                           class="form-control form-control-sm product-quantity"
+                                           placeholder="Кол-во"
+                                           value="${productData ? productData.quantity : ''}"
+                                           required>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger remove-product">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <input type="number"
-                                   step="0.001"
-                                   min="0.001"
-                                   name="products[${productCount}][quantity]"
-                                   class="form-control form-control-sm product-quantity"
-                                   placeholder="Кол-во"
-                                   value="${productData ? productData.quantity : ''}"
-                                   required>
-                        </div>
-                        <div class="col-md-2">
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-product">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
                     </div>
-                </div>
-            </div>
-        `;
+                `;
 
                 container.insertAdjacentHTML('beforeend', productHtml);
 
@@ -258,8 +325,9 @@
                 const newItem = container.lastElementChild;
 
                 // Инициализируем поиск в новом элементе
-                if (window.initSingleProductSearch) {
-                    window.initSingleProductSearch(newItem.querySelector('.product-search-wrapper'));
+                const wrapper = newItem.querySelector('.product-search-wrapper');
+                if (wrapper && window.initSingleProductSearch) {
+                    window.initSingleProductSearch(wrapper);
                 }
 
                 // Обработчик удаления
@@ -303,15 +371,26 @@
                 }
 
                 let valid = true;
-                products.forEach(item => {
+                products.forEach((item) => {
                     const hiddenInput = item.querySelector('input[type="hidden"][name*="[product_id]"]');
                     const quantity = item.querySelector('.product-quantity');
+                    const searchInput = item.querySelector('.product-search-input');
 
-                    if (!hiddenInput.value || !quantity.value || parseFloat(quantity.value) <= 0) {
+                    if (!hiddenInput.value) {
                         valid = false;
                         item.classList.add('border', 'border-danger');
+                        searchInput?.classList.add('is-invalid');
                     } else {
                         item.classList.remove('border', 'border-danger');
+                        searchInput?.classList.remove('is-invalid');
+                    }
+
+                    if (!quantity.value || parseFloat(quantity.value) <= 0) {
+                        valid = false;
+                        item.classList.add('border', 'border-danger');
+                        quantity.classList.add('is-invalid');
+                    } else {
+                        quantity.classList.remove('is-invalid');
                     }
                 });
 
