@@ -15,7 +15,8 @@ class StockSyncService
 
     public function __construct()
     {
-        $this->token = env('MOYSKLAD_TOKEN');
+        $this->token = config('services.moysklad.token');
+        $this->baseUrl = config('services.moysklad.base_url');
     }
 
     /**

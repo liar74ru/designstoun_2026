@@ -302,8 +302,24 @@ class StoneReceptionController extends Controller
      */
     private function updateReceptionItems(StoneReception $reception, array $products): void
     {
-        $reception->items()->delete();
-        $this->createReceptionItems($reception, $products);
+        $existingIds = $reception->items()->pluck('id')->toArray();
+
+        $upsertData = array_map(fn($p) => [
+            'stone_reception_id' => $reception->id,
+            'product_id'         => $p['product_id'],
+            'quantity'           => $p['quantity'],
+            'updated_at'         => now(),
+        ], $products);
+
+        \DB::table('stone_reception_items')->upsert(
+            $upsertData,
+            ['stone_reception_id', 'product_id'],
+            ['quantity', 'updated_at']
+        );
+
+        // Удаляем только те позиции, которых нет в новых данных
+        $newProductIds = array_column($products, 'product_id');
+        $reception->items()->whereNotIn('product_id', $newProductIds)->delete();
     }
 
     /**

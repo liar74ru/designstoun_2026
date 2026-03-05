@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // 1. Добавить в config/services.php:
+    'moysklad' => [
+        'token' => env('MOYSKLAD_TOKEN'),
+        'base_url' => env('MOYSKLAD_BASE_URL', 'https://api.moysklad.ru/api/remap/1.2'),
+    ],
+
 ];

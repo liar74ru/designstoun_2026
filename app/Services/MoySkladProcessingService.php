@@ -18,7 +18,8 @@ class MoySkladProcessingService
 
     public function __construct()
     {
-        $this->token = env('MOYSKLAD_TOKEN');
+        $this->token = config('services.moysklad.token');
+        $this->baseUrl = config('services.moysklad.base_url');
 
         if (empty($this->token)) {
             Log::warning('MOYSKLAD_TOKEN не установлен в .env файле');
