@@ -19,6 +19,7 @@ class Product extends Model
         'description',
         'price',
         'old_price',
+        'prod_cost_coeff',
         'quantity',
         'is_active',
         'attributes',
@@ -27,9 +28,28 @@ class Product extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'old_price' => 'decimal:2',
+        'prod_cost_coeff' => 'decimal:4',
         'is_active' => 'boolean',
         'attributes' => 'array',
     ];
+
+    /**
+     * Фиксированная ставка оплаты за единицу (рублей).
+     * Вынесена в константу — если ставка изменится, меняем только здесь.
+     */
+    const PIECE_RATE = 390.0;
+
+    /**
+     * Рассчитать стоимость производства для пильщика за указанное количество.
+     *
+     * Формула: количество * коэффициент * ставка
+     * Пример: 5 штук * 1.5 * 390 = 2925 руб
+     */
+    public function calculateWorkerPay(float $quantity): float
+    {
+        $coeff = $this->prod_cost_coeff ?? 0;
+        return $quantity * (float)$coeff * self::PIECE_RATE;
+    }
 
     /**
      * Получить группу товара

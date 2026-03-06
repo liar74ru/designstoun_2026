@@ -67,6 +67,10 @@
                                         <td><small class="text-muted">{{ $product->moysklad_id }}</small></td>
                                     </tr>
                                     <tr>
+                                        <th>prodCostCoeff:</th>
+                                        <td><small class="text-muted">{{ $product->prod_cost_coeff }}</small></td>
+                                    </tr>
+                                    <tr>
                                         <th>Статус:</th>
                                         <td>
                                             @if($product->is_active)

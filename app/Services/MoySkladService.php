@@ -248,7 +248,8 @@ class MoySkladService
                 $data = $this->getRequest('/entity/product', [
                     'limit' => $limit,
                     'offset' => $offset,
-                    'order' => 'updated,desc'
+                    'order' => 'updated,desc',
+                    'expand' => 'attributes',  // запрашиваем кастомные атрибуты
                 ]);
 
                 if (!$data || !isset($data['rows'])) {
@@ -300,6 +301,32 @@ class MoySkladService
     }
 
     /**
+     * Публичная обёртка для извлечения кастомного атрибута.
+     * Используется в контроллере при обновлении одного товара.
+     */
+    public function extractAttributePublic(array $productData, string $attributeName): mixed
+    {
+        return $this->extractAttribute($productData, $attributeName);
+    }
+
+    /**
+     * Извлечь значение кастомного атрибута по имени.
+     *
+     * В МойСклад атрибуты приходят как массив объектов:
+     * [{"id": "...", "name": "prodCostCoeff", "value": 1.5}, ...]
+     */
+    private function extractAttribute(array $productData, string $attributeName): mixed
+    {
+        $attributes = $productData['attributes'] ?? [];
+        foreach ($attributes as $attr) {
+            if (($attr['name'] ?? '') === $attributeName) {
+                return $attr['value'] ?? null;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Обработка одного товара
      */
     private function processProduct(array $productData, array &$result, array $groupsCache): void
@@ -345,6 +372,9 @@ class MoySkladService
             $result['synced']++;
         }
 
+        // Извлекаем коэффициент стоимости производства из кастомных атрибутов МойСклад
+        $prodCostCoeff = $this->extractAttribute($productData, 'prodCostCoeff');
+
         // Сохранение
         Product::updateOrCreate(
             ['moysklad_id' => $productData['id']],
@@ -356,6 +386,7 @@ class MoySkladService
                 'description' => $productData['description'] ?? null,
                 'price' => $price,
                 'old_price' => $oldPrice,
+                'prod_cost_coeff' => $prodCostCoeff,
                 'quantity' => $productData['stock'] ?? 0,
                 'is_active' => true,
                 'attributes' => json_encode([
@@ -385,7 +416,9 @@ class MoySkladService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->token,
                 'Accept-Encoding' => 'gzip',
-            ])->get($this->baseUrl . '/entity/product/' . $id);
+            ])->get($this->baseUrl . '/entity/product/' . $id, [
+                'expand' => 'attributes',  // получаем кастомные атрибуты
+            ]);
 
             if (!$response->successful()) {
                 Log::error('Ошибка получения товара', [

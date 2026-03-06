@@ -6,16 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Worker extends Model
 {
-    /**
-     * Список доступных должностей
-     */
     const POSITIONS = [
         'Директор',
         'Мастер',
         'Пильщик',
         'Галтовщик',
         'Приемщик',
-        'Разнорабочий'
+        'Разнорабочий',
     ];
 
     protected $fillable = [
@@ -23,8 +20,16 @@ class Worker extends Model
         'email',
         'phone',
         'position',
-        'department_id'
+        'department_id',
     ];
+
+    /**
+     * Учётная запись этого работника в системе
+     */
+    public function user()
+    {
+        return $this->hasOne(User::class);
+    }
 
     /**
      * Отдел сотрудника
@@ -32,5 +37,21 @@ class Worker extends Model
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Все приёмки, где этот работник был пильщиком
+     */
+    public function receptionsAsCutter()
+    {
+        return $this->hasMany(StoneReception::class, 'cutter_id');
+    }
+
+    /**
+     * Все приёмки, где этот работник был приёмщиком
+     */
+    public function receptionsAsReceiver()
+    {
+        return $this->hasMany(StoneReception::class, 'receiver_id');
     }
 }

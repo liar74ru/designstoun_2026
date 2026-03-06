@@ -80,6 +80,15 @@
                                 <td>{{ $worker->created_at->format('d.m.Y') }}</td>
                                 <td>
                                     <div class="d-flex gap-2 justify-content-center">
+                                        {{-- Выработка — для пильщиков --}}
+                                        @if($worker->position === 'Пильщик')
+                                            <a href="{{ route('worker.dashboard.by-id', $worker->id) }}"
+                                               class="btn btn-sm btn-outline-success"
+                                               title="Выработка">
+                                                <i class="bi bi-bar-chart"></i>
+                                            </a>
+                                        @endif
+
                                         <!-- Кнопка редактирования -->
                                         <a href="{{ route('workers.edit', $worker) }}"
                                            class="btn btn-sm btn-outline-primary"

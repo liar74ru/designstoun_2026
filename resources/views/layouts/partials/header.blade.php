@@ -51,6 +51,13 @@
                     <!-- Auth кнопки - скрываем на очень маленьких экранах -->
                     <div class="d-none d-sm-flex align-items-center me-3">
                         @auth
+                            {{-- Пильщик видит ссылку на свою страницу --}}
+                            @if(auth()->user()->worker_id && !auth()->user()->isAdmin())
+                                <a href="{{ route('worker.dashboard') }}"
+                                   class="btn btn-outline-primary btn-sm me-2">
+                                    ⛏️ Моя выработка
+                                </a>
+                            @endif
                             <a href="{{ route('profile.edit') }}" class="btn btn-primary">
                                 {{ __('Profile') }}
                             </a>

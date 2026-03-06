@@ -215,6 +215,7 @@ class ProductController extends Controller
                 'description' => $item['description'] ?? '',
                 'price' => $price,
                 'old_price' => $oldPrice,
+                'prod_cost_coeff' => $this->moySkladService->extractAttributePublic($item, 'prodCostCoeff'),
                 'quantity' => $item['stock'] ?? 0,
                 'attributes' => json_encode([
                     'code' => $item['code'] ?? null,

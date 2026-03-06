@@ -11,52 +11,63 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            // login — телефон или email
+            'login'    => ['required', 'string'],
             'password' => ['required', 'string'],
         ];
     }
 
     /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws \Illuminate\Validation\ValidationException
+     * Определяем, что ввёл пользователь — телефон или email.
+     * Телефон: содержит только цифры, +, -, пробелы (нет @)
      */
+    private function getLoginField(): string
+    {
+        return str_contains($this->input('login'), '@') ? 'email' : 'phone';
+    }
+
+    /**
+     * Нормализуем телефон: оставляем только цифры.
+     * +7 (999) 123-45-67  →  79991234567
+     * Это позволяет вводить в любом формате.
+     */
+    private function normalizeLogin(string $login): string
+    {
+        if ($this->getLoginField() === 'phone') {
+            return preg_replace('/\D/', '', $login);
+        }
+        return $login;
+    }
+
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $field = $this->getLoginField();
+        $login = $this->normalizeLogin($this->input('login'));
+
+        if (! Auth::attempt(
+            [$field => $login, 'password' => $this->input('password')],
+            $this->boolean('remember')
+        )) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'login' => __('auth.failed'),
             ]);
         }
 
         RateLimiter::clear($this->throttleKey());
     }
 
-    /**
-     * Ensure the login request is not rate limited.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function ensureIsNotRateLimited(): void
     {
         if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
@@ -68,18 +79,15 @@ class LoginRequest extends FormRequest
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
+            'login' => trans('auth.throttle', [
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
         ]);
     }
 
-    /**
-     * Get the rate limiting throttle key for the request.
-     */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->string('login')) . '|' . $this->ip());
     }
 }
