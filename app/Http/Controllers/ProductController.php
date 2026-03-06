@@ -297,4 +297,40 @@ class ProductController extends Controller
                 ->with('error', $result['message']);
         }
     }
+
+    /**
+     * AJAX: дерево групп с продуктами для компонента выбора продукта.
+     * Кэшируем на 10 минут — структура меняется редко.
+     */
+    public function groupsJson()
+    {
+        $tree = cache()->remember('products_tree_json', 600, function () {
+            $groups = $this->productGroupService->getGroupsTree();
+            return $this->attachProductsToTree($groups);
+        });
+
+        return response()->json($tree);
+    }
+
+    /**
+     * Рекурсивно добавляет продукты к узлам дерева групп
+     */
+    private function attachProductsToTree(array $groups): array
+    {
+        foreach ($groups as &$group) {
+            $group['products'] = \App\Models\Product::where('group_id', $group['id'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'sku'])
+                ->map(fn($p) => [
+                    'id'    => $p->id,
+                    'label' => $p->name . ($p->sku ? ' (' . $p->sku . ')' : ''),
+                ])
+                ->toArray();
+
+            if (!empty($group['children'])) {
+                $group['children'] = $this->attachProductsToTree($group['children']);
+            }
+        }
+        return $groups;
+    }
 }

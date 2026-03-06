@@ -46,6 +46,7 @@ class ProductGroupService
                 'total_products' => $totalProducts,
             ];
         }
+        usort($tree, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
 
         return $tree;
     }

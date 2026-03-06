@@ -130,14 +130,18 @@
                                 <td>{{ $batch->currentWorker->name ?? '—' }}</td>
                                 <td>{{ $batch->created_at->format('d.m.Y H:i') }}</td>
                                 <td>
-                                    <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-sm btn-outline-info">
+                                    <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-sm btn-outline-info" title="Просмотр">
                                         <i class="bi bi-eye"></i>
                                     </a>
+                                    {{-- Копировать партию (создать новую на основе этой) --}}
+                                    <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-sm btn-outline-primary" title="Создать копию">
+                                        <i class="bi bi-copy"></i>
+                                    </a>
                                     @if($batch->status == 'active')
-                                        <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-sm btn-outline-warning">
+                                        <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-sm btn-outline-warning" title="Передать пильщику">
                                             <i class="bi bi-arrow-left-right"></i>
                                         </a>
-                                        <a href="{{ route('raw-batches.return.form', $batch) }}" class="btn btn-sm btn-outline-secondary">
+                                        <a href="{{ route('raw-batches.return.form', $batch) }}" class="btn btn-sm btn-outline-secondary" title="Вернуть на склад">
                                             <i class="bi bi-arrow-return-left"></i>
                                         </a>
                                     @endif

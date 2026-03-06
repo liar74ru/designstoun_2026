@@ -15,63 +15,126 @@
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-body p-4">
-                        <form method="POST" action="{{ route('raw-movement.store') }}">
+                        <form method="POST" action="{{ route('raw-movement.store') }}" id="batchForm">
                             @csrf
 
-                            <!-- Продукт (сырьё) -->
-                            <x-product-search
-                                :products="$products"
-                                name="product_id"
-                                label="Сырье"
-                                placeholder="Начните вводить название или артикул..."
-                                required="true"
-                                :value="old('product_id', session('copy_from.product_id'))"
-                                :error="$errors->first('product_id')"
-                                :maxResults="10"
-                            />
-{{--                            <div class="mb-3">--}}
-{{--                                <label class="form-label">Продукт (сырьё) <span class="text-danger">*</span></label>--}}
-{{--                                <select name="product_id" class="form-select @error('product_id') is-invalid @enderror" required>--}}
-{{--                                    <option value="">— Выберите сырьё —</option>--}}
-{{--                                    @foreach($products as $product)--}}
-{{--                                        <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>--}}
-{{--                                            {{ $product->name }} ({{ $product->sku }})--}}
-{{--                                        </option>--}}
-{{--                                    @endforeach--}}
-{{--                                </select>--}}
-{{--                                @error('product_id')--}}
-{{--                                <div class="invalid-feedback">{{ $message }}</div>--}}
-{{--                                @enderror--}}
-{{--                            </div>--}}
+                            @if($errors->any())
+                                <div class="alert alert-danger py-2">
+                                    @foreach($errors->all() as $error)
+                                        <div class="small">{{ $error }}</div>
+                                    @endforeach
+                                </div>
+                            @endif
 
-                            <!-- Количество -->
+                            {{-- Продукт — новый пикер вместо x-product-search --}}
                             <div class="mb-3">
-                                <label class="form-label">Количество (м²) <span class="text-danger">*</span></label>
-                                <input type="number" step="0.001" min="0.001" name="quantity"
+                                <label class="form-label fw-semibold">
+                                    Сырьё <span class="text-danger">*</span>
+                                </label>
+                                <div class="product-picker-row" data-tpl-index="0">
+                                    <div class="flex-grow-1 position-relative">
+                                        <div class="input-group">
+                                            <input type="text"
+                                                   id="search_0"
+                                                   class="form-control product-picker-search"
+                                                   placeholder="Начните вводить название сырья..."
+                                                   autocomplete="off"
+                                                   data-hidden-id="pid_0"
+                                                   value="{{ old('product_name', session('copy_from.product_name')) }}"
+                                                   required>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary product-picker-tree-btn"
+                                                    data-modal="modal_0"
+                                                    data-hidden-id="pid_0"
+                                                    data-search-id="search_0"
+                                                    title="Выбрать из каталога">
+                                                <i class="bi bi-diagram-3"></i>
+                                            </button>
+                                        </div>
+                                        <div class="product-picker-dropdown list-group shadow-sm"
+                                             id="drop_0"
+                                             style="display:none;position:absolute;z-index:1000;width:100%;max-height:280px;overflow-y:auto">
+                                        </div>
+                                    </div>
+                                    <input type="hidden"
+                                           id="pid_0"
+                                           name="product_id"
+                                           value="{{ old('product_id', session('copy_from.product_id')) }}"
+                                           required>
+
+                                    {{-- Модальное окно дерева --}}
+                                    <div class="modal fade" id="modal_0" tabindex="-1">
+                                        <div class="modal-dialog modal-lg">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Выбрать из каталога</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+                                                    <input type="text" class="form-control mb-3 tree-search-input"
+                                                           placeholder="Поиск по каталогу...">
+                                                    <div class="product-tree-container"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                @error('product_id')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            {{-- Количество --}}
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">
+                                    Количество (м³) <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" step="0.1" min="0.1" name="quantity"
                                        class="form-control @error('quantity') is-invalid @enderror"
-                                       value="{{ old('quantity') }}" required>
+                                       value="{{ old('quantity') ? old('quantity') : 1 }}" required>
                                 @error('quantity')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
-                            <!-- Номер партии (опционально) -->
+                            {{-- Номер партии --}}
                             <div class="mb-3">
-                                <label class="form-label">Номер партии</label>
-                                <input type="text" name="batch_number" class="form-control @error('batch_number') is-invalid @enderror"
-                                       value="{{ old('batch_number') }}">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <label class="form-label fw-semibold mb-0">Номер партии</label>
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="manualBatchNumber" role="switch">
+                                        <label class="form-check-label small text-muted" for="manualBatchNumber">
+                                            Задать вручную
+                                        </label>
+                                    </div>
+                                </div>
+                                <input type="text"
+                                       id="batchNumberInput"
+                                       name="batch_number"
+                                       class="form-control @error('batch_number') is-invalid @enderror"
+                                       value="{{ old('batch_number') }}"
+                                       placeholder="Выберите пильщика для автогенерации..."
+                                       readonly>
+                                <div class="form-text text-muted" id="batchNumberHint">
+                                    Номер сформируется автоматически после выбора пильщика
+                                </div>
                                 @error('batch_number')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
-                            <!-- Склад-источник -->
+                            {{-- Склад-источник --}}
                             <div class="mb-3">
-                                <label class="form-label">Склад-источник <span class="text-danger">*</span></label>
-                                <select name="from_store_id" class="form-select @error('from_store_id') is-invalid @enderror" required>
+                                <label class="form-label fw-semibold">
+                                    Склад-источник <span class="text-danger">*</span>
+                                </label>
+                                <select name="from_store_id"
+                                        class="form-select @error('from_store_id') is-invalid @enderror" required>
                                     <option value="">— Выберите склад —</option>
                                     @foreach($stores as $store)
-                                        <option value="{{ $store->id }}" {{ old('from_store_id') == $store->id ? 'selected' : '' }}>
+                                        <option value="{{ $store->id }}"
+                                            {{ old('from_store_id', session('copy_from.from_store_id')) == $store->id ? 'selected' : '' }}>
                                             {{ $store->name }}
                                         </option>
                                     @endforeach
@@ -81,13 +144,17 @@
                                 @enderror
                             </div>
 
-                            <!-- Склад-назначение (обычно цех) -->
+                            {{-- Склад-назначение --}}
                             <div class="mb-3">
-                                <label class="form-label">Склад-назначение (цех) <span class="text-danger">*</span></label>
-                                <select name="to_store_id" class="form-select @error('to_store_id') is-invalid @enderror" required>
+                                <label class="form-label fw-semibold">
+                                    Склад-назначение (цех) <span class="text-danger">*</span>
+                                </label>
+                                <select name="to_store_id"
+                                        class="form-select @error('to_store_id') is-invalid @enderror" required>
                                     <option value="">— Выберите склад —</option>
                                     @foreach($stores as $store)
-                                        <option value="{{ $store->id }}" {{ old('to_store_id') == $store->id ? 'selected' : '' }}>
+                                        <option value="{{ $store->id }}"
+                                            {{ old('to_store_id', session('copy_from.to_store_id')) == $store->id ? 'selected' : '' }}>
                                             {{ $store->name }}
                                         </option>
                                     @endforeach
@@ -97,13 +164,18 @@
                                 @enderror
                             </div>
 
-                            <!-- Пильщик (кому передаётся) -->
+                            {{-- Пильщик --}}
                             <div class="mb-3">
-                                <label class="form-label">Закрепить за пильщиком <span class="text-danger">*</span></label>
-                                <select name="worker_id" class="form-select @error('worker_id') is-invalid @enderror" required>
+                                <label class="form-label fw-semibold">
+                                    Закрепить за пильщиком <span class="text-danger">*</span>
+                                </label>
+                                <select name="worker_id"
+                                        id="workerSelect"
+                                        class="form-select @error('worker_id') is-invalid @enderror" required>
                                     <option value="">— Выберите пильщика —</option>
                                     @foreach($workers as $worker)
-                                        <option value="{{ $worker->id }}" {{ old('worker_id') == $worker->id ? 'selected' : '' }}>
+                                        <option value="{{ $worker->id }}"
+                                            {{ old('worker_id', session('copy_from.worker_id')) == $worker->id ? 'selected' : '' }}>
                                             {{ $worker->name }}
                                         </option>
                                     @endforeach
@@ -123,3 +195,65 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const row             = document.querySelector('.product-picker-row');
+            const workerSelect    = document.getElementById('workerSelect');
+            const batchInput      = document.getElementById('batchNumberInput');
+            const manualCheckbox  = document.getElementById('manualBatchNumber');
+            const batchHint       = document.getElementById('batchNumberHint');
+
+            // Инициализируем пикер продукта
+            if (row && window.ProductPicker) {
+                window.ProductPicker.initRow(row);
+            }
+
+            // ── Автогенерация номера партии ──────────────────────────────────────────
+
+            async function fetchBatchNumber(workerId) {
+                if (!workerId) return;
+                try {
+                    const res  = await fetch(`/api/workers/${workerId}/next-batch-number`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await res.json();
+                    batchInput.value       = data.batch_number;
+                    batchInput.placeholder = data.batch_number;
+                    batchHint.textContent  = `Автономер: ${data.batch_number}`;
+                } catch (e) {
+                    console.error('Ошибка получения номера партии', e);
+                }
+            }
+
+            // При смене пильщика — запрашиваем новый номер (если не ручной режим)
+            workerSelect?.addEventListener('change', function () {
+                if (!manualCheckbox.checked) {
+                    fetchBatchNumber(this.value);
+                }
+            });
+
+            // Переключение чекбокса "Задать вручную"
+            manualCheckbox?.addEventListener('change', function () {
+                if (this.checked) {
+                    // Ручной режим — разблокируем поле
+                    batchInput.readOnly   = false;
+                    batchInput.classList.add('border-warning');
+                    batchHint.textContent = 'Введите номер партии вручную';
+                } else {
+                    // Авто режим — блокируем и обновляем из API
+                    batchInput.readOnly   = true;
+                    batchInput.classList.remove('border-warning');
+                    fetchBatchNumber(workerSelect?.value);
+                }
+            });
+
+            // Если пильщик уже выбран (например, после копирования) — сразу генерируем
+            if (workerSelect?.value) {
+                fetchBatchNumber(workerSelect.value);
+            }
+        });
+    </script>
+    @vite(['resources/js/product-picker.js'])
+@endpush

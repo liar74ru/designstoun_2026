@@ -66,6 +66,9 @@ Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController:
     ->name('stone-receptions.copy');
 
 Route::resource('raw-batches', RawMaterialBatchController::class)->except(['edit', 'update', 'store']);
+Route::post('raw-batches', [RawMaterialBatchController::class, 'store'])->name('raw-batches.store');
+Route::get('raw-batches/{batch}/copy', [RawMaterialBatchController::class, 'copy'])
+    ->name('raw-batches.copy');
 Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])
     ->name('raw-batches.transfer.form');
 Route::post('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transfer'])
@@ -92,3 +95,16 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+// AJAX-эндпоинты для формы приёмки
+Route::middleware('auth')->group(function () {
+    // Партии сырья для конкретного пильщика (JSON)
+    Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])
+        ->name('api.worker.batches');
+    // Следующий номер партии для пильщика
+    Route::get('/api/workers/{worker}/next-batch-number', [RawMaterialBatchController::class, 'nextBatchNumber'])
+        ->name('api.worker.next-batch-number');
+    // Дерево групп с продуктами (JSON, кэшируется)
+    Route::get('/api/products/tree', [ProductController::class, 'groupsJson'])
+        ->name('api.products.tree');
+});

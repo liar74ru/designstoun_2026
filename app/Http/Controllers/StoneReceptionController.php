@@ -69,14 +69,13 @@ class StoneReceptionController extends Controller
     }
 
     /**
-     * Получает последние приемки
+     * Получает последние приемки с пагинацией
      */
-    private function getLastReceptions($limit = 10)
+    private function getLastReceptions($perPage = 15)
     {
         return StoneReception::with(['receiver', 'cutter', 'store', 'items.product', 'rawMaterialBatch.product'])
             ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
+            ->paginate($perPage);
     }
 
     /**
@@ -334,5 +333,21 @@ class StoneReceptionController extends Controller
         ]);
 
         return back()->with('success', 'Статус сброшен на Активна');
+    }
+
+    /**
+     * AJAX: партии сырья для пильщика (используется в форме приёмки без перезагрузки страницы)
+     */
+    public function getBatchesJson(\App\Models\Worker $worker)
+    {
+        $batches = $this->getActiveBatches($worker->id)->map(fn($b) => [
+            'id'                 => $b->id,
+            'label'              => $b->product->name
+                . ' (ост: ' . number_format($b->remaining_quantity, 2) . ' м³)'
+                . ($b->batch_number ? ' №' . $b->batch_number : ''),
+            'remaining_quantity' => (float) $b->remaining_quantity,
+        ]);
+
+        return response()->json($batches);
     }
 }
