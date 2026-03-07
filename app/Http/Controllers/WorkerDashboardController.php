@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\StoneReception;
+use App\Models\ReceptionLog;
 use App\Models\StoneReceptionItem;
 use App\Models\Worker;
 use Carbon\Carbon;
@@ -68,19 +69,19 @@ class WorkerDashboardController extends Controller
             ? Carbon::parse($request->input('date_to'))->endOfDay()
             : $defaultTo;
 
-        // Загружаем приёмки пильщика за период
-        // with() — жадная загрузка, чтобы не было N+1 запросов
-        $receptions = StoneReception::with(['items.product', 'store', 'receiver'])
+        // Загружаем логи приёмок пильщика за период из reception_logs
+        // Это точная история: первичные приёмки + все дельты редактирований
+        $logs = ReceptionLog::with(['items.product', 'stoneReception.store', 'receiver'])
             ->where('cutter_id', $worker->id)
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Считаем сводку по продуктам за период.
-        // Группируем все позиции всех приёмок по product_id.
-        //
-        // Результат: [product_id => ['product' => ..., 'quantity' => ..., 'pay' => ...]]
-        $summary = $this->buildProductSummary($receptions);
+        // Для обратной совместимости с шаблоном — $receptions теперь это логи
+        $receptions = $logs;
+
+        // Считаем сводку по продуктам за период на основе дельт лога
+        $summary = $this->buildProductSummary($logs);
 
         // Итоговая зарплата = сумма по всем продуктам
         $totalPay = $summary->sum('pay');
@@ -101,17 +102,19 @@ class WorkerDashboardController extends Controller
      * Используем Laravel Collection методы — это PHP-аналог SQL GROUP BY,
      * но в памяти, что удобно когда данных немного (недельная выборка).
      */
-    private function buildProductSummary($receptions)
+    private function buildProductSummary($logs)
     {
-        // Собираем все позиции всех приёмок в один плоский список
-        $allItems = $receptions->flatMap(fn($reception) => $reception->items);
+        // Собираем все позиции всех логов в один плоский список.
+        // quantity_delta может быть отрицательной (корректировка вниз) — это нормально.
+        $allItems = $logs->flatMap(fn($log) => $log->items);
 
-        // Группируем по product_id
+        // Группируем по product_id и суммируем дельты
         return $allItems
             ->groupBy('product_id')
             ->map(function ($items, $productId) {
                 $product  = $items->first()->product;
-                $quantity = $items->sum(fn($item) => (float) $item->quantity);
+                // Суммируем дельты — итог и есть фактически произведённое количество
+                $quantity = $items->sum(fn($item) => (float) $item->quantity_delta);
                 $pay      = $product ? $product->calculateWorkerPay($quantity) : 0;
 
                 return [
@@ -121,7 +124,8 @@ class WorkerDashboardController extends Controller
                     'pay'      => $pay,
                 ];
             })
-            ->sortByDesc('pay')  // самые доходные позиции вверху
+            ->filter(fn($row) => abs($row['quantity']) > 0.0001) // убираем нулевые строки
+            ->sortByDesc('pay')
             ->values();
     }
 }

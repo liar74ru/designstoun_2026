@@ -69,6 +69,14 @@ class StoneReception extends Model
     }
 
     /**
+     * Журнал изменений приёмки
+     */
+    public function receptionLogs()
+    {
+        return $this->hasMany(\App\Models\ReceptionLog::class);
+    }
+
+    /**
      * Позиции приемки (продукты)
      */
     public function items()

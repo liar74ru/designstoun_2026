@@ -13,6 +13,7 @@ use App\Traits\HandlesBatchStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Observers\StoneReceptionObserver;
 
 class StoneReceptionController extends Controller
 {
@@ -140,6 +141,8 @@ class StoneReceptionController extends Controller
             DB::transaction(function () use ($data) {
                 $reception = StoneReception::create($this->prepareReceptionData($data));
                 $this->createReceptionItems($reception, $data['products']);
+                // Пишем первичный лог — все продукты как положительная дельта
+                StoneReceptionObserver::writeLog($reception, [], 'created');
             });
 
             session()->forget('copy_data');
@@ -176,6 +179,9 @@ class StoneReceptionController extends Controller
                 $this->handleBatchUpdate($stoneReception, $data);
                 $stoneReception->update($this->prepareReceptionData($data, false));
                 $this->updateReceptionItems($stoneReception, $data['products']);
+
+                // Пишем лог дельты — предыдущее состояние берётся из reception_logs
+                StoneReceptionObserver::writeLog($stoneReception->fresh(), [], 'updated');
             });
 
             return redirect()->route('stone-receptions.index')->with('success', 'Приемка обновлена');

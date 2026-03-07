@@ -168,28 +168,38 @@
                                 <th>Дата</th>
                                 <th>Склад</th>
                                 <th>Приёмщик</th>
-                                <th>Продукция</th>
-                                <th>Расход сырья</th>
+                                <th>Продукция (дельта)</th>
+                                <th>Приёмка #</th>
                             </tr>
                             </thead>
                             <tbody>
-                            @foreach($receptions as $reception)
-                                <tr>
+                            @foreach($receptions as $log)
+                                <tr class="{{ $log->type === 'updated' ? 'table-warning' : '' }}">
                                     <td class="text-nowrap">
-                                        {{ $reception->created_at->format('d.m.Y H:i') }}
+                                        {{ $log->created_at->format('d.m.Y H:i') }}
+                                        <div class="small">
+                                            @if($log->type === 'created')
+                                                <span class="badge bg-success">Создание</span>
+                                            @else
+                                                <span class="badge bg-warning text-dark">Правка</span>
+                                            @endif
+                                        </div>
                                     </td>
-                                    <td>{{ $reception->store?->name ?? '—' }}</td>
-                                    <td>{{ $reception->receiver?->name ?? '—' }}</td>
+                                    <td>{{ $log->stoneReception?->store?->name ?? '—' }}</td>
+                                    <td>{{ $log->receiver?->name ?? '—' }}</td>
                                     <td>
-                                        @foreach($reception->items as $item)
+                                        @foreach($log->items as $item)
                                             <div class="small">
                                                 {{ $item->product?->name ?? '?' }}
-                                                <span class="text-muted">×{{ number_format($item->quantity, 3, ',', '.') }}</span>
+                                                @php $delta = (float) $item->quantity_delta; @endphp
+                                                <span class="{{ $delta >= 0 ? 'text-success' : 'text-danger' }} fw-semibold">
+                                                    {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }}
+                                                </span>
                                             </div>
                                         @endforeach
                                     </td>
                                     <td class="text-nowrap">
-                                        {{ number_format($reception->raw_quantity_used, 3, ',', ' ') }}
+                                        #{{ $log->stone_reception_id }}
                                     </td>
                                 </tr>
                             @endforeach
