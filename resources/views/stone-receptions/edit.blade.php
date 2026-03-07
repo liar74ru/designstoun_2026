@@ -4,27 +4,22 @@
 
 @section('content')
     <div class="container py-4">
-        <!-- Навигация -->
+
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2 mb-0">✏️ Редактирование приемки #{{ $stoneReception->id }}</h1>
-
             <a href="{{ route('stone-receptions.index') }}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> К списку
             </a>
         </div>
 
-        <!-- Сообщения об ошибках -->
         @if($errors->any())
             <div class="alert alert-danger">
                 <ul class="mb-0">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
+                    @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
                 </ul>
             </div>
         @endif
 
-        <!-- Форма редактирования -->
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="card shadow-sm">
@@ -36,25 +31,22 @@
                             @csrf
                             @method('PUT')
 
-                            <!-- Приемщик и Пильщик в одной строке -->
+                            {{-- Приёмщик / Пильщик --}}
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="receiver_id" class="form-label">Приемщик <span class="text-danger">*</span></label>
-                                    <select name="receiver_id" id="receiver_id" class="form-select @error('receiver_id') is-invalid @enderror" required>
+                                    <label class="form-label">Приемщик <span class="text-danger">*</span></label>
+                                    <select name="receiver_id" class="form-select @error('receiver_id') is-invalid @enderror" required>
                                         @foreach($masterWorkers as $worker)
                                             <option value="{{ $worker->id }}" {{ old('receiver_id', $stoneReception->receiver_id) == $worker->id ? 'selected' : '' }}>
                                                 {{ $worker->name }}
                                             </option>
                                         @endforeach
                                     </select>
-                                    @error('receiver_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
+                                    @error('receiver_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
-
                                 <div class="col-md-6 mb-3">
-                                    <label for="cutter_id" class="form-label">Пильщик</label>
-                                    <select name="cutter_id" id="cutter_id" class="form-select @error('cutter_id') is-invalid @enderror">
+                                    <label class="form-label">Пильщик</label>
+                                    <select name="cutter_id" class="form-select @error('cutter_id') is-invalid @enderror">
                                         <option value="">— Не указан —</option>
                                         @foreach($workers as $worker)
                                             <option value="{{ $worker->id }}" {{ old('cutter_id', $stoneReception->cutter_id) == $worker->id ? 'selected' : '' }}>
@@ -62,58 +54,92 @@
                                             </option>
                                         @endforeach
                                     </select>
-                                    @error('cutter_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
+                                    @error('cutter_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
                             </div>
 
-                            <!-- Партия сырья и расход -->
-                            <div class="row">
-                                <div class="col-md-8 mb-3">
-                                    <label for="raw_material_batch_id" class="form-label">Партия сырья <span class="text-danger">*</span></label>
-                                    <select name="raw_material_batch_id" id="raw_material_batch_id" class="form-select @error('raw_material_batch_id') is-invalid @enderror" required>
-                                        {{--                                        <option value="">— Выберите партию сырья —</option>--}}
-                                        @foreach($activeBatches as $batch)
-                                            <option value="{{ $batch->id }}"
-                                                    data-remaining="{{ $batch->remaining_quantity }}"
-                                                {{ old('raw_material_batch_id', $stoneReception->raw_material_batch_id) == $batch->id ? 'selected' : '' }}>
-                                                {{ $batch->product->name }} (остаток: {{ number_format($batch->remaining_quantity, 2) }} м³)
-                                                @if($batch->currentWorker) — {{ $batch->currentWorker->name }} @endif
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('raw_material_batch_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <div class="col-md-4 mb-3">
-                                    <label for="raw_quantity_used" class="form-label">Расход сырья (м³) <span class="text-danger">*</span></label>
-                                    <input type="number"
-                                           step="0.001"
-                                           min="0.001"
-                                           id="raw_quantity_used"
-                                           name="raw_quantity_used"
-                                           class="form-control @error('raw_quantity_used') is-invalid @enderror"
-                                           value="{{ old('raw_quantity_used', $stoneReception->raw_quantity_used) }}"
-                                           required>
-                                    <small id="remainingInfo" class="text-info"></small>
-                                    @error('raw_quantity_used')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <!-- Склад (фиксированный или выбираемый) -->
+                            {{-- Партия сырья --}}
                             <div class="mb-3">
-                                <label for="store_id" class="form-label">Склад <span class="text-danger">*</span></label>
+                                <label class="form-label">Партия сырья <span class="text-danger">*</span></label>
+                                <select name="raw_material_batch_id" id="raw_material_batch_id"
+                                        class="form-select @error('raw_material_batch_id') is-invalid @enderror" required>
+                                    @foreach($activeBatches as $batch)
+                                        <option value="{{ $batch->id }}"
+                                                data-remaining="{{ $batch->remaining_quantity }}"
+                                            {{ old('raw_material_batch_id', $stoneReception->raw_material_batch_id) == $batch->id ? 'selected' : '' }}>
+                                            {{ $batch->product->name }}
+                                            (остаток: {{ number_format($batch->remaining_quantity, 2) }} м³)
+                                            @if($batch->currentWorker) — {{ $batch->currentWorker->name }} @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('raw_material_batch_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+
+                            {{-- Расход сырья с полем дельты --}}
+                            <div class="card mb-4 border-secondary border-opacity-25">
+                                <div class="card-header bg-light py-2 d-flex align-items-center gap-2">
+                                    <span>🪵</span> <strong>Расход сырья</strong>
+                                </div>
+                                <div class="card-body py-3">
+                                    <div class="row align-items-end g-3">
+
+                                        {{-- Текущий --}}
+                                        <div class="col-auto">
+                                            <label class="form-label text-muted small mb-1">Сейчас</label>
+                                            <div class="form-control bg-light text-muted" style="min-width:110px">
+                                                {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                            </div>
+                                        </div>
+
+                                        {{-- Знак + --}}
+                                        <div class="col-auto pb-1 fs-5 text-muted">+</div>
+
+                                        {{-- Поле дельты --}}
+                                        <div class="col-auto">
+                                            <label class="form-label small mb-1">
+                                                Изменение <span class="text-muted fw-normal">(м³, можно «−»)</span>
+                                            </label>
+                                            <input type="number"
+                                                   name="raw_quantity_delta"
+                                                   id="raw_quantity_delta"
+                                                   class="form-control @error('raw_quantity_delta') is-invalid @enderror"
+                                                   style="width:130px"
+                                                   step="0.001"
+                                                   placeholder="0.000"
+                                                   value="{{ old('raw_quantity_delta', 0) }}">
+                                            @error('raw_quantity_delta')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                        </div>
+
+                                        {{-- Знак = --}}
+                                        <div class="col-auto pb-1 fs-5 text-muted">=</div>
+
+                                        {{-- Итог --}}
+                                        <div class="col-auto">
+                                            <label class="form-label text-muted small mb-1">Итого</label>
+                                            <div id="raw_result" class="form-control bg-light fw-bold" style="min-width:110px">
+                                                {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                            </div>
+                                        </div>
+
+                                        {{-- Доступно в партии --}}
+                                        <div class="col">
+                                            <small id="raw_remaining_info" class="text-info d-block mt-2"></small>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Склад --}}
+                            <div class="mb-3">
+                                <label class="form-label">Склад <span class="text-danger">*</span></label>
                                 @if(env('DEFAULT_STORE_ID'))
                                     <input type="text" class="form-control" value="{{ $defaultStore->name ?? 'Склад по умолчанию' }}" readonly>
                                     <input type="hidden" name="store_id" value="{{ $defaultStore->id }}">
                                     <small class="text-muted">Приемка только на склад "{{ $defaultStore->name }}"</small>
                                 @else
-                                    <select name="store_id" id="store_id" class="form-select @error('store_id') is-invalid @enderror" required>
+                                    <select name="store_id" class="form-select @error('store_id') is-invalid @enderror" required>
                                         <option value="">— Выберите склад —</option>
                                         @foreach($stores as $store)
                                             <option value="{{ $store->id }}" {{ old('store_id', $stoneReception->store_id) == $store->id ? 'selected' : '' }}>
@@ -121,72 +147,97 @@
                                             </option>
                                         @endforeach
                                     </select>
-                                    @error('store_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
+                                    @error('store_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 @endif
                             </div>
 
-                            <!-- Блок с продуктами -->
-                            <div class="mb-3">
-                                <label class="form-label">Продукция <span class="text-danger">*</span></label>
+                            {{-- Продукты --}}
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Продукция <span class="text-danger">*</span></label>
 
-                                <!-- Контейнер для продуктов -->
-                                <div id="products-container">
-                                    <!-- Существующие продукты будут добавлены через JavaScript -->
+                                {{-- Шапка колонок --}}
+                                <div class="row text-muted small fw-semibold px-1 mb-1" style="font-size:11px">
+                                    <div class="col-5">Продукт</div>
+                                    <div class="col-2 text-end">Сейчас</div>
+                                    <div class="col-2 text-center">Изменение</div>
+                                    <div class="col-2 text-end">Итого</div>
+                                    <div class="col-1"></div>
                                 </div>
 
-                                <!-- Кнопка добавления -->
+                                {{-- Существующие позиции: рендерим на сервере, дельта вводится пользователем --}}
+                                <div id="existing-products">
+                                    @foreach($stoneReception->items as $item)
+                                        @php $current = (float)$item->quantity; $idx = $loop->index; @endphp
+                                        <div class="row align-items-center mb-2 px-1 existing-row"
+                                             data-current="{{ $current }}">
+
+                                            {{-- product_id передаём всегда --}}
+                                            <input type="hidden" name="products[{{ $idx }}][product_id]" value="{{ $item->product_id }}">
+                                            {{-- delta — то что ввёл пользователь, по умолчанию 0 --}}
+                                            <input type="hidden" class="js-qty-out" name="products[{{ $idx }}][quantity]" value="{{ $current }}">
+
+                                            <div class="col-5">
+                                                <span class="small">{{ $item->product->name ?? '—' }}</span>
+                                            </div>
+                                            <div class="col-2 text-end text-muted small">
+                                                {{ number_format($current, 3, '.', '') }}
+                                            </div>
+                                            <div class="col-2">
+                                                <input type="number"
+                                                       class="form-control form-control-sm js-delta"
+                                                       step="0.001"
+                                                       value="0"
+                                                       placeholder="0">
+                                            </div>
+                                            <div class="col-2 text-end">
+                                                <span class="js-result small fw-semibold">{{ number_format($current, 3, '.', '') }}</span>
+                                            </div>
+                                            <div class="col-1 text-end">
+                                                <button type="button" class="btn btn-sm btn-outline-danger js-remove-existing" title="Убрать">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+
+                                {{-- Новые продукты: тот же формат — "0 + delta = итого" --}}
+                                <div id="new-products-container" class="mt-1"></div>
+
                                 <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addProductBtn">
-                                    <i class="bi bi-plus-circle"></i> Добавить продукт
+                                    <i class="bi bi-plus-circle"></i> Добавить новый продукт
                                 </button>
 
-                                <!-- Итого -->
                                 <div class="mt-3 p-2 bg-light rounded">
                                     <strong>Всего продукции:</strong> <span id="totalProducts">0</span> м²
                                 </div>
                             </div>
 
-                            <!-- Примечания -->
+                            {{-- Примечания --}}
                             <div class="mb-3">
-                                <label for="notes" class="form-label">Примечания</label>
-                                <textarea name="notes" id="notes" class="form-control @error('notes') is-invalid @enderror" rows="3">{{ old('notes', $stoneReception->notes) }}</textarea>
-                                @error('notes')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
+                                <label class="form-label">Примечания</label>
+                                <textarea name="notes" class="form-control @error('notes') is-invalid @enderror" rows="3">{{ old('notes', $stoneReception->notes) }}</textarea>
+                                @error('notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- Кнопки -->
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-save"></i> Обновить
+                                    <i class="bi bi-save"></i> Сохранить
                                 </button>
-                                <a href="{{ route('stone-receptions.index') }}" class="btn btn-outline-secondary">
-                                    Отмена
-                                </a>
+                                <a href="{{ route('stone-receptions.index') }}" class="btn btn-outline-secondary">Отмена</a>
                             </div>
                         </form>
                     </div>
                 </div>
 
-                <!-- Информация о связанных данных -->
                 <div class="card shadow-sm mt-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">ℹ️ Информация</h5>
-                    </div>
+                    <div class="card-header bg-white"><h5 class="mb-0">ℹ️ Информация</h5></div>
                     <div class="card-body">
                         <dl class="row mb-0">
-                            <dt class="col-sm-4">ID записи:</dt>
-                            <dd class="col-sm-8">{{ $stoneReception->id }}</dd>
-
-                            <dt class="col-sm-4">Создано:</dt>
-                            <dd class="col-sm-8">{{ $stoneReception->created_at->format('d.m.Y H:i:s') }}</dd>
-
-                            <dt class="col-sm-4">Последнее обновление:</dt>
-                            <dd class="col-sm-8">{{ $stoneReception->updated_at->format('d.m.Y H:i:s') }}</dd>
-
-                            <dt class="col-sm-4">Количество продукции:</dt>
-                            <dd class="col-sm-8">{{ $stoneReception->items->count() }} позиций</dd>
+                            <dt class="col-sm-4">ID:</dt><dd class="col-sm-8">{{ $stoneReception->id }}</dd>
+                            <dt class="col-sm-4">Создано:</dt><dd class="col-sm-8">{{ $stoneReception->created_at->format('d.m.Y H:i:s') }}</dd>
+                            <dt class="col-sm-4">Обновлено:</dt><dd class="col-sm-8">{{ $stoneReception->updated_at->format('d.m.Y H:i:s') }}</dd>
+                            <dt class="col-sm-4">Позиций:</dt><dd class="col-sm-8">{{ $stoneReception->items->count() }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -200,133 +251,168 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
-            let rowIndex = 0;
-            const container     = document.getElementById('products-container');
-            const addBtn        = document.getElementById('addProductBtn');
-            const batchSelect   = document.getElementById('raw_material_batch_id');
-            const rawQuantity   = document.getElementById('raw_quantity_used');
-            const remainingInfo = document.getElementById('remainingInfo');
-            const totalSpan     = document.getElementById('totalProducts');
+            // ── Константы из PHP ──────────────────────────────────────────────────────
+            const currentRaw = {{ (float)$stoneReception->raw_quantity_used }};
 
-            // ── Добавить строку ────────────────────────────────────────────────
-            function addProduct(productId = '', productLabel = '', quantity = '') {
-                const idx = rowIndex;
-                const tpl = document.getElementById('editPickerRowTemplate');
-                const clone = tpl.content.cloneNode(true);
+            // ── Элементы сырья ────────────────────────────────────────────────────────
+            const rawDeltaInput  = document.getElementById('raw_quantity_delta');
+            const rawResultDiv   = document.getElementById('raw_result');
+            const rawRemInfo     = document.getElementById('raw_remaining_info');
+            const batchSelect    = document.getElementById('raw_material_batch_id');
 
-                // Заменяем __IDX__ во всех нужных атрибутах
-                clone.querySelectorAll('[data-tpl-idx]').forEach(el => {
-                    ['id', 'name', 'data-hidden-id', 'data-search-id', 'data-modal']
-                        .forEach(attr => {
-                            if (el.hasAttribute(attr)) {
-                                el.setAttribute(attr,
-                                    el.getAttribute(attr).replace(/__IDX__/g, idx));
-                            }
-                        });
-                });
+            function updateRaw() {
+                const delta  = parseFloat(rawDeltaInput.value) || 0;
+                const result = Math.round((currentRaw + delta) * 1000) / 1000;
 
-                // Сохраняем ссылку до того как fragment растворится
-                const row = clone.querySelector('.product-picker-row');
+                rawResultDiv.textContent = result.toFixed(3) + ' м³';
+                rawResultDiv.classList.toggle('text-danger', result < 0);
+                rawResultDiv.classList.toggle('fw-bold', true);
 
-                container.appendChild(clone);
-
-                // Заполняем значения
-                if (productLabel) row.querySelector('.product-picker-search').value = productLabel;
-                if (productId)    row.querySelector(`[name="products[${idx}][product_id]"]`).value = productId;
-                if (quantity !== '') row.querySelector('.product-picker-qty').value = quantity;
-
-                // Инициализируем через ProductPicker
-                if (window.ProductPicker) window.ProductPicker.initRow(row);
-
-                row.querySelector('.product-picker-qty')
-                    ?.addEventListener('input', updateTotal);
-
-                rowIndex++;
-                updateTotal();
-            }
-
-            // ── Итого ──────────────────────────────────────────────────────────
-            function updateTotal() {
-                let total = 0;
-                container.querySelectorAll('.product-picker-qty')
-                    .forEach(el => { total += parseFloat(el.value) || 0; });
-                totalSpan.textContent = total.toFixed(2);
-            }
-
-            // ── Загружаем существующие продукты ───────────────────────────────
-            const existingProducts = @json($stoneReception->items->map(fn($i) => [
-                'product_id' => $i->product_id,
-                'quantity'   => (float)$i->quantity,
-            ])->values());
-
-            if (existingProducts.length > 0 && window.ProductPicker) {
-                window.ProductPicker.fetchTree().then(tree => {
-                    const flat = {};
-                    (function flatMap(groups) {
-                        groups.forEach(g => {
-                            (g.products || []).forEach(p => { flat[p.id] = p.label; });
-                            if (g.children?.length) flatMap(g.children);
-                        });
-                    })(tree);
-                    existingProducts.forEach(p =>
-                        addProduct(p.product_id, flat[p.product_id] || '', p.quantity));
-                });
-            } else if (existingProducts.length === 0) {
-                addProduct();
-            }
-
-            addBtn.addEventListener('click', () => addProduct());
-            document.addEventListener('product-picker:removed', updateTotal);
-
-            // ── Остаток партии ─────────────────────────────────────────────────
-            function updateRemainingInfo() {
                 const opt = batchSelect?.options[batchSelect.selectedIndex];
                 if (opt?.value) {
-                    const rem  = parseFloat(opt.dataset.remaining) || 0;
-                    const used = parseFloat(rawQuantity.value) || 0;
-                    remainingInfo.textContent = `Доступно сырья: ${rem.toFixed(2)} м³`;
-                    rawQuantity.setCustomValidity(used > rem ? 'Расход превышает остаток' : '');
-                } else {
-                    remainingInfo.textContent = '';
+                    const rem = parseFloat(opt.dataset.remaining) || 0;
+                    rawRemInfo.textContent = `Доступно в партии: ${rem.toFixed(3)} м³`;
+                    rawDeltaInput.setCustomValidity(result > rem ? 'Превышает остаток в партии' : '');
                 }
             }
-            batchSelect?.addEventListener('change', updateRemainingInfo);
-            rawQuantity?.addEventListener('input', updateRemainingInfo);
-            updateRemainingInfo();
 
-            // ── Валидация ──────────────────────────────────────────────────────
-            document.getElementById('receptionForm').addEventListener('submit', function (e) {
-                const rows = container.querySelectorAll('.product-picker-row');
-                if (!rows.length) {
-                    e.preventDefault(); alert('Добавьте хотя бы один продукт'); return;
+            rawDeltaInput.addEventListener('input', updateRaw);
+            batchSelect?.addEventListener('change', updateRaw);
+            updateRaw();
+
+            // ── Существующие продукты: дельта → итог → скрытый input ─────────────────
+            document.querySelectorAll('.existing-row').forEach(row => {
+                const current    = parseFloat(row.dataset.current);
+                const deltaInput = row.querySelector('.js-delta');
+                const resultSpan = row.querySelector('.js-result');
+                const qtyOut     = row.querySelector('.js-qty-out');   // этот отправится на сервер
+                const removeBtn  = row.querySelector('.js-remove-existing');
+
+                function updateRow() {
+                    const delta  = parseFloat(deltaInput.value) || 0;
+                    const result = Math.round((current + delta) * 1000) / 1000;
+
+                    resultSpan.textContent = result.toFixed(3);
+                    resultSpan.classList.toggle('text-danger', result < 0);
+
+                    // Пишем итоговое значение — сервер получит его как quantity
+                    qtyOut.value = result;
+                    updateTotal();
                 }
+
+                deltaInput.addEventListener('input', updateRow);
+
+                // Удалить существующий продукт — ставим итог = 0
+                removeBtn.addEventListener('click', function () {
+                    deltaInput.value = (-current).toFixed(3);
+                    qtyOut.value = 0;
+                    resultSpan.textContent = '0.000';
+                    resultSpan.classList.add('text-danger');
+                    row.style.opacity = '0.45';
+                    deltaInput.disabled = true;
+                    this.disabled = true;
+                    updateTotal();
+                });
+            });
+
+            // ── Новые продукты ────────────────────────────────────────────────────────
+            let newIdx = {{ $stoneReception->items->count() }};
+            const newContainer = document.getElementById('new-products-container');
+
+            function addNewProduct() {
+                const idx   = newIdx++;
+                const tpl   = document.getElementById('editPickerRowTemplate');
+                const clone = tpl.content.cloneNode(true);
+
+                clone.querySelectorAll('[data-tpl-idx]').forEach(el => {
+                    ['id','name','data-hidden-id','data-search-id','data-modal'].forEach(attr => {
+                        if (el.hasAttribute(attr))
+                            el.setAttribute(attr, el.getAttribute(attr).replace(/__IDX__/g, idx));
+                    });
+                });
+
+                const row = clone.querySelector('.new-product-row');
+                newContainer.appendChild(clone);
+
+                const deltaInput  = row.querySelector('.js-new-delta');
+                const resultSpan  = row.querySelector('.js-new-result');
+                const qtyOut      = row.querySelector('.js-new-qty-out');
+
+                // При вводе дельты — итог = дельта (т.к. предыдущее = 0)
+                deltaInput.addEventListener('input', function () {
+                    const val = parseFloat(this.value) || 0;
+                    resultSpan.textContent = val > 0 ? val.toFixed(3) : '—';
+                    resultSpan.classList.toggle('text-muted', val <= 0);
+                    qtyOut.value = val > 0 ? val : 0;
+                    updateTotal();
+                });
+
+                // Кнопка удалить строку
+                row.querySelector('.js-remove-new').addEventListener('click', function () {
+                    row.remove();
+                    updateTotal();
+                });
+
+                if (window.ProductPicker) window.ProductPicker.initRow(row);
+            }
+
+            document.getElementById('addProductBtn').addEventListener('click', addNewProduct);
+
+            // ── Итого по всем продуктам ───────────────────────────────────────────────
+            function updateTotal() {
+                let total = 0;
+                // Существующие
+                document.querySelectorAll('#existing-products .js-qty-out').forEach(el => {
+                    total += parseFloat(el.value) || 0;
+                });
+                // Новые
+                newContainer.querySelectorAll('.js-new-qty-out').forEach(el => {
+                    total += parseFloat(el.value) || 0;
+                });
+                document.getElementById('totalProducts').textContent = total.toFixed(2);
+            }
+
+            updateTotal();
+
+            // ── Валидация перед отправкой ─────────────────────────────────────────────
+            document.getElementById('receptionForm').addEventListener('submit', function (e) {
+                const rawResult = currentRaw + (parseFloat(rawDeltaInput.value) || 0);
+                if (rawResult < 0) {
+                    e.preventDefault();
+                    alert('Итоговый расход сырья не может быть отрицательным');
+                    return;
+                }
+
+                // Проверяем новые продукты — нужен выбранный продукт и delta > 0
                 let ok = true;
-                rows.forEach(row => {
-                    const pid = row.querySelector('input[type="hidden"][name*="product_id"]')?.value;
-                    const qty = parseFloat(row.querySelector('.product-picker-qty')?.value);
-                    if (!pid || !qty || qty <= 0) {
+                newContainer.querySelectorAll('.new-product-row').forEach(row => {
+                    const pid   = row.querySelector('input[type="hidden"][name*="product_id"]')?.value;
+                    const delta = parseFloat(row.querySelector('.js-new-delta')?.value);
+                    if (!pid || !delta || delta <= 0) {
                         ok = false;
-                        row.classList.add('border', 'border-danger', 'rounded');
+                        row.classList.add('border', 'border-danger', 'rounded', 'p-1');
                     } else {
-                        row.classList.remove('border', 'border-danger', 'rounded');
+                        row.classList.remove('border', 'border-danger', 'rounded', 'p-1');
                     }
                 });
-                if (!ok) { e.preventDefault(); alert('Заполните все поля продуктов корректно'); }
+                if (!ok) { e.preventDefault(); alert('Для новых продуктов: выберите продукт и укажите количество больше 0'); }
             });
         });
     </script>
 @endpush
 
-{{-- Шаблон строки продукта — идентичен create.blade.php --}}
+{{-- Шаблон для новых продуктов: формат "0 (readonly) + delta = итого" --}}
 <template id="editPickerRowTemplate">
-    <div class="product-picker-row d-flex gap-2 align-items-start mb-2">
-        <div class="flex-grow-1 position-relative">
-            <div class="input-group">
+    <div class="new-product-row row align-items-center mb-2 px-1">
+
+        {{-- Поиск продукта --}}
+        <div class="col-5 position-relative">
+            <div class="input-group input-group-sm">
                 <input type="text"
                        id="edit_search___IDX__"
                        data-tpl-idx="1"
                        class="form-control product-picker-search"
-                       placeholder="Введите название продукта..."
+                       placeholder="Найти продукт..."
                        autocomplete="off"
                        data-hidden-id="edit_pid___IDX__">
                 <button type="button"
@@ -344,26 +430,40 @@
             </div>
         </div>
 
-        <input type="number"
-               id="edit_qty___IDX__"
-               name="products[__IDX__][quantity]"
-               class="form-control product-picker-qty"
-               style="width:100px"
-               placeholder="м²"
-               step="0.001" min="0.001"
-               data-tpl-idx="1"
-               required>
+        {{-- Сейчас: всегда 0 для новых --}}
+        <div class="col-2 text-end text-muted small">0.000</div>
 
+        {{-- Delta: вводит пользователь --}}
+        <div class="col-2">
+            <input type="number"
+                   class="form-control form-control-sm js-new-delta"
+                   step="0.001" min="0.001"
+                   placeholder="0"
+                   value="">
+        </div>
+
+        {{-- Итог = delta (т.к. current = 0) — это и есть quantity --}}
+        <div class="col-2 text-end">
+            <span class="js-new-result small fw-semibold text-muted">—</span>
+        </div>
+
+        {{-- Скрытые поля для отправки --}}
         <input type="hidden"
                id="edit_pid___IDX__"
                name="products[__IDX__][product_id]"
                data-tpl-idx="1">
+        <input type="hidden"
+               name="products[__IDX__][quantity]"
+               class="js-new-qty-out"
+               value="0"
+               data-tpl-idx="1">
 
-        <button type="button"
-                class="btn btn-outline-danger product-picker-remove"
-                title="Удалить">
-            <i class="bi bi-x-lg"></i>
-        </button>
+        {{-- Удалить --}}
+        <div class="col-1 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger js-remove-new" title="Удалить">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
 
         <div class="modal fade" id="edit_modal___IDX__" tabindex="-1" data-tpl-idx="1">
             <div class="modal-dialog modal-lg">
@@ -373,8 +473,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                        <input type="text" class="form-control mb-3 tree-search-input"
-                               placeholder="Поиск по каталогу...">
+                        <input type="text" class="form-control mb-3 tree-search-input" placeholder="Поиск по каталогу...">
                         <div class="product-tree-container"></div>
                     </div>
                 </div>

@@ -7,13 +7,14 @@ use App\Models\StoneReception;
 use App\Models\Worker;
 use App\Models\Product;
 use App\Models\Store;
+use App\Models\ReceptionLog;
+use App\Models\ReceptionLogItem;
 use App\Traits\ManagesStock;
 use App\Traits\HandlesReceptionValidation;
 use App\Traits\HandlesBatchStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Observers\StoneReceptionObserver;
 
 class StoneReceptionController extends Controller
 {
@@ -141,8 +142,24 @@ class StoneReceptionController extends Controller
             DB::transaction(function () use ($data) {
                 $reception = StoneReception::create($this->prepareReceptionData($data));
                 $this->createReceptionItems($reception, $data['products']);
-                // Пишем первичный лог — все продукты как положительная дельта
-                StoneReceptionObserver::writeLog($reception, [], 'created');
+
+                // Пишем лог создания — перезагружаем items чтобы они точно были в коллекции
+                $reception->load('items');
+                $log = ReceptionLog::create([
+                    'stone_reception_id'    => $reception->id,
+                    'raw_material_batch_id' => $reception->raw_material_batch_id,
+                    'cutter_id'             => $reception->cutter_id,
+                    'receiver_id'           => $reception->receiver_id,
+                    'type'                  => ReceptionLog::TYPE_CREATED,
+                    'raw_quantity_delta'    => (float) $reception->raw_quantity_used,
+                ]);
+                foreach ($reception->items as $item) {
+                    ReceptionLogItem::create([
+                        'reception_log_id' => $log->id,
+                        'product_id'       => $item->product_id,
+                        'quantity_delta'   => (float) $item->quantity,
+                    ]);
+                }
             });
 
             session()->forget('copy_data');
@@ -172,16 +189,71 @@ class StoneReceptionController extends Controller
      */
     public function update(Request $request, StoneReception $stoneReception)
     {
+        // Вычисляем итоговый raw_quantity_used из дельты ДО валидации,
+        // чтобы валидатор получил готовое значение а не 0 от дельты
+        $rawDelta = (float) $request->input('raw_quantity_delta', 0);
+        $currentRaw = (float) $stoneReception->raw_quantity_used;
+        $request->merge(['raw_quantity_used' => $currentRaw + $rawDelta]);
+
         $data = $this->validateReception($request, false);
 
         try {
-            DB::transaction(function () use ($stoneReception, $data) {
+            DB::transaction(function () use ($stoneReception, $data, $rawDelta) {
+
+                // Запоминаем старые значения продуктов ДО сохранения
+                $preSaveItems = $stoneReception->items()
+                    ->get()
+                    ->pluck('quantity', 'product_id')
+                    ->map(fn($q) => (float) $q)
+                    ->toArray();
+
+                // Обновляем партию сырья и саму приёмку
                 $this->handleBatchUpdate($stoneReception, $data);
                 $stoneReception->update($this->prepareReceptionData($data, false));
                 $this->updateReceptionItems($stoneReception, $data['products']);
 
-                // Пишем лог дельты — предыдущее состояние берётся из reception_logs
-                StoneReceptionObserver::writeLog($stoneReception->fresh(), [], 'updated');
+                // Считаем дельты продуктов: новое (из формы) минус старое (из preSaveItems)
+                $deltas = [];
+
+                foreach ($data['products'] as $p) {
+                    $productId = $p['product_id'];
+                    $newQty    = (float) $p['quantity'];
+                    $oldQty    = $preSaveItems[$productId] ?? 0.0;
+                    $delta     = $newQty - $oldQty;
+                    if (abs($delta) > 0.0001) {
+                        $deltas[$productId] = $delta;
+                    }
+                }
+
+                // Продукты которые были, но теперь удалены (не пришли в форме)
+                $newProductIds = array_column($data['products'], 'product_id');
+                foreach ($preSaveItems as $productId => $oldQty) {
+                    if (!in_array($productId, $newProductIds) && abs($oldQty) > 0.0001) {
+                        $deltas[$productId] = -$oldQty;
+                    }
+                }
+
+                // Пишем лог только если реально что-то изменилось
+                if (empty($deltas) && abs($rawDelta) < 0.0001) {
+                    return;
+                }
+
+                $log = ReceptionLog::create([
+                    'stone_reception_id'    => $stoneReception->id,
+                    'raw_material_batch_id' => $stoneReception->raw_material_batch_id,
+                    'cutter_id'             => $stoneReception->cutter_id,
+                    'receiver_id'           => $stoneReception->receiver_id,
+                    'type'                  => ReceptionLog::TYPE_UPDATED,
+                    'raw_quantity_delta'    => $rawDelta,
+                ]);
+
+                foreach ($deltas as $productId => $delta) {
+                    ReceptionLogItem::create([
+                        'reception_log_id' => $log->id,
+                        'product_id'       => $productId,
+                        'quantity_delta'   => $delta,
+                    ]);
+                }
             });
 
             return redirect()->route('stone-receptions.index')->with('success', 'Приемка обновлена');
@@ -192,33 +264,42 @@ class StoneReceptionController extends Controller
         }
     }
 
-    /**
-     * Обрабатывает обновление партии сырья
-     */
+
     private function handleBatchUpdate(StoneReception $reception, array $newData)
     {
         $oldBatchId = $reception->raw_material_batch_id;
-        $oldQty = $reception->raw_quantity_used;
+        $oldQty     = (float) $reception->raw_quantity_used;  // явный float, иначе "1.000" == 0.7 может вести себя непредсказуемо
         $newBatchId = $newData['raw_material_batch_id'];
-        $newQty = $newData['raw_quantity_used'];
+        $newQty     = (float) $newData['raw_quantity_used'];
 
-        if ($oldBatchId == $newBatchId && $oldQty == $newQty) {
+        // Если партия та же и количество не изменилось — ничего не делаем
+        if ($oldBatchId == $newBatchId && abs($oldQty - $newQty) < 0.0001) {
             return;
         }
 
-        // Возврат в старую партию
+        // Возвращаем старое количество обратно в старую партию
         if ($oldBatchId && $oldBatch = RawMaterialBatch::find($oldBatchId)) {
-            $oldBatch->remaining_quantity += $oldQty;
+            $oldBatch->remaining_quantity = (float) $oldBatch->remaining_quantity + $oldQty;
             $oldBatch->save();
         }
 
-        // Списание из новой партии
+        // Списываем новое количество из (возможно другой) партии
         $newBatch = RawMaterialBatch::find($newBatchId);
-        if (!$newBatch || $newBatch->remaining_quantity < $newQty) {
+        if (!$newBatch || (float) $newBatch->remaining_quantity < $newQty) {
             throw new \Exception('Недостаточно сырья');
         }
 
-        $newBatch->remaining_quantity -= $newQty;
+        $newBatch->remaining_quantity = (float) $newBatch->remaining_quantity - $newQty;
+
+        // Если сырьё закончилось — меняем статус
+        if ($newBatch->remaining_quantity <= 0) {
+            $newBatch->remaining_quantity = 0;
+            $newBatch->status = 'used';
+        } elseif ($newBatch->status === 'used') {
+            // Если вернули сырьё в партию которая была закрыта — снова активируем
+            $newBatch->status = 'active';
+        }
+
         $newBatch->save();
     }
 
