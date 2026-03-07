@@ -32,9 +32,9 @@
                             <th>Имя</th>
                             <th>Должность</th>
                             <th>Отдел</th> <!-- НОВЫЙ СТОЛБЕЦ -->
-                            <th>Email</th>
                             <th>Телефон</th>
                             <th>Дата добавления</th>
+                            <th>Аккаунт</th>
                             <th class="text-center">Действия</th>
                         </tr>
                         </thead>
@@ -60,15 +60,6 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($worker->email)
-                                        <a href="mailto:{{ $worker->email }}" class="text-decoration-none">
-                                            <i class="bi bi-envelope"></i> {{ $worker->email }}
-                                        </a>
-                                    @else
-                                        —
-                                    @endif
-                                </td>
-                                <td>
                                     @if($worker->phone)
                                         <a href="tel:{{ $worker->phone }}" class="text-decoration-none">
                                             <i class="bi bi-telephone"></i> {{ $worker->phone }}
@@ -77,7 +68,21 @@
                                         —
                                     @endif
                                 </td>
+
                                 <td>{{ $worker->created_at->format('d.m.Y') }}</td>
+                                <td>
+                                    @if($worker->user)
+                                        <span class="badge bg-info text-dark">
+                                            <i class="bi bi-building"></i>
+                                            Связан
+                                        </span>
+                                    @else
+                                        <a href="{{ route('workers.create-user', $worker) }}"
+                                           class="btn btn-sm btn-primary">
+                                            Создать
+                                        </a>
+                                    @endif
+                                </td>
                                 <td>
                                     <div class="d-flex gap-2 justify-content-center">
                                         {{-- Выработка — для пильщиков --}}

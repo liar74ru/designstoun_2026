@@ -1,114 +1,55 @@
 @extends('layouts.app')
 
-@section('title', 'Добавление работника')
-
 @section('content')
-    <div class="container py-4">
-        <!-- Заголовок и навигация -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">➕ Добавление работника</h1>
-
-            <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> К списку работников
-            </a>
-        </div>
-
-        <!-- Форма добавления -->
+    <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-8">
-                <div class="card shadow-sm">
-                    <div class="card-body p-4">
-                        <form method="POST" action="{{ route('workers.store') }}">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Создание пользователя для {{ $worker->name }}</h3>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <h5>Данные работника:</h5>
+                            <p><strong>Имя:</strong> {{ $worker->name }}</p>
+                            <p><strong>Должность:</strong> {{ $worker->position }}</p>
+                            <p><strong>Телефон:</strong> {{ $worker->phone ?? 'Не указан' }}</p>
+                        </div>
+
+                        <form method="POST" action="{{ route('workers.store-user', $worker) }}">
                             @csrf
 
-                            <!-- Поле Имя (обязательное) -->
                             <div class="mb-3">
-                                <label for="name" class="form-label">Имя <span class="text-danger">*</span></label>
-                                <input type="text"
-                                       class="form-control @error('name') is-invalid @enderror"
-                                       id="name"
-                                       name="name"
-                                       value="{{ old('name') }}"
-                                       required>
-                                @error('name')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- Поле Должность (обязательное, выпадающий список) -->
-                            <div class="mb-3">
-                                <label for="position" class="form-label">Должность <span class="text-danger">*</span></label>
-                                <select class="form-select @error('position') is-invalid @enderror"
-                                        id="position"
-                                        name="position"
-                                        required>
-                                    <option value="">— Выберите должность —</option>
-                                    @foreach(App\Models\Worker::POSITIONS as $position)
-                                        <option value="{{ $position }}"
-                                            {{ old('position') == $position ? 'selected' : '' }}>
-                                            {{ $position }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('position')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- Поле Отдел (выпадающий список) -->
-                            <div class="mb-3">
-                                <label for="department_id" class="form-label">Отдел</label>
-                                <select class="form-select @error('department_id') is-invalid @enderror"
-                                        id="department_id"
-                                        name="department_id">
-                                    <option value="">— Выберите отдел —</option>
-                                    @foreach($departments as $department)
-                                        <option value="{{ $department->id }}"
-                                            {{ old('department_id') == $department->id ? 'selected' : '' }}>
-                                            {{ $department->name }}
-                                            @if($department->code)
-                                                ({{ $department->code }})
-                                            @endif
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('department_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- Поле Email -->
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email"
-                                       class="form-control @error('email') is-invalid @enderror"
-                                       id="email"
-                                       name="email"
-                                       value="{{ old('email') }}">
-                                @error('email')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- Поле Телефон -->
-                            <div class="mb-3">
-                                <label for="phone" class="form-label">Телефон</label>
-                                <input type="text"
+                                <label for="phone" class="form-label">Телефон для входа *</label>
+                                <input type="tel"
                                        class="form-control @error('phone') is-invalid @enderror"
                                        id="phone"
                                        name="phone"
-                                       value="{{ old('phone') }}">
+                                       value="{{ old('phone', $worker->phone) }}"
+                                       required>
                                 @error('phone')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
-                            <!-- Кнопки -->
-                            <div class="d-flex gap-2">
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Пароль *</label>
+                                <input type="password"
+                                       class="form-control @error('password') is-invalid @enderror"
+                                       id="password"
+                                       name="password"
+                                       required>
+                                @error('password')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="mb-3">
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-circle"></i> Сохранить
+                                    Создать пользователя
                                 </button>
-                                <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary">
+                                <a href="{{ route('workers.index') }}" class="btn btn-secondary">
                                     Отмена
                                 </a>
                             </div>

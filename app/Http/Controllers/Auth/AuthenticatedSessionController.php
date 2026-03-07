@@ -30,7 +30,7 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
 
         if ($user->worker && $user->worker->position === 'Пильщик') {
-            return redirect()->route('workers.dashboard', $user->worker);
+            return redirect()->route('worker.dashboard');
         }
 
         return redirect()->intended(route('home'));

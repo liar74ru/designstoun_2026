@@ -50,6 +50,8 @@ Route::post('/products/{moyskladId}/stocks-sync', [ProductController::class, 'sy
 Route::resource('orders', OrderController::class);
 
 Route::resource('workers', WorkerController::class)->except(['show']);
+Route::get('/workers/{worker}/create-user', [WorkerController::class, 'createUser'])->name('workers.create-user');
+Route::post('/workers/{worker}/store-user', [WorkerController::class, 'storeUser'])->name('workers.store-user');
 
 Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
 Route::get('/stores/{store}', [StoreController::class, 'show'])->name('stores.show');
