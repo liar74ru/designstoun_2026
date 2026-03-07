@@ -8,89 +8,67 @@ use App\Models\ProductStock;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Синхронизация остатков из МойСклад → таблица product_stocks.
+ *
+ * Единственный источник истины для остатков — product_stocks.
+ * Поле products.quantity устарело и не используется.
+ * Суммарный остаток = SUM(product_stocks.quantity) по product_id.
+ */
 class StockSyncService
 {
-    private $token;
-    private $baseUrl = 'https://api.moysklad.ru/api/remap/1.2';
+    private string $token;
+    private string $baseUrl;
 
     public function __construct()
     {
-        $this->token = config('services.moysklad.token');
+        $this->token   = config('services.moysklad.token');
         $this->baseUrl = config('services.moysklad.base_url');
     }
 
-    /**
-     * Базовый метод для запросов к API
-     */
-    private function makeRequest($endpoint, $params = [])
+    private function makeRequest(string $endpoint, array $params = []): ?array
     {
-        if (empty($this->token)) {
-            return null;
-        }
+        if (empty($this->token)) return null;
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization'   => 'Bearer ' . $this->token,
             'Accept-Encoding' => 'gzip',
         ])->get($this->baseUrl . $endpoint, $params);
 
         return $response->successful() ? $response->json() : null;
     }
 
-    /**
-     * Извлечь ID товара из href
-     */
-    private function extractProductIdFromHref($href)
+    private function extractProductIdFromHref(string $href): ?string
     {
-        preg_match('/\/product\/([a-f0-9-]+)/i', $href, $matches);
+        preg_match('/\\/product\\/([a-f0-9-]+)/i', $href, $matches);
         return $matches[1] ?? null;
     }
 
     /**
-     * Обновить остатки товара из данных API
+     * Обновить product_stocks из одной строки API /report/stock/bystore.
+     * Поле products.quantity НЕ обновляется.
      */
-    private function updateProductStocksFromRow($row, $storeId = null)
+    private function updateStocksFromRow(array $row, ?string $filterStoreId = null): int
     {
-        if (!isset($row['meta']['href'])) {
-            return 0;
-        }
-
-        $moyskladId = $this->extractProductIdFromHref($row['meta']['href']);
-        if (!$moyskladId) {
-            return 0;
-        }
+        $moyskladId = $this->extractProductIdFromHref($row['meta']['href'] ?? '');
+        if (!$moyskladId) return 0;
 
         $product = Product::where('moysklad_id', $moyskladId)->first();
-        if (!$product) {
-            return 0;
-        }
-
-        // Обновляем общее количество
-        if (isset($row['stock'])) {
-            $product->quantity = (float)$row['stock'];
-            $product->save();
-        }
+        if (!$product) return 0;
 
         $updated = 0;
-        $stockByStore = $row['stockByStore'] ?? [];
 
-        foreach ($stockByStore as $storeStock) {
-            if (!isset($storeStock['meta']['href'])) continue;
+        foreach ($row['stockByStore'] ?? [] as $storeStock) {
+            $storeId = basename($storeStock['meta']['href'] ?? '');
 
-            $currentStoreId = basename($storeStock['meta']['href']);
-
-            // Если указан конкретный склад, фильтруем
-            if ($storeId && $currentStoreId != $storeId) continue;
-
-            if (!Store::find($currentStoreId)) continue;
+            if ($filterStoreId && $storeId !== $filterStoreId) continue;
+            if (!Store::find($storeId)) continue;
 
             ProductStock::updateOrCreate(
+                ['product_id' => $product->id, 'store_id' => $storeId],
                 [
-                    'product_id' => $product->id,
-                    'store_id' => $currentStoreId
-                ],
-                [
-                    'quantity'   => (float)($storeStock['stock'] ?? 0),
-                    'reserved'   => (float)($storeStock['reserve'] ?? 0),
+                    'quantity'   => (float)($storeStock['stock']     ?? 0),
+                    'reserved'   => (float)($storeStock['reserve']   ?? 0),
                     'in_transit' => (float)($storeStock['inTransit'] ?? 0),
                 ]
             );
@@ -102,110 +80,21 @@ class StockSyncService
     }
 
     /**
-     * Синхронизировать остатки (общие)
+     * Синхронизировать остатки по складам для всех товаров (или одного склада).
+     * Основной публичный метод.
      */
-    public function syncAllStocks()
+    public function syncAllProductsStocksByStores(?string $storeId = null): array
     {
         $result = ['success' => false, 'message' => '', 'updated' => 0, 'errors' => 0];
 
         try {
             $offset = 0;
-            $limit = 100;
-            $totalUpdated = 0;
-
-            do {
-                $data = $this->makeRequest('/report/stock/all', [
-                    'limit' => $limit,
-                    'offset' => $offset
-                ]);
-
-                if (!$data) {
-                    $result['message'] = 'Ошибка получения данных из МойСклад';
-                    return $result;
-                }
-
-                $rows = $data['rows'] ?? [];
-
-                foreach ($rows as $row) {
-                    $code = $row['code'] ?? null;
-
-                    if (!$code) {
-                        $result['errors']++;
-                        continue;
-                    }
-
-                    $product = Product::where('code', $code)->first();
-
-                    if (!$product) {
-                        $result['errors']++;
-                        continue;
-                    }
-
-                    $product->quantity = (float)($row['stock'] ?? 0);
-                    $product->save();
-
-                    $totalUpdated++;
-                }
-
-                $offset += $limit;
-
-            } while (count($rows) === $limit);
-
-            $result['success'] = true;
-            $result['updated'] = $totalUpdated;
-            $result['message'] = "Обновлено товаров: {$totalUpdated}, ошибок: {$result['errors']}";
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка синхронизации остатков', ['error' => $e->getMessage()]);
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
-        }
-
-        return $result;
-    }
-
-    /**
-     * Обновить остатки для конкретного товара
-     */
-    public function updateProductStocksByMoyskladId($moyskladId)
-    {
-        $filter = 'product=https://api.moysklad.ru/api/remap/1.2/entity/product/' . $moyskladId;
-
-        $data = $this->makeRequest('/report/stock/bystore', [
-            'filter' => $filter,
-            'limit' => 1
-        ]);
-
-        if (!$data || empty($data['rows'])) {
-            return ['success' => false, 'message' => 'Нет данных об остатках', 'updated' => 0];
-        }
-
-        $updated = $this->updateProductStocksFromRow($data['rows'][0]);
-
-        return [
-            'success' => true,
-            'message' => "Обновлено остатков: {$updated}",
-            'updated' => $updated
-        ];
-    }
-
-    /**
-     * Синхронизировать остатки по складам для ВСЕХ товаров
-     */
-    public function syncAllProductsStocksByStores($storeId = null)
-    {
-        $result = ['success' => false, 'message' => '', 'updated' => 0, 'errors' => 0];
-
-        try {
-            $offset = 0;
-            $limit = 100;
-            $totalUpdated = 0;
+            $limit  = 100;
+            $total  = 0;
 
             do {
                 $params = ['limit' => $limit, 'offset' => $offset];
-
-                if ($storeId) {
-                    $params['store'] = $storeId;
-                }
+                if ($storeId) $params['store'] = $storeId;
 
                 $data = $this->makeRequest('/report/stock/bystore', $params);
 
@@ -218,14 +107,9 @@ class StockSyncService
 
                 foreach ($rows as $row) {
                     try {
-                        $updated = $this->updateProductStocksFromRow($row, $storeId);
-                        $totalUpdated += $updated;
-
+                        $total += $this->updateStocksFromRow($row, $storeId);
                     } catch (\Exception $e) {
-                        Log::error('Ошибка при обработке строки', [
-                            'error' => $e->getMessage(),
-                            'row' => $row
-                        ]);
+                        Log::error('Ошибка обработки строки остатков', ['error' => $e->getMessage()]);
                         $result['errors']++;
                     }
                 }
@@ -235,8 +119,9 @@ class StockSyncService
             } while (count($rows) === $limit);
 
             $result['success'] = true;
-            $result['updated'] = $totalUpdated;
-            $result['message'] = "Обновлено остатков: {$totalUpdated}, ошибок: {$result['errors']}";
+            $result['updated'] = $total;
+            $result['message'] = "Обновлено остатков: {$total}"
+                . ($result['errors'] ? ", ошибок: {$result['errors']}" : '');
 
         } catch (\Exception $e) {
             Log::error('Ошибка синхронизации остатков', ['error' => $e->getMessage()]);
@@ -247,17 +132,38 @@ class StockSyncService
     }
 
     /**
-     * Синхронизировать остатки по всем складам (обертка для обратной совместимости)
+     * Синхронизировать остатки для одного товара по его moysklad_id.
      */
-    public function syncAllStocksByStores()
+    public function updateProductStocksByMoyskladId(string $moyskladId): array
+    {
+        $filter = $this->baseUrl . '/entity/product/' . $moyskladId;
+
+        $data = $this->makeRequest('/report/stock/bystore', [
+            'filter' => 'product=' . $filter,
+            'limit'  => 1,
+        ]);
+
+        if (!$data || empty($data['rows'])) {
+            return ['success' => false, 'message' => 'Нет данных об остатках', 'updated' => 0];
+        }
+
+        $updated = $this->updateStocksFromRow($data['rows'][0]);
+
+        return [
+            'success' => true,
+            'message' => "Обновлено записей по складам: {$updated}",
+            'updated' => $updated,
+        ];
+    }
+
+    // ─── Обёртки для обратной совместимости ─────────────────────────────────
+
+    public function syncAllStocksByStores(): array
     {
         return $this->syncAllProductsStocksByStores();
     }
 
-    /**
-     * Синхронизировать остатки по конкретному складу (обертка)
-     */
-    public function syncStocksByStore($storeId)
+    public function syncStocksByStore(string $storeId): array
     {
         return $this->syncAllProductsStocksByStores($storeId);
     }

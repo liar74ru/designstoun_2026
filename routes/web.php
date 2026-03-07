@@ -44,8 +44,6 @@ Route::post('/products/stocks/sync-all-by-stores', [ProductController::class, 's
     ->name('products.stocks.sync-all-by-stores');
 Route::get('/products/groups/tree', [ProductController::class, 'groups'])
     ->name('products.groups');
-Route::post('/products/stocks/sync-all', [ProductController::class, 'syncAllStocks'])
-    ->name('products.stocks.sync-all');
 Route::post('/products/{moyskladId}/stocks-sync', [ProductController::class, 'syncStocks'])
     ->name('products.stocks.sync');
 

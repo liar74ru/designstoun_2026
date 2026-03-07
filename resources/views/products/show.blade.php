@@ -37,7 +37,7 @@
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h4 class="mb-0">{{ $product->name }}</h4>
                         <span class="badge bg-info" style="font-size: 1rem;">
-                            Общий остаток: {{ number_format($product->quantity, 2, ',', ' ') }}
+                            Общий остаток: {{ number_format($product->total_quantity, 2, ',', ' ') }}
                             @if($product->stocks->first() && $product->stocks->first()->store)
                                 {{ $product->stocks->first()->store->uom ?? 'шт' }}
                             @else
@@ -122,9 +122,9 @@
                                     <tr>
                                         <th>Общее количество:</th>
                                         <td>
-                                            @if($product->quantity > 0)
+                                            @if($product->total_quantity > 0)
                                                 <span class="badge bg-success" style="font-size: 1rem;">
-                                                    {{ number_format($product->quantity, 3, ',', ' ') }}
+                                                    {{ number_format($product->total_quantity, 3, ',', ' ') }}
                                                     @if($product->stocks->first() && $product->stocks->first()->store)
                                                         {{ $product->stocks->first()->store->uom ?? 'шт' }}
                                                     @else
@@ -300,14 +300,7 @@
                                     <i class="bi bi-box-seam"></i> Синхронизировать остатки
                                 </button>
                             </form>
-                            <form action="{{ route('products.stocks.sync-all') }}"
-                                  method="POST">
-                                @csrf
-                                <button type="submit" class="btn btn-outline-primary w-100"
-                                        onclick="return confirm('Обновить остатки ВСЕХ товаров?')">
-                                    <i class="bi bi-arrow-repeat"></i> Обновить все остатки
-                                </button>
-                            </form>
+
                             <form action="{{ route('products.destroy', $product->moysklad_id) }}"
                                   method="POST"
                                   onsubmit="return confirm('Вы уверены?')">

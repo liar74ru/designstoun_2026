@@ -78,7 +78,7 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <h5 class="card-title mb-1">Склады</h5>
-{{--                                    <h2 class="mb-0">{{ App\Models\Warehouse::count() }}</h2>--}}
+                                    {{--                                    <h2 class="mb-0">{{ App\Models\Warehouse::count() }}</h2>--}}
                                     <small>мест хранения</small>
                                 </div>
                                 <i class="bi bi-building display-4 opacity-50"></i>
@@ -277,8 +277,8 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($product->quantity > 0)
-                                        <span class="badge bg-success">{{ $product->quantity }} шт.</span>
+                                    @if($product->total_quantity > 0)
+                                        <span class="badge bg-success">{{ $product->total_quantity }} шт.</span>
                                     @else
                                         <span class="badge bg-danger">Нет</span>
                                     @endif

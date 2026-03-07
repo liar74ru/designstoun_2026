@@ -3,16 +3,18 @@
 use App\Models\User;
 
 test('login screen can be rendered', function () {
-    $response = $this->get('/login');
-
-    $response->assertStatus(200);
+    $this->get('/login')->assertStatus(200);
 });
 
 test('users can authenticate using the login screen', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->create([
+        'email'    => 'test@example.com',
+        'password' => bcrypt('password'),
+    ]);
 
+    // LoginRequest ожидает поле 'login', не 'email'
     $response = $this->post('/login', [
-        'email' => $user->email,
+        'login'    => $user->email,
         'password' => 'password',
     ]);
 
@@ -21,10 +23,10 @@ test('users can authenticate using the login screen', function () {
 });
 
 test('users can not authenticate with invalid password', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['email' => 'test@example.com']);
 
     $this->post('/login', [
-        'email' => $user->email,
+        'login'    => $user->email,
         'password' => 'wrong-password',
     ]);
 

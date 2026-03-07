@@ -232,41 +232,29 @@ class ProductController extends Controller
     }
 
     /**
-     * Синхронизация остатков для конкретного товара
+     * Синхронизировать остатки по складам для одного товара.
      */
     public function syncStocks($moyskladId)
     {
-        // Создаем экземпляр сервиса напрямую
-        $stockSyncService = new StockSyncService();
+        $result = (new StockSyncService())->updateProductStocksByMoyskladId($moyskladId);
 
-        $result = $stockSyncService->updateProductStocksByMoyskladId($moyskladId);
-
-        if ($result['success']) {
-            return redirect()->route('products.show', $moyskladId)
-                ->with('success', $result['message']);
-        } else {
-            return redirect()->route('products.show', $moyskladId)
-                ->with('error', $result['message']);
-        }
+        return redirect()->route('products.show', $moyskladId)
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
     /**
-     * Массовая синхронизация остатков по складам для всех товаров
+     * Синхронизировать остатки по складам для всех товаров.
      */
     public function syncAllProductsStocks(StockSyncService $stockSyncService)
     {
         $result = $stockSyncService->syncAllProductsStocksByStores();
 
-        if ($result['success']) {
-            return redirect()->route('products.index')
-                ->with('success', $result['message']);
-        } else {
-            return redirect()->route('products.index')
-                ->with('error', $result['message']);
-        }
+        return redirect()->route('products.index')
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
+
     /**
-     * Синхронизация только групп
+     * Синхронизация только групп товаров.
      */
     public function syncGroups()
     {
@@ -277,27 +265,9 @@ class ProductController extends Controller
 
         $result = $this->moySkladService->syncGroups();
 
-        if ($result['success']) {
-            return redirect()->route('products.groups')
-                ->with('success', $result['message']);
-        } else {
-            return redirect()->route('products.groups')
-                ->with('error', $result['message']);
-        }
+        return redirect()->route('products.groups')
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
-    public function syncAllStocks(StockSyncService $stockSyncService)
-    {
-        $result = $stockSyncService->syncAllStocks();
-
-        if ($result['success']) {
-            return redirect()->route('products.index')
-                ->with('success', $result['message']);
-        } else {
-            return redirect()->route('products.index')
-                ->with('error', $result['message']);
-        }
-    }
-
     /**
      * AJAX: дерево групп с продуктами для компонента выбора продукта.
      * Кэшируем на 10 минут — структура меняется редко.

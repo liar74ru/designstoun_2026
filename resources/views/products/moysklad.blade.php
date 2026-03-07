@@ -64,9 +64,9 @@
                         @endif
                     </div>
 
-                    <div class="product-stock {{ $product->quantity > 0 ? 'in-stock' : 'out-of-stock' }}">
-                        @if($product->quantity > 0)
-                            ✅ В наличии: {{ $product->quantity }} шт.
+                    <div class="product-stock {{ $product->total_quantity > 0 ? 'in-stock' : 'out-of-stock' }}">
+                        @if($product->total_quantity > 0)
+                            ✅ В наличии: {{ $product->total_quantity }} шт.
                         @else
                             ❌ Нет в наличии
                         @endif
