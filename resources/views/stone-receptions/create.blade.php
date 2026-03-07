@@ -428,6 +428,7 @@
                    style="width:100px"
                    placeholder="м²"
                    step="0.001" min="0.001"
+                   data-tpl-index="__IDX__"
                    required>
 
             <input type="hidden"

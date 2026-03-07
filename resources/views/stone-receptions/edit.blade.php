@@ -73,7 +73,7 @@
                                 <div class="col-md-8 mb-3">
                                     <label for="raw_material_batch_id" class="form-label">Партия сырья <span class="text-danger">*</span></label>
                                     <select name="raw_material_batch_id" id="raw_material_batch_id" class="form-select @error('raw_material_batch_id') is-invalid @enderror" required>
-{{--                                        <option value="">— Выберите партию сырья —</option>--}}
+                                        {{--                                        <option value="">— Выберите партию сырья —</option>--}}
                                         @foreach($activeBatches as $batch)
                                             <option value="{{ $batch->id }}"
                                                     data-remaining="{{ $batch->remaining_quantity }}"
@@ -196,184 +196,189 @@
 @endsection
 
 @push('scripts')
+    @vite(['resources/js/product-picker.js'])
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let productCount = 0;
-            const container = document.getElementById('products-container');
-            const addBtn = document.getElementById('addProductBtn');
-            const batchSelect = document.getElementById('raw_material_batch_id');
-            const rawQuantity = document.getElementById('raw_quantity_used');
+        document.addEventListener('DOMContentLoaded', function () {
+
+            let rowIndex = 0;
+            const container     = document.getElementById('products-container');
+            const addBtn        = document.getElementById('addProductBtn');
+            const batchSelect   = document.getElementById('raw_material_batch_id');
+            const rawQuantity   = document.getElementById('raw_quantity_used');
             const remainingInfo = document.getElementById('remainingInfo');
-            const totalSpan = document.getElementById('totalProducts');
+            const totalSpan     = document.getElementById('totalProducts');
 
-            // Существующие продукты из базы данных
-            const existingProducts = @json($stoneReception->items->map(function($item) {
-        return [
-            'product_id' => $item->product_id,
-            'quantity' => $item->quantity
-        ];
-    }));
+            // ── Добавить строку ────────────────────────────────────────────────
+            function addProduct(productId = '', productLabel = '', quantity = '') {
+                const idx = rowIndex;
+                const tpl = document.getElementById('editPickerRowTemplate');
+                const clone = tpl.content.cloneNode(true);
 
-            // Функция обновления информации об остатке
+                // Заменяем __IDX__ во всех нужных атрибутах
+                clone.querySelectorAll('[data-tpl-idx]').forEach(el => {
+                    ['id', 'name', 'data-hidden-id', 'data-search-id', 'data-modal']
+                        .forEach(attr => {
+                            if (el.hasAttribute(attr)) {
+                                el.setAttribute(attr,
+                                    el.getAttribute(attr).replace(/__IDX__/g, idx));
+                            }
+                        });
+                });
+
+                // Сохраняем ссылку до того как fragment растворится
+                const row = clone.querySelector('.product-picker-row');
+
+                container.appendChild(clone);
+
+                // Заполняем значения
+                if (productLabel) row.querySelector('.product-picker-search').value = productLabel;
+                if (productId)    row.querySelector(`[name="products[${idx}][product_id]"]`).value = productId;
+                if (quantity !== '') row.querySelector('.product-picker-qty').value = quantity;
+
+                // Инициализируем через ProductPicker
+                if (window.ProductPicker) window.ProductPicker.initRow(row);
+
+                row.querySelector('.product-picker-qty')
+                    ?.addEventListener('input', updateTotal);
+
+                rowIndex++;
+                updateTotal();
+            }
+
+            // ── Итого ──────────────────────────────────────────────────────────
+            function updateTotal() {
+                let total = 0;
+                container.querySelectorAll('.product-picker-qty')
+                    .forEach(el => { total += parseFloat(el.value) || 0; });
+                totalSpan.textContent = total.toFixed(2);
+            }
+
+            // ── Загружаем существующие продукты ───────────────────────────────
+            const existingProducts = @json($stoneReception->items->map(fn($i) => [
+                'product_id' => $i->product_id,
+                'quantity'   => (float)$i->quantity,
+            ])->values());
+
+            if (existingProducts.length > 0 && window.ProductPicker) {
+                window.ProductPicker.fetchTree().then(tree => {
+                    const flat = {};
+                    (function flatMap(groups) {
+                        groups.forEach(g => {
+                            (g.products || []).forEach(p => { flat[p.id] = p.label; });
+                            if (g.children?.length) flatMap(g.children);
+                        });
+                    })(tree);
+                    existingProducts.forEach(p =>
+                        addProduct(p.product_id, flat[p.product_id] || '', p.quantity));
+                });
+            } else if (existingProducts.length === 0) {
+                addProduct();
+            }
+
+            addBtn.addEventListener('click', () => addProduct());
+            document.addEventListener('product-picker:removed', updateTotal);
+
+            // ── Остаток партии ─────────────────────────────────────────────────
             function updateRemainingInfo() {
-                const selected = batchSelect.options[batchSelect.selectedIndex];
-                if (selected && selected.value) {
-                    const remaining = parseFloat(selected.dataset.remaining) || 0;
-                    remainingInfo.textContent = `Доступно сырья: ${remaining.toFixed(2)} м³`;
-
+                const opt = batchSelect?.options[batchSelect.selectedIndex];
+                if (opt?.value) {
+                    const rem  = parseFloat(opt.dataset.remaining) || 0;
                     const used = parseFloat(rawQuantity.value) || 0;
-                    if (used > remaining) {
-                        rawQuantity.setCustomValidity('Расход сырья превышает остаток в партии');
-                    } else {
-                        rawQuantity.setCustomValidity('');
-                    }
+                    remainingInfo.textContent = `Доступно сырья: ${rem.toFixed(2)} м³`;
+                    rawQuantity.setCustomValidity(used > rem ? 'Расход превышает остаток' : '');
                 } else {
                     remainingInfo.textContent = '';
                 }
             }
-
-            // Функция подсчета общего количества
-            function updateTotal() {
-                let total = 0;
-                document.querySelectorAll('.product-quantity').forEach(input => {
-                    total += parseFloat(input.value) || 0;
-                });
-                totalSpan.textContent = total.toFixed(2);
-            }
-
-            // Функция добавления нового продукта
-            function addProduct(productData = null) {
-                const productHtml = `
-            <div class="product-item card mb-2" data-index="${productCount}">
-                <div class="card-body p-2">
-                    <div class="row g-2 align-items-center">
-                        <div class="col-md-7">
-                            <div class="product-search-wrapper">
-                                <input type="text"
-                                       class="form-control product-search-input"
-                                       list="products-list-product_${productCount}"
-                                       placeholder="Начните вводить название или артикул..."
-                                       id="productInput-product_${productCount}"
-                                       data-target="productIdHidden-product_${productCount}"
-                                       data-max-results="10"
-                                       data-products='${JSON.stringify(@json($products->mapWithKeys(function($product) {
-                                           return [$product->name . ' (' . $product->sku . ')' => $product->id];
-                                       })))}'
-                                       ${productData ? `value="${Object.entries(@json($products->mapWithKeys(function($product) {
-                                           return [$product->name . ' (' . $product->sku . ')' => $product->id];
-                                       }))).find(([name, id]) => id == productData.product_id)?.[0] || ''}"` : ''}
-                                       required>
-                                <datalist id="products-list-product_${productCount}"></datalist>
-                                <input type="hidden"
-                                       name="products[${productCount}][product_id]"
-                                       id="productIdHidden-product_${productCount}"
-                                       value="${productData ? productData.product_id : ''}"
-                                       required>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <input type="number"
-                                   step="0.001"
-                                   min="0.001"
-                                   name="products[${productCount}][quantity]"
-                                   class="form-control form-control-sm product-quantity"
-                                   placeholder="Кол-во"
-                                   value="${productData ? productData.quantity : ''}"
-                                   required>
-                        </div>
-                        <div class="col-md-2">
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-product">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-                container.insertAdjacentHTML('beforeend', productHtml);
-
-                // Получаем новый элемент
-                const newItem = container.lastElementChild;
-
-                // Инициализируем поиск в новом элементе
-                if (window.initSingleProductSearch) {
-                    window.initSingleProductSearch(newItem.querySelector('.product-search-wrapper'));
-                }
-
-                // Обработчик удаления
-                newItem.querySelector('.remove-product').addEventListener('click', () => {
-                    newItem.remove();
-                    updateTotal();
-                });
-
-                // Обработчик изменения количества
-                newItem.querySelector('.product-quantity').addEventListener('input', updateTotal);
-
-                productCount++;
-                updateTotal();
-            }
-
-            // Загружаем существующие продукты
-            if (existingProducts && existingProducts.length > 0) {
-                existingProducts.forEach(product => {
-                    addProduct(product);
-                });
-            } else {
-                // Если нет продуктов, добавляем один пустой
-                addProduct();
-            }
-
-            // Обработчики событий
-            addBtn.addEventListener('click', () => addProduct());
-            batchSelect.addEventListener('change', updateRemainingInfo);
-            rawQuantity.addEventListener('input', updateRemainingInfo);
-
-            // Инициализация информации об остатке
+            batchSelect?.addEventListener('change', updateRemainingInfo);
+            rawQuantity?.addEventListener('input', updateRemainingInfo);
             updateRemainingInfo();
 
-            // Валидация формы
-            document.getElementById('receptionForm').addEventListener('submit', function(e) {
-                const products = document.querySelectorAll('.product-item');
-
-                if (products.length === 0) {
-                    e.preventDefault();
-                    alert('Добавьте хотя бы один продукт');
-                    return;
+            // ── Валидация ──────────────────────────────────────────────────────
+            document.getElementById('receptionForm').addEventListener('submit', function (e) {
+                const rows = container.querySelectorAll('.product-picker-row');
+                if (!rows.length) {
+                    e.preventDefault(); alert('Добавьте хотя бы один продукт'); return;
                 }
-
-                let valid = true;
-                products.forEach(item => {
-                    const hiddenInput = item.querySelector('input[type="hidden"][name*="[product_id]"]');
-                    const quantity = item.querySelector('.product-quantity');
-
-                    if (!hiddenInput.value || !quantity.value || parseFloat(quantity.value) <= 0) {
-                        valid = false;
-                        item.classList.add('border', 'border-danger');
+                let ok = true;
+                rows.forEach(row => {
+                    const pid = row.querySelector('input[type="hidden"][name*="product_id"]')?.value;
+                    const qty = parseFloat(row.querySelector('.product-picker-qty')?.value);
+                    if (!pid || !qty || qty <= 0) {
+                        ok = false;
+                        row.classList.add('border', 'border-danger', 'rounded');
                     } else {
-                        item.classList.remove('border', 'border-danger');
+                        row.classList.remove('border', 'border-danger', 'rounded');
                     }
                 });
-
-                if (!valid) {
-                    e.preventDefault();
-                    alert('Заполните все поля продуктов корректно');
-                    return;
-                }
-
-                // Проверка расхода сырья
-                const selected = batchSelect.options[batchSelect.selectedIndex];
-                if (selected && selected.value) {
-                    const remaining = parseFloat(selected.dataset.remaining) || 0;
-                    const used = parseFloat(rawQuantity.value) || 0;
-
-                    if (used > remaining) {
-                        e.preventDefault();
-                        alert('Расход сырья превышает остаток в партии');
-                        return;
-                    }
-                }
+                if (!ok) { e.preventDefault(); alert('Заполните все поля продуктов корректно'); }
             });
         });
     </script>
 @endpush
+
+{{-- Шаблон строки продукта — идентичен create.blade.php --}}
+<template id="editPickerRowTemplate">
+    <div class="product-picker-row d-flex gap-2 align-items-start mb-2">
+        <div class="flex-grow-1 position-relative">
+            <div class="input-group">
+                <input type="text"
+                       id="edit_search___IDX__"
+                       data-tpl-idx="1"
+                       class="form-control product-picker-search"
+                       placeholder="Введите название продукта..."
+                       autocomplete="off"
+                       data-hidden-id="edit_pid___IDX__">
+                <button type="button"
+                        class="btn btn-outline-secondary product-picker-tree-btn"
+                        data-modal="edit_modal___IDX__"
+                        data-hidden-id="edit_pid___IDX__"
+                        data-search-id="edit_search___IDX__"
+                        data-tpl-idx="1"
+                        title="Выбрать из каталога">
+                    <i class="bi bi-diagram-3"></i>
+                </button>
+            </div>
+            <div class="product-picker-dropdown list-group shadow-sm"
+                 style="display:none;position:absolute;z-index:1000;width:100%;max-height:280px;overflow-y:auto">
+            </div>
+        </div>
+
+        <input type="number"
+               id="edit_qty___IDX__"
+               name="products[__IDX__][quantity]"
+               class="form-control product-picker-qty"
+               style="width:100px"
+               placeholder="м²"
+               step="0.001" min="0.001"
+               data-tpl-idx="1"
+               required>
+
+        <input type="hidden"
+               id="edit_pid___IDX__"
+               name="products[__IDX__][product_id]"
+               data-tpl-idx="1">
+
+        <button type="button"
+                class="btn btn-outline-danger product-picker-remove"
+                title="Удалить">
+            <i class="bi bi-x-lg"></i>
+        </button>
+
+        <div class="modal fade" id="edit_modal___IDX__" tabindex="-1" data-tpl-idx="1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Выбрать из каталога</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+                        <input type="text" class="form-control mb-3 tree-search-input"
+                               placeholder="Поиск по каталогу...">
+                        <div class="product-tree-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
