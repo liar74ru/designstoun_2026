@@ -13,21 +13,49 @@
             </div>
 
             {{-- Форма выбора периода --}}
-            <form method="GET" class="d-flex gap-2 align-items-end flex-wrap">
+            <form method="GET" id="period-form" class="d-flex gap-2 align-items-end flex-wrap">
+                {{-- Быстрые кнопки недель --}}
+                {{-- Вычисляем даты каждой недели на сервере, чтобы подсветить активную --}}
+                @php
+                    $weekButtons = [];
+                    for ($i = 0; $i <= 2; $i++) {
+                        $fri = \Carbon\Carbon::today()->startOfDay();
+                        while ($fri->dayOfWeek !== \Carbon\Carbon::FRIDAY) {
+                            $fri->subDay();
+                        }
+                        $fri->subDays($i * 7);
+                        $thu = $fri->copy()->addDays(6)->endOfDay();
+                        $weekButtons[$i] = ['from' => $fri->format('Y-m-d'), 'to' => $thu->format('Y-m-d')];
+                    }
+                    $currentFrom = $dateFrom->format('Y-m-d');
+                    $currentTo   = $dateTo->format('Y-m-d');
+                @endphp
+
+                <div class="d-flex gap-1 flex-wrap">
+                    @foreach([0 => 'Текущая неделя', 1 => 'Прошлая неделя', 2 => '2 недели назад'] as $week => $label)
+                        @php $isActive = $weekButtons[$week]['from'] === $currentFrom && $weekButtons[$week]['to'] === $currentTo; @endphp
+                        <button type="button"
+                                class="btn btn-sm week-btn {{ $isActive ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                data-week="{{ $week }}">
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+
+                <span class="text-muted small align-self-center">или</span>
+
+                {{-- Произвольный период --}}
                 <div>
                     <label class="form-label mb-1 small text-muted">С</label>
-                    <input type="date" name="date_from" class="form-control form-control-sm"
+                    <input type="date" name="date_from" id="date_from" class="form-control form-control-sm"
                            value="{{ $dateFrom->format('Y-m-d') }}">
                 </div>
                 <div>
                     <label class="form-label mb-1 small text-muted">По</label>
-                    <input type="date" name="date_to" class="form-control form-control-sm"
+                    <input type="date" name="date_to" id="date_to" class="form-control form-control-sm"
                            value="{{ $dateTo->format('Y-m-d') }}">
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm">Показать</button>
-                <a href="{{ request()->url() }}" class="btn btn-outline-secondary btn-sm">
-                    Текущая неделя
-                </a>
             </form>
         </div>
 
@@ -127,14 +155,12 @@
             <div class="card shadow-sm">
                 <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                     <span>Приёмки за период</span>
-                    <button class="btn btn-sm btn-outline-secondary"
-                            type="button"
-                            data-bs-toggle="collapse"
-                            data-bs-target="#receptionsList">
-                        Свернуть / развернуть
+                    <button class="btn btn-sm btn-outline-secondary" id="toggle-receptions" type="button">
+                        <i class="bi bi-chevron-up" id="toggle-icon"></i>
+                        <span id="toggle-label">Свернуть</span>
                     </button>
                 </div>
-                <div class="collapse show" id="receptionsList">
+                <div id="receptionsList">
                     <div class="table-responsive">
                         <table class="table table-sm table-hover mb-0">
                             <thead class="table-light">
@@ -176,3 +202,70 @@
         @endif
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // ── Свернуть / развернуть приёмки ─────────────────────────────────────
+            const toggleBtn   = document.getElementById('toggle-receptions');
+            const list        = document.getElementById('receptionsList');
+            const toggleIcon  = document.getElementById('toggle-icon');
+            const toggleLabel = document.getElementById('toggle-label');
+
+            if (toggleBtn && list) {
+                toggleBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    const isVisible = list.style.display !== 'none';
+                    list.style.display    = isVisible ? 'none' : '';
+                    toggleIcon.className  = isVisible ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+                    toggleLabel.textContent = isVisible ? 'Развернуть' : 'Свернуть';
+                });
+            }
+
+            // ── Быстрые кнопки недель ─────────────────────────────────────────────
+            // Рабочая неделя: пятница–четверг (как в контроллере)
+            function getWorkWeek(weeksAgo) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                // Находим ближайшую прошедшую (или сегодняшнюю) пятницу
+                const friday = new Date(today);
+                while (friday.getDay() !== 5) {
+                    friday.setDate(friday.getDate() - 1);
+                }
+
+                // Смещаем на нужное количество недель назад
+                friday.setDate(friday.getDate() - weeksAgo * 7);
+
+                // Четверг = пятница + 6 дней
+                const thursday = new Date(friday);
+                thursday.setDate(thursday.getDate() + 6);
+
+                return { from: friday, to: thursday };
+            }
+
+            function formatDate(date) {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+
+            const dateFromInput = document.getElementById('date_from');
+            const dateToInput   = document.getElementById('date_to');
+            const form          = document.getElementById('period-form');
+
+            document.querySelectorAll('.week-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const weeksAgo = parseInt(this.dataset.week, 10);
+                    const { from, to } = getWorkWeek(weeksAgo);
+                    dateFromInput.value = formatDate(from);
+                    dateToInput.value   = formatDate(to);
+                    form.submit();
+                });
+            });
+
+        });
+    </script>
+@endpush
