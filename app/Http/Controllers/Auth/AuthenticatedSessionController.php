@@ -29,8 +29,19 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
-        if ($user->worker && $user->worker->position === 'Пильщик') {
+        // Было: $user->worker->position  ← падает если worker = null (администратор)
+        // Стало: безопасная проверка через ?->
+        if ($user->worker?->position === 'Пильщик') {
             return redirect()->route('worker.dashboard');
+        }
+
+        // Если приёмщик — тоже редиректим на его страницу (добавь если нужно)
+        // if ($user->worker?->position === 'Приемщик') {
+        //     return redirect()->route('reception.dashboard');
+        // }
+
+        if ($user->isAdmin()) {
+            return redirect()->intended(route('dashboard'));
         }
 
         return redirect()->intended(route('home'));
