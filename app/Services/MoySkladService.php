@@ -80,6 +80,119 @@ class MoySkladService
     }
 
     /**
+     * Синхронизация всех складов
+     */
+    public function syncStores(): array
+    {
+        $result = [
+            'success' => false,
+            'synced' => 0,
+            'updated' => 0,
+            'errors' => 0,
+            'message' => ''
+        ];
+
+        if (!$this->hasCredentials()) {
+            $result['message'] = 'MoySklad токен не установлен';
+            return $result;
+        }
+
+        try {
+            Log::info('Начинаем синхронизацию складов');
+
+            $data = $this->getRequest('/entity/store');
+
+            if (!$data || !isset($data['rows'])) {
+                $result['message'] = 'Не удалось получить склады из API';
+                return $result;
+            }
+
+            $stores = $data['rows'];
+
+            foreach ($stores as $storeData) {
+                try {
+                    $storeId = $storeData['id'] ?? null;
+
+                    if (!$storeId) {
+                        continue;
+                    }
+
+                    $parentId = null;
+                    if (isset($storeData['parent']['meta']['href'])) {
+                        $parentId = $this->extractIdFromHref($storeData['parent']['meta']['href']);
+                        // Проверяем, что parentId не 'store'
+                        if ($parentId === 'store') {
+                            $parentId = null;
+                        }
+                    }
+
+                    $ownerId = null;
+                    if (isset($storeData['owner']['meta']['href'])) {
+                        $ownerId = $this->extractIdFromHref($storeData['owner']['meta']['href']);
+                    }
+
+                    // Проверяем существование склада
+                    $existing = Store::where('id', $storeId)->first();
+
+                    if ($existing) {
+                        $result['updated']++;
+                    } else {
+                        $result['synced']++;
+                    }
+
+                    Store::updateOrCreate(
+                        ['id' => $storeId],
+                        [
+                            'name' => $storeData['name'] ?? '',
+                            'code' => $storeData['code'] ?? null,
+                            'external_code' => $storeData['externalCode'] ?? null,
+                            'description' => $storeData['description'] ?? null,
+                            'address' => $storeData['address'] ?? null,
+                            'address_full' => isset($storeData['addressFull']) ? json_encode($storeData['addressFull']) : null,
+                            'archived' => (bool)($storeData['archived'] ?? false),
+                            'shared' => (bool)($storeData['shared'] ?? false),
+                            'path_name' => $storeData['pathName'] ?? null,
+                            'account_id' => $storeData['accountId'] ?? null,
+                            'owner_id' => $ownerId,
+                            'parent_id' => $parentId,
+                            'attributes' => json_encode([
+                                'zones' => $storeData['zones'] ?? [],
+                                'slots' => $storeData['slots'] ?? [],
+                                'meta' => $storeData['meta'] ?? null,
+                            ]),
+                        ]
+                    );
+
+                } catch (\Exception $e) {
+                    $result['errors']++;
+                    Log::warning('Ошибка при сохранении склада', [
+                        'store_id' => $storeData['id'] ?? 'unknown',
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            $result['success'] = true;
+            $result['message'] = "Синхронизировано складов: {$result['synced']}, обновлено: {$result['updated']}";
+
+            if ($result['errors'] > 0) {
+                $result['message'] .= ", ошибок: {$result['errors']}";
+            }
+
+            Log::info($result['message']);
+
+        } catch (\Exception $e) {
+            Log::error('Ошибка синхронизации складов', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $result['message'] = 'Ошибка синхронизации складов: ' . $e->getMessage();
+        }
+
+        return $result;
+    }
+
+    /**
      * Синхронизация всех групп товаров
      */
     public function syncGroups(): array
@@ -301,32 +414,6 @@ class MoySkladService
     }
 
     /**
-     * Публичная обёртка для извлечения кастомного атрибута.
-     * Используется в контроллере при обновлении одного товара.
-     */
-    public function extractAttributePublic(array $productData, string $attributeName): mixed
-    {
-        return $this->extractAttribute($productData, $attributeName);
-    }
-
-    /**
-     * Извлечь значение кастомного атрибута по имени.
-     *
-     * В МойСклад атрибуты приходят как массив объектов:
-     * [{"id": "...", "name": "prodCostCoeff", "value": 1.5}, ...]
-     */
-    private function extractAttribute(array $productData, string $attributeName): mixed
-    {
-        $attributes = $productData['attributes'] ?? [];
-        foreach ($attributes as $attr) {
-            if (($attr['name'] ?? '') === $attributeName) {
-                return $attr['value'] ?? null;
-            }
-        }
-        return null;
-    }
-
-    /**
      * Обработка одного товара
      */
     private function processProduct(array $productData, array &$result, array $groupsCache): void
@@ -403,6 +490,32 @@ class MoySkladService
     }
 
     /**
+     * Публичная обёртка для извлечения кастомного атрибута.
+     * Используется в контроллере при обновлении одного товара.
+     */
+    public function extractAttributePublic(array $productData, string $attributeName): mixed
+    {
+        return $this->extractAttribute($productData, $attributeName);
+    }
+
+    /**
+     * Извлечь значение кастомного атрибута по имени.
+     *
+     * В МойСклад атрибуты приходят как массив объектов:
+     * [{"id": "...", "name": "prodCostCoeff", "value": 1.5}, ...]
+     */
+    private function extractAttribute(array $productData, string $attributeName): mixed
+    {
+        $attributes = $productData['attributes'] ?? [];
+        foreach ($attributes as $attr) {
+            if (($attr['name'] ?? '') === $attributeName) {
+                return $attr['value'] ?? null;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Получить товар по ID
      */
     public function fetchProduct(string $id): ?array
@@ -449,118 +562,5 @@ class MoySkladService
         } catch (\Exception $e) {
             // Игнорируем ошибки кэша
         }
-    }
-
-    /**
-     * Синхронизация всех складов
-     */
-    public function syncStores(): array
-    {
-        $result = [
-            'success' => false,
-            'synced' => 0,
-            'updated' => 0,
-            'errors' => 0,
-            'message' => ''
-        ];
-
-        if (!$this->hasCredentials()) {
-            $result['message'] = 'MoySklad токен не установлен';
-            return $result;
-        }
-
-        try {
-            Log::info('Начинаем синхронизацию складов');
-
-            $data = $this->getRequest('/entity/store');
-
-            if (!$data || !isset($data['rows'])) {
-                $result['message'] = 'Не удалось получить склады из API';
-                return $result;
-            }
-
-            $stores = $data['rows'];
-
-            foreach ($stores as $storeData) {
-                try {
-                    $storeId = $storeData['id'] ?? null;
-
-                    if (!$storeId) {
-                        continue;
-                    }
-
-                    $parentId = null;
-                    if (isset($storeData['parent']['meta']['href'])) {
-                        $parentId = $this->extractIdFromHref($storeData['parent']['meta']['href']);
-                        // Проверяем, что parentId не 'store'
-                        if ($parentId === 'store') {
-                            $parentId = null;
-                        }
-                    }
-
-                    $ownerId = null;
-                    if (isset($storeData['owner']['meta']['href'])) {
-                        $ownerId = $this->extractIdFromHref($storeData['owner']['meta']['href']);
-                    }
-
-                    // Проверяем существование склада
-                    $existing = Store::where('id', $storeId)->first();
-
-                    if ($existing) {
-                        $result['updated']++;
-                    } else {
-                        $result['synced']++;
-                    }
-
-                    Store::updateOrCreate(
-                        ['id' => $storeId],
-                        [
-                            'name' => $storeData['name'] ?? '',
-                            'code' => $storeData['code'] ?? null,
-                            'external_code' => $storeData['externalCode'] ?? null,
-                            'description' => $storeData['description'] ?? null,
-                            'address' => $storeData['address'] ?? null,
-                            'address_full' => isset($storeData['addressFull']) ? json_encode($storeData['addressFull']) : null,
-                            'archived' => (bool)($storeData['archived'] ?? false),
-                            'shared' => (bool)($storeData['shared'] ?? false),
-                            'path_name' => $storeData['pathName'] ?? null,
-                            'account_id' => $storeData['accountId'] ?? null,
-                            'owner_id' => $ownerId,
-                            'parent_id' => $parentId,
-                            'attributes' => json_encode([
-                                'zones' => $storeData['zones'] ?? [],
-                                'slots' => $storeData['slots'] ?? [],
-                                'meta' => $storeData['meta'] ?? null,
-                            ]),
-                        ]
-                    );
-
-                } catch (\Exception $e) {
-                    $result['errors']++;
-                    Log::warning('Ошибка при сохранении склада', [
-                        'store_id' => $storeData['id'] ?? 'unknown',
-                        'error' => $e->getMessage()
-                    ]);
-                }
-            }
-
-            $result['success'] = true;
-            $result['message'] = "Синхронизировано складов: {$result['synced']}, обновлено: {$result['updated']}";
-
-            if ($result['errors'] > 0) {
-                $result['message'] .= ", ошибок: {$result['errors']}";
-            }
-
-            Log::info($result['message']);
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка синхронизации складов', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            $result['message'] = 'Ошибка синхронизации складов: ' . $e->getMessage();
-        }
-
-        return $result;
     }
 }
