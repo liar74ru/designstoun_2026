@@ -88,8 +88,21 @@ class Product extends Model
 
     // ─── Бизнес-логика ───────────────────────────────────────────────────────
 
+    public function prodCost()
+    {
+        if ((float)($this->prod_cost_coeff ?? 0) === 0.0) {
+            return 0.0;
+        }
+
+        // ОКРУГЛВНИЗ((PIECE_RATE + PIECE_RATE*17% * coeff) / 10; 0) * 10
+        $coeff   = (float)$this->prod_cost_coeff;
+        $perUnit = self::PIECE_RATE + (self::PIECE_RATE * 0.17) * $coeff;
+        $rounded = floor($perUnit / 10) * 10;
+
+        return $rounded;
+    }
     public function calculateWorkerPay(float $quantity): float
     {
-        return $quantity * (float)($this->prod_cost_coeff ?? 0) * self::PIECE_RATE;
+        return $quantity * $this->prodCost();
     }
 }

@@ -1,59 +1,243 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Designstoun 2026
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Система учёта производства каменных изделий. Позволяет вести учёт партий сырья, фиксировать приёмки готовой продукции от пильщиков, отслеживать выработку и синхронизировать остатки со складом МойСклад.
 
-## About Laravel
+## Стек
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Backend:** PHP 8.2+, Laravel 12
+- **БД:** PostgreSQL
+- **Frontend:** Bootstrap 5.3, Bootstrap Icons, Vite
+- **Интеграция:** МойСклад API (remap 1.2)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Быстрый старт
 
-## Learning Laravel
+### Требования
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+- PHP >= 8.2
+- Composer
+- Node.js >= 18
+- PostgreSQL >= 14
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Установка
 
-## Laravel Sponsors
+```bash
+git clone <repo>
+cd designstoun_2026
+make setup
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Команда `setup` выполнит все шаги автоматически и остановится, чтобы вы заполнили `.env`, если он ещё не существует.
 
-### Premium Partners
+### Запуск
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+make start            # PHP dev-сервер на localhost:8000
+make start-frontend   # Vite dev-сервер (hot reload)
+```
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Настройка .env
 
-## Code of Conduct
+Скопируйте `.env.example` в `.env` и заполните:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```dotenv
+APP_NAME="Designstoun"
+APP_URL=http://localhost:8000
 
-## Security Vulnerabilities
+# PostgreSQL
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=designstoun_2026
+DB_USERNAME=postgres
+DB_PASSWORD=secret
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# МойСклад
+MOYSKLAD_TOKEN=ваш_токен_здесь
 
-## License
+# UUID основного склада в МойСклад (используется при корректировках партий)
+DEFAULT_STORE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+`MOYSKLAD_TOKEN` — Bearer-токен из настроек МойСклад → Приложения → Токены.  
+`DEFAULT_STORE_ID` — UUID склада-источника, виден в URL при открытии склада в МойСклад.
+
+---
+
+## Первый вход
+
+После `make setup` создаётся администратор:
+
+| Поле | Значение |
+|---|---|
+| Телефон | 89128993488 |
+| Пароль | 12345678 |
+
+> ⚠️ Смените пароль после первого входа через меню профиля.
+
+---
+
+## Структура системы
+
+### Роли пользователей
+
+Доступ в систему — через учётную запись `User`, привязанную к записи `Worker`.
+
+| Роль | Описание |
+|---|---|
+| `is_admin = true` | Полный доступ ко всем разделам |
+| `is_admin = false` | Доступ только к дашборду пильщика (`/my-work`) |
+
+### Должности работников (`Worker::POSITIONS`)
+
+`Директор`, `Мастер`, `Пильщик`, `Галтовщик`, `Приемщик`, `Разнорабочий`
+
+Пользователи с должностью `Пильщик` после входа автоматически попадают на личный дашборд выработки.
+
+---
+
+## Основные разделы
+
+### Партии сырья (`/raw-batches`)
+
+Каждая партия — отрезанный слэб или набор материала, переданный пильщику.
+
+**Статусы партии:**
+
+| Статус | Описание |
+|---|---|
+| `active` | Есть остаток, партия в работе |
+| `used` | Остаток израсходован полностью |
+| `returned` | Возвращена на склад |
+| `archived` | Финальный статус, редактирование недоступно |
+
+**Правила архивации:** отправить в архив можно только партию со статусом `used` или `returned` и нулевым остатком.
+
+**Корректировка количества** (`/raw-batches/{id}/adjust`): добавляет или убавляет остаток партии с синхронизацией `product_stocks` и обновлением перемещения в МойСклад.
+
+### Приёмки готовой продукции (`/stone-receptions`)
+
+Фиксирует факт сдачи готовых изделий пильщиком. Одна приёмка = расход сырья из партии + набор готовых продуктов с количеством.
+
+В форме редактирования нельзя менять приёмщика, пильщика и партию сырья — только количество (через поле дельты) и состав продуктов.
+
+Все изменения пишутся в журнал `reception_logs` / `reception_log_items` — это основа для расчёта выработки.
+
+### Дашборд пильщика (`/my-work`)
+
+Показывает выработку за выбранную неделю (пятница–четверг). Доступны кнопки: текущая неделя, прошлая, две недели назад.
+
+Данные берутся из `reception_logs` — сумма `quantity_delta` по продуктам за период.
+
+### Продукты и остатки (`/products`)
+
+Каталог синхронизируется из МойСклад. Остатки по складам хранятся в `product_stocks` и синхронизируются отдельно.
+
+### Склады (`/stores`)
+
+Склады импортируются из МойСклад. UUID склада в системе совпадает с UUID в МойСклад.
+
+### Заказы (`/orders`)
+
+Просмотр заказов из МойСклад. Синхронизация через `OrderController`.
+
+### Работники (`/workers`)
+
+Управление сотрудниками. Каждому работнику можно создать учётную запись (`/workers/{id}/create-user`) или отредактировать существующую (`/workers/{id}/edit-user`).
+
+---
+
+## Формула расчёта выработки
+
+Ставка за единицу продукта:
+
+```
+если prod_cost_coeff = 0:
+    оплата = 0
+
+иначе:
+    ставка_за_единицу = ОКРУГЛВНИЗ((390 + 390 × 17% × coeff) / 10) × 10
+    оплата = количество × ставка_за_единицу
+```
+
+Базовая ставка (`PIECE_RATE`) = 390 руб. Коэффициент `prod_cost_coeff` задаётся на продукте.
+
+Примеры:
+
+| coeff | Расчёт | Ставка/ед. |
+|---|---|---|
+| 1 | 390 + 66.3 = 456.3 → 450 | 450 ₽ |
+| 2 | 390 + 132.6 = 522.6 → 520 | 520 ₽ |
+| 3 | 390 + 198.9 = 588.9 → 580 | 580 ₽ |
+
+---
+
+## Интеграция с МойСклад
+
+Синхронизируются:
+
+- **Продукты и группы** — из МойСклад в локальную БД
+- **Остатки по складам** — `product_stocks`
+- **Перемещения** — при создании партии и корректировке создаётся/обновляется документ `move` в МойСклад
+- **Заказы** — импорт из МойСклад
+
+При корректировке партии (`adjust`) система находит исходное перемещение партии по `moysklad_move_id` и обновляет его количество через `PUT /entity/move/{id}`. Если исходное перемещение не найдено — создаётся новое.
+
+---
+
+## Make-команды
+
+```bash
+make setup          # Первичная установка (composer, .env, migrate, seed, npm build)
+make start          # Запустить PHP dev-сервер
+make start-frontend # Запустить Vite
+make migrate        # Применить новые миграции
+make migrate-status # Статус миграций
+make rollback       # Откатить последнюю миграцию
+make seed           # Повторный запуск сидов (без сноса БД)
+make fresh          # migrate:fresh --seed (удалит все данные!)
+make cache-clear    # Очистить config/route/view кэш
+make cache-warm     # Прогреть кэш (для продакшена)
+make log            # tail -f storage/logs/laravel.log
+make console        # php artisan tinker
+make test           # Запустить тесты
+make lint           # phpcs
+make dump           # composer dump-autoload
+make help           # Показать все команды
+```
+
+---
+
+## Схема БД (основные таблицы)
+
+```
+users               ←── worker_id ──→ workers
+workers             ←── department_id → departments
+
+products            ←── group_id ──→ product_groups
+product_stocks      (product_id + store_id UNIQUE)
+
+raw_material_batches
+  ├── raw_material_movements (история перемещений + moysklad_move_id)
+  └── stone_receptions
+        ├── stone_reception_items (product_id + quantity)
+        ├── reception_logs        (delta-журнал изменений)
+        └── reception_log_items   (product_id + quantity_delta)
+
+stores
+orders
+```
+
+---
+
+## Первоначальные данные при `make setup`
+
+Сид `AdminUserSeeder` создаёт:
+
+- `Worker`: Администратор, тел. 89128993489, должность Администратор
+- `User`: Администратор, тел. 89128993488, `is_admin = true`, пароль `12345678`
+
+Сид `DepartmentsTableSeeder` создаёт базовые отделы.

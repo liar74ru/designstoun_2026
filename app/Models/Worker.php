@@ -11,6 +11,7 @@ class Worker extends Model
 
     const POSITIONS = [
         'Директор',
+        'Администратор',
         'Мастер',
         'Пильщик',
         'Галтовщик',

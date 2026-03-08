@@ -97,7 +97,7 @@
                 <div class="col-sm-6 col-lg-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
-                            <div class="text-muted small mb-1">Ставка за ед.</div>
+                            <div class="text-muted small mb-1">Базовая ставка</div>
                             <div class="fs-3 fw-bold">{{ number_format(\App\Models\Product::PIECE_RATE, 0, ',', ' ') }} ₽</div>
                         </div>
                     </div>
@@ -131,8 +131,8 @@
                             <tr>
                                 <td>{{ $row['product']?->name ?? '—' }}</td>
                                 <td class="text-end">{{ number_format($row['quantity'], 3, ',', ' ') }}</td>
-                                <td class="text-end text-muted">× {{ number_format($row['coeff'], 4, ',', ' ') }}</td>
-                                <td class="text-end text-muted">× {{ number_format(\App\Models\Product::PIECE_RATE, 0, ',', ' ') }} ₽</td>
+                                <td class="text-end text-muted">{{ number_format($row['coeff'], 1, ',', ' ') }}</td>
+                                <td class="text-end text-muted">× {{ number_format($row['prodCost'], 0, ',', ' ') }} ₽</td>
                                 <td class="text-end fw-semibold text-success">
                                     {{ number_format($row['pay'], 2, ',', ' ') }} ₽
                                 </td>

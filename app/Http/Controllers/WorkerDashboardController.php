@@ -120,7 +120,8 @@ class WorkerDashboardController extends Controller
                 return [
                     'product'  => $product,
                     'quantity' => $quantity,
-                    'coeff'    => $product?->prod_cost_coeff ?? 1.0,
+                    'coeff'    => $product?->prod_cost_coeff ?? 0,
+                    'prodCost' => $product?->prodCost() ?? 0,
                     'pay'      => $pay,
                 ];
             })
