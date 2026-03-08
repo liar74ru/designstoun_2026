@@ -126,6 +126,9 @@ class StoneReceptionController extends Controller
         ));
     }
 
+    /**
+     * Отображает список лога приемок
+     */
     public function logs(Request $request)
     {
         $filterBatches = RawMaterialBatch::whereIn('id',

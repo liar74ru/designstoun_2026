@@ -32,7 +32,7 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{ route('stone-receptions.logs') }}">
-                    <i class="bi bi-journal-text"></i> Журнал логов
+                    <i class="bi bi-journal-text"></i> Журнал приёмок
                 </a>
             </li>
         </ul>
