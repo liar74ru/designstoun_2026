@@ -46,8 +46,24 @@ class RawMaterialBatch extends Model
         return $this->hasMany(StoneReception::class, 'raw_material_batch_id');
     }
 
-    public function isActive()
+    public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->status === 'archived';
+    }
+
+    public function canBeEdited(): bool
+    {
+        return $this->status !== 'archived';
+    }
+
+    public function canBeArchived(): bool
+    {
+        return in_array($this->status, ['used', 'returned'])
+            && (float) $this->remaining_quantity <= 0;
     }
 }

@@ -189,16 +189,33 @@ class StoneReceptionController extends Controller
      */
     public function update(Request $request, StoneReception $stoneReception)
     {
-        // Вычисляем итоговый raw_quantity_used из дельты ДО валидации,
-        // чтобы валидатор получил готовое значение а не 0 от дельты
-        $rawDelta = (float) $request->input('raw_quantity_delta', 0);
+        $rawDelta  = (float) $request->input('raw_quantity_delta', 0);
         $currentRaw = (float) $stoneReception->raw_quantity_used;
-        $request->merge(['raw_quantity_used' => $currentRaw + $rawDelta]);
+        $newRaw     = $currentRaw + $rawDelta;
 
-        $data = $this->validateReception($request, false);
+        // Валидируем только то что реально меняется
+        $request->validate([
+            'notes'                 => 'nullable|string',
+            'products'              => 'required|array|min:1',
+            'products.*.product_id' => 'required|exists:products,id',
+            'products.*.quantity'   => 'required|numeric|min:0',
+        ], [
+            'products.required' => 'Добавьте хотя бы один продукт',
+            'products.*.product_id.required' => 'Выберите продукт',
+            'products.*.quantity.required'   => 'Укажите количество',
+        ]);
+
+        if ($newRaw < 0) {
+            return back()->withErrors(['raw_quantity_delta' => 'Итоговый расход не может быть отрицательным'])->withInput();
+        }
 
         try {
-            DB::transaction(function () use ($stoneReception, $data, $rawDelta) {
+            DB::transaction(function () use ($stoneReception, $request, $rawDelta, $newRaw, $currentRaw) {
+
+                $data = [
+                    'products' => $request->input('products', []),
+                    'notes'    => $request->input('notes'),
+                ];
 
                 // Запоминаем старые значения продуктов ДО сохранения
                 $preSaveItems = $stoneReception->items()
@@ -207,9 +224,31 @@ class StoneReceptionController extends Controller
                     ->map(fn($q) => (float) $q)
                     ->toArray();
 
-                // Обновляем партию сырья и саму приёмку
-                $this->handleBatchUpdate($stoneReception, $data);
-                $stoneReception->update($this->prepareReceptionData($data, false));
+                // Обновляем остаток в партии сырья (только количество, партия не меняется)
+                if (abs($rawDelta) > 0.0001) {
+                    $batch = RawMaterialBatch::find($stoneReception->raw_material_batch_id);
+                    if ($batch) {
+                        $newRemaining = (float) $batch->remaining_quantity - $rawDelta;
+                        if ($newRemaining < 0) {
+                            throw new \Exception('Недостаточно сырья в партии');
+                        }
+                        $batch->remaining_quantity = $newRemaining;
+                        if ($newRemaining <= 0) {
+                            $batch->remaining_quantity = 0;
+                            $batch->status = 'used';
+                        } elseif ($batch->status === 'used') {
+                            $batch->status = 'active';
+                        }
+                        $batch->save();
+                    }
+                }
+
+                // Сохраняем приёмку
+                $stoneReception->update([
+                    'raw_quantity_used' => $newRaw,
+                    'notes'             => $data['notes'],
+                    'updated_at'        => now(),
+                ]);
                 $this->updateReceptionItems($stoneReception, $data['products']);
 
                 // Считаем дельты продуктов: новое (из формы) минус старое (из preSaveItems)

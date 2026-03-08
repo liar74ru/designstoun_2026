@@ -53,10 +53,12 @@
                             <tr>
                                 <th>Статус:</th>
                                 <td>
-                                    @if($batch->status == 'active')
+                                    @if($batch->status === 'active')
                                         <span class="badge bg-success">Активна</span>
-                                    @elseif($batch->status == 'used')
+                                    @elseif($batch->status === 'used')
                                         <span class="badge bg-warning text-dark">Израсходована</span>
+                                    @elseif($batch->status === 'archived')
+                                        <span class="badge bg-dark">Архив</span>
                                     @else
                                         <span class="badge bg-secondary">Возвращена</span>
                                     @endif
@@ -78,18 +80,47 @@
                     </div>
                 </div>
 
-                @if($batch->status == 'active')
+                @if($batch->status !== 'archived')
                     <div class="card shadow-sm mb-4">
                         <div class="card-body">
-                            <div class="d-flex gap-2">
-                                <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-warning">
-                                    <i class="bi bi-arrow-left-right"></i> Передать пильщику
+                            <div class="d-flex flex-wrap gap-2">
+
+                                {{-- Корректировка количества — для любой не-архивной партии --}}
+                                <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-outline-primary">
+                                    <i class="bi bi-plus-slash-minus"></i> Скорректировать количество
                                 </a>
-                                <a href="{{ route('raw-batches.return.form', $batch) }}" class="btn btn-secondary">
-                                    <i class="bi bi-arrow-return-left"></i> Вернуть на склад
-                                </a>
+
+                                @if($batch->status === 'active')
+                                    <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-warning">
+                                        <i class="bi bi-arrow-left-right"></i> Передать пильщику
+                                    </a>
+                                    <a href="{{ route('raw-batches.return.form', $batch) }}" class="btn btn-secondary">
+                                        <i class="bi bi-arrow-return-left"></i> Вернуть на склад
+                                    </a>
+                                @endif
+
+                                {{-- Архив: только для used/returned с нулевым остатком --}}
+                                @if($batch->canBeArchived())
+                                    <form method="POST" action="{{ route('raw-batches.archive', $batch) }}"
+                                          onsubmit="return confirm('Отправить партию в архив? Это финальный статус, редактирование будет недоступно.')">
+                                        @csrf
+                                        <button type="submit" class="btn btn-dark">
+                                            <i class="bi bi-archive"></i> В архив
+                                        </button>
+                                    </form>
+                                @elseif(in_array($batch->status, ['used', 'returned']) && (float)$batch->remaining_quantity > 0)
+                                    <button class="btn btn-dark" disabled title="Сначала спишите остаток ({{ number_format($batch->remaining_quantity, 3) }} м³)">
+                                        <i class="bi bi-archive"></i> В архив (остаток не нулевой)
+                                    </button>
+                                @endif
+
                             </div>
                         </div>
+                    </div>
+                @else
+                    <div class="alert alert-secondary">
+                        <i class="bi bi-archive me-2"></i>
+                        <strong>Партия в архиве.</strong> Редактирование недоступно.
                     </div>
                 @endif
             </div>
@@ -118,18 +149,21 @@
                                     @foreach($batch->receptions as $reception)
                                         <tr>
                                             <td>
-                                                @if($reception->product)
-                                                    <a href="{{ route('products.show', $reception->product->moysklad_id) }}">
-                                                        <strong>{{ $reception->product->name }}</strong>
-                                                    </a>
-                                                    <br>
-                                                    <small class="text-muted">{{ $reception->product->sku }}</small>
-                                                @else
-                                                    <span class="text-danger">Продукт не найден</span>
-                                                @endif
+                                                {{-- Теперь у приёмки много продуктов через items --}}
+                                                @forelse($reception->items as $item)
+                                                    @if($item->product)
+                                                        <a href="{{ route('products.show', $item->product->moysklad_id) }}">
+                                                            {{ $item->product->name }}
+                                                        </a>
+                                                        <span class="badge bg-primary ms-1">{{ number_format($item->quantity, 3) }} м²</span><br>
+                                                    @endif
+                                                @empty
+                                                    <span class="text-muted">—</span>
+                                                @endforelse
                                             </td>
                                             <td>
-                                                <span class="badge bg-primary">{{ number_format($reception->quantity, 3) }} м²</span>
+                                                {{-- Итого по всем позициям --}}
+                                                <span class="badge bg-primary">{{ number_format($reception->items->sum('quantity'), 3) }} м²</span>
                                             </td>
                                             <td>
                                                 <span class="badge bg-info">{{ number_format($reception->raw_quantity_used, 3) }} м²</span>
@@ -140,18 +174,22 @@
                                     @endforeach
                                     </tbody>
                                     <tfoot class="table-light">
+                                    @php
+                                        $totalQty = $batch->receptions->sum(fn($r) => $r->items->sum('quantity'));
+                                        $totalRaw = $batch->receptions->sum('raw_quantity_used');
+                                    @endphp
                                     <tr>
                                         <th>Итого:</th>
-                                        <th>{{ number_format($batch->receptions->sum('quantity'), 3) }} м²</th>
-                                        <th>{{ number_format($batch->receptions->sum('raw_quantity_used'), 3) }} м²</th>
+                                        <th>{{ number_format($totalQty, 3) }} м²</th>
+                                        <th>{{ number_format($totalRaw, 3) }} м²</th>
                                         <th colspan="2"></th>
                                     </tr>
                                     <tr>
                                         <th colspan="5" class="text-muted">
                                             Коэффициент выхода:
                                             @if($batch->initial_quantity > 0)
-                                                {{ number_format(($batch->receptions->sum('quantity') / $batch->initial_quantity) * 100, 1) }}%
-                                                (из 1 м² сырья получается {{ number_format($batch->receptions->sum('quantity') / $batch->initial_quantity, 3) }} м² плитки)
+                                                {{ number_format(($totalQty / $batch->initial_quantity) * 100, 1) }}%
+                                                (из 1 м² сырья получается {{ number_format($totalQty / $batch->initial_quantity, 3) }} м² плитки)
                                             @else
                                                 —
                                             @endif

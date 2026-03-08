@@ -35,45 +35,30 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Приемщик <span class="text-danger">*</span></label>
-                                    <select name="receiver_id" class="form-select @error('receiver_id') is-invalid @enderror" required>
-                                        @foreach($masterWorkers as $worker)
-                                            <option value="{{ $worker->id }}" {{ old('receiver_id', $stoneReception->receiver_id) == $worker->id ? 'selected' : '' }}>
-                                                {{ $worker->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('receiver_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    <input type="text" class="form-control bg-light"
+                                           value="{{ $stoneReception->receiver->name ?? '—' }}" readonly>
+                                    <input type="hidden" name="receiver_id" value="{{ $stoneReception->receiver_id }}">
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Пильщик</label>
-                                    <select name="cutter_id" class="form-select @error('cutter_id') is-invalid @enderror">
-                                        <option value="">— Не указан —</option>
-                                        @foreach($workers as $worker)
-                                            <option value="{{ $worker->id }}" {{ old('cutter_id', $stoneReception->cutter_id) == $worker->id ? 'selected' : '' }}>
-                                                {{ $worker->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('cutter_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    <input type="text" class="form-control bg-light"
+                                           value="{{ $stoneReception->cutter->name ?? '— Не указан —' }}" readonly>
+                                    <input type="hidden" name="cutter_id" value="{{ $stoneReception->cutter_id }}">
                                 </div>
                             </div>
 
-                            {{-- Партия сырья --}}
+                            {{-- Партия сырья — только читается, менять нельзя --}}
                             <div class="mb-3">
-                                <label class="form-label">Партия сырья <span class="text-danger">*</span></label>
-                                <select name="raw_material_batch_id" id="raw_material_batch_id"
-                                        class="form-select @error('raw_material_batch_id') is-invalid @enderror" required>
-                                    @foreach($activeBatches as $batch)
-                                        <option value="{{ $batch->id }}"
-                                                data-remaining="{{ $batch->remaining_quantity }}"
-                                            {{ old('raw_material_batch_id', $stoneReception->raw_material_batch_id) == $batch->id ? 'selected' : '' }}>
-                                            {{ $batch->product->name }}
-                                            (остаток: {{ number_format($batch->remaining_quantity, 2) }} м³)
-                                            @if($batch->currentWorker) — {{ $batch->currentWorker->name }} @endif
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('raw_material_batch_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                <label class="form-label">Партия сырья</label>
+                                <input type="text" class="form-control bg-light"
+                                       value="{{ $stoneReception->rawMaterialBatch->product->name ?? '—' }}{{ $stoneReception->rawMaterialBatch?->batch_number ? ' №'.$stoneReception->rawMaterialBatch->batch_number : '' }}"
+                                       readonly>
+                                {{-- Скрытый input передаёт batch_id на сервер; data-remaining нужен JS --}}
+                                <input type="hidden"
+                                       name="raw_material_batch_id"
+                                       id="raw_material_batch_id"
+                                       value="{{ $stoneReception->raw_material_batch_id }}"
+                                       data-remaining="{{ (float)($stoneReception->rawMaterialBatch?->remaining_quantity ?? 0) }}">
                             </div>
 
                             {{-- Расход сырья с полем дельты --}}
@@ -268,16 +253,19 @@
                 rawResultDiv.classList.toggle('text-danger', result < 0);
                 rawResultDiv.classList.toggle('fw-bold', true);
 
-                const opt = batchSelect?.options[batchSelect.selectedIndex];
-                if (opt?.value) {
-                    const rem = parseFloat(opt.dataset.remaining) || 0;
-                    rawRemInfo.textContent = `Доступно в партии: ${rem.toFixed(3)} м³`;
-                    rawDeltaInput.setCustomValidity(result > rem ? 'Превышает остаток в партии' : '');
+                // Партия теперь скрытый input — берём data-remaining напрямую
+                const batchInput = document.getElementById('raw_material_batch_id');
+                if (batchInput?.value) {
+                    const remaining = parseFloat(batchInput.dataset.remaining) || 0;
+                    // Доступно = остаток в партии + то что уже занято этой приёмкой
+                    // (при сохранении старый расход вернётся и спишется новый)
+                    const available = Math.round((remaining + currentRaw) * 1000) / 1000;
+                    rawRemInfo.textContent = `Доступно для изменения: ${available.toFixed(3)} м³`;
+                    rawDeltaInput.setCustomValidity(result > available ? 'Превышает доступный остаток' : '');
                 }
             }
 
             rawDeltaInput.addEventListener('input', updateRaw);
-            batchSelect?.addEventListener('change', updateRaw);
             updateRaw();
 
             // ── Существующие продукты: дельта → итог → скрытый input ─────────────────

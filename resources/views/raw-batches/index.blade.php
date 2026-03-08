@@ -118,10 +118,12 @@
                                     </span>
                                 </td>
                                 <td>
-                                    @if($batch->status == 'active')
+                                    @if($batch->status === 'active')
                                         <span class="badge bg-success">Активна</span>
-                                    @elseif($batch->status == 'used')
+                                    @elseif($batch->status === 'used')
                                         <span class="badge bg-warning text-dark">Израсходована</span>
+                                    @elseif($batch->status === 'archived')
+                                        <span class="badge bg-dark">Архив</span>
                                     @else
                                         <span class="badge bg-secondary">Возвращена</span>
                                     @endif
@@ -133,11 +135,16 @@
                                     <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-sm btn-outline-info" title="Просмотр">
                                         <i class="bi bi-eye"></i>
                                     </a>
+                                    @if($batch->status !== 'archived')
+                                        <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-sm btn-outline-success" title="Скорректировать количество">
+                                            <i class="bi bi-plus-slash-minus"></i>
+                                        </a>
+                                    @endif
                                     {{-- Копировать партию (создать новую на основе этой) --}}
                                     <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-sm btn-outline-primary" title="Создать копию">
                                         <i class="bi bi-copy"></i>
                                     </a>
-                                    @if($batch->status == 'active')
+                                    @if($batch->status === 'active')
                                         <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-sm btn-outline-warning" title="Передать пильщику">
                                             <i class="bi bi-arrow-left-right"></i>
                                         </a>

@@ -105,6 +105,47 @@ class WorkerController extends Controller
         return view('workers.create-user', compact('worker'));
     }
 
+    public function editUser(Worker $worker)
+    {
+        if (!$worker->user) {
+            return redirect()->route('workers.index')
+                ->with('error', 'У этого работника нет учётной записи');
+        }
+        return view('workers.edit-user', compact('worker'));
+    }
+
+    public function updateUser(Request $request, Worker $worker)
+    {
+        if (!$worker->user) {
+            return redirect()->route('workers.index')
+                ->with('error', 'У этого работника нет учётной записи');
+        }
+
+        $validated = $request->validate([
+            'phone'    => 'required|string|max:50|unique:users,phone,' . $worker->user->id,
+            'password' => 'nullable|string|min:6|confirmed',
+            'is_admin' => 'boolean',
+        ], [
+            'phone.unique'             => 'Этот телефон уже используется другим пользователем',
+            'password.min'             => 'Пароль должен быть не менее 6 символов',
+            'password.confirmed'       => 'Пароли не совпадают',
+        ]);
+
+        $updateData = [
+            'phone'    => $validated['phone'],
+            'is_admin' => $request->boolean('is_admin'),
+        ];
+
+        if (!empty($validated['password'])) {
+            $updateData['password'] = bcrypt($validated['password']);
+        }
+
+        $worker->user->update($updateData);
+
+        return redirect()->route('workers.index')
+            ->with('success', 'Учётная запись работника ' . $worker->name . ' обновлена');
+    }
+
     public function storeUser(Request $request, Worker $worker)
     {
         if ($worker->user) {

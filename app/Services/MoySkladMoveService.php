@@ -224,6 +224,84 @@ class MoySkladMoveService
     }
 
     /**
+     * Обновить существующее перемещение в МойСклад (PUT /entity/move/{id})
+     * Используется при корректировке партии — обновляем исходное перемещение
+     * с новым суммарным количеством.
+     *
+     * @param string $moveId  UUID перемещения в МойСклад
+     * @param array  $data    Те же поля что и в createMove + 'new_quantity' для позиций
+     */
+    public function updateMove(string $moveId, array $data): array
+    {
+        $result = ['success' => false, 'move_id' => $moveId, 'message' => ''];
+
+        if (!$this->hasCredentials()) {
+            $result['message'] = 'MoySklad токен не установлен';
+            return $result;
+        }
+
+        try {
+            $organizationMeta = $this->getOrganizationMeta();
+            if (!$organizationMeta) {
+                $result['message'] = 'Не удалось получить данные организации';
+                return $result;
+            }
+
+            $fromStoreMeta = $this->getStoreMeta($data['from_store_id']);
+            $toStoreMeta   = $this->getStoreMeta($data['to_store_id']);
+
+            if (!$fromStoreMeta || !$toStoreMeta) {
+                $result['message'] = 'Не удалось получить данные складов';
+                return $result;
+            }
+
+            $positions = $this->preparePositions($data['products'] ?? []);
+
+            if (empty($positions)) {
+                $result['message'] = 'Нет позиций для обновления перемещения';
+                return $result;
+            }
+
+            $moveData = [
+                'organization' => ['meta' => $organizationMeta],
+                'sourceStore'  => ['meta' => $fromStoreMeta],
+                'targetStore'  => ['meta' => $toStoreMeta],
+                'positions'    => $positions,
+            ];
+
+            if (!empty($data['name']))        $moveData['name']         = $data['name'];
+            if (!empty($data['description'])) $moveData['description']  = $data['description'];
+            if (!empty($data['external_id'])) $moveData['externalCode'] = $data['external_id'];
+
+            $response = Http::withHeaders([
+                'Authorization'   => 'Bearer ' . $this->token,
+                'Accept-Encoding' => 'gzip',
+                'Content-Type'    => 'application/json',
+            ])->put($this->baseUrl . '/entity/move/' . $moveId, $moveData);
+
+            if (!$response->successful()) {
+                Log::error('Ошибка обновления перемещения в МойСклад', [
+                    'move_id' => $moveId,
+                    'status'  => $response->status(),
+                    'response'=> $response->json(),
+                ]);
+                $result['message'] = 'Ошибка API МойСклад: ' . ($response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка');
+                return $result;
+            }
+
+            $result['success'] = true;
+            $result['message'] = 'Перемещение обновлено';
+            Log::info('Перемещение обновлено в МойСклад', ['move_id' => $moveId]);
+            return $result;
+
+        } catch (\Exception $e) {
+            Log::error('Исключение при обновлении перемещения', ['move_id' => $moveId, 'error' => $e->getMessage()]);
+            $result['message'] = 'Ошибка: ' . $e->getMessage();
+            return $result;
+        }
+    }
+
+    /**
      * Подготовить позиции товаров для перемещения
      */
     private function preparePositions(array $products): array

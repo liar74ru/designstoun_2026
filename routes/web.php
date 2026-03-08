@@ -50,6 +50,8 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('workers', WorkerController::class)->except(['show']);
     Route::get('/workers/{worker}/create-user', [WorkerController::class, 'createUser'])->name('workers.create-user');
     Route::post('/workers/{worker}/store-user', [WorkerController::class, 'storeUser'])->name('workers.store-user');
+    Route::get('/workers/{worker}/edit-user', [WorkerController::class, 'editUser'])->name('workers.edit-user');
+    Route::put('/workers/{worker}/update-user', [WorkerController::class, 'updateUser'])->name('workers.update-user');
 
     // Склады
     Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');

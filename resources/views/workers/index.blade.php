@@ -72,14 +72,16 @@
                                 <td>{{ $worker->created_at->format('d.m.Y') }}</td>
                                 <td>
                                     @if($worker->user)
-                                        <span class="badge bg-info text-dark">
-                                            <i class="bi bi-building"></i>
-                                            Связан
-                                        </span>
+                                        <a href="{{ route('workers.edit-user', $worker) }}"
+                                           class="btn btn-sm btn-success"
+                                           title="Редактировать учётную запись">
+                                            <i class="bi bi-person-check"></i> Связан
+                                        </a>
                                     @else
                                         <a href="{{ route('workers.create-user', $worker) }}"
-                                           class="btn btn-sm btn-primary">
-                                            Создать
+                                           class="btn btn-sm btn-outline-primary"
+                                           title="Создать учётную запись">
+                                            <i class="bi bi-person-plus"></i> Создать
                                         </a>
                                     @endif
                                 </td>
