@@ -79,6 +79,11 @@ class WorkerController extends Controller
 
         $worker->update($validated);
 
+        // Если изменился телефон — синхронизируем с привязанным user
+        if ($worker->user && isset($validated['phone']) && $worker->user->phone !== $validated['phone']) {
+            $worker->user->update(['phone' => $validated['phone']]);
+        }
+
         return redirect()->route('workers.index')
             ->with('success', 'Работник успешно обновлен');
     }
@@ -121,23 +126,26 @@ class WorkerController extends Controller
                 ->with('error', 'У этого работника нет учётной записи');
         }
 
+        // Телефон не меняем через эту форму — он синхронизируется из worker.phone
+        // Меняем только пароль (обязателен) и is_admin (только для admin)
         $validated = $request->validate([
-            'phone'    => 'required|string|max:50|unique:users,phone,' . $worker->user->id,
-            'password' => 'nullable|string|min:6|confirmed',
+            'password' => 'required|string|min:6|confirmed',
             'is_admin' => 'boolean',
         ], [
-            'phone.unique'             => 'Этот телефон уже используется другим пользователем',
-            'password.min'             => 'Пароль должен быть не менее 6 символов',
-            'password.confirmed'       => 'Пароли не совпадают',
+            'password.required'  => 'Введите новый пароль',
+            'password.min'       => 'Пароль должен быть не менее 6 символов',
+            'password.confirmed' => 'Пароли не совпадают',
         ]);
 
         $updateData = [
-            'phone'    => $validated['phone'],
-            'is_admin' => $request->boolean('is_admin'),
+            'password' => bcrypt($validated['password']),
+            // Телефон всегда берём из worker — единственный источник правды
+            'phone'    => $worker->phone,
         ];
 
-        if (!empty($validated['password'])) {
-            $updateData['password'] = bcrypt($validated['password']);
+        // is_admin — только администратор может менять
+        if (auth()->user()->is_admin) {
+            $updateData['is_admin'] = $request->boolean('is_admin');
         }
 
         $worker->user->update($updateData);

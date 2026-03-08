@@ -25,7 +25,7 @@
             </div>
         @endif
 
-        {{-- Информация о работнике --}}
+        {{-- Информация о работнике — только отображение, телефон берётся из worker --}}
         <div class="card border-0 bg-light mb-4">
             <div class="card-body py-3">
                 <div class="row text-center">
@@ -38,8 +38,11 @@
                         <div class="fw-semibold">{{ $worker->position ?? '—' }}</div>
                     </div>
                     <div class="col">
-                        <div class="text-muted small">ID пользователя</div>
-                        <div class="fw-semibold">#{{ $worker->user->id }}</div>
+                        <div class="text-muted small">Телефон (логин)</div>
+                        <div class="fw-semibold">{{ $worker->phone ?? '—' }}</div>
+                        <div class="text-muted" style="font-size:0.7rem">
+                            Меняется в карточке работника
+                        </div>
                     </div>
                     <div class="col">
                         <div class="text-muted small">Права</div>
@@ -57,54 +60,48 @@
 
         <div class="card shadow-sm">
             <div class="card-header bg-white">
-                <h5 class="mb-0">Изменить данные входа</h5>
+                <h5 class="mb-0">Изменить пароль</h5>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ route('workers.update-user', $worker) }}">
                     @csrf
                     @method('PUT')
 
-                    {{-- Телефон --}}
-                    <div class="mb-3">
-                        <label class="form-label">Телефон (логин) <span class="text-danger">*</span></label>
-                        <input type="text"
-                               name="phone"
-                               class="form-control @error('phone') is-invalid @enderror"
-                               value="{{ old('phone', $worker->user->phone) }}"
-                               required>
-                        @error('phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                    </div>
-
                     {{-- Новый пароль --}}
                     <div class="mb-3">
-                        <label class="form-label">Новый пароль</label>
+                        <label class="form-label">Новый пароль <span class="text-danger">*</span></label>
                         <input type="password"
                                name="password"
                                class="form-control @error('password') is-invalid @enderror"
-                               placeholder="Оставьте пустым если не менять">
+                               placeholder="Введите новый пароль"
+                               autofocus>
                         @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label">Повторите пароль</label>
+                        <label class="form-label">Повторите пароль <span class="text-danger">*</span></label>
                         <input type="password"
                                name="password_confirmation"
                                class="form-control"
-                               placeholder="Оставьте пустым если не менять">
+                               placeholder="Повторите новый пароль">
                     </div>
 
-                    {{-- Права администратора --}}
-                    <div class="mb-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox"
-                                   name="is_admin" id="is_admin" value="1"
-                                {{ old('is_admin', $worker->user->is_admin) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="is_admin">
-                                Права администратора
-                            </label>
+                    {{-- Права администратора — только для администраторов --}}
+                    @if(auth()->user()->is_admin)
+                        <div class="mb-4 p-3 border rounded bg-light">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox"
+                                       name="is_admin" id="is_admin" value="1"
+                                    {{ old('is_admin', $worker->user->is_admin) ? 'checked' : '' }}>
+                                <label class="form-check-label fw-semibold" for="is_admin">
+                                    Права администратора
+                                </label>
+                            </div>
+                            <small class="text-muted">
+                                Администратор имеет полный доступ ко всем разделам системы
+                            </small>
                         </div>
-                        <small class="text-muted">Администратор имеет полный доступ ко всем разделам</small>
-                    </div>
+                    @endif
 
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">

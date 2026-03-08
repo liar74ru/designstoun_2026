@@ -103,13 +103,24 @@
                             </div>
 
                             <!-- Кнопки -->
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-circle"></i> Сохранить изменения
-                                </button>
-                                <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary">
-                                    Отмена
-                                </a>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-check-circle"></i> Сохранить изменения
+                                    </button>
+                                    <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary">
+                                        Отмена
+                                    </a>
+                                </div>
+                                @if($worker->user)
+                                    <a href="{{ route('workers.edit-user', $worker) }}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-key"></i> Учётная запись
+                                    </a>
+                                @else
+                                    <a href="{{ route('workers.create-user', $worker) }}" class="btn btn-outline-primary">
+                                        <i class="bi bi-person-plus"></i> Создать аккаунт
+                                    </a>
+                                @endif
                             </div>
                         </form>
                     </div>

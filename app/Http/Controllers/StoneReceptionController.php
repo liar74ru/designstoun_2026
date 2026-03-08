@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 use App\Models\Worker;
 use App\Models\Product;
 use App\Models\Store;
@@ -83,13 +85,84 @@ class StoneReceptionController extends Controller
     /**
      * Отображает список приемок
      */
-    public function index()
+    public function index(Request $request)
     {
-        $receptions = StoneReception::with([
-            'receiver', 'cutter', 'store', 'items.product', 'rawMaterialBatch.product'
-        ])->orderBy('created_at', 'desc')->paginate(20);
+        $filterBatches = RawMaterialBatch::whereIn('id',
+            StoneReception::whereNotNull('raw_material_batch_id')
+                ->distinct()->pluck('raw_material_batch_id')
+        )->with('product')->get();
 
-        return view('stone-receptions.index', compact('receptions'));
+        $filterProducts = Product::whereIn('id',
+            \App\Models\StoneReceptionItem::distinct()->pluck('product_id')
+        )->orderBy('name')->get();
+
+        $filterCutters = Worker::whereIn('id',
+            StoneReception::whereNotNull('cutter_id')
+                ->distinct()->pluck('cutter_id')
+        )->orderBy('name')->get();
+
+        $receptions = QueryBuilder::for(StoneReception::class)
+            ->allowedFilters([
+                AllowedFilter::callback('status', function ($query, $value) {
+                    $query->whereIn('status', is_array($value) ? $value : [$value]);
+                }),
+                AllowedFilter::exact('raw_material_batch_id'),
+                AllowedFilter::callback('product_id', function ($query, $value) {
+                    $query->whereHas('items', fn($q) => $q->where('product_id', $value));
+                }),
+                AllowedFilter::exact('cutter_id'),
+            ])
+            ->with(['receiver', 'cutter', 'store', 'items.product', 'rawMaterialBatch.product'])
+            ->when($request->filled('date_from'), fn($q) =>
+            $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn($q) =>
+            $q->whereDate('created_at', '<=', $request->date_to))
+            ->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('stone-receptions.index', compact(
+            'receptions', 'filterBatches', 'filterProducts', 'filterCutters'
+        ));
+    }
+
+    public function logs(Request $request)
+    {
+        $filterBatches = RawMaterialBatch::whereIn('id',
+            StoneReception::whereNotNull('raw_material_batch_id')
+                ->distinct()->pluck('raw_material_batch_id')
+        )->with('product')->get();
+
+        $filterProducts = Product::whereIn('id',
+            \App\Models\StoneReceptionItem::distinct()->pluck('product_id')
+        )->orderBy('name')->get();
+
+        $filterCutters = Worker::whereIn('id',
+            StoneReception::whereNotNull('cutter_id')
+                ->distinct()->pluck('cutter_id')
+        )->orderBy('name')->get();
+
+        $logs = QueryBuilder::for(ReceptionLog::class)
+            ->allowedFilters([
+                AllowedFilter::exact('cutter_id'),
+                AllowedFilter::exact('raw_material_batch_id'),
+                AllowedFilter::callback('product_id', function ($query, $value) {
+                    $query->whereHas('items', fn($q) => $q->where('product_id', $value));
+                }),
+            ])
+            ->with(['cutter', 'receiver', 'items.product',
+                'stoneReception.store', 'rawMaterialBatch.product'])
+            ->when($request->filled('date_from'), fn($q) =>
+            $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn($q) =>
+            $q->whereDate('created_at', '<=', $request->date_to))
+            ->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('stone-receptions.logs', compact(
+            'logs', 'filterBatches', 'filterProducts', 'filterCutters'
+        ));
     }
 
     /**
@@ -189,33 +262,16 @@ class StoneReceptionController extends Controller
      */
     public function update(Request $request, StoneReception $stoneReception)
     {
-        $rawDelta  = (float) $request->input('raw_quantity_delta', 0);
+        // Вычисляем итоговый raw_quantity_used из дельты ДО валидации,
+        // чтобы валидатор получил готовое значение а не 0 от дельты
+        $rawDelta = (float) $request->input('raw_quantity_delta', 0);
         $currentRaw = (float) $stoneReception->raw_quantity_used;
-        $newRaw     = $currentRaw + $rawDelta;
+        $request->merge(['raw_quantity_used' => $currentRaw + $rawDelta]);
 
-        // Валидируем только то что реально меняется
-        $request->validate([
-            'notes'                 => 'nullable|string',
-            'products'              => 'required|array|min:1',
-            'products.*.product_id' => 'required|exists:products,id',
-            'products.*.quantity'   => 'required|numeric|min:0',
-        ], [
-            'products.required' => 'Добавьте хотя бы один продукт',
-            'products.*.product_id.required' => 'Выберите продукт',
-            'products.*.quantity.required'   => 'Укажите количество',
-        ]);
-
-        if ($newRaw < 0) {
-            return back()->withErrors(['raw_quantity_delta' => 'Итоговый расход не может быть отрицательным'])->withInput();
-        }
+        $data = $this->validateReception($request, false);
 
         try {
-            DB::transaction(function () use ($stoneReception, $request, $rawDelta, $newRaw, $currentRaw) {
-
-                $data = [
-                    'products' => $request->input('products', []),
-                    'notes'    => $request->input('notes'),
-                ];
+            DB::transaction(function () use ($stoneReception, $data, $rawDelta) {
 
                 // Запоминаем старые значения продуктов ДО сохранения
                 $preSaveItems = $stoneReception->items()
@@ -224,31 +280,9 @@ class StoneReceptionController extends Controller
                     ->map(fn($q) => (float) $q)
                     ->toArray();
 
-                // Обновляем остаток в партии сырья (только количество, партия не меняется)
-                if (abs($rawDelta) > 0.0001) {
-                    $batch = RawMaterialBatch::find($stoneReception->raw_material_batch_id);
-                    if ($batch) {
-                        $newRemaining = (float) $batch->remaining_quantity - $rawDelta;
-                        if ($newRemaining < 0) {
-                            throw new \Exception('Недостаточно сырья в партии');
-                        }
-                        $batch->remaining_quantity = $newRemaining;
-                        if ($newRemaining <= 0) {
-                            $batch->remaining_quantity = 0;
-                            $batch->status = 'used';
-                        } elseif ($batch->status === 'used') {
-                            $batch->status = 'active';
-                        }
-                        $batch->save();
-                    }
-                }
-
-                // Сохраняем приёмку
-                $stoneReception->update([
-                    'raw_quantity_used' => $newRaw,
-                    'notes'             => $data['notes'],
-                    'updated_at'        => now(),
-                ]);
+                // Обновляем партию сырья и саму приёмку
+                $this->handleBatchUpdate($stoneReception, $data);
+                $stoneReception->update($this->prepareReceptionData($data, false));
                 $this->updateReceptionItems($stoneReception, $data['products']);
 
                 // Считаем дельты продуктов: новое (из формы) минус старое (из preSaveItems)

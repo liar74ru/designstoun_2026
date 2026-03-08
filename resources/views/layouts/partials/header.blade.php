@@ -58,9 +58,11 @@
                                     ⛏️ Моя выработка
                                 </a>
                             @endif
-                            <a href="{{ route('profile.edit') }}" class="btn btn-primary">
-                                {{ __('Profile') }}
-                            </a>
+                            @if(auth()->user()?->worker)
+                                <a href="{{ route('workers.edit-user', auth()->user()->worker) }}" class="btn btn-primary">
+                                    <i class="bi bi-key"></i> Пароль
+                                </a>
+                            @endif
                             <a href="{{ route('logout') }}"
                                onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
                                class="auth-button ml-2">

@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RawMaterialBatchController;
 use App\Http\Controllers\RawMaterialMovementController;
 use App\Http\Controllers\StoneReceptionBatchController;
@@ -25,9 +24,6 @@ Route::middleware(['auth'])->group(function () {
     })->name('home');
 
     // Профиль
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Страница работника
     Route::get('/my-work', [WorkerDashboardController::class, 'show'])->name('worker.dashboard');
@@ -62,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Приёмки камня
     Route::resource('stone-receptions', StoneReceptionController::class);
+    Route::get('/stone-receptions-logs', [StoneReceptionController::class, 'logs'])->name('stone-receptions.logs');
     Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])->name('stone-receptions.copy');
     Route::post('/stone-receptions/batch/send-to-processing', [StoneReceptionBatchController::class, 'sendToProcessing'])->name('stone-receptions.batch.send-to-processing');
     Route::get('/stone-receptions/batch/stats', [StoneReceptionBatchController::class, 'getStats'])->name('stone-receptions.batch.stats');
@@ -76,6 +73,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'returnForm'])->name('raw-batches.return.form');
     Route::post('raw-batches/{batch}/return', [RawMaterialMovementController::class, 'return'])->name('raw-batches.return');
     Route::post('raw-batches/create', [RawMaterialMovementController::class, 'store'])->name('raw-movement.store');
+    Route::get('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjustForm'])->name('raw-batches.adjust.form');
+    Route::post('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjust'])->name('raw-batches.adjust');
+    Route::post('raw-batches/{batch}/archive', [RawMaterialBatchController::class, 'archive'])->name('raw-batches.archive');
 
     // AJAX-эндпоинты
     Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])->name('api.worker.batches');

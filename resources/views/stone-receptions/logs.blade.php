@@ -1,11 +1,11 @@
 @extends('layouts.app')
-@section('title', 'Приёмки камня — по партиям')
+@section('title', 'Приёмки камня — журнал логов')
 
 @section('content')
     <div class="container py-4">
 
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">📦 Приёмки камня</h1>
+            <h1 class="h2 mb-0">📋 Журнал логов приёмок</h1>
             <a href="{{ route('stone-receptions.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Новая приёмка
             </a>
@@ -17,27 +17,21 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         @endif
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show">
-                <i class="bi bi-exclamation-triangle-fill"></i> {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
 
         <ul class="nav nav-pills mb-4">
             <li class="nav-item">
-                <a class="nav-link active" href="{{ route('stone-receptions.index') }}">
+                <a class="nav-link" href="{{ route('stone-receptions.index') }}">
                     <i class="bi bi-table"></i> По партиям
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('stone-receptions.logs') }}">
+                <a class="nav-link active" href="{{ route('stone-receptions.logs') }}">
                     <i class="bi bi-journal-text"></i> Журнал логов
                 </a>
             </li>
         </ul>
 
-        {{-- ФОРМА ФИЛЬТРОВ --}}
+        {{-- ФОРМА ФИЛЬТРОВ (модалка вынесена после закрытия form) --}}
         <form method="GET" id="filter-form" class="card shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
                  style="cursor:pointer" id="filter-toggle" role="button">
@@ -80,7 +74,7 @@
                         </div>
                     </div>
                     <div class="row g-3">
-                        <div class="col-sm-6 col-lg-3">
+                        <div class="col-sm-6 col-lg-4">
                             <label class="form-label small text-muted mb-1">Пильщик</label>
                             <select name="filter[cutter_id]" class="form-select form-select-sm">
                                 <option value="">Все пильщики</option>
@@ -91,7 +85,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-sm-6 col-lg-3">
+                        <div class="col-sm-6 col-lg-4">
                             <label class="form-label small text-muted mb-1">Сырьё (партия)</label>
                             <select name="filter[raw_material_batch_id]" class="form-select form-select-sm">
                                 <option value="">Все партии</option>
@@ -102,7 +96,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-sm-6 col-lg-3">
+                        <div class="col-sm-6 col-lg-4">
                             <label class="form-label small text-muted mb-1">Продукт</label>
                             @php
                                 $pickerValue = request('filter.product_id', '');
@@ -140,20 +134,6 @@
                                        name="filter[product_id]" value="{{ $pickerValue }}">
                             </div>
                         </div>
-                        <div class="col-sm-6 col-lg-3">
-                            <label class="form-label small text-muted mb-1">Статус</label>
-                            <div class="d-flex flex-column gap-1 mt-1">
-                                @foreach(['active' => 'Активна', 'processed' => 'Обработана', 'error' => 'Ошибка'] as $val => $lbl)
-                                    <div class="form-check mb-0">
-                                        <input class="form-check-input" type="checkbox"
-                                               name="filter[status][]" value="{{ $val }}"
-                                               id="status_{{ $val }}"
-                                            {{ in_array($val, (array) request('filter.status', [])) ? 'checked' : '' }}>
-                                        <label class="form-check-label small" for="status_{{ $val }}">{{ $lbl }}</label>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>{{-- /filter-collapse --}}
@@ -167,7 +147,7 @@
             </div>
         </form>
 
-        {{-- Модальное дерево продуктов — строго вне <form> --}}
+        {{-- Модальное дерево — строго вне <form> --}}
         <div class="modal fade" id="modal_filter_product" tabindex="-1">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
@@ -184,119 +164,75 @@
             </div>
         </div>
 
-        {{-- ТАБЛИЦА ПАРТИЙ --}}
-        @if($receptions->count() > 0)
+        {{-- ТАБЛИЦА --}}
+        @if($logs->count() > 0)
             <div class="card shadow-sm">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-success btn-sm" id="sendToMoySkladBtn" disabled>
-                        <i class="bi bi-cloud-upload"></i>
-                        Отправить в МойСклад (<span id="selectedCount">0</span>)
-                    </button>
-                    <span class="text-muted small">Найдено: {{ $receptions->total() }}</span>
+                <div class="card-header bg-white d-flex justify-content-end">
+                    <span class="text-muted small">Найдено: {{ $logs->total() }}</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                         <tr>
-                            <th width="40"><input type="checkbox" class="form-check-input" id="selectAll"></th>
-                            <th>#</th>
                             <th>Дата</th>
-                            <th>Продукция</th>
-                            <th>Итого</th>
-                            <th>Сырьё</th>
-                            <th>Расход</th>
-                            <th>Приёмщик</th>
                             <th>Пильщик</th>
+                            <th>Приёмщик</th>
                             <th>Склад</th>
-                            <th>Статус</th>
+                            <th>Сырьё</th>
+                            <th>Продукция (дельта)</th>
+                            <th>Тип</th>
                             <th class="text-end">Действия</th>
                         </tr>
                         </thead>
                         <tbody>
-                        @foreach($receptions as $reception)
-                            <tr class="{{ $reception->status == 'processed' ? 'table-success' : ($reception->status == 'error' ? 'table-danger' : '') }}">
+                        @foreach($logs as $log)
+                            <tr class="{{ $log->type === 'updated' ? 'table-warning' : '' }}">
+                                <td class="text-nowrap">{{ $log->created_at->format('d.m.Y H:i') }}</td>
+                                <td>{{ $log->cutter->name ?? '—' }}</td>
+                                <td>{{ $log->receiver->name ?? '—' }}</td>
+                                <td>{{ $log->stoneReception?->store?->name ?? '—' }}</td>
                                 <td>
-                                    @if($reception->status == 'active')
-                                        <input type="checkbox" class="form-check-input reception-checkbox"
-                                               value="{{ $reception->id }}">
-                                    @endif
-                                </td>
-                                <td>{{ $reception->id }}</td>
-                                <td class="text-nowrap">{{ $reception->created_at->format('d.m.Y H:i') }}</td>
-                                <td>
-                                    @foreach($reception->items as $item)
-                                        <div class="{{ !$loop->last ? 'mb-1 pb-1 border-bottom' : '' }}">
-                                            <strong>{{ $item->product->name }}</strong><br>
-                                            <small class="text-muted">{{ $item->product->sku }}</small>
-                                            <span class="badge bg-info ms-1">{{ number_format($item->quantity, 3) }} м²</span>
-                                        </div>
-                                    @endforeach
-                                </td>
-                                <td><span class="badge bg-primary">{{ number_format($reception->total_quantity, 3) }} м²</span></td>
-                                <td>
-                                    @if($reception->rawMaterialBatch)
-                                        <a href="{{ route('raw-batches.show', $reception->rawMaterialBatch) }}">
-                                            {{ $reception->rawMaterialBatch->product->name }}
+                                    @if($log->rawMaterialBatch)
+                                        <a href="{{ route('raw-batches.show', $log->rawMaterialBatch) }}">
+                                            {{ $log->rawMaterialBatch->product->name ?? '?' }}
                                         </a>
-                                        <br><small class="text-muted">Партия #{{ $reception->rawMaterialBatch->id }}</small>
+                                        <br><small class="text-muted">#{{ $log->raw_material_batch_id }}</small>
                                     @else
                                         <span class="text-muted">—</span>
                                     @endif
                                 </td>
-                                <td><span class="badge bg-warning text-dark">{{ number_format($reception->raw_quantity_used, 3) }} м³</span></td>
-                                <td>{{ $reception->receiver->name ?? '—' }}</td>
-                                <td>{{ $reception->cutter->name ?? '—' }}</td>
-                                <td>{{ $reception->store->name ?? '—' }}</td>
                                 <td>
-                                    @if($reception->status == 'active')
-                                        <span class="badge bg-success">Активна</span>
-                                    @elseif($reception->status == 'processed')
-                                        <span class="badge bg-secondary">Обработана</span>
-                                        @if($reception->moysklad_processing_id)
-                                            <br><small class="text-muted">{{ substr($reception->moysklad_processing_id, 0, 8) }}…</small>
-                                        @endif
-                                    @elseif($reception->status == 'error')
-                                        <span class="badge bg-danger">Ошибка</span>
+                                    @foreach($log->items as $item)
+                                        <div class="small {{ !$loop->last ? 'mb-1' : '' }}">
+                                            {{ $item->product?->name ?? '?' }}
+                                            @php $delta = (float) $item->quantity_delta; @endphp
+                                            <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }}">
+                                            {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }}
+                                        </span>
+                                        </div>
+                                    @endforeach
+                                </td>
+                                <td>
+                                    @if($log->type === 'created')
+                                        <span class="badge bg-success">Создание</span>
+                                    @else
+                                        <span class="badge bg-warning text-dark">Правка</span>
                                     @endif
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1 justify-content-end">
-                                        @if($reception->status == 'active')
-                                            <a href="{{ route('stone-receptions.edit', $reception) }}"
+                                        @if($log->stoneReception && $log->stoneReception->status === 'active')
+                                            <a href="{{ route('stone-receptions.edit', $log->stone_reception_id) }}"
                                                class="btn btn-sm btn-outline-primary" title="Редактировать">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
                                         @endif
-                                        <form action="{{ route('stone-receptions.copy', $reception) }}"
-                                              method="POST" class="d-inline">
-                                            @csrf
-                                            <button type="submit" class="btn btn-sm btn-outline-info" title="Копировать">
-                                                <i class="bi bi-copy"></i>
-                                            </button>
-                                        </form>
-                                        <a href="{{ route('stone-receptions.show', $reception) }}"
-                                           class="btn btn-sm btn-outline-secondary" title="Просмотр">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        @if($reception->status != 'active')
-                                            <form action="{{ route('stone-receptions.reset-status', $reception) }}"
-                                                  method="POST" class="d-inline"
-                                                  onsubmit="return confirm('Сбросить статус на Активна?')">
+                                        @if($log->stoneReception)
+                                            <form action="{{ route('stone-receptions.copy', $log->stone_reception_id) }}"
+                                                  method="POST" class="d-inline">
                                                 @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="btn btn-sm btn-outline-warning" title="Сбросить статус">
-                                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                                </button>
-                                            </form>
-                                        @endif
-                                        @if($reception->status == 'active')
-                                            <form action="{{ route('stone-receptions.destroy', $reception) }}"
-                                                  method="POST" class="d-inline"
-                                                  onsubmit="return confirm('Удалить приёмку?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
-                                                    <i class="bi bi-trash"></i>
+                                                <button type="submit" class="btn btn-sm btn-outline-info" title="Копировать">
+                                                    <i class="bi bi-copy"></i>
                                                 </button>
                                             </form>
                                         @endif
@@ -310,14 +246,14 @@
             </div>
             <div class="d-flex justify-content-between align-items-center mt-3">
             <span class="text-muted small">
-                Показано {{ $receptions->firstItem() }}–{{ $receptions->lastItem() }} из {{ $receptions->total() }}
+                Показано {{ $logs->firstItem() }}–{{ $logs->lastItem() }} из {{ $logs->total() }}
             </span>
-                {{ $receptions->links() }}
+                {{ $logs->links() }}
             </div>
         @else
             <div class="text-center py-5">
-                <i class="bi bi-inbox display-1 text-muted"></i>
-                <h4 class="text-muted mt-3">Приёмок не найдено</h4>
+                <i class="bi bi-journal-x display-1 text-muted"></i>
+                <h4 class="text-muted mt-3">Записей не найдено</h4>
             </div>
         @endif
 
@@ -338,8 +274,7 @@
 
                 const params = new URLSearchParams(window.location.search);
                 const activeFilters = ['filter[cutter_id]','filter[raw_material_batch_id]','filter[product_id]','date_from','date_to']
-                        .filter(k => params.get(k) && params.get(k) !== '').length
-                    + params.getAll('filter[status][]').length;
+                    .filter(k => params.get(k) && params.get(k) !== '').length;
 
                 if (badge && activeFilters > 0) {
                     badge.innerHTML = `<span class="badge bg-primary rounded-pill">${activeFilters}</span>`;
@@ -395,50 +330,6 @@
             document.addEventListener('product-picker:selected', () => {
                 if (document.getElementById('filter_product_id')?.value) form.submit();
             });
-
-            // МойСклад
-            const selectAll = document.getElementById('selectAll');
-            const sendBtn   = document.getElementById('sendToMoySkladBtn');
-            const countSpan = document.getElementById('selectedCount');
-
-            function updateCount() {
-                const checked = document.querySelectorAll('.reception-checkbox:checked');
-                const n = checked.length;
-                if (countSpan) countSpan.textContent = n;
-                if (sendBtn)   sendBtn.disabled = n === 0;
-                if (selectAll) {
-                    const all = document.querySelectorAll('.reception-checkbox');
-                    selectAll.checked       = n > 0 && n === all.length;
-                    selectAll.indeterminate = n > 0 && n < all.length;
-                }
-            }
-
-            document.querySelectorAll('.reception-checkbox').forEach(cb =>
-                cb.addEventListener('change', updateCount));
-            selectAll?.addEventListener('change', function () {
-                document.querySelectorAll('.reception-checkbox').forEach(cb => cb.checked = this.checked);
-                updateCount();
-            });
-            sendBtn?.addEventListener('click', function () {
-                const checked = document.querySelectorAll('.reception-checkbox:checked');
-                if (!checked.length || !confirm(`Отправить ${checked.length} приёмок в МойСклад?`)) return;
-                sendBtn.disabled = true;
-                sendBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Отправка...';
-                fetch('{{ route("stone-receptions.batch.send-to-processing") }}', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    body: JSON.stringify({ reception_ids: Array.from(checked).map(cb => cb.value) })
-                })
-                    .then(r => r.json())
-                    .then(data => {
-                        alert(data.success ? data.message : 'Ошибка: ' + data.message);
-                        if (data.success) window.location.reload();
-                        else { sendBtn.disabled = false; updateCount(); }
-                    })
-                    .catch(() => { alert('Ошибка запроса'); sendBtn.disabled = false; updateCount(); });
-            });
-
-            updateCount();
         });
     </script>
 @endpush

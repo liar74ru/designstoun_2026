@@ -97,7 +97,7 @@
                 <div class="col-sm-6 col-lg-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
-                            <div class="text-muted small mb-1">Базовая ставка</div>
+                            <div class="text-muted small mb-1">Ставка за ед.</div>
                             <div class="fs-3 fw-bold">{{ number_format(\App\Models\Product::PIECE_RATE, 0, ',', ' ') }} ₽</div>
                         </div>
                     </div>
@@ -131,8 +131,8 @@
                             <tr>
                                 <td>{{ $row['product']?->name ?? '—' }}</td>
                                 <td class="text-end">{{ number_format($row['quantity'], 3, ',', ' ') }}</td>
-                                <td class="text-end text-muted">{{ number_format($row['coeff'], 1, ',', ' ') }}</td>
-                                <td class="text-end text-muted">× {{ number_format($row['prodCost'], 0, ',', ' ') }} ₽</td>
+                                <td class="text-end text-muted">× {{ number_format($row['coeff'], 4, ',', ' ') }}</td>
+                                <td class="text-end text-muted">× {{ number_format(\App\Models\Product::PIECE_RATE, 0, ',', ' ') }} ₽</td>
                                 <td class="text-end fw-semibold text-success">
                                     {{ number_format($row['pay'], 2, ',', ' ') }} ₽
                                 </td>
@@ -155,10 +155,19 @@
             <div class="card shadow-sm">
                 <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                     <span>Приёмки за период</span>
-                    <button class="btn btn-sm btn-outline-secondary" id="toggle-receptions" type="button">
-                        <i class="bi bi-chevron-up" id="toggle-icon"></i>
-                        <span id="toggle-label">Свернуть</span>
-                    </button>
+                    <div class="d-flex gap-2 align-items-center">
+                        @if($worker->user)
+                            <a href="{{ route('workers.edit-user', $worker) }}"
+                               class="btn btn-sm btn-outline-secondary"
+                               title="Учётная запись">
+                                <i class="bi bi-key"></i>
+                            </a>
+                        @endif
+                        <button class="btn btn-sm btn-outline-secondary" id="toggle-receptions" type="button">
+                            <i class="bi bi-chevron-up" id="toggle-icon"></i>
+                            <span id="toggle-label">Свернуть</span>
+                        </button>
+                    </div>
                 </div>
                 <div id="receptionsList">
                     <div class="table-responsive">
@@ -169,7 +178,7 @@
                                 <th>Склад</th>
                                 <th>Приёмщик</th>
                                 <th>Продукция (дельта)</th>
-                                <th>Приёмка #</th>
+                                <th class="text-end">Приёмка #</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -198,8 +207,12 @@
                                             </div>
                                         @endforeach
                                     </td>
-                                    <td class="text-nowrap">
-                                        #{{ $log->stone_reception_id }}
+                                    <td class="text-end text-nowrap">
+                                        <a href="{{ route('stone-receptions.edit', $log->stone_reception_id) }}"
+                                           class="btn btn-sm btn-outline-secondary"
+                                           title="Редактировать приёмку">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
                                     </td>
                                 </tr>
                             @endforeach
