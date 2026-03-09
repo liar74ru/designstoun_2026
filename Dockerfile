@@ -17,10 +17,19 @@ RUN npm run build
 
 # ============================================================
 #  STAGE 2 — PHP-зависимости (только prod)
+#  Используем php:8.2 + composer чтобы версия PHP совпадала
+#  с финальным образом и composer.lock не конфликтовал
 # ============================================================
-FROM composer:2.7 AS vendor
+FROM php:8.2-alpine AS vendor
 
 WORKDIR /app
+
+# Устанавливаем composer
+COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
+
+# Нужные расширения для composer install
+RUN apk add --no-cache postgresql-dev libzip-dev oniguruma-dev icu-dev \
+    && docker-php-ext-install pdo pdo_pgsql zip mbstring intl
 
 COPY composer.json composer.lock ./
 RUN composer install \
