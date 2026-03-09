@@ -20,7 +20,7 @@ RUN npm run build
 #  Используем php:8.2 + composer чтобы версия PHP совпадала
 #  с финальным образом и composer.lock не конфликтовал
 # ============================================================
-FROM php:8.2-alpine AS vendor
+FROM php:8.4-alpine AS vendor
 
 WORKDIR /app
 
@@ -43,7 +43,7 @@ RUN composer install \
 # ============================================================
 #  STAGE 3 — финальный образ
 # ============================================================
-FROM php:8.2-fpm-alpine AS app
+FROM php:8.4-fpm-alpine AS app
 
 # ── Системные пакеты ─────────────────────────────────────────
 RUN apk add --no-cache \
