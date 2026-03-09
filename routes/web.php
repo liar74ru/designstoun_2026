@@ -31,7 +31,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('worker.dashboard.by-id');
 
     // Товары
-    Route::resource('products', ProductController::class)->except(['edit']);
+    Route::resource('products', ProductController::class)->only(['index', 'show']);
     Route::get('/products/sync/moysklad', [ProductController::class, 'syncFromMoySklad'])->name('products.sync');
     Route::get('/products/{id}/refresh', [ProductController::class, 'refresh'])->name('products.refresh');
     Route::post('/products/stocks/sync-all-by-stores', [ProductController::class, 'syncAllProductsStocks'])->name('products.stocks.sync-all-by-stores');

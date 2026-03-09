@@ -26,9 +26,6 @@
                    onclick="return confirm('Загрузить/обновить товары и группы из МойСклад?')">
                     <i class="bi bi-cloud-download"></i> Синхронизировать
                 </a>
-                <a href="{{ route('products.create') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Добавить вручную
-                </a>
             </div>
         </div>
 
@@ -297,19 +294,6 @@
                                            onclick="return confirm('Обновить данные товара из МойСклад?')">
                                             <i class="bi bi-arrow-repeat"></i>
                                         </a>
-
-                                        <form action="{{ route('products.destroy', $product->moysklad_id) }}"
-                                              method="POST"
-                                              class="d-inline"
-                                              onsubmit="return confirm('Вы уверены, что хотите удалить товар "{{ $product->name }}" из локальной базы?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                                class="btn btn-sm btn-outline-danger"
-                                                title="Удалить из локальной базы">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                        </form>
                                     </div>
                                 </td>
                             </tr>
@@ -341,9 +325,6 @@
                 </p>
                 <a href="{{ route('products.sync') }}" class="btn btn-success btn-lg me-2">
                     <i class="bi bi-cloud-download"></i> Загрузить из МойСклад
-                </a>
-                <a href="{{ route('products.create') }}" class="btn btn-primary btn-lg">
-                    <i class="bi bi-plus-circle"></i> Добавить вручную
                 </a>
                 @if(request()->anyFilled(['search', 'group', 'in_stock', 'price_from', 'price_to']))
                     <a href="{{ route('products.index') }}" class="btn btn-outline-secondary btn-lg ms-2">

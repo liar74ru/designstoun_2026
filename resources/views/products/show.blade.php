@@ -17,16 +17,6 @@
                    onclick="return confirm('Обновить данные товара из МойСклад?')">
                     <i class="bi bi-arrow-repeat"></i> Обновить
                 </a>
-                <form action="{{ route('products.destroy', $product->moysklad_id) }}"
-                      method="POST"
-                      class="d-inline"
-                      onsubmit="return confirm('Вы уверены, что хотите удалить товар "{{ $product->name }}" из локальной базы?')">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-danger">
-                    <i class="bi bi-trash"></i> Удалить
-                </button>
-                </form>
             </div>
         </div>
 
@@ -298,16 +288,6 @@
                                 <button type="submit" class="btn btn-outline-success w-100"
                                         onclick="return confirm('Синхронизировать остатки по складам?')">
                                     <i class="bi bi-box-seam"></i> Синхронизировать остатки
-                                </button>
-                            </form>
-
-                            <form action="{{ route('products.destroy', $product->moysklad_id) }}"
-                                  method="POST"
-                                  onsubmit="return confirm('Вы уверены?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger w-100">
-                                    <i class="bi bi-trash"></i> Удалить из базы
                                 </button>
                             </form>
                         </div>

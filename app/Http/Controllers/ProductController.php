@@ -22,37 +22,33 @@ class ProductController extends Controller
     }
 
     /**
-     * Display a listing of the resource with sorting.
+     * Display a listing of the resource with sorting and filters.
      */
     public function index(Request $request)
     {
-        // Сортировка
-        $sortField = $request->input('sort', 'name');
+        $sortField     = $request->input('sort', 'name');
         $sortDirection = $request->input('direction', 'asc');
 
         $products = QueryBuilder::for(Product::class)
             ->allowedFilters([
-                AllowedFilter::callback('search', function($query, $value) {
-                    $query->where(function($q) use ($value) {
+                AllowedFilter::callback('search', function ($query, $value) {
+                    $query->where(function ($q) use ($value) {
                         $q->where('name', 'ILIKE', "%{$value}%")
                             ->orWhere('sku', 'ILIKE', "%{$value}%")
                             ->orWhere('description', 'ILIKE', "%{$value}%");
                     });
                 }),
-                AllowedFilter::callback('group_id', function($query, $value) {
-                    // Получаем ID выбранной группы и всех её детей через сервис
+                AllowedFilter::callback('group_id', function ($query, $value) {
                     $groupIds = $this->productGroupService->getGroupAndChildrenIds($value);
-
                     if (!empty($groupIds)) {
-                        // Фильтруем товары по найденным ID групп
                         $query->whereIn('group_id', $groupIds);
                     }
                 }),
-                AllowedFilter::callback('in_stock', function($query, $value) {
+                AllowedFilter::callback('in_stock', function ($query, $value) {
                     if ($value === '1') {
-                        $query->where('quantity', '>', 0);
+                        $query->whereHas('stocks', fn ($q) => $q->where('quantity', '>', 0));
                     } elseif ($value === '0') {
-                        $query->where('quantity', '=', 0);
+                        $query->whereDoesntHave('stocks', fn ($q) => $q->where('quantity', '>', 0));
                     }
                 }),
             ])
@@ -61,37 +57,9 @@ class ProductController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        // Получаем дерево групп для фильтра
         $groupsTree = $this->productGroupService->getGroupsTree();
 
         return view('products.index', compact('products', 'sortField', 'sortDirection', 'groupsTree'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return view('products.create');
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'sku' => 'nullable|string|unique:products',
-            'price' => 'required|numeric|min:0',
-            'quantity' => 'nullable|integer|min:0',
-            'description' => 'nullable|string',
-        ]);
-
-        Product::create($validated);
-
-        return redirect()->route('products.index')
-            ->with('success', 'Товар успешно создан');
     }
 
     /**
@@ -99,60 +67,26 @@ class ProductController extends Controller
      */
     public function show($id)
     {
-        $product = Product::with(['stocks.store'])  // Загружаем остатки и связанные склады
-        ->where('moysklad_id', $id)
+        $product = Product::with(['stocks.store'])
+            ->where('moysklad_id', $id)
             ->firstOrFail();
 
         return view('products.show', compact('product'));
     }
 
     /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id)
-    {
-        $product = Product::where('moysklad_id', $id)->firstOrFail();
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'sku' => 'nullable|string|unique:products,sku,' . $product->id,
-            'price' => 'required|numeric|min:0',
-            'quantity' => 'nullable|integer|min:0',
-            'description' => 'nullable|string',
-            'is_active' => 'boolean',
-        ]);
-
-        $product->update($validated);
-
-        return redirect()->route('products.show', $product->moysklad_id)
-            ->with('success', 'Товар успешно обновлен');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id)
-    {
-        $product = Product::where('moysklad_id', $id)->firstOrFail();
-        $product->delete();
-
-        return redirect()->route('products.index')
-            ->with('success', 'Товар "'.$product->name.'" удален из локальной базы');
-    }
-
-    /**
-     * Показать дерево групп
+     * Показать дерево групп.
      */
     public function groups()
     {
         $groupsTree = $this->productGroupService->getGroupsTree();
-        $stats = $this->productGroupService->getStats();
+        $stats      = $this->productGroupService->getStats();
 
         return view('products.groups', compact('groupsTree', 'stats'));
     }
 
     /**
-     * Синхронизация товаров с МойСклад
+     * Синхронизация товаров и групп с МойСклад.
      */
     public function syncFromMoySklad()
     {
@@ -161,10 +95,7 @@ class ProductController extends Controller
                 ->with('error', 'Логин или пароль МойСклад не найдены в .env');
         }
 
-        // Сначала синхронизируем группы
-        $groupsResult = $this->moySkladService->syncGroups();
-
-        // Затем синхронизируем товары
+        $groupsResult   = $this->moySkladService->syncGroups();
         $productsResult = $this->moySkladService->syncProducts();
 
         if (!$productsResult['success']) {
@@ -177,12 +108,11 @@ class ProductController extends Controller
             $message .= ". Синхронизировано групп: {$groupsResult['synced']}";
         }
 
-        return redirect()->route('products.index')
-            ->with('success', $message);
+        return redirect()->route('products.index')->with('success', $message);
     }
 
     /**
-     * Обновить конкретный товар из МойСклад
+     * Обновить один товар из МойСклад.
      */
     public function refresh($id)
     {
@@ -196,12 +126,11 @@ class ProductController extends Controller
             return back()->with('error', 'Не удалось обновить товар');
         }
 
-        $price = 0;
+        $price    = 0;
         $oldPrice = null;
 
         if (isset($item['salePrices']) && count($item['salePrices']) > 0) {
             $price = $item['salePrices'][0]['value'] / 100;
-
             if (isset($item['salePrices'][1])) {
                 $oldPrice = $item['salePrices'][1]['value'] / 100;
             }
@@ -210,18 +139,18 @@ class ProductController extends Controller
         $product = Product::updateOrCreate(
             ['moysklad_id' => $item['id']],
             [
-                'name' => $item['name'] ?? '',
-                'sku' => $item['article'] ?? $item['code'] ?? '',
-                'description' => $item['description'] ?? '',
-                'price' => $price,
-                'old_price' => $oldPrice,
+                'name'            => $item['name'] ?? '',
+                'sku'             => $item['article'] ?? $item['code'] ?? '',
+                'description'     => $item['description'] ?? '',
+                'price'           => $price,
+                'old_price'       => $oldPrice,
                 'prod_cost_coeff' => $this->moySkladService->extractAttributePublic($item, 'prodCostCoeff'),
-                'quantity' => $item['stock'] ?? 0,
-                'attributes' => json_encode([
-                    'code' => $item['code'] ?? null,
-                    'article' => $item['article'] ?? null,
-                    'weight' => $item['weight'] ?? null,
-                    'volume' => $item['volume'] ?? null,
+                'quantity'        => $item['stock'] ?? 0,
+                'attributes'      => json_encode([
+                    'code'      => $item['code'] ?? null,
+                    'article'   => $item['article'] ?? null,
+                    'weight'    => $item['weight'] ?? null,
+                    'volume'    => $item['volume'] ?? null,
                     'path_name' => $item['pathName'] ?? null,
                 ]),
             ]
@@ -234,9 +163,9 @@ class ProductController extends Controller
     /**
      * Синхронизировать остатки по складам для одного товара.
      */
-    public function syncStocks($moyskladId)
+    public function syncStocks(StockSyncService $stockSyncService, $moyskladId)
     {
-        $result = (new StockSyncService())->updateProductStocksByMoyskladId($moyskladId);
+        $result = $stockSyncService->updateProductStocksByMoyskladId($moyskladId);
 
         return redirect()->route('products.show', $moyskladId)
             ->with($result['success'] ? 'success' : 'error', $result['message']);
@@ -268,9 +197,10 @@ class ProductController extends Controller
         return redirect()->route('products.groups')
             ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
+
     /**
      * AJAX: дерево групп с продуктами для компонента выбора продукта.
-     * Кэшируем на 10 минут — структура меняется редко.
+     * Кэшируется на 10 минут.
      */
     public function groupsJson()
     {
@@ -283,15 +213,15 @@ class ProductController extends Controller
     }
 
     /**
-     * Рекурсивно добавляет продукты к узлам дерева групп
+     * Рекурсивно добавляет продукты к узлам дерева групп.
      */
     private function attachProductsToTree(array $groups): array
     {
         foreach ($groups as &$group) {
-            $group['products'] = \App\Models\Product::where('group_id', $group['id'])
+            $group['products'] = Product::where('group_id', $group['id'])
                 ->orderBy('name')
                 ->get(['id', 'name', 'sku'])
-                ->map(fn($p) => [
+                ->map(fn ($p) => [
                     'id'    => $p->id,
                     'label' => $p->name . ($p->sku ? ' (' . $p->sku . ')' : ''),
                 ])

@@ -48,7 +48,7 @@ class RawMaterialMovementController extends Controller
                 'remaining_quantity'  => $data['quantity'],
                 'current_store_id'    => $data['to_store_id'],
                 'current_worker_id'   => $data['worker_id'],
-                'batch_number'        => $data['batch_number'],
+                'batch_number'        => $data['batch_number'] ?? null,
                 'status'              => 'active',
             ]);
 

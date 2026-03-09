@@ -187,16 +187,6 @@ class RawMaterialBatchController extends Controller
             ->with('success', 'Партия сырья успешно создана.');
     }
 
-    public function edit(RawMaterialBatch $batch)
-    {
-        abort(404);
-    }
-
-    public function update(Request $request, RawMaterialBatch $batch)
-    {
-        abort(404);
-    }
-
     /**
      * Форма корректировки количества сырья в партии (+/-)
      */
