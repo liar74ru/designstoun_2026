@@ -1,102 +1,50 @@
-# ============================================================
-#  STAGE 1 — сборка фронтенда (Node.js)
-# ============================================================
-FROM node:20-alpine AS frontend
+# Базовый образ PHP-FPM 8.2
+FROM php:8.2-fpm
 
-WORKDIR /app
+# 1. Системные зависимости
+RUN apt-get update && apt-get install -y \
+    git curl zip unzip \
+    libzip-dev libpq-dev libonig-dev libxml2-dev \
+    nginx supervisor \
+ && docker-php-ext-configure zip \
+ && docker-php-ext-install zip pdo pdo_mysql pdo_pgsql \
+ && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
-RUN npm ci --silent
+# 2. Node.js (18.x)
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+ && apt-get update && apt-get install -y nodejs \
+ && rm -rf /var/lib/apt/lists/*
 
-COPY resources/ resources/
-COPY vite.config.js postcss.config.js tailwind.config.js ./
-COPY public/ public/
+# 3. Composer
+RUN curl -sS https://getcomposer.org/installer | php \
+ && mv composer.phar /usr/local/bin/composer \
+ && chmod +x /usr/local/bin/composer
 
-RUN npm run build
-
-
-# ============================================================
-#  STAGE 2 — PHP-зависимости (только prod)
-# ============================================================
-FROM composer:2.7 AS vendor
-
-WORKDIR /app
-
-COPY composer.json composer.lock ./
-RUN composer install \
-    --no-dev \
-    --no-interaction \
-    --prefer-dist \
-    --optimize-autoloader \
-    --no-scripts
-
-
-# ============================================================
-#  STAGE 3 — финальный образ (PHP 8.2 + Nginx + Supervisor)
-# ============================================================
-FROM php:8.2-fpm-alpine AS app
-
-LABEL maintainer="designstoun"
-
-# ── Системные пакеты ─────────────────────────────────────────
-RUN apk add --no-cache \
-    nginx \
-    supervisor \
-    postgresql-dev \
-    libpng-dev \
-    libzip-dev \
-    oniguruma-dev \
-    icu-dev \
-    curl \
-    bash \
-    shadow
-
-# ── PHP-расширения ────────────────────────────────────────────
-RUN docker-php-ext-install \
-    pdo \
-    pdo_pgsql \
-    pgsql \
-    mbstring \
-    exif \
-    pcntl \
-    bcmath \
-    gd \
-    zip \
-    intl \
-    opcache
-
-# ── Настройка PHP ─────────────────────────────────────────────
-COPY docker/php/php.ini        /usr/local/etc/php/conf.d/app.ini
-COPY docker/php/opcache.ini    /usr/local/etc/php/conf.d/opcache.ini
-COPY docker/php/www.conf       /usr/local/etc/php-fpm.d/www.conf
-
-# ── Nginx ─────────────────────────────────────────────────────
-COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
-
-# ── Supervisor (запускает nginx + php-fpm) ────────────────────
-COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# ── Скрипт первого запуска ────────────────────────────────────
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# ── Приложение ────────────────────────────────────────────────
+# 4. Рабочая директория
 WORKDIR /var/www/html
 
-# Копируем код приложения
-COPY --chown=www-data:www-data . .
+# 5. Копируем файлы и ставим PHP-зависимости
+COPY . /var/www/html
 
-# Копируем vendor из stage 2
-COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
+# Если есть package-lock.json / yarn.lock — можно оптимизировать кэш,
+# но для простоты ставим напрямую.
+RUN composer install --no-dev --no-interaction --optimize-autoloader
 
-# Копируем собранный фронтенд из stage 1
-COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
+# 6. Сборка фронтенда (vite/webpack)
+RUN npm install \
+ && npm run build \
+ && rm -rf node_modules
 
-# Создаём нужные папки и права
-RUN mkdir -p storage/logs storage/framework/{sessions,views,cache} bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache
+# 7. Права
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+# 8. Конфиг Nginx
+RUN rm -f /etc/nginx/sites-enabled/default
+COPY ./docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+# 9. Конфиг supervisord
+COPY ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 80
 
-ENTRYPOINT ["entrypoint.sh"]
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
