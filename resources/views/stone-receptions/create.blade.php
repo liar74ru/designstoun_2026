@@ -108,7 +108,7 @@
                             </div>
 
                             {{-- Склад (скрытый) --}}
-                            <input type="hidden" name="store_id" value="{{ $defaultStore->id }}">
+                            <input type="hidden" name="store_id" value="{{ $defaultStore?->id }}">
 
                             {{-- Продукция --}}
                             <div class="mb-3">

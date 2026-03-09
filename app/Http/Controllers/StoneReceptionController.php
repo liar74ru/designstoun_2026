@@ -37,7 +37,7 @@ class StoneReceptionController extends Controller
             'workers' => Worker::orderBy('name')->get(),
             'products' => Product::orderBy('name')->get(),
             'stores' => Store::orderBy('name')->get(),
-            'defaultStore' => Store::find(env('DEFAULT_STORE_ID', self::DEFAULT_STORE_ID)),
+            'defaultStore' => Store::find(env('DEFAULT_STORE_ID', self::DEFAULT_STORE_ID)) ?? Store::first(),
             'activeBatches' => collect(),
         ];
 

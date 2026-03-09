@@ -16,27 +16,23 @@ use Tests\Helpers\ReceptionTestHelper as H;
 
 describe('ManagesStock::adjustStock()', function () {
 
+    function makeStockManagerForWorker() {
+        return new class {
+            use \App\Traits\ManagesStock;
+            public function run($productId, $storeId, $change) {
+                $this->adjustStock($productId, $storeId, $change);
+            }
+        };
+    }
+
     test('создаёт ProductStock если его не было', function () {
-        $product = H::product();
-        $store   = H::store();
+        $product  = H::product();
+        $newStore = H::store('Новый склад');
 
-        // Вызываем через RawMaterialBatchController (он использует трейт)
-        $user   = H::adminUser();
-        $cutter = H::cutter();
-        H::stock($product, $store, 10.0); // нужно чтобы from_store прошёл валидацию
-
-        $toStore = H::store('Новый склад');
-
-        $this->actingAs($user)->post('/raw-batches', [
-            'product_id'    => $product->id,
-            'quantity'      => 5.0,
-            'worker_id'     => $cutter->id,
-            'from_store_id' => $store->id,
-            'to_store_id'   => $toStore->id,
-        ]);
+        makeStockManagerForWorker()->run($product->id, $newStore->id, 5.0);
 
         $stock = ProductStock::where('product_id', $product->id)
-            ->where('store_id', $toStore->id)
+            ->where('store_id', $newStore->id)
             ->first();
 
         expect($stock)->not->toBeNull();
@@ -48,17 +44,7 @@ describe('ManagesStock::adjustStock()', function () {
         $store   = H::store();
         H::stock($product, $store, 10.0);
 
-        $user   = H::adminUser();
-        $cutter = H::cutter();
-        $toStore = H::store();
-
-        $this->actingAs($user)->post('/raw-batches', [
-            'product_id'    => $product->id,
-            'quantity'      => 3.0,
-            'worker_id'     => $cutter->id,
-            'from_store_id' => $store->id,
-            'to_store_id'   => $toStore->id,
-        ]);
+        makeStockManagerForWorker()->run($product->id, $store->id, -3.0);
 
         expect((float) ProductStock::where('product_id', $product->id)
             ->where('store_id', $store->id)->value('quantity'))->toBe(7.0);
