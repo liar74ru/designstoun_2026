@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\ApiClients\MoySklad;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\ProductStock;
@@ -17,25 +18,9 @@ use Illuminate\Support\Facades\Log;
  */
 class StockSyncService
 {
-    private string $token;
-    private string $baseUrl;
-
-    public function __construct()
-    {
-        $this->token   = config('services.moysklad.token');
-        $this->baseUrl = config('services.moysklad.base_url');
-    }
-
-    private function makeRequest(string $endpoint, array $params = []): ?array
-    {
-        if (empty($this->token)) return null;
-
-        $response = Http::withHeaders([
-            'Authorization'   => 'Bearer ' . $this->token,
-            'Accept-Encoding' => 'gzip',
-        ])->get($this->baseUrl . $endpoint, $params);
-
-        return $response->successful() ? $response->json() : null;
+    public function __construct(
+        private MoySklad $moySklad
+    ) {
     }
 
     private function extractProductIdFromHref(string $href): ?string
@@ -93,10 +78,7 @@ class StockSyncService
             $total  = 0;
 
             do {
-                $params = ['limit' => $limit, 'offset' => $offset];
-                if ($storeId) $params['store'] = $storeId;
-
-                $data = $this->makeRequest('/report/stock/bystore', $params);
+                $data = $this->moySklad->reportStockByStore($limit, $offset, $storeId ?? null);
 
                 if (!$data) {
                     $result['message'] = 'Ошибка получения данных из МойСклад';
@@ -136,12 +118,9 @@ class StockSyncService
      */
     public function updateProductStocksByMoyskladId(string $moyskladId): array
     {
-        $filter = $this->baseUrl . '/entity/product/' . $moyskladId;
+        $data = $this->moySklad->reportStockByStore(limit: 1, filterField: 'product', filterValues: $moyskladId);
 
-        $data = $this->makeRequest('/report/stock/bystore', [
-            'filter' => 'product=' . $filter,
-            'limit'  => 1,
-        ]);
+        Log::debug(json_encode($data));
 
         if (!$data || empty($data['rows'])) {
             return ['success' => false, 'message' => 'Нет данных об остатках', 'updated' => 0];
