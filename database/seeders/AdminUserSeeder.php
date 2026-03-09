@@ -16,20 +16,20 @@ class AdminUserSeeder extends Seeder
         DB::transaction(function () {
 
             // Удаляем старые записи если есть (при переустановке)
-            User::where('phone', '89128993488')->delete();
-            Worker::where('phone', '89128993489')->delete();
+            User::where('phone', '89123456789')->delete();
+            Worker::where('phone', '89123456789')->delete();
 
             // 1. Создаём worker-запись для администратора
             $worker = Worker::create([
                 'name'     => 'Администратор',
-                'phone'    => '89128993489',
+                'phone'    => '89123456789',
                 'position' => 'Администратор',
             ]);
 
             // 2. Создаём user и сразу привязываем к worker
             $user = User::create([
                 'name'      => 'Администратор',
-                'phone'     => '89128993488',
+                'phone'     => '89123456789',
                 'email'     => null,
                 'password'  => Hash::make('12345678'),
                 'is_admin'  => true,
