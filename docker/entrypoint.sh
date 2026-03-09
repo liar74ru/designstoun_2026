@@ -3,8 +3,12 @@ set -e
 
 cd /var/www/html
 
-# Timeweb Cloud передаёт БД через POSTGRESQL_* переменные.
-# Маппим их в стандартные DB_* которые ожидает Laravel.
+# DEBUG: показываем все переменные окружения
+echo "=== ENV VARIABLES ==="
+env | grep -iE "postgres|mysql|db_|host|port|database|user|pass" | sort
+echo "====================="
+
+# Маппим Timeweb POSTGRESQL_* переменные в Laravel DB_*
 DB_HOST="${DB_HOST:-${POSTGRESQL_HOST:-127.0.0.1}}"
 DB_PORT="${DB_PORT:-${POSTGRESQL_PORT:-5432}}"
 DB_DATABASE="${DB_DATABASE:-${POSTGRESQL_DATABASE:-designstoun}}"
@@ -38,6 +42,12 @@ DEFAULT_STORE_ID=${DEFAULT_STORE_ID:-}
 ENVFILE
 
 echo "  ✓ .env готов (DB_HOST=${DB_HOST})"
+
+# Сбрасываем старый кеш конфигурации — иначе Laravel читает
+# закешированный config со старыми значениями (sqlite по умолчанию)
+echo "→ Сбрасываем кеш конфигурации..."
+php artisan config:clear --no-interaction
+php artisan cache:clear  --no-interaction
 
 # Генерируем APP_KEY если не задан
 if [ -z "${APP_KEY}" ]; then
