@@ -47,7 +47,6 @@ echo "  ✓ .env готов (DB_HOST=${DB_HOST})"
 # закешированный config со старыми значениями (sqlite по умолчанию)
 echo "→ Сбрасываем кеш конфигурации..."
 php artisan config:clear --no-interaction
-php artisan cache:clear  --no-interaction
 
 # Генерируем APP_KEY если не задан
 if [ -z "${APP_KEY}" ]; then
