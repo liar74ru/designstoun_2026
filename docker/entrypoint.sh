@@ -3,49 +3,43 @@ set -e
 
 cd /var/www/html
 
-# DEBUG: показываем все переменные окружения
-echo "=== ENV VARIABLES ==="
-env | grep -iE "postgres|mysql|db_|host|port|database|user|pass" | sort
-echo "====================="
-
-# Маппим Timeweb POSTGRESQL_* переменные в Laravel DB_*
-DB_HOST="${DB_HOST:-${POSTGRESQL_HOST:-127.0.0.1}}"
-DB_PORT="${DB_PORT:-${POSTGRESQL_PORT:-5432}}"
-DB_DATABASE="${DB_DATABASE:-${POSTGRESQL_DATABASE:-designstoun}}"
-DB_USERNAME="${DB_USERNAME:-${POSTGRESQL_USERNAME:-designstoun}}"
-DB_PASSWORD="${DB_PASSWORD:-${POSTGRESQL_PASSWORD:-}}"
+# Маппим Timeweb DB_* переменные (они уже заданы правильно)
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-5432}"
+DB_DATABASE="${DB_DATABASE:-designstoun}"
+DB_USERNAME="${DB_USERNAME:-designstoun}"
+DB_PASSWORD="${DB_PASSWORD:-}"
 
 echo "→ Генерируем .env..."
-cat > .env << ENVFILE
-APP_NAME=${APP_NAME:-designstoun}
-APP_ENV=${APP_ENV:-production}
-APP_KEY=${APP_KEY:-}
-APP_DEBUG=${APP_DEBUG:-false}
-APP_URL=${APP_URL:-http://localhost}
+# Используем printf чтобы спецсимволы в пароле не ломали heredoc
+{
+  echo "APP_NAME=${APP_NAME:-designstoun}"
+  echo "APP_ENV=${APP_ENV:-production}"
+  echo "APP_KEY=${APP_KEY:-}"
+  echo "APP_DEBUG=${APP_DEBUG:-false}"
+  echo "APP_URL=${APP_URL:-http://localhost}"
+  echo ""
+  echo "LOG_CHANNEL=stderr"
+  echo "LOG_LEVEL=${LOG_LEVEL:-error}"
+  echo ""
+  echo "DB_CONNECTION=pgsql"
+  echo "DB_HOST=${DB_HOST}"
+  echo "DB_PORT=${DB_PORT}"
+  echo "DB_DATABASE=${DB_DATABASE}"
+  echo "DB_USERNAME=${DB_USERNAME}"
+  printf "DB_PASSWORD=%s\n" "${DB_PASSWORD}"
+  echo ""
+  echo "SESSION_DRIVER=database"
+  echo "CACHE_STORE=database"
+  echo "QUEUE_CONNECTION=database"
+  echo ""
+  echo "MOYSKLAD_TOKEN=${MOYSKLAD_TOKEN:-}"
+  echo "DEFAULT_STORE_ID=${DEFAULT_STORE_ID:-}"
+} > .env
 
-LOG_CHANNEL=stderr
-LOG_LEVEL=${LOG_LEVEL:-error}
+echo "  ✓ .env готов (DB_HOST=${DB_HOST}, DB_USER=${DB_USERNAME})"
 
-DB_CONNECTION=pgsql
-DB_HOST=${DB_HOST}
-DB_PORT=${DB_PORT}
-DB_DATABASE=${DB_DATABASE}
-DB_USERNAME=${DB_USERNAME}
-DB_PASSWORD=${DB_PASSWORD}
-
-SESSION_DRIVER=database
-CACHE_STORE=database
-QUEUE_CONNECTION=database
-
-MOYSKLAD_TOKEN=${MOYSKLAD_TOKEN:-}
-DEFAULT_STORE_ID=${DEFAULT_STORE_ID:-}
-ENVFILE
-
-echo "  ✓ .env готов (DB_HOST=${DB_HOST})"
-
-# Сбрасываем старый кеш конфигурации — иначе Laravel читает
-# закешированный config со старыми значениями (sqlite по умолчанию)
-echo "→ Сбрасываем кеш конфигурации..."
+# Сбрасываем старый кеш конфига
 php artisan config:clear --no-interaction
 
 # Генерируем APP_KEY если не задан
