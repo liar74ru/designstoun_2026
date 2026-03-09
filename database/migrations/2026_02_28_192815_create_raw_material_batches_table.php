@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->onDelete('restrict');
             $table->decimal('initial_quantity', 10, 3);
             $table->decimal('remaining_quantity', 10, 3);
-            $table->enum('status', ['active', 'used', 'returned'])->default('active');
+            $table->enum('status', ['active', 'used', 'returned', 'archived'])->default('active');
             $table->uuid('current_store_id');
             $table->foreign('current_store_id')->references('id')->on('stores')->onDelete('restrict');
             $table->foreignId('current_worker_id')->nullable()->constrained('workers')->onDelete('set null');

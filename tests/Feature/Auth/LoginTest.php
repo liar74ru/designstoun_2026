@@ -81,7 +81,7 @@ test('после входа пользователь попадает на dashb
     ]);
 
     $this->post('/login', ['login' => '79991234567', 'password' => 'password'])
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('home'));
 });
 
 test('работник после входа может перейти на my-work', function () {

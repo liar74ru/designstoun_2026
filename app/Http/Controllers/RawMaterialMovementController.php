@@ -59,7 +59,7 @@ class RawMaterialMovementController extends Controller
                 'to_store_id'    => $data['to_store_id'],
                 'from_worker_id' => null,
                 'to_worker_id'   => $data['worker_id'],
-                'moved_by'       => auth()->id(),
+                'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => 'create',
                 'quantity'       => $data['quantity'],
             ]);
@@ -166,7 +166,7 @@ class RawMaterialMovementController extends Controller
                 'to_store_id'    => $data['to_store_id'],
                 'from_worker_id' => $oldWorker,
                 'to_worker_id'   => null,
-                'moved_by'       => auth()->id(),
+                'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => 'return_to_store',
                 'quantity'       => $quantity,
             ]);

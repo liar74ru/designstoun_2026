@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreign('to_store_id')->references('id')->on('stores')->onDelete('set null');
             $table->foreignId('from_worker_id')->nullable()->constrained('workers')->onDelete('set null');
             $table->foreignId('to_worker_id')->nullable()->constrained('workers')->onDelete('set null');
-            $table->foreignId('moved_by')->constrained('workers');
+            $table->foreignId('moved_by')->nullable()->constrained('workers')->onDelete('set null');
             $table->enum('movement_type', ['create', 'transfer_to_worker', 'return_to_store', 'use']);
             $table->decimal('quantity', 10, 3);
             $table->timestamps();

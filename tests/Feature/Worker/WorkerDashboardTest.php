@@ -6,6 +6,8 @@ use App\Models\Product;
 use App\Models\Store;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
+use App\Models\ReceptionLog;
+use App\Models\ReceptionLogItem;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Доступ к странице
@@ -78,10 +80,18 @@ test('страница выработки считает зарплату по �
         'store_id'    => $store->id,
         'status'      => 'active',
     ]);
-    StoneReceptionItem::create([
+
+    $log = ReceptionLog::create([
         'stone_reception_id' => $reception->id,
-        'product_id'         => $product->id,
-        'quantity'           => 10,
+        'cutter_id'          => $worker->id,
+        'receiver_id'        => $receiver->id,
+        'type'               => ReceptionLog::TYPE_CREATED,
+        'raw_quantity_delta' => 0,
+    ]);
+    ReceptionLogItem::create([
+        'reception_log_id' => $log->id,
+        'product_id'       => $product->id,
+        'quantity_delta'   => 10,
     ]);
 
     // 10 × 1.0 × 390 = 3900 руб

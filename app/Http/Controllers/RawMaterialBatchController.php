@@ -172,7 +172,7 @@ class RawMaterialBatchController extends Controller
                 'to_store_id'    => $data['to_store_id'],
                 'from_worker_id' => null,
                 'to_worker_id'   => $data['worker_id'],
-                'moved_by'       => auth()->user()?->worker_id ?? auth()->id(),
+                'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => 'create',
                 'quantity'       => $data['quantity'],
             ]);
@@ -265,14 +265,16 @@ class RawMaterialBatchController extends Controller
             // Пишем перемещение в историю
             // При добавлении: основной склад → склад партии
             // При убавлении:  склад партии → основной склад
-            $defaultStoreId = env('DEFAULT_STORE_ID', \App\Http\Controllers\StoneReceptionController::DEFAULT_STORE_ID);
+            $envStoreId = env('DEFAULT_STORE_ID', \App\Http\Controllers\StoneReceptionController::DEFAULT_STORE_ID);
+            // Если DEFAULT_STORE_ID не существует в БД — используем склад партии (актуально для тестов)
+            $defaultStoreId = \App\Models\Store::where('id', $envStoreId)->exists() ? $envStoreId : $batchStoreId;
             $movement = RawMaterialMovement::create([
                 'batch_id'       => $batch->id,
                 'from_store_id'  => $delta < 0 ? $batchStoreId    : $defaultStoreId,
                 'to_store_id'    => $delta > 0 ? $batchStoreId    : $defaultStoreId,
                 'from_worker_id' => null,
                 'to_worker_id'   => null,
-                'moved_by'       => auth()->user()?->worker_id ?? auth()->id(),
+                'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => $delta > 0 ? 'create' : 'use',
                 'quantity'       => abs($delta),
             ]);
@@ -404,18 +406,18 @@ class RawMaterialBatchController extends Controller
             ->with('success', 'Партия отправлена в архив.');
     }
 
-    public function destroy(RawMaterialBatch $batch)
+    public function destroy(RawMaterialBatch $raw_batch)
     {
-        if ($batch->receptions()->exists()) {
+        if ($raw_batch->receptions()->exists()) {
             return back()->with('error', 'Нельзя удалить партию, к которой есть приемки.');
         }
 
-        DB::transaction(function () use ($batch) {
-            if ($batch->status === 'active' && $batch->remaining_quantity > 0) {
-                $this->adjustStock($batch->product_id, $batch->current_store_id, -$batch->remaining_quantity);
+        DB::transaction(function () use ($raw_batch) {
+            if ($raw_batch->status === 'active' && $raw_batch->remaining_quantity > 0) {
+                $this->adjustStock($raw_batch->product_id, $raw_batch->current_store_id, -$raw_batch->remaining_quantity);
             }
-            $batch->movements()->delete();
-            $batch->delete();
+            $raw_batch->movements()->delete();
+            $raw_batch->delete();
         });
 
         return redirect()->route('raw-batches.index')->with('success', 'Партия удалена.');
@@ -434,7 +436,7 @@ class RawMaterialBatchController extends Controller
     public function transfer(Request $request, RawMaterialBatch $batch)
     {
         if (!$batch->isActive()) {
-            return back()->withErrors(['batch' => 'Партия уже неактивна.']);
+            return back()->with('error', 'Партия уже неактивна.');
         }
 
         $data = $request->validate(['to_worker_id' => 'required|exists:workers,id']);
@@ -446,7 +448,7 @@ class RawMaterialBatchController extends Controller
                 'to_store_id'    => null,
                 'from_worker_id' => $batch->current_worker_id,
                 'to_worker_id'   => $data['to_worker_id'],
-                'moved_by'       => auth()->user()?->worker_id ?? auth()->id(),
+                'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => 'transfer_to_worker',
                 'quantity'       => $batch->remaining_quantity,
             ]);
