@@ -96,81 +96,11 @@ php_admin_value[error_log]  = /proc/self/fd/2
 php_admin_flag[log_errors]  = on
 EOF
 
-# ── Nginx ─────────────────────────────────────────────────────
-RUN cat > /etc/nginx/http.d/default.conf <<'EOF'
-server {
-    listen 80;
-    server_name _;
-    root /var/www/html/public;
-    index index.php;
+# ── Nginx и Supervisor — из папки docker/ ────────────────────
+RUN mkdir -p /etc/supervisor/conf.d
 
-    add_header X-Frame-Options       "SAMEORIGIN"    always;
-    add_header X-Content-Type-Options "nosniff"       always;
-    server_tokens off;
-
-    location ~* \.(css|js|woff2?|svg|gif|png|jpg|jpeg|ico|webp|ttf|eot|map)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-        try_files $uri =404;
-        access_log off;
-    }
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        try_files $uri =404;
-        fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass  unix:/run/php-fpm.sock;
-        fastcgi_index index.php;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        fastcgi_param PATH_INFO       $fastcgi_path_info;
-        fastcgi_read_timeout 60;
-    }
-
-    location ~ /\.(?!well-known) { deny all; }
-
-    location = /health {
-        access_log off;
-        return 200 "ok\n";
-        add_header Content-Type text/plain;
-    }
-
-    client_max_body_size 32m;
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/javascript;
-}
-EOF
-
-# ── Supervisor ────────────────────────────────────────────────
-RUN mkdir -p /etc/supervisor/conf.d && \
-    cat > /etc/supervisor/conf.d/supervisord.conf <<'EOF'
-[supervisord]
-nodaemon  = true
-user      = root
-logfile   = /dev/null
-logfile_maxbytes = 0
-
-[program:nginx]
-command        = nginx -g "daemon off;"
-autostart      = true
-autorestart    = true
-stdout_logfile = /dev/stdout
-stdout_logfile_maxbytes = 0
-stderr_logfile = /dev/stderr
-stderr_logfile_maxbytes = 0
-
-[program:php-fpm]
-command        = php-fpm -F
-autostart      = true
-autorestart    = true
-stdout_logfile = /dev/stdout
-stdout_logfile_maxbytes = 0
-stderr_logfile = /dev/stderr
-stderr_logfile_maxbytes = 0
-EOF
+COPY docker/nginx.conf        /etc/nginx/http.d/default.conf
+COPY docker/supervisord.conf  /etc/supervisor/conf.d/supervisord.conf
 
 # ── Entrypoint ────────────────────────────────────────────────
 RUN cat > /usr/local/bin/entrypoint.sh <<'SCRIPT'
@@ -184,9 +114,9 @@ until php artisan db:show --no-interaction 2>/dev/null; do
 done
 echo "  ✓ БД готова"
 
-php artisan config:cache  --no-interaction
-php artisan route:cache   --no-interaction
-php artisan view:cache    --no-interaction
+php artisan config:cache --no-interaction
+php artisan route:cache  --no-interaction
+php artisan view:cache   --no-interaction
 php artisan migrate --force --no-interaction
 php artisan storage:link --force 2>/dev/null || true
 
@@ -202,7 +132,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 WORKDIR /var/www/html
 
 COPY --chown=www-data:www-data . .
-COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
+COPY --from=vendor  --chown=www-data:www-data /app/vendor        ./vendor
 COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
 
 RUN mkdir -p storage/logs storage/framework/{sessions,views,cache} bootstrap/cache \
