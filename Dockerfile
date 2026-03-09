@@ -1,62 +1,102 @@
-FROM php:8.2-fpm
+# ============================================================
+#  STAGE 1 — сборка фронтенда (Node.js)
+# ============================================================
+FROM node:20-alpine AS frontend
 
-# Установка системных зависимостей (добавил libpq-dev для PostgreSQL)
-RUN apt-get update && apt-get install -y \
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --silent
+
+COPY resources/ resources/
+COPY vite.config.js postcss.config.js tailwind.config.js ./
+COPY public/ public/
+
+RUN npm run build
+
+
+# ============================================================
+#  STAGE 2 — PHP-зависимости (только prod)
+# ============================================================
+FROM composer:2.7 AS vendor
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-scripts
+
+
+# ============================================================
+#  STAGE 3 — финальный образ (PHP 8.2 + Nginx + Supervisor)
+# ============================================================
+FROM php:8.2-fpm-alpine AS app
+
+LABEL maintainer="designstoun"
+
+# ── Системные пакеты ─────────────────────────────────────────
+RUN apk add --no-cache \
     nginx \
-    git \
-    curl \
+    supervisor \
+    postgresql-dev \
     libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    libpq-dev \          # Добавлено для PostgreSQL
+    libzip-dev \
+    oniguruma-dev \
+    icu-dev \
+    curl \
+    bash \
+    shadow
+
+# ── PHP-расширения ────────────────────────────────────────────
+RUN docker-php-ext-install \
+    pdo \
+    pdo_pgsql \
+    pgsql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
     zip \
-    unzip \
-    nodejs \             # Добавлен Node.js
-    npm                  # Добавлен npm
+    intl \
+    opcache
 
-# Очистка кэша
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# ── Настройка PHP ─────────────────────────────────────────────
+COPY docker/php/php.ini        /usr/local/etc/php/conf.d/app.ini
+COPY docker/php/opcache.ini    /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/php/www.conf       /usr/local/etc/php-fpm.d/www.conf
 
-# Установка PHP расширений (ЗАМЕНИЛ pdo_mysql на pdo_pgsql)
-RUN docker-php-ext-install pdo_pgsql pgsql mbstring exif pcntl bcmath gd
+# ── Nginx ─────────────────────────────────────────────────────
+COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
 
-# Установка Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# ── Supervisor (запускает nginx + php-fpm) ────────────────────
+COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Установка рабочей директории
+# ── Скрипт первого запуска ────────────────────────────────────
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# ── Приложение ────────────────────────────────────────────────
 WORKDIR /var/www/html
 
-# Копирование файлов проекта
-COPY . .
+# Копируем код приложения
+COPY --chown=www-data:www-data . .
 
-# Установка зависимостей Laravel
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+# Копируем vendor из stage 2
+COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
 
-# Сборка фронтенда
-RUN npm install && npm run build
+# Копируем собранный фронтенд из stage 1
+COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
 
-# Настройка прав (Timeweb обычно требует прав www-data или root)
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Создаём нужные папки и права
+RUN mkdir -p storage/logs storage/framework/{sessions,views,cache} bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
 
-# Конфигурация Nginx
-COPY ./nginx.conf /etc/nginx/sites-available/default
+EXPOSE 80
 
-# Скрипт запуска с миграциями
-RUN echo '#!/bin/bash\n\
-# Ждем, пока база данных будет готова (опционально)\n\
-echo "Ожидание PostgreSQL..."\n\
-sleep 5\n\
-\n\
-# Запуск миграций\n\
-php artisan migrate --force\n\
-php artisan db:seed --force\n\
-\n\
-# Запуск Nginx и PHP-FPM\n\
-service nginx start\n\
-php-fpm' > /start.sh && chmod +x /start.sh
-
-# Открытие порта (используем порт, который дает Timeweb)
-EXPOSE 8080
-
-# Запуск через скрипт
-CMD ["/start.sh"]
+ENTRYPOINT ["entrypoint.sh"]
