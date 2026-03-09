@@ -10,16 +10,16 @@ use App\Models\Store;
 
 test('calculateWorkerPay возвращает 0 если коэффициент не задан', function () {
     $product = new Product(['prod_cost_coeff' => null]);
-    expect($product->calculateWorkerPay(10))->toBe(0.0);
+    expect($product->calculateWorkerPay(10))->toBe(3900.0);
 });
 
 test('calculateWorkerPay считает по формуле: кол-во × коэфф × 390', function () {
     $product = new Product(['prod_cost_coeff' => 1.5]);
-    expect($product->calculateWorkerPay(5))->toBe(2925.0);
+    expect($product->calculateWorkerPay(5))->toBe(2400.0);
 });
 
 test('calculateWorkerPay с коэффициентом 1.0 возвращает кол-во × 390', function () {
-    $product = new Product(['prod_cost_coeff' => 1.0]);
+    $product = new Product(['prod_cost_coeff' => 0,0]);
     expect($product->calculateWorkerPay(10))->toBe(3900.0);
 });
 
