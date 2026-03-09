@@ -3,7 +3,6 @@ set -e
 
 cd /var/www/html
 
-# Маппим Timeweb DB_* переменные (они уже заданы правильно)
 DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-5432}"
 DB_DATABASE="${DB_DATABASE:-designstoun}"
@@ -11,7 +10,6 @@ DB_USERNAME="${DB_USERNAME:-designstoun}"
 DB_PASSWORD="${DB_PASSWORD:-}"
 
 echo "→ Генерируем .env..."
-# Используем printf чтобы спецсимволы в пароле не ломали heredoc
 {
   echo "APP_NAME=${APP_NAME:-designstoun}"
   echo "APP_ENV=${APP_ENV:-production}"
@@ -36,11 +34,10 @@ echo "→ Генерируем .env..."
   echo "MOYSKLAD_TOKEN=${MOYSKLAD_TOKEN:-}"
   echo "DEFAULT_STORE_ID=${DEFAULT_STORE_ID:-}"
 } > .env
+echo "  ✓ .env готов (DB_HOST=${DB_HOST})"
 
-echo "  ✓ .env готов (DB_HOST=${DB_HOST}, DB_USER=${DB_USERNAME})"
-
-# Сбрасываем старый кеш конфига
-php artisan config:clear --no-interaction
+# Удаляем старый закешированный конфиг — он мог содержать 127.0.0.1
+rm -f bootstrap/cache/config.php bootstrap/cache/routes*.php bootstrap/cache/services.php
 
 # Генерируем APP_KEY если не задан
 if [ -z "${APP_KEY}" ]; then
@@ -55,7 +52,8 @@ until php artisan db:show --no-interaction 2>/dev/null; do
 done
 echo "  ✓ БД готова"
 
-php artisan config:cache --no-interaction
+# НЕ кешируем конфиг — Laravel будет читать .env напрямую
+# config:cache вредит когда DB_PASSWORD содержит спецсимволы
 php artisan route:cache  --no-interaction
 php artisan view:cache   --no-interaction
 php artisan migrate --force --no-interaction
