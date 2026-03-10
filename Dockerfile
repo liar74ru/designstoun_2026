@@ -79,15 +79,24 @@ listen = /run/php-fpm.sock
 listen.owner = www-data
 listen.group = www-data
 listen.mode  = 0660
-pm                   = dynamic
-pm.max_children      = 20
-pm.start_servers     = 4
-pm.min_spare_servers = 2
-pm.max_spare_servers = 6
-pm.max_requests      = 500
+
+pm = dynamic
+pm.max_children = 50
+pm.start_servers = 8
+pm.min_spare_servers = 4
+pm.max_spare_servers = 12
+pm.max_requests = 1000
+
+request_terminate_timeout = 300s
+request_slowlog_timeout = 60s
+
 clear_env            = no
 php_admin_value[error_log]  = /proc/self/fd/2
 php_admin_flag[log_errors]  = on
+
+php_admin_value[memory_limit] = 256M
+php_admin_value[max_execution_time] = 300
+php_admin_value[max_input_time] = 300
 EOF
 
 RUN mkdir -p /etc/supervisor/conf.d
