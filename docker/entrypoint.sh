@@ -36,13 +36,19 @@ echo "→ Генерируем .env..."
 } > .env
 echo "  ✓ .env готов (DB_HOST=${DB_HOST})"
 
-# Удаляем старый закешированный конфиг — он мог содержать 127.0.0.1
-rm -f bootstrap/cache/config.php bootstrap/cache/routes*.php bootstrap/cache/services.php
+# Удаляем старый закешированный конфиг
+rm -f bootstrap/cache/config.php \
+      bootstrap/cache/routes*.php \
+      bootstrap/cache/services.php \
+      bootstrap/cache/packages.php
 
-# Генерируем APP_KEY если не задан
+# APP_KEY ОБЯЗАН быть задан через ENV переменную в Timeweb.
+# Если не задан — генерируем один раз и выводим чтобы скопировать в панель.
 if [ -z "${APP_KEY}" ]; then
-    echo "→ Генерируем APP_KEY..."
-    php artisan key:generate --force --no-interaction
+    echo "⚠️  APP_KEY не задан в ENV — генерируем временный."
+    echo "⚠️  Скопируйте значение ниже в переменные окружения Timeweb!"
+    php artisan key:generate --force --no-interaction --show
+    echo "⚠️  Без постоянного APP_KEY сессии будут сбрасываться при каждом деплое."
 fi
 
 echo "→ Ожидаем PostgreSQL на ${DB_HOST}:${DB_PORT}..."
@@ -52,14 +58,27 @@ until php artisan db:show --no-interaction 2>/dev/null; do
 done
 echo "  ✓ БД готова"
 
-# НЕ кешируем конфиг — Laravel будет читать .env напрямую
-# config:cache вредит когда DB_PASSWORD содержит спецсимволы
-php artisan route:cache  --no-interaction
-php artisan view:cache   --no-interaction
+# Сначала migrate — создаёт sessions, cache, queue таблицы
+echo "→ Применяем миграции..."
 php artisan migrate --force --no-interaction
+
+# Seed — только если таблица users пустая
+USER_COUNT=$(php artisan tinker --no-interaction --execute="echo \App\Models\User::count();" 2>/dev/null | tail -1 || echo "0")
+if [ "${USER_COUNT}" = "0" ]; then
+    echo "→ Запускаем seed (БД пустая)..."
+    php artisan db:seed --force --no-interaction
+    echo "  ✓ Seed выполнен"
+else
+    echo "  → Seed пропущен (users: ${USER_COUNT})"
+fi
+
+# Кешируем роуты и вьюхи ПОСЛЕ migrate
+php artisan route:cache --no-interaction
+php artisan view:cache  --no-interaction
 php artisan storage:link --force 2>/dev/null || true
 
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 mkdir -p /run && chown www-data:www-data /run
 
+echo "✅ Запускаем сервер..."
 exec supervisord -c /etc/supervisor/conf.d/supervisord.conf
