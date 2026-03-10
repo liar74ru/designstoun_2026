@@ -1,6 +1,5 @@
 # ============================================================
 #  STAGE 1 — сборка фронтенда
-#  rebuild: 2026-03-10
 # ============================================================
 FROM node:20-alpine AS frontend
 
@@ -49,7 +48,7 @@ RUN apk add --no-cache \
 RUN docker-php-ext-install \
     pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip intl opcache
 
-RUN cat > /usr/local/etc/php/conf.d/app.ini <<'EOF'
+RUN cat > /usr/local/etc/php/conf.d/app.ini <<'EOINI'
 upload_max_filesize = 32M
 post_max_size       = 32M
 max_execution_time  = 60
@@ -59,9 +58,9 @@ display_errors      = Off
 log_errors          = On
 error_log           = /proc/1/fd/2
 expose_php          = Off
-EOF
+EOINI
 
-RUN cat > /usr/local/etc/php/conf.d/opcache.ini <<'EOF'
+RUN cat > /usr/local/etc/php/conf.d/opcache.ini <<'EOINI'
 opcache.enable                  = 1
 opcache.memory_consumption      = 128
 opcache.interned_strings_buffer = 16
@@ -69,9 +68,9 @@ opcache.max_accelerated_files   = 10000
 opcache.validate_timestamps     = 0
 opcache.save_comments           = 1
 opcache.fast_shutdown           = 1
-EOF
+EOINI
 
-RUN cat > /usr/local/etc/php-fpm.d/www.conf <<'EOF'
+RUN cat > /usr/local/etc/php-fpm.d/www.conf <<'EOINI'
 [www]
 user  = www-data
 group = www-data
@@ -80,22 +79,23 @@ listen.owner = www-data
 listen.group = www-data
 listen.mode  = 0660
 pm                   = dynamic
-pm.max_children      = 20
-pm.start_servers     = 4
-pm.min_spare_servers = 2
-pm.max_spare_servers = 6
+pm.max_children      = 10
+pm.start_servers     = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
 pm.max_requests      = 500
 clear_env            = no
+catch_workers_output = yes
 php_admin_value[error_log]  = /proc/self/fd/2
 php_admin_flag[log_errors]  = on
-EOF
+EOINI
+
+# Включаем error_log php-fpm master процесса
+RUN sed -i 's|^;error_log = log/php-fpm.log|error_log = /proc/1/fd/2|' /usr/local/etc/php-fpm.conf
 
 RUN mkdir -p /etc/supervisor/conf.d
 COPY docker/nginx.conf        /etc/nginx/http.d/default.conf
 COPY docker/supervisord.conf  /etc/supervisor/conf.d/supervisord.conf
-
-# Entrypoint — записываем через отдельный RUN чтобы избежать
-# проблем с heredoc и вложенными переменными
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

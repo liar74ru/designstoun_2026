@@ -17,8 +17,8 @@ echo "→ Генерируем .env..."
   echo "APP_DEBUG=${APP_DEBUG:-false}"
   echo "APP_URL=${APP_URL:-http://localhost}"
   echo ""
-  echo "LOG_CHANNEL=stderr"
-  echo "LOG_LEVEL=${LOG_LEVEL:-error}"
+  echo "LOG_CHANNEL=single"
+  echo "LOG_LEVEL=${LOG_LEVEL:-debug}"
   echo ""
   echo "DB_CONNECTION=pgsql"
   echo "DB_HOST=${DB_HOST}"
@@ -43,7 +43,6 @@ rm -f bootstrap/cache/config.php \
       bootstrap/cache/packages.php
 
 # APP_KEY ОБЯЗАН быть задан через ENV переменную в Timeweb.
-# Если не задан — генерируем один раз и выводим чтобы скопировать в панель.
 if [ -z "${APP_KEY}" ]; then
     echo "⚠️  APP_KEY не задан в ENV — генерируем временный."
     echo "⚠️  Скопируйте значение ниже в переменные окружения Timeweb!"
@@ -58,7 +57,6 @@ until php artisan db:show --no-interaction 2>/dev/null; do
 done
 echo "  ✓ БД готова"
 
-# Сначала migrate — создаёт sessions, cache, queue таблицы
 echo "→ Применяем миграции..."
 php artisan migrate --force --no-interaction
 
@@ -77,7 +75,12 @@ php artisan route:cache --no-interaction
 php artisan view:cache  --no-interaction
 php artisan storage:link --force 2>/dev/null || true
 
-chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
+# Права на storage
+mkdir -p storage/logs storage/framework/{sessions,views,cache} bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+
+# Права на /run для сокетов
 mkdir -p /run
 chown root:www-data /run
 chmod 775 /run
