@@ -17,6 +17,8 @@ class RawMaterialMovement extends Model
         'quantity',
         'moysklad_move_id',
         'moysklad_synced',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [

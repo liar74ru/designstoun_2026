@@ -42,6 +42,14 @@ class RawMaterialMovementController extends Controller
         }
 
         DB::transaction(function () use ($data, $request) {
+            $manualDate = $request->input('manual_created_at');
+            $createdAt  = (auth()->user()?->isAdmin() && $manualDate)
+                ? \Carbon\Carbon::parse($manualDate)
+                : now();
+
+            // moved_by: берём worker_id текущего пользователя, либо worker из формы как fallback
+            $movedBy = auth()->user()?->worker_id ?? $data['worker_id'];
+
             $batch = RawMaterialBatch::create([
                 'product_id'          => $data['product_id'],
                 'initial_quantity'    => $data['quantity'],
@@ -50,6 +58,8 @@ class RawMaterialMovementController extends Controller
                 'current_worker_id'   => $data['worker_id'],
                 'batch_number'        => $data['batch_number'] ?? null,
                 'status'              => 'active',
+                'created_at'          => $createdAt,
+                'updated_at'          => $createdAt,
             ]);
 
             // Запись перемещения в БД
@@ -59,9 +69,11 @@ class RawMaterialMovementController extends Controller
                 'to_store_id'    => $data['to_store_id'],
                 'from_worker_id' => null,
                 'to_worker_id'   => $data['worker_id'],
-                'moved_by'       => auth()->user()?->worker_id ?? null,
+                'moved_by'       => $movedBy,
                 'movement_type'  => 'create',
                 'quantity'       => $data['quantity'],
+                'created_at'     => $createdAt,
+                'updated_at'     => $createdAt,
             ]);
 
             // Обновление остатков в БД

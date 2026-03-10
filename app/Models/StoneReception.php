@@ -26,7 +26,9 @@ class StoneReception extends Model
         'notes',
         'moysklad_processing_id',
         'status',
-        'synced_at'
+        'synced_at',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [

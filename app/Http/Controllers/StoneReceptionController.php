@@ -25,7 +25,18 @@ class StoneReceptionController extends Controller
     /**
      * ID склада по умолчанию (6. Склад Уралия Цех)
      */
-    const DEFAULT_STORE_ID = '0b1972f7-5e59-11ec-0a80-0698000bf502';
+    const DEFAULT_STORE_CODE = '-dggJ2jngG51VKi5mHao91'; // external_code склада по умолчанию
+
+    /**
+     * Найти склад по умолчанию: сначала по DEFAULT_STORE_CODE из env,
+     * потом по константе, потом первый попавшийся.
+     */
+    public static function getDefaultStore(): ?\App\Models\Store
+    {
+        $code = env('DEFAULT_STORE_CODE') ?: self::DEFAULT_STORE_CODE;
+        return \App\Models\Store::where('external_code', $code)->first()
+            ?? \App\Models\Store::first();
+    }
 
     /**
      * Загружает общие данные для форм
@@ -37,7 +48,7 @@ class StoneReceptionController extends Controller
             'workers' => Worker::orderBy('name')->get(),
             'products' => Product::orderBy('name')->get(),
             'stores' => Store::orderBy('name')->get(),
-            'defaultStore' => Store::find(env('DEFAULT_STORE_ID', self::DEFAULT_STORE_ID)) ?? Store::first(),
+            'defaultStore' => self::getDefaultStore(),
             'activeBatches' => collect(),
         ];
 
