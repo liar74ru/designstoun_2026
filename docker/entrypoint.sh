@@ -78,7 +78,9 @@ php artisan view:cache  --no-interaction
 php artisan storage:link --force 2>/dev/null || true
 
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
-mkdir -p /run && chown www-data:www-data /run
+mkdir -p /run
+chown root:www-data /run
+chmod 775 /run
 
 echo "✅ Запускаем сервер..."
 exec supervisord -c /etc/supervisor/conf.d/supervisord.conf
