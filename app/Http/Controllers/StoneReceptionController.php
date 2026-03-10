@@ -215,7 +215,11 @@ class StoneReceptionController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($data) {
+            DB::transaction(function () use ($data, $request) {
+                $manualDate = $request->input('manual_created_at');
+                if (auth()->user()?->isAdmin() && $manualDate) {
+                    $data['manual_created_at'] = \Carbon\Carbon::parse($manualDate);
+                }
                 $reception = StoneReception::create($this->prepareReceptionData($data));
                 $this->createReceptionItems($reception, $data['products']);
 
@@ -272,6 +276,13 @@ class StoneReceptionController extends Controller
         $request->merge(['raw_quantity_used' => $currentRaw + $rawDelta]);
 
         $data = $this->validateReception($request, false);
+
+        // Передаём manual_created_at и оригинальную дату для prepareReceptionData
+        $manualDate = $request->input('manual_created_at');
+        if (auth()->user()?->isAdmin() && $manualDate) {
+            $data['manual_created_at'] = \Carbon\Carbon::parse($manualDate);
+        }
+        $data['original_created_at'] = $stoneReception->created_at;
 
         try {
             DB::transaction(function () use ($stoneReception, $data, $rawDelta) {
@@ -440,7 +451,13 @@ class StoneReceptionController extends Controller
         ];
 
         if (!$forCopy) {
-            $prepared[$forCreate ? 'created_at' : 'updated_at'] = now();
+            if ($forCreate) {
+                $prepared['created_at'] = $data['manual_created_at'] ?? now();
+                $prepared['updated_at'] = $data['manual_created_at'] ?? now();
+            } else {
+                $prepared['created_at'] = $data['manual_created_at'] ?? $data['original_created_at'];
+                $prepared['updated_at'] = now();
+            }
         }
 
         return $prepared;

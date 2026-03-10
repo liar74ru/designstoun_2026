@@ -155,7 +155,12 @@ class RawMaterialBatchController extends Controller
                 ->withInput();
         }
 
-        DB::transaction(function () use ($data) {
+        $manualDate = $request->input('manual_created_at');
+        $createdAt  = (auth()->user()?->isAdmin() && $manualDate)
+            ? \Carbon\Carbon::parse($manualDate)
+            : now();
+
+        DB::transaction(function () use ($data, $createdAt) {
             $batch = RawMaterialBatch::create([
                 'product_id'         => $data['product_id'],
                 'initial_quantity'   => $data['quantity'],
@@ -164,6 +169,8 @@ class RawMaterialBatchController extends Controller
                 'current_worker_id'  => $data['worker_id'],
                 'batch_number'       => $data['batch_number'],
                 'status'             => 'active',
+                'created_at'         => $createdAt,
+                'updated_at'         => $createdAt,
             ]);
 
             RawMaterialMovement::create([
@@ -235,7 +242,12 @@ class RawMaterialBatchController extends Controller
 
         $movement = null;
 
-        DB::transaction(function () use ($batch, $delta, $newRemaining, $data, $batchStoreId, &$movement) {
+        $manualDate = $request->input('manual_created_at');
+        $createdAt  = (auth()->user()?->isAdmin() && $manualDate)
+            ? \Carbon\Carbon::parse($manualDate)
+            : now();
+
+        DB::transaction(function () use ($batch, $delta, $newRemaining, $data, $batchStoreId, $createdAt, &$movement) {
             // Обновляем остаток и статус партии
             $newStatus = $batch->status;
             if ($newRemaining <= 0) {
@@ -267,6 +279,8 @@ class RawMaterialBatchController extends Controller
                 'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => $delta > 0 ? 'create' : 'use',
                 'quantity'       => abs($delta),
+                'created_at'     => $createdAt,
+                'updated_at'     => $createdAt,
             ]);
         });
 

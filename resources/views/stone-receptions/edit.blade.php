@@ -205,6 +205,21 @@
                                 @error('notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
+                            @if(auth()->user()?->isAdmin())
+                                {{-- Поле для администратора: ручная дата --}}
+                                <div class="mb-3 p-3 border border-warning rounded bg-warning bg-opacity-10">
+                                    <label class="form-label fw-semibold text-warning-emphasis">
+                                        <i class="bi bi-calendar-event"></i> Дата создания
+                                        <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Только для админа</span>
+                                    </label>
+                                    <input type="datetime-local"
+                                           name="manual_created_at"
+                                           class="form-control"
+                                           value="{{ old('manual_created_at', $stoneReception->created_at->format('Y-m-d\TH:i')) }}">
+                                    <div class="form-text">Измените если нужно скорректировать дату приёмки</div>
+                                </div>
+                            @endif
+
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-save"></i> Сохранить
