@@ -9,6 +9,7 @@ export default defineConfig({
                 'resources/css/custom.css',
                 'resources/js/app.js',
                 'resources/js/product-picker.js',
+                'resources/js/tree-view.js',
             ],
             refresh: true,
         }),
