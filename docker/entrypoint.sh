@@ -80,10 +80,5 @@ mkdir -p storage/logs storage/framework/{sessions,views,cache} bootstrap/cache
 chmod -R 775 storage bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 
-# Права на /run для сокетов
-mkdir -p /run
-chown root:www-data /run
-chmod 775 /run
-
-echo "✅ Запускаем сервер..."
-exec supervisord -c /etc/supervisor/conf.d/supervisord.conf
+echo "✅ Запускаем Apache..."
+exec apache2-foreground

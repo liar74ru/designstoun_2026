@@ -37,17 +37,20 @@ RUN composer install \
 
 
 # ============================================================
-#  STAGE 3 — финальный образ
+#  STAGE 3 — финальный образ: Apache + mod_php
 # ============================================================
-FROM php:8.4-fpm-alpine AS app
+FROM php:8.4-apache AS app
 
-RUN apk add --no-cache \
-    nginx supervisor postgresql-dev libpng-dev \
-    libzip-dev oniguruma-dev icu-dev curl bash
+# Системные зависимости + расширения PHP
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq-dev libpng-dev libzip-dev libonig-dev libicu-dev \
+        curl unzip \
+    && docker-php-ext-install \
+        pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip intl opcache \
+    && a2enmod rewrite \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN docker-php-ext-install \
-    pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip intl opcache
-
+# PHP настройки
 RUN cat > /usr/local/etc/php/conf.d/app.ini <<'EOINI'
 upload_max_filesize = 32M
 post_max_size       = 32M
@@ -70,40 +73,31 @@ opcache.save_comments           = 1
 opcache.fast_shutdown           = 1
 EOINI
 
-RUN cat > /usr/local/etc/php-fpm.d/www.conf <<'EOINI'
-[www]
-user  = www-data
-group = www-data
-listen = /run/php-fpm.sock
-listen.owner = www-data
-listen.group = www-data
-listen.mode  = 0660
-pm                   = dynamic
-pm.max_children      = 10
-pm.start_servers     = 2
-pm.min_spare_servers = 1
-pm.max_spare_servers = 3
-pm.max_requests      = 500
-clear_env            = no
-catch_workers_output = yes
-php_admin_value[error_log]  = /proc/self/fd/2
-php_admin_flag[log_errors]  = on
-EOINI
+# Apache VirtualHost для Laravel
+RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOCONF'
+<VirtualHost *:80>
+    DocumentRoot /var/www/html/public
+    DirectoryIndex index.php index.html
 
-# Включаем error_log php-fpm master процесса
-RUN sed -i 's|^;error_log = log/php-fpm.log|error_log = /proc/1/fd/2|' /usr/local/etc/php-fpm.conf
+    <Directory /var/www/html/public>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
 
-RUN mkdir -p /etc/supervisor/conf.d
-COPY docker/nginx.conf        /etc/nginx/http.d/default.conf
-COPY docker/supervisord.conf  /etc/supervisor/conf.d/supervisord.conf
+    ErrorLog  /proc/1/fd/2
+    CustomLog /proc/1/fd/1 combined
+</VirtualHost>
+EOCONF
+
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /var/www/html
 
 COPY --chown=www-data:www-data . .
-COPY --from=vendor  --chown=www-data:www-data /app/vendor        ./vendor
-COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
+COPY --from=vendor   --chown=www-data:www-data /app/vendor        ./vendor
+COPY --from=frontend --chown=www-data:www-data /app/public/build  ./public/build
 
 RUN mkdir -p storage/logs storage/framework/{sessions,views,cache} bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache \
