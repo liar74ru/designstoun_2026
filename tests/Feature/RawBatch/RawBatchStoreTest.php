@@ -37,7 +37,7 @@ describe('Создание партии [store()]', function () {
         $batch = RawMaterialBatch::where('product_id', $product->id)->first();
         expect($batch)->not->toBeNull();
         expect((float) $batch->remaining_quantity)->toBe(10.0);
-        expect($batch->status)->toBe('active');
+        expect($batch->status)->toBe('new');
         expect($batch->batch_number)->toBe('26-12-Тест-01');
 
         // Остатки обновлены
@@ -103,7 +103,7 @@ describe('Корректировка партии [adjust()]', function () {
 
         $batch->refresh();
         expect((float) $batch->remaining_quantity)->toBe(15.0);
-        expect($batch->status)->toBe('active');
+        expect($batch->status)->toBe('in_work');
 
         expect((float) ProductStock::where('product_id', $product->id)
             ->where('store_id', $store->id)->value('quantity'))->toBe(15.0);
@@ -231,7 +231,7 @@ describe('Архивирование партии [archive()]', function () {
             ->assertSessionHas('error');
 
         $batch->refresh();
-        expect($batch->status)->toBe('active');
+        expect($batch->status)->toBe('in_work');
     });
 
     test('нельзя архивировать партию с ненулевым остатком', function () {

@@ -13,7 +13,7 @@ use Tests\Helpers\ReceptionTestHelper as H;
 describe('RawMaterialBatch модель', function () {
 
     test('isActive() возвращает true для статуса active', function () {
-        $batch = new RawMaterialBatch(['status' => 'active']);
+        $batch = new RawMaterialBatch(['status' => 'in_work']);
         expect($batch->isActive())->toBeTrue();
     });
 
@@ -26,14 +26,14 @@ describe('RawMaterialBatch модель', function () {
 
     test('isArchived() верно определяет архив', function () {
         expect((new RawMaterialBatch(['status' => 'archived']))->isArchived())->toBeTrue();
-        expect((new RawMaterialBatch(['status' => 'active']))->isArchived())->toBeFalse();
+        expect((new RawMaterialBatch(['status' => 'in_work']))->isArchived())->toBeFalse();
     });
 
     test('canBeArchived() требует used/returned И нулевой остаток', function () {
         $b1 = new RawMaterialBatch(['status' => 'used',    'remaining_quantity' => 0.0]);
         $b2 = new RawMaterialBatch(['status' => 'returned','remaining_quantity' => 0.0]);
         $b3 = new RawMaterialBatch(['status' => 'used',    'remaining_quantity' => 1.5]);
-        $b4 = new RawMaterialBatch(['status' => 'active',  'remaining_quantity' => 0.0]);
+        $b4 = new RawMaterialBatch(['status' => 'in_work',  'remaining_quantity' => 0.0]);
 
         expect($b1->canBeArchived())->toBeTrue();
         expect($b2->canBeArchived())->toBeTrue();
@@ -43,7 +43,7 @@ describe('RawMaterialBatch модель', function () {
 
     test('canBeEdited() запрещает редактирование архивной партии', function () {
         expect((new RawMaterialBatch(['status' => 'archived']))->canBeEdited())->toBeFalse();
-        expect((new RawMaterialBatch(['status' => 'active']))->canBeEdited())->toBeTrue();
+        expect((new RawMaterialBatch(['status' => 'in_work']))->canBeEdited())->toBeTrue();
         expect((new RawMaterialBatch(['status' => 'used']))->canBeEdited())->toBeTrue();
     });
 

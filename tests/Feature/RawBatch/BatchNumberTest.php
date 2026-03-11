@@ -42,7 +42,7 @@ test('вторая партия того же пильщика за ту же н
         'remaining_quantity' => 10,
         'current_store_id'   => $store->id,
         'current_worker_id'  => $worker->id,
-        'status'             => 'active',
+        'status'             => 'in_work',
         'created_at'         => now(),
     ]);
 
@@ -66,7 +66,7 @@ test('партии прошлой недели не влияют на счётч
         'remaining_quantity' => 5,
         'current_store_id'   => $store->id,
         'current_worker_id'  => $worker->id,
-        'status'             => 'active',
+        'status'             => 'in_work',
         'created_at'         => $lastWeek,
         'updated_at'         => $lastWeek,
     ]);

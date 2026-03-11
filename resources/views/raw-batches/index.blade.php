@@ -118,15 +118,9 @@
                                     </span>
                                 </td>
                                 <td>
-                                    @if($batch->status === 'active')
-                                        <span class="badge bg-success">Активна</span>
-                                    @elseif($batch->status === 'used')
-                                        <span class="badge bg-warning text-dark">Израсходована</span>
-                                    @elseif($batch->status === 'archived')
-                                        <span class="badge bg-dark">Архив</span>
-                                    @else
-                                        <span class="badge bg-secondary">Возвращена</span>
-                                    @endif
+                                    <span class="badge {{ $batch->statusBadgeClass() }}">
+                                        {{ $batch->statusLabel() }}
+                                    </span>
                                 </td>
                                 <td>{{ $batch->currentStore->name ?? '—' }}</td>
                                 <td>{{ $batch->currentWorker->name ?? '—' }}</td>
@@ -135,6 +129,20 @@
                                     <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-sm btn-outline-info" title="Просмотр">
                                         <i class="bi bi-eye"></i>
                                     </a>
+                                    @if($batch->canBeEditedOrDeleted())
+                                        <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-sm btn-outline-secondary" title="Редактировать">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
+                                              class="d-inline"
+                                              onsubmit="return confirm('Удалить партию #{{ $batch->id }}? Это действие необратимо.')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить партию">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    @endif
                                     @if($batch->status !== 'archived')
                                         <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-sm btn-outline-success" title="Скорректировать количество">
                                             <i class="bi bi-plus-slash-minus"></i>
@@ -144,7 +152,7 @@
                                     <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-sm btn-outline-primary" title="Создать копию">
                                         <i class="bi bi-copy"></i>
                                     </a>
-                                    @if($batch->status === 'active')
+                                    @if($batch->isWorkable())
                                         <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-sm btn-outline-warning" title="Передать пильщику">
                                             <i class="bi bi-arrow-left-right"></i>
                                         </a>

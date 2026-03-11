@@ -67,6 +67,9 @@ Route::middleware(['auth'])->group(function () {
     // Партии сырья
     Route::resource('raw-batches', RawMaterialBatchController::class)->except(['edit', 'update', 'store']);
     Route::post('raw-batches', [RawMaterialBatchController::class, 'store'])->name('raw-batches.store');
+    Route::get('raw-batches/{batch}/edit', [RawMaterialBatchController::class, 'edit'])->name('raw-batches.edit');
+    Route::put('raw-batches/{batch}', [RawMaterialBatchController::class, 'update'])->name('raw-batches.update');
+    Route::delete('raw-batches/{batch}/new', [RawMaterialBatchController::class, 'destroyNew'])->name('raw-batches.destroy-new');
     Route::get('raw-batches/{batch}/copy', [RawMaterialBatchController::class, 'copy'])->name('raw-batches.copy');
     Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])->name('raw-batches.transfer.form');
     Route::post('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transfer'])->name('raw-batches.transfer');

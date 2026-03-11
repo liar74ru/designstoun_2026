@@ -8,12 +8,12 @@ use App\Models\StoneReception;
 trait HandlesBatchStock
 {
     /**
-     * Получает активные партии сырья
+     * Получает партии сырья доступные для производства (статусы: new, in_work)
      */
     protected function getActiveBatches($workerId = null)
     {
         $query = RawMaterialBatch::with(['product', 'currentWorker'])
-            ->where('status', 'active')
+            ->whereIn('status', [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])
             ->where('remaining_quantity', '>', 0);
 
         if ($workerId) {

@@ -395,9 +395,10 @@ class StoneReceptionController extends Controller
         if ($newBatch->remaining_quantity <= 0) {
             $newBatch->remaining_quantity = 0;
             $newBatch->status = 'used';
-        } elseif ($newBatch->status === 'used') {
             // Если вернули сырьё в партию которая была закрыта — снова активируем
-            $newBatch->status = 'active';
+        } elseif ($newBatch->status === 'used') {
+            // Производство уже было — возвращаем в 'in_work'
+            $newBatch->status = \App\Models\RawMaterialBatch::STATUS_IN_WORK;
         }
 
         $newBatch->save();

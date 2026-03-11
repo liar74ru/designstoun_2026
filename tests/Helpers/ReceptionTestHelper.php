@@ -69,7 +69,8 @@ class ReceptionTestHelper
     }
 
     /**
-     * Создать активную партию сырья с нужным остатком.
+     * Создать партию сырья с нужным остатком.
+     * По умолчанию статус 'in_work' (бывший 'active').
      * ВАЖНО: не вызывает booted-хуки StoneReception — создаёт напрямую.
      */
     public static function batch(
@@ -85,8 +86,23 @@ class ReceptionTestHelper
             'remaining_quantity' => $qty,
             'current_store_id'   => $store->id,
             'current_worker_id'  => $worker->id,
-            'status'             => 'active',
+            'status'             => RawMaterialBatch::STATUS_IN_WORK,
             'batch_number'       => 'TEST-01',
+        ], $attrs));
+    }
+
+    /**
+     * Создать партию со статусом 'new' (ещё без действий)
+     */
+    public static function newBatch(
+        Product $product,
+        Store   $store,
+        Worker  $worker,
+        float   $qty = 100.0,
+        array   $attrs = []
+    ): RawMaterialBatch {
+        return self::batch($product, $store, $worker, $qty, array_merge([
+            'status' => RawMaterialBatch::STATUS_NEW,
         ], $attrs));
     }
 

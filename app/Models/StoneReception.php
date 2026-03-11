@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\RawMaterialBatch;
 
 class StoneReception extends Model
 {
@@ -220,8 +221,11 @@ class StoneReception extends Model
 
                 // Если сырье закончилось, меняем статус партии
                 if ($batch->remaining_quantity <= 0) {
-                    $batch->status = 'used';
+                    $batch->status = RawMaterialBatch::STATUS_USED;
                     $batch->remaining_quantity = 0;
+                } else {
+                    // Как только произведена первая приёмка — партия переходит в работу
+                    $batch->status = RawMaterialBatch::STATUS_IN_WORK;
                 }
                 $batch->save();
 
@@ -273,7 +277,8 @@ class StoneReception extends Model
                 $batch->remaining_quantity += $reception->raw_quantity_used;
 
                 if ($batch->remaining_quantity > 0) {
-                    $batch->status = 'active';
+                    // При возврате сырья партия снова "в работе" (уже было производство)
+                    $batch->status = RawMaterialBatch::STATUS_IN_WORK;
                 }
                 $batch->save();
 

@@ -35,7 +35,7 @@ describe('RawMaterialBatchController index()', function () {
 
     test('фильтр по статусу не ломает страницу', function () {
         $this->actingAs(H::adminUser())
-            ->get(route('raw-batches.index', ['filter[status]' => 'active']))
+            ->get(route('raw-batches.index', ['filter[status]' => 'in_work']))
             ->assertStatus(200);
     });
 

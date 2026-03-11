@@ -142,7 +142,7 @@ describe('Возврат партии на склад [return()]', function () {
             'remaining_quantity' => 10.0,
             'current_store_id'   => $store->id,
             'current_worker_id'  => null,
-            'status'             => 'active',
+            'status'             => 'in_work',
         ]);
 
         $this->actingAs($user)

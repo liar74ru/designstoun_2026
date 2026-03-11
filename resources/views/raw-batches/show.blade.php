@@ -11,6 +11,25 @@
             </a>
         </div>
 
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="bi bi-check-circle-fill"></i> {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="bi bi-exclamation-triangle-fill"></i> {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+        @if(session('info'))
+            <div class="alert alert-info alert-dismissible fade show">
+                <i class="bi bi-info-circle-fill"></i> {{ session('info') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
         <div class="row">
             <!-- Левая колонка: информация о партии -->
             <div class="col-md-6">
@@ -53,15 +72,9 @@
                             <tr>
                                 <th>Статус:</th>
                                 <td>
-                                    @if($batch->status === 'active')
-                                        <span class="badge bg-success">Активна</span>
-                                    @elseif($batch->status === 'used')
-                                        <span class="badge bg-warning text-dark">Израсходована</span>
-                                    @elseif($batch->status === 'archived')
-                                        <span class="badge bg-dark">Архив</span>
-                                    @else
-                                        <span class="badge bg-secondary">Возвращена</span>
-                                    @endif
+                                    <span class="badge {{ $batch->statusBadgeClass() }}">
+                                        {{ $batch->statusLabel() }}
+                                    </span>
                                 </td>
                             </tr>
                             <tr>
@@ -85,12 +98,19 @@
                         <div class="card-body">
                             <div class="d-flex flex-wrap gap-2">
 
+                                {{-- Редактировать / удалить — только для статуса 'new' --}}
+                                @if($batch->canBeEditedOrDeleted())
+                                    <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-pencil"></i> Редактировать
+                                    </a>
+                                @endif
+
                                 {{-- Корректировка количества — для любой не-архивной партии --}}
                                 <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-outline-primary">
                                     <i class="bi bi-plus-slash-minus"></i> Скорректировать количество
                                 </a>
 
-                                @if($batch->status === 'active')
+                                @if($batch->isWorkable())
                                     <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-warning">
                                         <i class="bi bi-arrow-left-right"></i> Передать пильщику
                                     </a>

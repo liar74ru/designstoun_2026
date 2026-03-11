@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
-use App\Models\ProductStock;
 use App\Models\Store;
 use App\Services\MoySkladMoveService;
 use Illuminate\Http\Request;
@@ -57,7 +57,7 @@ class RawMaterialMovementController extends Controller
                 'current_store_id'    => $data['to_store_id'],
                 'current_worker_id'   => $data['worker_id'],
                 'batch_number'        => $data['batch_number'] ?? null,
-                'status'              => 'active',
+                'status'              => RawMaterialBatch::STATUS_NEW,
                 'created_at'          => $createdAt,
                 'updated_at'          => $createdAt,
             ]);
@@ -115,7 +115,8 @@ class RawMaterialMovementController extends Controller
                 ],
                 'name' => 'Партия: ' . ($data['batch_number'] ?? $batch->id),
                 'description' => 'Автоматическое перемещение из системы',
-                'external_id' => 'movement_' . $movement->id
+                'external_id' => 'movement_' . $movement->id,
+                'created_at'  => $batch->created_at,
             ];
 
             $result = $this->moySkladMoveService->createMove($moveData);

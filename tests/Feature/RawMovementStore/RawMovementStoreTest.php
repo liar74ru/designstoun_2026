@@ -50,7 +50,7 @@ describe('RawMaterialMovementController store()', function () {
         expect((float) $batch->initial_quantity)->toBe(10.0);
         expect($batch->current_store_id)->toBe($to->id);
         expect($batch->current_worker_id)->toBe($cutter->id);
-        expect($batch->status)->toBe('active');
+        expect($batch->status)->toBe('new');
 
         // Движение записано
         $movement = RawMaterialMovement::where('batch_id', $batch->id)->first();
@@ -255,7 +255,7 @@ describe('RawMaterialMovementController return()', function () {
             'remaining_quantity' => 10.0,
             'current_store_id'   => $store->id,
             'current_worker_id'  => null,
-            'status'             => 'active',
+            'status'             => 'in_work',
         ]);
 
         $this->actingAs($user)

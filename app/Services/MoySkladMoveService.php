@@ -183,7 +183,10 @@ class MoySkladMoveService
                 $moveData['externalCode'] = $data['external_id'];
             }
 
-            // Создаем перемещение
+            if (!empty($data['created_at'])) {
+                // МойСклад ожидает формат: 2024-01-15 14:30:00.000
+                $moveData['moment'] = \Carbon\Carbon::parse($data['created_at'])->format('Y-m-d H:i:s.000');
+            }
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->token,
                 'Accept-Encoding' => 'gzip',
@@ -272,6 +275,7 @@ class MoySkladMoveService
             if (!empty($data['name']))        $moveData['name']         = $data['name'];
             if (!empty($data['description'])) $moveData['description']  = $data['description'];
             if (!empty($data['external_id'])) $moveData['externalCode'] = $data['external_id'];
+            if (!empty($data['created_at']))  $moveData['moment']       = \Carbon\Carbon::parse($data['created_at'])->format('Y-m-d H:i:s.000');
 
             $response = Http::withHeaders([
                 'Authorization'   => 'Bearer ' . $this->token,
@@ -297,6 +301,54 @@ class MoySkladMoveService
         } catch (\Exception $e) {
             Log::error('Исключение при обновлении перемещения', ['move_id' => $moveId, 'error' => $e->getMessage()]);
             $result['message'] = 'Ошибка: ' . $e->getMessage();
+            return $result;
+        }
+    }
+
+    /**
+     * Удалить перемещение в МойСклад (DELETE /entity/move/{id})
+     *
+     * @param string $moveId UUID перемещения в МойСклад
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function deleteMove(string $moveId): array
+    {
+        $result = ['success' => false, 'message' => ''];
+
+        if (!$this->hasCredentials()) {
+            $result['message'] = 'MoySklad токен не установлен';
+            return $result;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization'   => 'Bearer ' . $this->token,
+                'Accept-Encoding' => 'gzip',
+            ])->delete($this->baseUrl . '/entity/move/' . $moveId);
+
+            if ($response->status() === 200 || $response->status() === 204) {
+                $result['success'] = true;
+                $result['message'] = 'Перемещение удалено';
+                Log::info('Перемещение удалено в МойСклад', ['move_id' => $moveId]);
+            } else {
+                $result['message'] = 'Ошибка API МойСклад: '
+                    . ($response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка')
+                    . ' (HTTP ' . $response->status() . ')';
+                Log::error('Ошибка удаления перемещения в МойСклад', [
+                    'move_id'  => $moveId,
+                    'status'   => $response->status(),
+                    'response' => $response->json(),
+                ]);
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            $result['message'] = 'Ошибка: ' . $e->getMessage();
+            Log::error('Исключение при удалении перемещения в МойСклад', [
+                'move_id' => $moveId,
+                'error'   => $e->getMessage(),
+            ]);
             return $result;
         }
     }
