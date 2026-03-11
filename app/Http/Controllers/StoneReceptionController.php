@@ -243,6 +243,7 @@ class StoneReceptionController extends Controller
                     'receiver_id'           => $reception->receiver_id,
                     'type'                  => ReceptionLog::TYPE_CREATED,
                     'raw_quantity_delta'    => (float) $reception->raw_quantity_used,
+                    'created_at'            => $reception->created_at,
                 ]);
                 foreach ($reception->items as $item) {
                     ReceptionLogItem::create([
@@ -343,6 +344,7 @@ class StoneReceptionController extends Controller
                     'receiver_id'           => $stoneReception->receiver_id,
                     'type'                  => ReceptionLog::TYPE_UPDATED,
                     'raw_quantity_delta'    => $rawDelta,
+                    'created_at'            => $stoneReception->created_at,
                 ]);
 
                 foreach ($deltas as $productId => $delta) {
