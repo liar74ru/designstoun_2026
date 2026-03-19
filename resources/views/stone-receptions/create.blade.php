@@ -99,7 +99,7 @@
                                     <input type="number" step="0.001" min="0.001"
                                            name="raw_quantity_used" id="rawQtyInput"
                                            class="form-control @error('raw_quantity_used') is-invalid @enderror"
-                                           value="{{ old('raw_quantity_used', 1) }}" required>
+                                           value="{{ old('raw_quantity_used', 2) }}" required>
                                     <div class="form-text" id="remainingInfo"></div>
                                     @error('raw_quantity_used')
                                     <div class="invalid-feedback">{{ $message }}</div>

@@ -266,6 +266,26 @@ class StoneReceptionController extends Controller
     }
 
     /**
+     * Детальная страница приемки
+     */
+    public function show(StoneReception $stoneReception)
+    {
+        $stoneReception->load([
+            'receiver',
+            'cutter',
+            'store',
+            'items.product',
+            'rawMaterialBatch.product',
+            'receptionLogs' => fn($q) => $q->orderBy('created_at', 'asc'),
+            'receptionLogs.items.product',
+            'receptionLogs.receiver',
+            'receptionLogs.cutter',
+        ]);
+
+        return view('stone-receptions.show', compact('stoneReception'));
+    }
+
+    /**
      * Форма редактирования
      */
     public function edit(StoneReception $stoneReception)
