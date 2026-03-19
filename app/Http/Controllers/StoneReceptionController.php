@@ -572,7 +572,7 @@ class StoneReceptionController extends Controller
         $validated = $request->validate([
             'items'              => ['required', 'array'],
             'items.*.item_id'    => ['required', 'integer'],
-            'items.*.base_coeff' => ['required', 'numeric', 'min:0'],
+            'items.*.base_coeff' => ['required', 'numeric'],
             'items.*.is_undercut'=> ['nullable', 'boolean'],
         ]);
 

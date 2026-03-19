@@ -294,7 +294,7 @@
                                                     <input type="number"
                                                            name="items[{{ $i }}][base_coeff]"
                                                            class="form-control form-control-sm text-center coeff-base-input"
-                                                           step="0.0001" min="0"
+                                                           step="0.0001"
                                                            value="{{ number_format($item->base_coeff, 4, '.', '') }}"
                                                            data-row="{{ $i }}">
                                                 </td>
