@@ -142,14 +142,15 @@
 
                                 {{-- Шапка колонок --}}
                                 <div class="row text-muted small fw-semibold px-1 mb-1" style="font-size:11px">
-                                    <div class="col-5">Продукт</div>
+                                    <div class="col-4">Продукт</div>
                                     <div class="col-2 text-end">Сейчас</div>
                                     <div class="col-2 text-center">Изменение</div>
-                                    <div class="col-2 text-end">Итого</div>
+                                    <div class="col-1 text-end">Итого</div>
+                                    <div class="col-2 text-center text-muted">Коэф. (зафикс.)</div>
                                     <div class="col-1"></div>
                                 </div>
 
-                                {{-- Существующие позиции: рендерим на сервере, дельта вводится пользователем --}}
+                                {{-- Существующие позиции: коэффициент readonly --}}
                                 <div id="existing-products">
                                     @foreach($stoneReception->items as $item)
                                         @php $current = (float)$item->quantity; $idx = $loop->index; @endphp
@@ -161,7 +162,7 @@
                                             {{-- delta — то что ввёл пользователь, по умолчанию 0 --}}
                                             <input type="hidden" class="js-qty-out" name="products[{{ $idx }}][quantity]" value="{{ $current }}">
 
-                                            <div class="col-5">
+                                            <div class="col-4">
                                                 <span class="small">{{ $item->product->name ?? '—' }}</span>
                                             </div>
                                             <div class="col-2 text-end text-muted small">
@@ -174,8 +175,18 @@
                                                        value="0"
                                                        placeholder="0">
                                             </div>
-                                            <div class="col-2 text-end">
+                                            <div class="col-1 text-end">
                                                 <span class="js-result small fw-semibold">{{ number_format($current, 3, '.', '') }}</span>
+                                            </div>
+                                            {{-- Зафиксированный коэффициент — только для чтения --}}
+                                            <div class="col-2 text-center">
+                                                <span class="badge bg-light text-secondary border small"
+                                                      title="Коэффициент зафиксирован на момент создания приёмки">
+                                                    {{ number_format($item->effective_cost_coeff ?? $item->product?->prod_cost_coeff ?? 0, 4) }}
+                                                    @if($item->is_undercut)
+                                                        <span class="text-warning ms-1" title="80% подкол">⚡</span>
+                                                    @endif
+                                                </span>
                                             </div>
                                             <div class="col-1 text-end">
                                                 <button type="button" class="btn btn-sm btn-outline-danger js-remove-existing" title="Убрать">
@@ -186,7 +197,7 @@
                                     @endforeach
                                 </div>
 
-                                {{-- Новые продукты: тот же формат — "0 + delta = итого" --}}
+                                {{-- Новые продукты: тот же формат — «0 + delta = итого» + чекбокс подкол --}}
                                 <div id="new-products-container" class="mt-1"></div>
 
                                 <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addProductBtn">
@@ -318,9 +329,63 @@
                 });
             });
 
+            // ── Коэффициенты для новых продуктов ─────────────────────────────────────
+            const productCoeffCache = {};
+
+            async function fetchProductCoeff(productId) {
+                if (!productId) return null;
+                if (productCoeffCache[productId] !== undefined) return productCoeffCache[productId];
+                try {
+                    const res = await fetch(`/api/products/${productId}/coeff`);
+                    if (!res.ok) return null;
+                    const data = await res.json();
+                    productCoeffCache[productId] = data.prod_cost_coeff ?? 0;
+                    return productCoeffCache[productId];
+                } catch { return null; }
+            }
+
+            function updateNewRowCoeff(row) {
+                const undercutCb   = row.querySelector('.js-new-undercut');
+                const coeffDisplay = row.querySelector('.js-new-coeff-display');
+                if (!coeffDisplay) return;
+
+                const baseCoeff = parseFloat(coeffDisplay.dataset.baseCoeff);
+                if (isNaN(baseCoeff)) return;
+
+                const isUndercut = undercutCb?.checked || false;
+                const effective  = isUndercut ? baseCoeff - 1.5 : baseCoeff;
+                coeffDisplay.textContent = isUndercut
+                    ? `${baseCoeff.toFixed(4)} − 1.5 = ${effective.toFixed(4)}`
+                    : baseCoeff.toFixed(4);
+                coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut);
+                coeffDisplay.classList.toggle('text-dark', !isUndercut);
+            }
+
+            document.addEventListener('product-picker:selected', async function (e) {
+                const row       = e.detail?.row;
+                const productId = e.detail?.productId;
+                if (!row || !productId || !row.classList.contains('new-product-row')) return;
+
+                const coeffDisplay = row.querySelector('.js-new-coeff-display');
+                if (coeffDisplay) {
+                    const coeff = await fetchProductCoeff(productId);
+                    if (coeff !== null) {
+                        coeffDisplay.dataset.baseCoeff = coeff;
+                        updateNewRowCoeff(row);
+                    }
+                }
+            });
+
             // ── Новые продукты ────────────────────────────────────────────────────────
             let newIdx = {{ $stoneReception->items->count() }};
             const newContainer = document.getElementById('new-products-container');
+
+            newContainer.addEventListener('change', function (e) {
+                if (e.target.classList.contains('js-new-undercut')) {
+                    const row = e.target.closest('.new-product-row');
+                    if (row) updateNewRowCoeff(row);
+                }
+            });
 
             function addNewProduct() {
                 const idx   = newIdx++;
@@ -404,12 +469,12 @@
     </script>
 @endpush
 
-{{-- Шаблон для новых продуктов: формат "0 (readonly) + delta = итого" --}}
+{{-- Шаблон для новых продуктов: формат «0 (readonly) + delta = итого» + чекбокс подкол --}}
 <template id="editPickerRowTemplate">
     <div class="new-product-row row align-items-center mb-2 px-1">
 
         {{-- Поиск продукта --}}
-        <div class="col-5 position-relative">
+        <div class="col-4 position-relative">
             <div class="input-group input-group-sm">
                 <input type="text"
                        id="edit_search___IDX__"
@@ -446,8 +511,26 @@
         </div>
 
         {{-- Итог = delta (т.к. current = 0) — это и есть quantity --}}
-        <div class="col-2 text-end">
+        <div class="col-1 text-end">
             <span class="js-new-result small fw-semibold text-muted">—</span>
+        </div>
+
+        {{-- Модификаторы и коэффициент --}}
+        <div class="col-2 text-center">
+            <div class="form-check mb-0 d-flex align-items-center gap-1 justify-content-center">
+                <input class="form-check-input js-new-undercut"
+                       type="checkbox"
+                       id="edit_undercut___IDX__"
+                       name="products[__IDX__][is_undercut]"
+                       value="1"
+                       data-tpl-idx="1">
+                <label class="form-check-label small text-warning-emphasis fw-semibold"
+                       for="edit_undercut___IDX__"
+                       title="Снижает коэффициент на 1.5">80% подкол</label>
+            </div>
+            <div class="text-muted" style="font-size:10px">
+                коэф: <span class="js-new-coeff-display fw-semibold text-dark" data-base-coeff="">—</span>
+            </div>
         </div>
 
         {{-- Скрытые поля для отправки --}}

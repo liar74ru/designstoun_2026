@@ -121,7 +121,7 @@
                         <tr>
                             <th>Продукт</th>
                             <th class="text-end">Количество</th>
-                            <th class="text-end">Коэф.</th>
+                            <th class="text-end" title="Коэффициент зафиксирован на момент приёмки">Коэф. (факт.)</th>
                             <th class="text-end">Ставка</th>
                             <th class="text-end">Заработано</th>
                         </tr>
@@ -131,7 +131,10 @@
                             <tr>
                                 <td>{{ $row['product']?->name ?? '—' }}</td>
                                 <td class="text-end">{{ number_format($row['quantity'], 3, ',', ' ') }}</td>
-                                <td class="text-end text-muted">× {{ number_format($row['coeff'], 4, ',', ' ') }}</td>
+                                <td class="text-end text-muted">
+                                    × {{ number_format($row['coeff'], 4, ',', ' ') }}
+                                    <span class="text-muted small ms-1" title="Коэффициент взят из зафиксированных значений приёмки">🔒</span>
+                                </td>
                                 <td class="text-end text-muted">× {{ number_format(\App\Models\Product::PIECE_RATE, 0, ',', ' ') }} ₽</td>
                                 <td class="text-end fw-semibold text-success">
                                     {{ number_format($row['pay'], 2, ',', ' ') }} ₽

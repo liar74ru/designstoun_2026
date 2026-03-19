@@ -171,15 +171,24 @@
 
                 {{-- Продукты приёмки --}}
                 <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">📦 Принятая продукция</h5>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-warning"
+                                id="toggleCoeffEdit"
+                                title="Редактировать коэффициенты (для корректировки ошибочно заданного значения)">
+                            <i class="bi bi-pencil-square"></i> Коэффициенты
+                        </button>
                     </div>
                     <div class="card-body p-0">
                         @if($stoneReception->items->count() > 0)
-                            <table class="table table-sm mb-0">
+                            {{-- Таблица просмотра --}}
+                            <table class="table table-sm mb-0" id="itemsViewTable">
                                 <thead class="table-light">
                                 <tr>
                                     <th>Продукт</th>
+                                    <th class="text-center">Подкол</th>
+                                    <th class="text-end">Коэф.</th>
                                     <th class="text-end">Кол-во</th>
                                 </tr>
                                 </thead>
@@ -198,6 +207,27 @@
                                                 <span class="text-danger">Продукт не найден (ID: {{ $item->product_id }})</span>
                                             @endif
                                         </td>
+                                        <td class="text-center">
+                                            @if($item->is_undercut)
+                                                <span class="badge bg-warning text-dark" title="80% подкол: −1.5 к коэф.">⚡ 80% подкол</span>
+                                            @else
+                                                <span class="text-muted small">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-end">
+                                            @if($item->effective_cost_coeff !== null)
+                                                <span class="badge bg-light border text-dark">
+                                                    {{ number_format($item->effective_cost_coeff, 4) }}
+                                                </span>
+                                                @if($item->is_undercut)
+                                                    <br><small class="text-muted" style="font-size:10px">
+                                                        база: {{ number_format($item->base_coeff, 4) }}
+                                                    </small>
+                                                @endif
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
                                         <td class="text-end">
                                             <span class="badge bg-primary">
                                                 {{ number_format($item->quantity, 3) }} м²
@@ -208,7 +238,7 @@
                                 </tbody>
                                 <tfoot class="table-light">
                                 <tr>
-                                    <th>Итого:</th>
+                                    <th colspan="3">Итого:</th>
                                     <th class="text-end">
                                         <span class="badge bg-primary">
                                             {{ number_format($stoneReception->items->sum('quantity'), 3) }} м²
@@ -223,7 +253,7 @@
                                             : 0;
                                     @endphp
                                     <tr>
-                                        <th colspan="2" class="text-muted small fw-normal">
+                                        <th colspan="4" class="text-muted small fw-normal">
                                             Коэффициент выхода:
                                             {{ number_format($coeff * 100, 1) }}%
                                             (из 1 м³ сырья → {{ number_format($coeff, 3) }} м² плитки)
@@ -232,6 +262,72 @@
                                 @endif
                                 </tfoot>
                             </table>
+
+                            {{-- Форма редактирования коэффициентов (скрыта по умолчанию) --}}
+                            <div id="coeffEditPanel" style="display:none" class="p-3 border-top bg-warning bg-opacity-10">
+                                <div class="d-flex align-items-center gap-2 mb-3">
+                                    <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                                    <span class="small text-warning-emphasis fw-semibold">
+                                        Редактирование коэффициентов — используйте только для исправления ошибочно заданных значений.
+                                        Базовый коэф. берётся из поля ниже, затем применяются флаги (подкол и др.).
+                                    </span>
+                                </div>
+                                <form method="POST"
+                                      action="{{ route('stone-receptions.update-item-coeff', $stoneReception) }}"
+                                      id="coeffEditForm">
+                                    @csrf
+                                    <table class="table table-sm mb-3">
+                                        <thead class="table-light">
+                                        <tr>
+                                            <th>Продукт</th>
+                                            <th class="text-center" style="width:160px">Базовый коэф.</th>
+                                            <th class="text-center" style="width:130px">80% подкол</th>
+                                            <th class="text-end" style="width:130px">Итоговый коэф.</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($stoneReception->items as $i => $item)
+                                            <tr>
+                                                <td class="small">{{ $item->product->name ?? '—' }}</td>
+                                                <td class="text-center">
+                                                    <input type="hidden" name="items[{{ $i }}][item_id]" value="{{ $item->id }}">
+                                                    <input type="number"
+                                                           name="items[{{ $i }}][base_coeff]"
+                                                           class="form-control form-control-sm text-center coeff-base-input"
+                                                           step="0.0001" min="0"
+                                                           value="{{ number_format($item->base_coeff, 4, '.', '') }}"
+                                                           data-row="{{ $i }}">
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="form-check d-flex justify-content-center">
+                                                        <input class="form-check-input coeff-undercut-cb"
+                                                               type="checkbox"
+                                                               name="items[{{ $i }}][is_undercut]"
+                                                               value="1"
+                                                               data-row="{{ $i }}"
+                                                               {{ $item->is_undercut ? 'checked' : '' }}>
+                                                    </div>
+                                                </td>
+                                                <td class="text-end">
+                                                    <span class="badge bg-secondary coeff-result-display"
+                                                          data-row="{{ $i }}">
+                                                        {{ number_format($item->effective_cost_coeff ?? 0, 4) }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-sm btn-warning">
+                                            <i class="bi bi-save"></i> Сохранить коэффициенты
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="cancelCoeffEdit">
+                                            Отмена
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         @else
                             <div class="text-center py-4">
                                 <i class="bi bi-box-seam display-4 text-muted"></i>
@@ -301,3 +397,57 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const toggleBtn    = document.getElementById('toggleCoeffEdit');
+    const cancelBtn    = document.getElementById('cancelCoeffEdit');
+    const editPanel    = document.getElementById('coeffEditPanel');
+    const viewTable    = document.getElementById('itemsViewTable');
+
+    if (!toggleBtn || !editPanel) return;
+
+    function showEdit() {
+        editPanel.style.display = '';
+        toggleBtn.classList.replace('btn-outline-warning', 'btn-warning');
+    }
+    function hideEdit() {
+        editPanel.style.display = 'none';
+        toggleBtn.classList.replace('btn-warning', 'btn-outline-warning');
+    }
+
+    toggleBtn.addEventListener('click', function () {
+        editPanel.style.display === 'none' ? showEdit() : hideEdit();
+    });
+    cancelBtn?.addEventListener('click', hideEdit);
+
+    // Живой пересчёт итогового коэффициента при вводе
+    const UNDERCUT_PENALTY = 1.5;
+
+    function recalcRow(rowIdx) {
+        const baseInput  = document.querySelector(`.coeff-base-input[data-row="${rowIdx}"]`);
+        const undercutCb = document.querySelector(`.coeff-undercut-cb[data-row="${rowIdx}"]`);
+        const display    = document.querySelector(`.coeff-result-display[data-row="${rowIdx}"]`);
+        if (!baseInput || !display) return;
+
+        const base      = parseFloat(baseInput.value) || 0;
+        const undercut  = undercutCb?.checked || false;
+        const effective = undercut ? base - UNDERCUT_PENALTY : base;
+
+        display.textContent = effective.toFixed(4);
+        display.className   = display.className.replace(/bg-\w+/, undercut ? 'bg-warning' : 'bg-secondary');
+    }
+
+    document.querySelectorAll('.coeff-base-input').forEach(el => {
+        el.addEventListener('input', () => recalcRow(el.dataset.row));
+    });
+    document.querySelectorAll('.coeff-undercut-cb').forEach(el => {
+        el.addEventListener('change', () => recalcRow(el.dataset.row));
+    });
+
+    // Инициализация
+    document.querySelectorAll('.coeff-base-input').forEach(el => recalcRow(el.dataset.row));
+});
+</script>
+@endpush

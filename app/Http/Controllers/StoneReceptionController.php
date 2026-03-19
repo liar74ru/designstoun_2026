@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
+use App\Models\StoneReceptionItem;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 use App\Models\Worker;
@@ -148,7 +149,7 @@ class StoneReceptionController extends Controller
         )->with('product')->get();
 
         $filterProducts = Product::whereIn('id',
-            \App\Models\StoneReceptionItem::distinct()->pluck('product_id')
+            StoneReceptionItem::distinct()->pluck('product_id')
         )->orderBy('name')->get();
 
         $filterCutters = Worker::whereIn('id',
@@ -302,7 +303,7 @@ class StoneReceptionController extends Controller
     public function update(Request $request, StoneReception $stoneReception)
     {
         // Вычисляем итоговый raw_quantity_used из дельты ДО валидации,
-        // чтобы валидатор получил готовое значение а не 0 от дельты
+        // чтобы валидатор получил готовое значение, а не 0 от дельты
         $rawDelta = (float) $request->input('raw_quantity_delta', 0);
         $currentRaw = (float) $stoneReception->raw_quantity_used;
         $request->merge(['raw_quantity_used' => $currentRaw + $rawDelta]);
@@ -364,7 +365,7 @@ class StoneReceptionController extends Controller
                     'receiver_id'           => $stoneReception->receiver_id,
                     'type'                  => ReceptionLog::TYPE_UPDATED,
                     'raw_quantity_delta'    => $rawDelta,
-                    'created_at'            => $stoneReception->created_at,
+                    'created_at'            => now(),
                 ]);
 
                 foreach ($deltas as $productId => $delta) {
@@ -498,41 +499,99 @@ class StoneReceptionController extends Controller
     }
 
     /**
-     * Создает позиции продуктов
+     * Создает позиции продуктов.
+     * Фиксирует effective_cost_coeff на момент создания приёмки —
+     * последующие изменения справочника продуктов не затронут эту приёмку.
      */
     private function createReceptionItems(StoneReception $reception, array $products): void
     {
         foreach ($products as $product) {
+            $productModel = Product::find($product['product_id']);
+            $baseCoeff    = (float) ($productModel?->prod_cost_coeff ?? 0);
+            $isUndercut   = !empty($product['is_undercut']);
+            $effCoeff     = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+
             $reception->items()->create([
-                'product_id' => $product['product_id'],
-                'quantity' => $product['quantity'],
+                'product_id'           => $product['product_id'],
+                'quantity'             => $product['quantity'],
+                'effective_cost_coeff' => $effCoeff,
+                'is_undercut'          => $isUndercut,
             ]);
         }
     }
 
     /**
-     * Обновляет позиции продуктов
+     * Обновляет позиции продуктов.
+     *
+     * Для СУЩЕСТВУЮЩИХ позиций — количество обновляется, но effective_cost_coeff
+     * и is_undercut НЕ трогаются (история зафиксирована).
+     * Для НОВЫХ позиций — фиксируем коэффициент на текущий момент.
      */
     private function updateReceptionItems(StoneReception $reception, array $products): void
     {
-        $existingIds = $reception->items()->pluck('id')->toArray();
+        $existingItems = $reception->items()->get()->keyBy('product_id');
 
-        $upsertData = array_map(fn($p) => [
-            'stone_reception_id' => $reception->id,
-            'product_id'         => $p['product_id'],
-            'quantity'           => $p['quantity'],
-            'updated_at'         => now(),
-        ], $products);
-
-        \DB::table('stone_reception_items')->upsert(
-            $upsertData,
-            ['stone_reception_id', 'product_id'],
-            ['quantity', 'updated_at']
-        );
-
-        // Удаляем только те позиции, которых нет в новых данных
         $newProductIds = array_column($products, 'product_id');
+
+        foreach ($products as $product) {
+            $productId = $product['product_id'];
+
+            if ($existingItems->has($productId)) {
+                // Существующая позиция — обновляем только quantity
+                $existingItems[$productId]->update([
+                    'quantity'   => $product['quantity'],
+                    'updated_at' => now(),
+                ]);
+            } else {
+                // Новая позиция — фиксируем коэффициент
+                $productModel = \App\Models\Product::find($productId);
+                $baseCoeff    = (float) ($productModel?->prod_cost_coeff ?? 0);
+                $isUndercut   = !empty($product['is_undercut']);
+                $effCoeff     = \App\Models\StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+
+                $reception->items()->create([
+                    'product_id'           => $productId,
+                    'quantity'             => $product['quantity'],
+                    'effective_cost_coeff' => $effCoeff,
+                    'is_undercut'          => $isUndercut,
+                ]);
+            }
+        }
+
+        // Удаляем позиции которых нет в новых данных
         $reception->items()->whereNotIn('product_id', $newProductIds)->delete();
+    }
+
+    /**
+     * Inline-обновление effective_cost_coeff и is_undercut позиции из страницы show.
+     * Позволяет скорректировать коэффициент постфактум (например, если он был
+     * неверно задан в справочнике продуктов на момент приёмки).
+     */
+    public function updateItemCoeff(Request $request, StoneReception $stoneReception)
+    {
+        $validated = $request->validate([
+            'items'              => ['required', 'array'],
+            'items.*.item_id'    => ['required', 'integer'],
+            'items.*.base_coeff' => ['required', 'numeric', 'min:0'],
+            'items.*.is_undercut'=> ['nullable', 'boolean'],
+        ]);
+
+        DB::transaction(function () use ($stoneReception, $validated) {
+            foreach ($validated['items'] as $row) {
+                $item = $stoneReception->items()->findOrFail($row['item_id']);
+
+                $isUndercut = !empty($row['is_undercut']);
+                $baseCoeff  = (float) $row['base_coeff'];
+                $effCoeff   = \App\Models\StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+
+                $item->update([
+                    'effective_cost_coeff' => $effCoeff,
+                    'is_undercut'          => $isUndercut,
+                ]);
+            }
+        });
+
+        return back()->with('success', 'Коэффициенты обновлены');
     }
 
     /**

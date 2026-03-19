@@ -213,6 +213,17 @@ class ProductController extends Controller
     }
 
     /**
+     * AJAX: возвращает prod_cost_coeff продукта (используется в форме приёмки
+     * для отображения/пересчёта коэффициента при выборе продукта).
+     */
+    public function getCoeff(Product $product)
+    {
+        return response()->json([
+            'prod_cost_coeff' => (float) $product->prod_cost_coeff,
+        ]);
+    }
+
+    /**
      * Рекурсивно добавляет продукты к узлам дерева групп.
      */
     private function attachProductsToTree(array $groups): array

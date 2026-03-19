@@ -300,7 +300,64 @@
             rawQtyInput.addEventListener('input', updateRemaining);
             updateRemaining();
 
-            // ── Итого по продуктам ───────────────────────────────────────────────────
+            // ── Данные продуктов (коэффициенты) ─────────────────────────────────────
+            // Загружаем коэффициенты через API при выборе продукта
+            const productCoeffCache = {};
+
+            async function fetchProductCoeff(productId) {
+                if (!productId) return null;
+                if (productCoeffCache[productId] !== undefined) return productCoeffCache[productId];
+                try {
+                    const res = await fetch(`/api/products/${productId}/coeff`);
+                    if (!res.ok) return null;
+                    const data = await res.json();
+                    productCoeffCache[productId] = data.prod_cost_coeff ?? 0;
+                    return productCoeffCache[productId];
+                } catch { return null; }
+            }
+
+            function updateRowCoeff(row) {
+                const pidInput     = row.querySelector('input[type="hidden"][name*="product_id"]');
+                const undercutCb   = row.querySelector('.undercut-checkbox');
+                const coeffDisplay = row.querySelector('.coeff-display');
+                if (!pidInput || !coeffDisplay) return;
+
+                const baseCoeff = parseFloat(coeffDisplay.dataset.baseCoeff);
+                if (isNaN(baseCoeff)) return;
+
+                const isUndercut = undercutCb?.checked || false;
+                const effective  = isUndercut ? baseCoeff - 1.5 : baseCoeff;
+                coeffDisplay.textContent = isUndercut
+                    ? `${baseCoeff.toFixed(4)} − 1.5 = ${effective.toFixed(4)}`
+                    : baseCoeff.toFixed(4);
+                coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut);
+                coeffDisplay.classList.toggle('text-dark', !isUndercut);
+            }
+
+            // При выборе продукта через picker — загружаем коэфф
+            document.addEventListener('product-picker:selected', async function (e) {
+                const row        = e.detail?.row;
+                const productId  = e.detail?.productId;
+                if (!row || !productId) { updateTotal(); return; }
+
+                const coeffDisplay = row.querySelector('.coeff-display');
+                if (coeffDisplay) {
+                    const coeff = await fetchProductCoeff(productId);
+                    if (coeff !== null) {
+                        coeffDisplay.dataset.baseCoeff = coeff;
+                        updateRowCoeff(row);
+                    }
+                }
+                updateTotal();
+            });
+
+            // Делегированный обработчик на чекбоксы «подкол»
+            container.addEventListener('change', function (e) {
+                if (e.target.classList.contains('undercut-checkbox')) {
+                    const row = e.target.closest('.product-picker-row');
+                    if (row) updateRowCoeff(row);
+                }
+            });
             function updateTotal() {
                 let sum = 0;
                 container.querySelectorAll('.product-picker-qty').forEach(el => {
@@ -450,6 +507,29 @@
                    id="pid___IDX__"
                    name="products[__IDX__][product_id]"
                    data-tpl-index="__IDX__">
+
+            {{-- Модификаторы коэффициента --}}
+            <div class="d-flex flex-column gap-1 justify-content-center" style="min-width:130px">
+                <div class="form-check form-check-inline mb-0">
+                    <input class="form-check-input undercut-checkbox"
+                           type="checkbox"
+                           id="undercut___IDX__"
+                           name="products[__IDX__][is_undercut]"
+                           value="1"
+                           data-tpl-index="__IDX__">
+                    <label class="form-check-label small text-warning-emphasis fw-semibold"
+                           for="undercut___IDX__"
+                           title="Снижает коэффициент на 1.5">
+                        80% подкол
+                    </label>
+                </div>
+                {{-- Отображение итогового коэффициента --}}
+                <div class="text-muted small">
+                    коэф: <span class="coeff-display fw-semibold text-dark"
+                                data-base-coeff=""
+                                data-tpl-index="__IDX__">—</span>
+                </div>
+            </div>
 
             <button type="button"
                     class="btn btn-outline-danger product-picker-remove"

@@ -23,6 +23,7 @@ trait HandlesReceptionValidation
                 'products'             => 'required|array|min:1',
                 'products.*.product_id'=> 'required|exists:products,id',
                 'products.*.quantity'  => 'required|numeric|min:0.001',
+                'products.*.is_undercut' => 'nullable|boolean',
             ];
             $messages = [
                 'receiver_id.required'          => 'Выберите приемщика',
@@ -47,6 +48,7 @@ trait HandlesReceptionValidation
                 'products'             => 'required|array|min:1',
                 'products.*.product_id'=> 'required|exists:products,id',
                 'products.*.quantity'  => 'required|numeric|min:0',  // может быть 0 для удалённых
+                'products.*.is_undercut' => 'nullable|boolean',
             ];
             $messages = [
                 'receiver_id.required'          => 'Выберите приемщика',

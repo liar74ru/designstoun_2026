@@ -84,6 +84,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])->name('api.worker.batches');
     Route::get('/api/workers/{worker}/next-batch-number', [RawMaterialBatchController::class, 'nextBatchNumber'])->name('api.worker.next-batch-number');
     Route::get('/api/products/tree', [ProductController::class, 'groupsJson'])->name('api.products.tree');
+    Route::get('/api/products/{product}/coeff', [ProductController::class, 'getCoeff'])->name('api.products.coeff');
+
+    // Редактирование коэффициентов позиций приёмки (из страницы show)
+    Route::post('/stone-receptions/{stoneReception}/item-coeffs', [StoneReceptionController::class, 'updateItemCoeff'])->name('stone-receptions.update-item-coeff');
 });
 
 require __DIR__.'/auth.php';
