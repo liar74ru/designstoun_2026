@@ -36,3 +36,4 @@ storage/framework/views/*
 !.gitignore
 npm-debug.log
 yarn-error.log
+CLAUDE.md
