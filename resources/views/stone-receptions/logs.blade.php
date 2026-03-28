@@ -4,43 +4,17 @@
 @section('content')
     <div class="container py-3 py-md-4">
 
-        {{-- Заголовок десктоп --}}
-        <div class="d-none d-md-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">📋 Журнал приёмок</h1>
-            <a href="{{ route('stone-receptions.create') }}" class="btn btn-success btn-lg px-4">
-                <i class="bi bi-plus-circle"></i> Новая приёмка
-            </a>
-        </div>
-
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show">
-                <i class="bi bi-check-circle-fill"></i> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-
-        {{-- Мобильный блок: табы + кнопка --}}
-        <div class="card shadow-sm mb-2 d-md-none">
-            <div class="card-body p-2">
-                {{-- Строка 1: табы --}}
-                <ul class="nav nav-pills mb-2 justify-content-center">
-                    <li class="nav-item">
-                        <a class="nav-link py-1 px-3" href="{{ route('stone-receptions.index') }}">
-                            <i class="bi bi-table"></i> По партиям
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active py-1 px-3" href="{{ route('stone-receptions.logs') }}">
-                            <i class="bi bi-journal-text"></i> По приёмкам
-                        </a>
-                    </li>
-                </ul>
-                {{-- Строка 2: кнопка во всю ширину --}}
-                <a href="{{ route('stone-receptions.create') }}" class="btn btn-success w-100">
+        <x-page-header title="📋 Журнал приёмок" :hide-mobile="true">
+            <x-slot:actions>
+                <a href="{{ route('stone-receptions.create') }}" class="btn btn-success btn-lg px-4">
                     <i class="bi bi-plus-circle"></i> Новая приёмка
                 </a>
-            </div>
-        </div>
+            </x-slot:actions>
+        </x-page-header>
+
+        @include('partials.alerts')
+
+        @include('stone-receptions.partials.mobile-tabs', ['activeTab' => 'logs'])
 
         {{-- Десктоп: переключатель вида --}}
         <ul class="nav nav-pills mb-3 mb-md-4 d-none d-md-flex">

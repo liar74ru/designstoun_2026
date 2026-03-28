@@ -1,5 +1,21 @@
 /* resources/css/custom.css */
 
+/* Информационные блоки с серой шапкой (используются в show/create/edit) */
+.info-block {
+    border: 1px solid #dee2e6;
+    border-radius: .35rem;
+    margin-bottom: .35rem;
+}
+.info-block-header {
+    background: #f8f9fa;
+    padding: .2rem .5rem;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: .35rem .35rem 0 0;
+}
+.info-block-body {
+    padding: .4rem .5rem;
+}
+
 /* Стили для карточек-плиток */
 .hover-shadow {
     transition: all 0.3s ease;

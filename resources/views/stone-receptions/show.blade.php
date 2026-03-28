@@ -5,35 +5,13 @@
 @section('content')
     <div class="container py-3 py-md-4">
 
-        {{-- Заголовок десктоп --}}
-        <div class="d-none d-md-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">🪨 Приёмка #{{ $stoneReception->id }}</h1>
-            <a href="{{ route('stone-receptions.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> К списку
-            </a>
-        </div>
+        <x-page-header
+            title="🪨 Приёмка #{{ $stoneReception->id }}"
+            back-url="{{ route('stone-receptions.index') }}"
+            back-label="К списку"
+        />
 
-        {{-- Заголовок мобильный --}}
-        <div class="d-flex d-md-none justify-content-between align-items-center mb-3">
-            <h6 class="mb-0 fw-bold">🪨 Приёмка #{{ $stoneReception->id }}</h6>
-            <a href="{{ route('stone-receptions.index') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i>
-            </a>
-        </div>
-
-        {{-- Flash-сообщения --}}
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show py-2">
-                <i class="bi bi-check-circle-fill"></i> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show py-2">
-                <i class="bi bi-exclamation-triangle-fill"></i> {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+        @include('partials.alerts')
 
         <div class="row g-3">
 
@@ -54,11 +32,11 @@
                         @endphp
 
                         {{-- Статус + дата --}}
-                        <div style="border:1px solid #dee2e6;border-radius:.35rem;margin-bottom:.35rem">
-                            <div style="background:#f8f9fa;padding:.2rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0">
+                        <div class="info-block">
+                            <div class="info-block-header">
                                 <span class="small fw-semibold text-muted">Статус</span>
                             </div>
-                            <div style="padding:.35rem .5rem">
+                            <div class="info-block-body">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
                                     <span class="text-muted small">{{ $stoneReception->created_at->format('d.m.Y H:i') }}</span>
@@ -72,11 +50,11 @@
                         </div>
 
                         {{-- Участники --}}
-                        <div style="border:1px solid #dee2e6;border-radius:.35rem;margin-bottom:.35rem">
-                            <div style="background:#f8f9fa;padding:.2rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0">
+                        <div class="info-block">
+                            <div class="info-block-header">
                                 <span class="small fw-semibold text-muted">Участники</span>
                             </div>
-                            <div style="padding:.35rem .5rem">
+                            <div class="info-block-body">
                                 <div class="row g-1">
                                     <div class="col-6">
                                         <div class="text-muted" style="font-size:.72rem">Пильщик</div>
@@ -91,11 +69,11 @@
                         </div>
 
                         {{-- Партия и расход --}}
-                        <div style="border:1px solid #dee2e6;border-radius:.35rem;margin-bottom:.35rem">
-                            <div style="background:#f8f9fa;padding:.2rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0">
+                        <div class="info-block">
+                            <div class="info-block-header">
                                 <span class="small fw-semibold text-muted">Партия сырья</span>
                             </div>
-                            <div style="padding:.35rem .5rem">
+                            <div class="info-block-body">
                                 <div class="row g-1">
                                     <div class="col-8">
                                         <div class="text-muted" style="font-size:.72rem">Партия</div>
@@ -127,11 +105,11 @@
                         </div>
 
                         @if($stoneReception->notes)
-                            <div style="border:1px solid #dee2e6;border-radius:.35rem;margin-bottom:.35rem">
-                                <div style="background:#f8f9fa;padding:.2rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0">
+                            <div class="info-block">
+                                <div class="info-block-header">
                                     <span class="small fw-semibold text-muted">Примечание</span>
                                 </div>
-                                <div style="padding:.35rem .5rem">
+                                <div class="info-block-body">
                                     <span class="small">{{ $stoneReception->notes }}</span>
                                 </div>
                             </div>

@@ -5,35 +5,19 @@
 @section('content')
     <div class="container py-3 py-md-4">
 
-        {{-- Заголовок десктоп --}}
-        <div class="d-none d-md-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">➕ Новая приёмка</h1>
-            <a href="{{ route('stone-receptions.logs') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Назад
-            </a>
-        </div>
+        <x-page-header
+            title="➕ Новая приёмка"
+            back-url="{{ route('stone-receptions.logs') }}"
+        />
 
-        {{-- Заголовок мобильный --}}
-        <div class="d-flex d-md-none justify-content-between align-items-center mb-3">
-            <h6 class="mb-0 fw-bold">➕ Новая приёмка</h6>
-            <a href="{{ route('stone-receptions.logs') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i>
-            </a>
-        </div>
-
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show py-2">
-                <i class="bi bi-check-circle-fill"></i> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+        @include('partials.alerts')
 
         <div class="row g-3">
 
             {{-- ═══════════════════════ ФОРМА ═══════════════════════ --}}
             <div class="col-12 col-lg-7">
                 <div class="card shadow-sm">
-                    <div style="padding:.4rem .5rem">
+                    <div class="info-block-body">
                         <form method="POST" action="{{ route('stone-receptions.store') }}" id="receptionForm">
                             @csrf
 
@@ -47,11 +31,11 @@
                             @endif
 
                             {{-- Блок 1: Участники --}}
-                            <div style="border:1px solid #dee2e6;border-radius:.35rem;margin-bottom:.4rem">
-                                <div style="background:#f8f9fa;padding:.2rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0">
+                            <div class="info-block">
+                                <div class="info-block-header">
                                     <span class="small fw-semibold text-muted">Участники</span>
                                 </div>
-                                <div style="padding:.4rem .5rem">
+                                <div class="info-block-body">
                                     <div class="row g-2">
                                         <div class="col-6">
                                             <label class="form-label small fw-semibold mb-1">
@@ -96,11 +80,11 @@
                             </div>
 
                             {{-- Блок 2: Партия сырья --}}
-                            <div style="border:1px solid #dee2e6;border-radius:.35rem;margin-bottom:.4rem">
-                                <div style="background:#f8f9fa;padding:.2rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0">
+                            <div class="info-block">
+                                <div class="info-block-header">
                                     <span class="small fw-semibold text-muted">Партия сырья</span>
                                 </div>
-                                <div style="padding:.4rem .5rem">
+                                <div class="info-block-body">
                                     <div class="row g-2">
                                         <div class="col-8 col-sm-9">
                                             <label class="form-label small fw-semibold mb-1">
@@ -148,12 +132,12 @@
                             <input type="hidden" name="store_id" value="{{ $defaultStore?->id }}">
 
                             {{-- Блок 3: Продукция --}}
-                            <div style="border:1px solid #dee2e6;border-radius:.35rem;margin-bottom:.4rem">
-                                <div style="background:#f8f9fa;padding:.2rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0;display:flex;justify-content:space-between;align-items:center">
+                            <div class="info-block">
+                                <div class="info-block-header d-flex justify-content-between align-items-center">
                                     <span class="small fw-semibold text-muted">Продукция <span class="text-danger">*</span></span>
                                     <span class="text-muted small">Итого: <strong id="totalQty">0</strong> м²</span>
                                 </div>
-                                <div style="padding:.4rem .5rem">
+                                <div class="info-block-body">
                                     <div id="productsContainer" style="margin-bottom:.25rem"></div>
                                     <button type="button" class="btn btn-sm btn-outline-primary mt-1"
                                             id="addProductBtn">
@@ -163,11 +147,11 @@
                             </div>
 
                             {{-- Блок 4: Примечание --}}
-                            <div style="border:1px solid #dee2e6;border-radius:.35rem;margin-bottom:.4rem">
-                                <div style="background:#f8f9fa;padding:.2rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0">
+                            <div class="info-block">
+                                <div class="info-block-header">
                                     <span class="small fw-semibold text-muted">Примечание</span>
                                 </div>
-                                <div style="padding:.4rem .5rem">
+                                <div class="info-block-body">
                                     <textarea name="notes" class="form-control form-control-sm" rows="2"
                                     >{{ old('notes', session('copy_data.notes')) }}</textarea>
                                 </div>
