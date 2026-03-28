@@ -203,17 +203,17 @@
                         </div>
                     </div>
 
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-funnel"></i> Применить
+                        </button>
+                        <a href="{{ url()->current() }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-x-circle"></i> Сбросить
+                        </a>
+                    </div>
+
                 </div>
             </div>{{-- /filter-collapse --}}
-
-            <div class="card-footer bg-white d-flex gap-2">
-                <button type="submit" class="btn btn-primary btn-sm">
-                    <i class="bi bi-funnel"></i> Применить
-                </button>
-                <a href="{{ url()->current() }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-x-circle"></i> Сбросить
-                </a>
-            </div>
         </form>
 
         {{-- Модальные окна каталога — строго вне <form> --}}
