@@ -27,10 +27,6 @@
     .display-1 {
         font-size: 3rem;
     }
-
-    .card-body {
-        padding: 1.5rem !important;
-    }
 }
 
 /* Убираем подчеркивание у ссылок */

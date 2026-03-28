@@ -143,10 +143,13 @@ class StoneReceptionController extends Controller
      */
     public function logs(Request $request)
     {
-        $filterBatches = RawMaterialBatch::whereIn('id',
-            StoneReception::whereNotNull('raw_material_batch_id')
-                ->distinct()->pluck('raw_material_batch_id')
-        )->with('product')->get();
+        // Уникальные типы сырья (продукты), которые встречались в партиях приёмок
+        $filterRawProducts = Product::whereIn('id',
+            RawMaterialBatch::whereIn('id',
+                StoneReception::whereNotNull('raw_material_batch_id')
+                    ->distinct()->pluck('raw_material_batch_id')
+            )->distinct()->pluck('product_id')
+        )->orderBy('name')->get();
 
         $filterProducts = Product::whereIn('id',
             StoneReceptionItem::distinct()->pluck('product_id')
@@ -160,7 +163,10 @@ class StoneReceptionController extends Controller
         $logs = QueryBuilder::for(ReceptionLog::class)
             ->allowedFilters([
                 AllowedFilter::exact('cutter_id'),
-                AllowedFilter::exact('raw_material_batch_id'),
+                // Фильтр по типу сырья (product_id партии, а не ID самой партии)
+                AllowedFilter::callback('raw_material_product_id', function ($query, $value) {
+                    $query->whereHas('rawMaterialBatch', fn($q) => $q->where('product_id', $value));
+                }),
                 AllowedFilter::callback('product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q->where('product_id', $value));
                 }),
@@ -176,7 +182,7 @@ class StoneReceptionController extends Controller
             ->withQueryString();
 
         return view('stone-receptions.logs', compact(
-            'logs', 'filterBatches', 'filterProducts', 'filterCutters'
+            'logs', 'filterRawProducts', 'filterProducts', 'filterCutters'
         ));
     }
 

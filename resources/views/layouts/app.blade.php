@@ -35,7 +35,7 @@
     {{--    </div>--}}
 
     <!-- Основной контент -->
-    <main style="padding-top: 70px;">
+    <main style="padding-top: {{ auth()->check() && auth()->user()->isMaster() ? '88px' : '60px' }}">
         @yield('content')
     </main>
     <!-- Footer -->

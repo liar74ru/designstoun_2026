@@ -6,7 +6,7 @@
 
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2 mb-0">📦 Приёмки камня</h1>
-            <a href="{{ route('stone-receptions.create') }}" class="btn btn-primary">
+            <a href="{{ route('stone-receptions.create') }}" class="btn btn-success">
                 <i class="bi bi-plus-circle"></i> Новая приёмка
             </a>
         </div>
@@ -32,7 +32,7 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{ route('stone-receptions.logs') }}">
-                    <i class="bi bi-journal-text"></i> Журнал приёмок
+                    <i class="bi bi-journal-text"></i> По приёмкам
                 </a>
             </li>
         </ul>
