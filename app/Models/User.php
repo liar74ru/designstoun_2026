@@ -52,10 +52,30 @@ class User extends Authenticatable
 
     /**
      * Является ли пользователь пильщиком?
-     * Удобный хелпер — не нужно проверять позицию вручную в контроллерах.
      */
     public function isCutter(): bool
     {
         return $this->worker?->position === 'Пильщик';
+    }
+
+    /**
+     * Является ли пользователь мастером?
+     * Мастер имеет доступ к приёмке камня и перемещению сырья.
+     */
+    public function isMaster(): bool
+    {
+        return $this->worker?->position === 'Мастер';
+    }
+
+    /**
+     * Является ли пользователь рабочим (Пильщик, Галтовщик и т.д.)?
+     * Такие пользователи имеют ограниченный доступ — только dashboard + профиль.
+     */
+    public function isWorker(): bool
+    {
+        return in_array($this->worker?->position, [
+            'Пильщик',
+            'Галтовщик',
+        ]);
     }
 }

@@ -29,16 +29,15 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
-        // Было: $user->worker->position  ← падает если worker = null (администратор)
-        // Стало: безопасная проверка через ?->
-        if ($user->worker?->position === 'Пильщик') {
+        // Пильщики, Галтовщики и другие рабочие — на их дашборд
+        if ($user->isWorker()) {
             return redirect()->route('worker.dashboard');
         }
 
-        // Если приёмщик — тоже редиректим на его страницу (добавь если нужно)
-        // if ($user->worker?->position === 'Приемщик') {
-        //     return redirect()->route('reception.dashboard');
-        // }
+        // Мастер — на журнал приёмок (его стартовая страница)
+        if ($user->isMaster()) {
+            return redirect()->route('stone-receptions.logs');
+        }
 
         if ($user->isAdmin()) {
             return redirect()->intended(route('home'));

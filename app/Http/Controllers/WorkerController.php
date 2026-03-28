@@ -150,6 +150,12 @@ class WorkerController extends Controller
 
         $worker->user->update($updateData);
 
+        // Если сам пользователь меняет свой пароль (рабочий) — возвращаем на его дашборд
+        if (auth()->user()->isWorker()) {
+            return redirect()->route('worker.dashboard')
+                ->with('success', 'Пароль успешно изменён');
+        }
+
         return redirect()->route('workers.index')
             ->with('success', 'Учётная запись работника ' . $worker->name . ' обновлена');
     }
