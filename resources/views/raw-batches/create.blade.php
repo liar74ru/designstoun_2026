@@ -4,9 +4,9 @@
 
 @section('content')
     @php
-        $fromStoreDefault = old('from_store_id', session('copy_from.from_store_id'))
+        $fromStoreDefault = old('from_store_id', request('copy_from_store'))
             ?: ($stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false)?->id ?? '');
-        $toStoreDefault = old('to_store_id', session('copy_from.to_store_id'))
+        $toStoreDefault = old('to_store_id', request('copy_to_store'))
             ?: ($stores->first(fn($s) => mb_stripos($s->name, 'цех') !== false)?->id ?? '');
     @endphp
     <div class="container py-4">
@@ -56,7 +56,7 @@
                                                    placeholder="Начните вводить название сырья..."
                                                    autocomplete="off"
                                                    data-hidden-id="pid_0"
-                                                   value="{{ old('product_name', session('copy_from.product_name')) }}"
+                                                   value="{{ old('product_name', $copyProductName ?? '') }}"
                                                    required>
                                             <button type="button"
                                                     class="btn btn-outline-secondary product-picker-tree-btn"
@@ -75,7 +75,7 @@
                                     <input type="hidden"
                                            id="pid_0"
                                            name="product_id"
-                                           value="{{ old('product_id', session('copy_from.product_id')) }}"
+                                           value="{{ old('product_id', request('copy_product')) }}"
                                            required>
 
                                     {{-- Модальное окно дерева --}}
@@ -191,7 +191,7 @@
                                     <option value="">— Выберите пильщика —</option>
                                     @foreach($workers as $worker)
                                         <option value="{{ $worker->id }}"
-                                            {{ old('worker_id', session('copy_from.worker_id')) == $worker->id ? 'selected' : '' }}>
+                                            {{ old('worker_id', request('copy_worker')) == $worker->id ? 'selected' : '' }}>
                                             {{ $worker->name }}
                                         </option>
                                     @endforeach

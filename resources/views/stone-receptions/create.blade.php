@@ -66,7 +66,7 @@
                                                 <option value="">— приёмщик —</option>
                                                 @foreach($masterWorkers as $worker)
                                                     <option value="{{ $worker->id }}"
-                                                        {{ old('receiver_id', session('copy_data.receiver_id', auth()->user()->worker_id)) == $worker->id ? 'selected' : '' }}>
+                                                        {{ old('receiver_id', auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
                                                         {{ $worker->name }}
                                                     </option>
                                                 @endforeach
@@ -160,7 +160,7 @@
                                 </div>
                                 <div class="info-block-body">
                                     <textarea name="notes" class="form-control form-control-sm" rows="2"
-                                    >{{ old('notes', session('copy_data.notes')) }}</textarea>
+                                    >{{ old('notes') }}</textarea>
                                 </div>
                             </div>
 
@@ -228,19 +228,20 @@
                                                 </div>
                                             @endif
                                         </div>
-                                        <form action="{{ route('stone-receptions.copy', $reception) }}"
-                                              method="POST" class="flex-shrink-0">
-                                            @csrf
-                                            <input type="hidden" name="cutter_id" value="{{ request('cutter_id') }}">
-                                            <input type="hidden" name="raw_material_batch_id"
-                                                   value="{{ request('raw_material_batch_id') }}">
-                                            <button type="submit"
-                                                    class="btn btn-sm btn-outline-secondary"
-                                                    style="width:28px;height:28px;padding:0;font-size:.75rem"
-                                                    title="Скопировать продукты">
-                                                <i class="bi bi-copy"></i>
-                                            </button>
-                                        </form>
+                                        @php
+                                            $copyItemsData = $reception->items->map(fn($item) => [
+                                                'product_id'    => $item->product_id,
+                                                'product_label' => $item->product?->name ?? '',
+                                                'is_undercut'   => (bool) $item->is_undercut,
+                                            ])->toJson(JSON_UNESCAPED_UNICODE);
+                                        @endphp
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary copy-reception-btn flex-shrink-0"
+                                                data-items="{{ $copyItemsData }}"
+                                                style="width:28px;height:28px;padding:0;font-size:.75rem"
+                                                title="Скопировать продукты">
+                                            <i class="bi bi-copy"></i>
+                                        </button>
                                     </div>
                                 </div>
                             @empty
@@ -305,7 +306,7 @@
             const totalQtyEl    = document.getElementById('totalQty');
             const addBtn        = document.getElementById('addProductBtn');
 
-            const copiedProducts = @json(session('copy_data.products', []));
+            const copyItems = @json($copyItems ?? []);
             let rowIndex = 0;
 
             // ── Смена пильщика → AJAX загрузка партий ───────────────────────────────
@@ -375,8 +376,11 @@
                         ? `<div class="text-muted mt-1" style="font-size:.72rem"><i class="bi bi-hammer me-1"></i>${r.cutter_name}</div>`
                         : '';
 
-                    const copyInput = r.cutter_id ? `<input type="hidden" name="cutter_id" value="${r.cutter_id}">` : '';
-                    const batchInput = r.raw_material_batch_id ? `<input type="hidden" name="raw_material_batch_id" value="${r.raw_material_batch_id}">` : '';
+                    const itemsJson = JSON.stringify(r.items.map(i => ({
+                        product_id:    i.product_id,
+                        product_label: i.product_label,
+                        is_undercut:   i.is_undercut,
+                    }))).replace(/"/g, '&quot;');
 
                     return `<div class="list-group-item px-2 py-2">
                         <div class="d-flex justify-content-between align-items-start">
@@ -389,15 +393,13 @@
                                 ${productsHtml}
                                 ${cutterHtml}
                             </div>
-                            <form action="/stone-receptions/${r.id}/copy" method="POST" class="flex-shrink-0">
-                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                                ${copyInput}
-                                ${batchInput}
-                                <button type="submit" class="btn btn-sm btn-outline-secondary"
-                                        style="width:28px;height:28px;padding:0;font-size:.75rem" title="Скопировать">
-                                    <i class="bi bi-copy"></i>
-                                </button>
-                            </form>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary copy-reception-btn flex-shrink-0"
+                                    data-items="${itemsJson}"
+                                    style="width:28px;height:28px;padding:0;font-size:.75rem"
+                                    title="Скопировать продукты">
+                                <i class="bi bi-copy"></i>
+                            </button>
                         </div>
                     </div>`;
                 }).join('');
@@ -548,7 +550,7 @@
             });
 
             // ── Добавить строку продукта ─────────────────────────────────────────────
-            function addRow(productId = '', productLabel = '', quantity = '') {
+            function addRow(productId = '', productLabel = '', quantity = '', isUndercut = false) {
                 const tpl   = document.getElementById('pickerRowTemplate');
                 const clone = tpl.content.cloneNode(true);
 
@@ -560,16 +562,17 @@
                     });
                 });
 
-                const searchInput = clone.querySelector('.product-picker-search');
-                const hiddenInput = clone.querySelector('input[type="hidden"][name*="product_id"]');
-                const qtyInput    = clone.querySelector('.product-picker-qty');
+                const searchInput  = clone.querySelector('.product-picker-search');
+                const hiddenInput  = clone.querySelector('input[type="hidden"][name*="product_id"]');
+                const qtyInput     = clone.querySelector('.product-picker-qty');
+                const undercutCb   = clone.querySelector('.undercut-checkbox');
 
                 if (searchInput) searchInput.value = productLabel;
                 if (hiddenInput) hiddenInput.value  = productId;
                 if (qtyInput)    qtyInput.value     = quantity;
+                if (undercutCb && isUndercut) undercutCb.checked = true;
 
                 const row = clone.querySelector('.product-picker-row');
-                // Наследуем текущий SKU-фильтр (если чекбокс не снят)
                 if (currentSkuPrefix && !(allCatalogCheck?.checked)) {
                     row.dataset.skuPrefix = currentSkuPrefix;
                 }
@@ -580,22 +583,25 @@
                 updateTotal();
             }
 
+            // ── Копирование продуктов из списка последних приёмок ────────────────────
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('.copy-reception-btn');
+                if (!btn) return;
+                try {
+                    const items = JSON.parse(btn.dataset.items || '[]');
+                    if (!items.length) return;
+                    container.innerHTML = '';
+                    rowIndex = 0;
+                    items.forEach(p => addRow(p.product_id, p.product_label, '', p.is_undercut));
+                } catch (err) {
+                    console.error('copy-reception-btn parse error', err);
+                }
+            });
+
             addBtn.addEventListener('click', () => addRow());
 
-            if (copiedProducts.length > 0) {
-                if (window.ProductPicker) {
-                    window.ProductPicker.fetchTree().then(tree => {
-                        const flat = {};
-                        function flatMap(groups) {
-                            groups.forEach(g => {
-                                (g.products || []).forEach(p => { flat[p.id] = p.label; });
-                                if (g.children?.length) flatMap(g.children);
-                            });
-                        }
-                        flatMap(tree);
-                        copiedProducts.forEach(p => addRow(p.product_id, flat[p.product_id] || '', p.quantity));
-                    });
-                }
+            if (copyItems.length > 0) {
+                copyItems.forEach(p => addRow(p.product_id, p.product_label, '', p.is_undercut));
             } else {
                 addRow();
             }

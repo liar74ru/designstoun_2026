@@ -199,7 +199,19 @@ class StoneReceptionController extends Controller
         $data['filteredBatches'] = $cutterId ? $this->getActiveBatches($cutterId) : collect();
         $data['selectedCutterId'] = $cutterId;
         $data['selectedBatchId'] = $batchId;
-        $data['copiedData'] = session('copy_data');
+
+        $copyItems = [];
+        if ($copyFromId = $request->input('copy_from')) {
+            $copyFrom = StoneReception::with('items.product')->find($copyFromId);
+            if ($copyFrom) {
+                $copyItems = $copyFrom->items->map(fn($item) => [
+                    'product_id'    => $item->product_id,
+                    'product_label' => $item->product?->name ?? '',
+                    'is_undercut'   => (bool) $item->is_undercut,
+                ])->toArray();
+            }
+        }
+        $data['copyItems'] = $copyItems;
 
         return view('stone-receptions.create', $data);
     }
@@ -260,8 +272,6 @@ class StoneReceptionController extends Controller
                     ]);
                 }
             });
-
-            session()->forget('copy_data');
 
             return redirect()->route('stone-receptions.create', ['cutter_id' => $request->input('cutter_id')])
                 ->with('success', 'Приемка создана');
@@ -450,31 +460,10 @@ class StoneReceptionController extends Controller
      */
     public function copy(Request $request, StoneReception $stoneReception)
     {
-        try {
-            $stoneReception->load('items');
-
-            session()->put('copy_data', [
-                'receiver_id' => $stoneReception->receiver_id,
-                'notes' => $stoneReception->notes . ' (копия)',
-                'products' => $stoneReception->items->map(fn($item) => [
-                    'product_id' => $item->product_id,
-                    'quantity' => $item->quantity,
-                ])->toArray()
-            ]);
-
-            $params = array_filter([
-                'cutter_id' => $request->input('cutter_id'),
-                'raw_material_batch_id' => $request->input('raw_material_batch_id')
-            ]);
-
-            return redirect()->route('stone-receptions.create', $params)
-                ->with('success', 'Продукты скопированы');
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка копирования:', ['error' => $e->getMessage()]);
-            return redirect()->route('stone-receptions.create')
-                ->withErrors(['error' => 'Ошибка копирования: ' . $e->getMessage()]);
-        }
+        return redirect()->route('stone-receptions.create', [
+            'copy_from' => $stoneReception->id,
+            'cutter_id' => $stoneReception->cutter_id,
+        ]);
     }
 
     /**
@@ -653,8 +642,11 @@ class StoneReceptionController extends Controller
                 'cutter_id'             => $r->cutter_id,
                 'raw_material_batch_id' => $r->raw_material_batch_id,
                 'items'                 => $r->items->map(fn($i) => [
-                    'product_name' => $i->product?->name ?? '—',
-                    'quantity'     => number_format($i->quantity, 2),
+                    'product_id'    => $i->product_id,
+                    'product_name'  => $i->product?->name ?? '—',
+                    'product_label' => $i->product?->name ?? '—',
+                    'quantity'      => number_format($i->quantity, 2),
+                    'is_undercut'   => (bool) $i->is_undercut,
                 ]),
             ]);
 

@@ -79,13 +79,18 @@ class RawMaterialBatchController extends Controller
         return view('raw-batches.show', compact('batch'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $products = Product::orderBy('name')->get();
         $stores   = Store::orderBy('name')->get();
         $workers  = Worker::orderBy('name')->get();
 
-        return view('raw-batches.create', compact('products', 'stores', 'workers'));
+        $copyProductName = null;
+        if ($copyProductId = $request->input('copy_product')) {
+            $copyProductName = Product::find($copyProductId)?->name;
+        }
+
+        return view('raw-batches.create', compact('products', 'stores', 'workers', 'copyProductName'));
     }
 
     /**
@@ -125,16 +130,14 @@ class RawMaterialBatchController extends Controller
      */
     public function copy(RawMaterialBatch $batch)
     {
-        session()->put('copy_from', [
-            'product_id'    => $batch->product_id,
-            'product_name'  => $batch->product->name ?? '',
-            'from_store_id' => $batch->movements()->orderBy('created_at')->first()?->from_store_id,
-            'to_store_id'   => $batch->current_store_id,
-            'worker_id'     => $batch->current_worker_id,
-        ]);
+        $firstMovement = $batch->movements()->orderBy('created_at')->first();
 
-        return redirect()->route('raw-batches.create')
-            ->with('success', 'Данные скопированы — заполните количество и сохраните');
+        return redirect()->route('raw-batches.create', [
+            'copy_from_store' => $firstMovement?->from_store_id,
+            'copy_to_store'   => $batch->current_store_id,
+            'copy_worker'     => $batch->current_worker_id,
+            'copy_product'    => $batch->product_id,
+        ])->with('success', 'Данные скопированы — заполните количество и сохраните');
     }
 
     /**
@@ -194,8 +197,6 @@ class RawMaterialBatchController extends Controller
             $this->adjustStock($data['product_id'], $data['from_store_id'], -$data['quantity']);
             $this->adjustStock($data['product_id'], $data['to_store_id'],   +$data['quantity']);
         });
-
-        session()->forget('copy_from');
 
         return redirect()->route('raw-batches.index')
             ->with('success', 'Партия сырья успешно создана.');
