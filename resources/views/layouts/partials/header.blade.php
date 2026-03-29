@@ -25,6 +25,10 @@
                                 <span class="ms-1">Сырьё</span>
                             </a>
                         @elseif(!auth()->user()->isWorker())
+                            {{-- Мобильная иконка домика для администратора --}}
+                            <a href="{{ url('/') }}" class="btn btn-sm btn-outline-secondary d-md-none" title="Главная">
+                                <i class="bi bi-house-door-fill"></i>
+                            </a>
                             {{-- Десктоп: центральное меню для остальных ролей --}}
                             <div class="d-none d-md-flex align-items-center">
                                 <ul class="navbar-nav flex-row mb-0">
