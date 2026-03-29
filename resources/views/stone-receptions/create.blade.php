@@ -111,6 +111,14 @@
                                             @error('raw_material_batch_id')
                                                 <div class="invalid-feedback">{{ $message }}</div>
                                             @enderror
+                                            <div class="mt-1">
+                                                <a id="createBatchLink"
+                                                   href="{{ route('raw-batches.create') }}"
+                                                   class="btn btn-sm btn-outline-success"
+                                                   target="_blank">
+                                                    <i class="bi bi-plus-circle"></i> Создать партию
+                                                </a>
+                                            </div>
                                         </div>
                                         <div class="col-4 col-sm-3">
                                             <label class="form-label small fw-semibold mb-1">
@@ -310,8 +318,25 @@
             let rowIndex = 0;
 
             // ── Смена пильщика → AJAX загрузка партий ───────────────────────────────
+            const createBatchLink = document.getElementById('createBatchLink');
+
+            function updateCreateBatchLink(cutterId) {
+                if (!createBatchLink) return;
+                const url = new URL(createBatchLink.href, window.location.origin);
+                if (cutterId) {
+                    url.searchParams.set('copy_worker', cutterId);
+                } else {
+                    url.searchParams.delete('copy_worker');
+                }
+                createBatchLink.href = url.toString();
+            }
+
+            // При загрузке — если пильщик уже выбран
+            updateCreateBatchLink(cutterSelect.value);
+
             cutterSelect.addEventListener('change', function () {
                 const cutterId = this.value;
+                updateCreateBatchLink(cutterId);
                 batchSelect.innerHTML = '<option value="">Загрузка...</option>';
 
                 if (!cutterId) {
@@ -476,6 +501,10 @@
                 const selectedOpt = batchSelect.options[batchSelect.selectedIndex];
                 if (selectedOpt?.dataset.productSku) {
                     applySkuPrefix(localDerivePrefix(selectedOpt.dataset.productSku));
+                }
+                // Заполняем расход остатком партии если поле ещё не заполнено
+                if (selectedOpt?.dataset.remaining && (!rawQtyInput.value || parseFloat(rawQtyInput.value) === 0)) {
+                    rawQtyInput.value = parseFloat(selectedOpt.dataset.remaining).toFixed(3);
                 }
             }
             rawQtyInput.addEventListener('input', updateRemainingIndicator);

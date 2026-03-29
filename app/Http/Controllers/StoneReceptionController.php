@@ -45,7 +45,7 @@ class StoneReceptionController extends Controller
     private function getFormData(StoneReception $reception = null, $selectedCutterId = null)
     {
         $data = [
-            'masterWorkers' => Worker::where('position', 'Мастер')->orderBy('name')->get(),
+            'masterWorkers' => Worker::whereIn('position', ['Мастер', 'Директор', 'Администратор'])->orderBy('name')->get(),
             'workers' => Worker::orderBy('name')->get(),
             'products' => Product::orderBy('name')->get(),
             'stores' => Store::orderBy('name')->get(),

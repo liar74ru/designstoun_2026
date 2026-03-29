@@ -41,7 +41,8 @@ class RawMaterialMovementController extends Controller
             return back()->withErrors(['quantity' => 'Недостаточно сырья на складе.'])->withInput();
         }
 
-        DB::transaction(function () use ($data, $request) {
+        $batch = null;
+        DB::transaction(function () use ($data, $request, &$batch) {
             $manualDate = $request->input('manual_created_at');
             $createdAt  = (auth()->user()?->isAdmin() && $manualDate)
                 ? \Carbon\Carbon::parse($manualDate)
@@ -83,6 +84,13 @@ class RawMaterialMovementController extends Controller
             // Создание перемещения в МойСклад
             $this->createMoveInMoySklad($data, $batch, $movement);
         });
+
+        if ($request->input('and_reception')) {
+            return redirect()->route('stone-receptions.create', [
+                'cutter_id'             => $data['worker_id'],
+                'raw_material_batch_id' => $batch->id,
+            ])->with('success', 'Партия создана. Оформите приёмку.');
+        }
 
         return redirect()->route('raw-batches.index')
             ->with('success', 'Партия сырья успешно создана.');

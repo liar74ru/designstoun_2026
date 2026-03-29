@@ -216,9 +216,15 @@
                                 </div>
                             @endif
 
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save"></i> Создать партию
-                            </button>
+                            <input type="hidden" name="and_reception" id="andReceptionInput" value="">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save"></i> Создать партию
+                                </button>
+                                <button type="submit" id="andReceptionBtn" class="btn btn-success">
+                                    <i class="bi bi-save"></i> Создать партию + приёмку
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -313,6 +319,11 @@
             if (workerSelect?.value) {
                 fetchBatchNumber(workerSelect.value);
             }
+
+            // Кнопка "Создать партию + приёмку"
+            document.getElementById('andReceptionBtn')?.addEventListener('click', function () {
+                document.getElementById('andReceptionInput').value = '1';
+            });
         });
     </script>
     @vite(['resources/js/product-picker.js'])

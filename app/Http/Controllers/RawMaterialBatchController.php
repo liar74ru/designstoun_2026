@@ -170,7 +170,8 @@ class RawMaterialBatchController extends Controller
             ? \Carbon\Carbon::parse($manualDate)
             : now();
 
-        DB::transaction(function () use ($data, $createdAt) {
+        $batch = null;
+        DB::transaction(function () use ($data, $createdAt, &$batch) {
             $batch = RawMaterialBatch::create([
                 'product_id'         => $data['product_id'],
                 'initial_quantity'   => $data['quantity'],
@@ -197,6 +198,13 @@ class RawMaterialBatchController extends Controller
             $this->adjustStock($data['product_id'], $data['from_store_id'], -$data['quantity']);
             $this->adjustStock($data['product_id'], $data['to_store_id'],   +$data['quantity']);
         });
+
+        if ($request->input('and_reception')) {
+            return redirect()->route('stone-receptions.create', [
+                'cutter_id'            => $data['worker_id'],
+                'raw_material_batch_id' => $batch->id,
+            ])->with('success', 'Партия создана. Оформите приёмку.');
+        }
 
         return redirect()->route('raw-batches.index')
             ->with('success', 'Партия сырья успешно создана.');
