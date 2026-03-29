@@ -64,7 +64,8 @@
                                                    name="raw_material_batch_id"
                                                    id="raw_material_batch_id"
                                                    value="{{ $stoneReception->raw_material_batch_id }}"
-                                                   data-remaining="{{ (float)($stoneReception->rawMaterialBatch?->remaining_quantity ?? 0) }}">
+                                                   data-remaining="{{ (float)($stoneReception->rawMaterialBatch?->remaining_quantity ?? 0) }}"
+                                                   data-product-sku="{{ $stoneReception->rawMaterialBatch?->product?->sku ?? '' }}">
                                         </div>
                                     </div>
                                 </div>
@@ -181,9 +182,13 @@
                                     <span class="text-muted" style="font-size:.7rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase">
                                         <i class="bi bi-grid-3x3 me-1"></i>Продукция <span class="text-danger">*</span>
                                     </span>
-                                    <span class="text-muted small">
-                                        Итого: <strong id="totalProducts">0</strong> м²
-                                    </span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="form-check form-check-inline mb-0" id="allCatalogWrap" style="display:none">
+                                            <input class="form-check-input" type="checkbox" id="allCatalogCheck">
+                                            <label class="form-check-label small text-muted" for="allCatalogCheck">весь каталог</label>
+                                        </div>
+                                        <span class="text-muted small">Итого: <strong id="totalProducts">0</strong> м²</span>
+                                    </div>
                                 </div>
 
                                 {{-- Существующие продукты --}}
@@ -435,6 +440,8 @@
                 }
             });
 
+            let currentSkuPrefix = null;
+
             function addNewProduct() {
                 const idx   = newIdx++;
                 const tpl   = document.getElementById('editPickerRowTemplate');
@@ -467,10 +474,56 @@
                     updateTotal();
                 });
 
+                // Наследуем текущий SKU-фильтр
+                if (currentSkuPrefix && !(document.getElementById('allCatalogCheck')?.checked)) {
+                    row.dataset.skuPrefix = currentSkuPrefix;
+                }
                 if (window.ProductPicker) window.ProductPicker.initRow(row);
             }
 
             document.getElementById('addProductBtn').addEventListener('click', addNewProduct);
+
+            // ── SKU-фильтр продуктов (из партии сырья) ───────────────────────────────
+            const allCatalogWrap       = document.getElementById('allCatalogWrap');
+            const allCatalogCheck      = document.getElementById('allCatalogCheck');
+            const newProductsContainer = document.getElementById('new-products');
+            const SKU_GROUP_MAP_EDIT   = { '01': '04' };
+
+            function localDerivePrefix(rawSku) {
+                if (!rawSku) return null;
+                const parts = rawSku.split('-');
+                if (parts.length < 2) return null;
+                const out = SKU_GROUP_MAP_EDIT[parts[0]];
+                return out ? `${out}-${parts[1]}` : null;
+            }
+
+            function applySkuPrefix(prefix) {
+                currentSkuPrefix = prefix;
+                if (newProductsContainer) {
+                    newProductsContainer.querySelectorAll('.product-picker-row').forEach(row => {
+                        if (prefix) row.dataset.skuPrefix = prefix;
+                        else delete row.dataset.skuPrefix;
+                    });
+                }
+                if (allCatalogWrap) allCatalogWrap.style.display = prefix ? '' : 'none';
+                if (allCatalogCheck) allCatalogCheck.checked = false;
+            }
+
+            if (allCatalogCheck) {
+                allCatalogCheck.addEventListener('change', function () {
+                    if (!newProductsContainer) return;
+                    newProductsContainer.querySelectorAll('.product-picker-row').forEach(row => {
+                        if (this.checked) delete row.dataset.skuPrefix;
+                        else if (currentSkuPrefix) row.dataset.skuPrefix = currentSkuPrefix;
+                    });
+                });
+            }
+
+            // Инициализация при загрузке страницы
+            const batchHidden = document.getElementById('raw_material_batch_id');
+            if (batchHidden?.dataset.productSku) {
+                applySkuPrefix(localDerivePrefix(batchHidden.dataset.productSku));
+            }
 
             // ── Итого ────────────────────────────────────────────────────────────────
             function updateTotal() {

@@ -55,6 +55,23 @@ function fuzzyMatch(productLabel, query) {
 }
 
 
+// ─── Маппинг: первая группа сырья → первая группа продукта ───────────────────
+const SKU_GROUP_MAP = { '01': '04' };
+
+/**
+ * По SKU партии сырья возвращает префикс для фильтрации продуктов.
+ * "01-01-xxx" → "04-01"
+ * Если маппинга нет — возвращает null (поиск по всему каталогу).
+ */
+function deriveProductSkuPrefix(rawSku) {
+    if (!rawSku) return null;
+    const parts = rawSku.split('-');
+    if (parts.length < 2) return null;
+    const outGroup = SKU_GROUP_MAP[parts[0]];
+    if (!outGroup) return null;
+    return `${outGroup}-${parts[1]}`;
+}
+
 function initSearch(row) {
     const searchInput = row.querySelector('.product-picker-search');
     const hiddenInput = row.querySelector('input[type="hidden"]');
@@ -64,6 +81,12 @@ function initSearch(row) {
 
     let allProducts = [];
     fetchTree().then(tree => { allProducts = flattenProducts(tree); });
+
+    function getActiveProducts() {
+        const prefix = row.dataset.skuPrefix;
+        if (!prefix) return allProducts;
+        return allProducts.filter(p => p.sku && p.sku.startsWith(prefix));
+    }
 
     function showDrop(items) {
         dropEl.innerHTML = '';
@@ -90,7 +113,7 @@ function initSearch(row) {
     searchInput.addEventListener('input', () => {
         const q = searchInput.value.trim();
         if (q.length < 1) { hideDrop(); hiddenInput.value = ''; return; }
-        const matched = allProducts.filter(p => fuzzyMatch(p.label, q));
+        const matched = getActiveProducts().filter(p => fuzzyMatch(p.label, q));
         showDrop(matched);
     });
 
@@ -268,4 +291,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.product-picker-row').forEach(initRow);
 });
 
-window.ProductPicker = { initRow, fetchTree };
+/**
+ * Устанавливает skuPrefix на все строки продуктов в контейнере.
+ * prefix=null или '' — снимает фильтр (весь каталог).
+ */
+function setSkuPrefix(container, prefix) {
+    container.querySelectorAll('.product-picker-row').forEach(row => {
+        if (prefix) {
+            row.dataset.skuPrefix = prefix;
+        } else {
+            delete row.dataset.skuPrefix;
+        }
+    });
+}
+
+window.ProductPicker = { initRow, fetchTree, setSkuPrefix, deriveProductSkuPrefix };

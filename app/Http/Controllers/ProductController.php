@@ -204,7 +204,7 @@ class ProductController extends Controller
      */
     public function groupsJson()
     {
-        $tree = cache()->remember('products_tree_json', 600, function () {
+        $tree = cache()->remember('products_tree_json_v2', 600, function () {
             $groups = $this->productGroupService->getGroupsTree();
             return $this->attachProductsToTree($groups);
         });
@@ -235,6 +235,7 @@ class ProductController extends Controller
                 ->map(fn ($p) => [
                     'id'    => $p->id,
                     'label' => $p->name . ($p->sku ? ' (' . $p->sku . ')' : ''),
+                    'sku'   => $p->sku ?? '',
                 ])
                 ->toArray();
 

@@ -625,8 +625,39 @@ class StoneReceptionController extends Controller
                 . ' (ост: ' . number_format($b->remaining_quantity, 2) . ' м³)'
                 . ($b->batch_number ? ' №' . $b->batch_number : ''),
             'remaining_quantity' => (float) $b->remaining_quantity,
+            'product_sku'        => $b->product->sku ?? '',
         ]);
 
         return response()->json($batches);
+    }
+
+    /**
+     * AJAX: последние приёмки в которых использовалось то же сырьё (по product_id партии)
+     */
+    public function getReceptionsByBatchJson(\App\Models\RawMaterialBatch $batch)
+    {
+        // Находим все партии с тем же сырьём
+        $batchIds = \App\Models\RawMaterialBatch::where('product_id', $batch->product_id)
+            ->pluck('id');
+
+        $receptions = StoneReception::with(['cutter', 'items.product'])
+            ->whereIn('raw_material_batch_id', $batchIds)
+            ->orderBy('created_at', 'desc')
+            ->limit(15)
+            ->get()
+            ->map(fn($r) => [
+                'id'                    => $r->id,
+                'created_at'            => $r->created_at->format('d.m H:i'),
+                'total_quantity'        => number_format($r->items->sum('quantity'), 2),
+                'cutter_name'           => $r->cutter?->name,
+                'cutter_id'             => $r->cutter_id,
+                'raw_material_batch_id' => $r->raw_material_batch_id,
+                'items'                 => $r->items->map(fn($i) => [
+                    'product_name' => $i->product?->name ?? '—',
+                    'quantity'     => number_format($i->quantity, 2),
+                ]),
+            ]);
+
+        return response()->json($receptions);
     }
 }

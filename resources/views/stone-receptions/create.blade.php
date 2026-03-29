@@ -100,6 +100,7 @@
                                                 @foreach($filteredBatches as $batch)
                                                     <option value="{{ $batch->id }}"
                                                             data-remaining="{{ $batch->remaining_quantity }}"
+                                                            data-product-sku="{{ $batch->product->sku ?? '' }}"
                                                         {{ old('raw_material_batch_id', request('raw_material_batch_id')) == $batch->id ? 'selected' : '' }}>
                                                         {{ $batch->product->name }}
                                                         (ост: {{ number_format($batch->remaining_quantity, 2) }} м³)
@@ -135,7 +136,13 @@
                             <div class="info-block">
                                 <div class="info-block-header d-flex justify-content-between align-items-center">
                                     <span class="small fw-semibold text-muted">Продукция <span class="text-danger">*</span></span>
-                                    <span class="text-muted small">Итого: <strong id="totalQty">0</strong> м²</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="form-check form-check-inline mb-0" id="allCatalogWrap" style="display:none">
+                                            <input class="form-check-input" type="checkbox" id="allCatalogCheck">
+                                            <label class="form-check-label small text-muted" for="allCatalogCheck">весь каталог</label>
+                                        </div>
+                                        <span class="text-muted small">Итого: <strong id="totalQty">0</strong> м²</span>
+                                    </div>
                                 </div>
                                 <div class="info-block-body">
                                     <div id="productsContainer" style="margin-bottom:.25rem"></div>
@@ -325,6 +332,7 @@
                             const opt = document.createElement('option');
                             opt.value = b.id;
                             opt.dataset.remaining = b.remaining_quantity;
+                            opt.dataset.productSku = b.product_sku || '';
                             opt.textContent = b.label;
                             batchSelect.appendChild(opt);
                         });
@@ -345,14 +353,129 @@
                 }
             }
 
+            // ── Последние приёмки по партии ─────────────────────────────────────────
+            function renderReceptionsList(receptions) {
+                const body = document.getElementById('lastReceptionsBody');
+                const badge = document.querySelector('#lastReceptionsToggle .badge');
+                if (!body) return;
+
+                if (!receptions.length) {
+                    body.innerHTML = `<div class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-1"></i>Нет приёмок</div>`;
+                    if (badge) badge.textContent = '0';
+                    return;
+                }
+
+                if (badge) badge.textContent = receptions.length;
+
+                const items = receptions.map(r => {
+                    const productsHtml = r.items.map(i =>
+                        `<div class="text-muted" style="font-size:.75rem">${i.product_name} <span class="text-dark">× ${i.quantity}</span></div>`
+                    ).join('');
+                    const cutterHtml = r.cutter_name
+                        ? `<div class="text-muted mt-1" style="font-size:.72rem"><i class="bi bi-hammer me-1"></i>${r.cutter_name}</div>`
+                        : '';
+
+                    const copyInput = r.cutter_id ? `<input type="hidden" name="cutter_id" value="${r.cutter_id}">` : '';
+                    const batchInput = r.raw_material_batch_id ? `<input type="hidden" name="raw_material_batch_id" value="${r.raw_material_batch_id}">` : '';
+
+                    return `<div class="list-group-item px-2 py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1 me-2">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="fw-semibold small">#${r.id}</span>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size:.7rem">${r.total_quantity} м²</span>
+                                    <span class="text-muted" style="font-size:.72rem">${r.created_at}</span>
+                                </div>
+                                ${productsHtml}
+                                ${cutterHtml}
+                            </div>
+                            <form action="/stone-receptions/${r.id}/copy" method="POST" class="flex-shrink-0">
+                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                ${copyInput}
+                                ${batchInput}
+                                <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                        style="width:28px;height:28px;padding:0;font-size:.75rem" title="Скопировать">
+                                    <i class="bi bi-copy"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                body.innerHTML = `<div class="list-group list-group-flush">${items}</div>`;
+            }
+
+            function loadReceptionsByBatch(batchId) {
+                const body = document.getElementById('lastReceptionsBody');
+                if (!body) return;
+                if (!batchId) return;
+                body.innerHTML = `<div class="text-center py-3 text-muted small"><i class="bi bi-hourglass-split me-1"></i>Загрузка...</div>`;
+                fetch(`/api/batches/${batchId}/receptions`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => r.json())
+                    .then(data => renderReceptionsList(data))
+                    .catch(() => { body.innerHTML = `<div class="text-center py-3 text-muted small">Ошибка загрузки</div>`; });
+            }
+
+            // ── SKU-фильтр продуктов ─────────────────────────────────────────────
+            const allCatalogWrap  = document.getElementById('allCatalogWrap');
+            const allCatalogCheck = document.getElementById('allCatalogCheck');
+            let currentSkuPrefix  = null;
+
+            // Маппинг первой группы сырья → группа готовой продукции
+            const SKU_GROUP_MAP = { '01': '04' };
+
+            function localDerivePrefix(rawSku) {
+                if (!rawSku) return null;
+                const parts = rawSku.split('-');
+                if (parts.length < 2) return null;
+                const out = SKU_GROUP_MAP[parts[0]];
+                return out ? `${out}-${parts[1]}` : null;
+            }
+
+            function applySkuPrefix(prefix) {
+                currentSkuPrefix = prefix;
+                // Устанавливаем data-sku-prefix на все строки продуктов
+                container.querySelectorAll('.product-picker-row').forEach(row => {
+                    if (prefix) row.dataset.skuPrefix = prefix;
+                    else delete row.dataset.skuPrefix;
+                });
+                // Показываем чекбокс только если есть маппинг
+                if (allCatalogWrap) {
+                    allCatalogWrap.style.display = prefix ? '' : 'none';
+                    if (allCatalogCheck) allCatalogCheck.checked = false;
+                }
+            }
+
+            if (allCatalogCheck) {
+                allCatalogCheck.addEventListener('change', function () {
+                    container.querySelectorAll('.product-picker-row').forEach(row => {
+                        if (this.checked) delete row.dataset.skuPrefix;
+                        else if (currentSkuPrefix) row.dataset.skuPrefix = currentSkuPrefix;
+                    });
+                });
+            }
+
             batchSelect.addEventListener('change', function () {
                 const opt = batchSelect.options[batchSelect.selectedIndex];
                 if (opt?.value) {
                     const rem = parseFloat(opt.dataset.remaining) || 0;
                     rawQtyInput.value = rem.toFixed(3);
+                    loadReceptionsByBatch(opt.value);
+                    applySkuPrefix(localDerivePrefix(opt.dataset.productSku || ''));
+                } else {
+                    applySkuPrefix(null);
                 }
                 updateRemainingIndicator();
             });
+
+            // При загрузке страницы — если партия уже выбрана (old/copy)
+            if (batchSelect.value) {
+                loadReceptionsByBatch(batchSelect.value);
+                const selectedOpt = batchSelect.options[batchSelect.selectedIndex];
+                if (selectedOpt?.dataset.productSku) {
+                    applySkuPrefix(localDerivePrefix(selectedOpt.dataset.productSku));
+                }
+            }
             rawQtyInput.addEventListener('input', updateRemainingIndicator);
             updateRemainingIndicator();
 
@@ -446,6 +569,10 @@
                 if (qtyInput)    qtyInput.value     = quantity;
 
                 const row = clone.querySelector('.product-picker-row');
+                // Наследуем текущий SKU-фильтр (если чекбокс не снят)
+                if (currentSkuPrefix && !(allCatalogCheck?.checked)) {
+                    row.dataset.skuPrefix = currentSkuPrefix;
+                }
                 container.appendChild(clone);
                 if (window.ProductPicker) window.ProductPicker.initRow(row);
 
