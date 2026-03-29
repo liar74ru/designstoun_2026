@@ -137,7 +137,7 @@ function initSearch(row) {
 
             btn.addEventListener('mousedown', e => {
                 e.preventDefault();
-                selectProduct(searchInput, hiddenInput, p);
+                selectProduct(searchInput, hiddenInput, p, row);
                 hideDrop();
             });
             dropEl.appendChild(btn);
@@ -160,10 +160,12 @@ function initSearch(row) {
     });
 }
 
-function selectProduct(searchInput, hiddenInput, product) {
+function selectProduct(searchInput, hiddenInput, product, row) {
     searchInput.value = product.label;
     hiddenInput.value = product.id;
-    document.dispatchEvent(new CustomEvent('product-picker:selected'));
+    document.dispatchEvent(new CustomEvent('product-picker:selected', {
+        detail: { row, productId: product.id }
+    }));
 }
 
 // ─── Дерево в модале ──────────────────────────────────────────────────────────
@@ -232,7 +234,8 @@ function renderTree(groups, filter = '') {
                 if (btn) {
                     const hidden = document.getElementById(btn.dataset.hiddenId);
                     const search = document.getElementById(btn.dataset.searchId);
-                    if (hidden && search) selectProduct(search, hidden, product);
+                    const rowEl  = btn.closest('.product-picker-row');
+                    if (hidden && search) selectProduct(search, hidden, product, rowEl);
                 }
                 // Закрываем модал через data-атрибут Bootstrap
                 const closeBtn = modal.querySelector('[data-bs-dismiss="modal"]');

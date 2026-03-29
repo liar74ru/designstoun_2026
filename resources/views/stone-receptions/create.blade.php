@@ -536,8 +536,8 @@
                 const isUndercut = undercutCb?.checked || false;
                 const effective  = isUndercut ? baseCoeff - 1.5 : baseCoeff;
                 coeffDisplay.textContent = isUndercut
-                    ? `${baseCoeff.toFixed(4)} − 1.5 = ${effective.toFixed(4)}`
-                    : baseCoeff.toFixed(4);
+                    ? `${baseCoeff.toFixed(1)} − 1.5 = ${effective.toFixed(1)}`
+                    : baseCoeff.toFixed(1);
                 coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut);
                 coeffDisplay.classList.toggle('text-dark', !isUndercut);
             }
@@ -607,6 +607,19 @@
                 }
                 container.appendChild(clone);
                 if (window.ProductPicker) window.ProductPicker.initRow(row);
+
+                // Загружаем коэффициент если продукт уже задан (копирование)
+                if (productId) {
+                    const coeffDisplay = row.querySelector('.coeff-display');
+                    if (coeffDisplay) {
+                        fetchProductCoeff(productId).then(coeff => {
+                            if (coeff !== null) {
+                                coeffDisplay.dataset.baseCoeff = coeff;
+                                updateRowCoeff(row);
+                            }
+                        });
+                    }
+                }
 
                 rowIndex++;
                 updateTotal();

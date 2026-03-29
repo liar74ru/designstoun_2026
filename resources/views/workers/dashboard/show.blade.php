@@ -3,36 +3,34 @@
 @section('title', 'Моя выработка — ' . $worker->name)
 
 @section('content')
-    <div class="container py-4">
+    <div class="container py-3 py-md-4">
 
-        {{-- Заголовок и фильтр периода --}}
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-            <div>
-                <h1 class="h2 mb-0">⛏️ {{ $worker->name }}</h1>
-                <span class="text-muted">{{ $worker->position }}</span>
-            </div>
+        <x-page-header
+            title="⛏️ {{ $worker->name }}"
+            mobileTitle="{{ $worker->name }}"
+        />
 
-            {{-- Форма выбора периода --}}
-            <form method="GET" id="period-form" class="d-flex gap-2 align-items-end flex-wrap">
-                {{-- Быстрые кнопки недель --}}
-                {{-- Вычисляем даты каждой недели на сервере, чтобы подсветить активную --}}
-                @php
-                    $weekButtons = [];
-                    for ($i = 0; $i <= 2; $i++) {
-                        $fri = \Carbon\Carbon::today()->startOfDay();
-                        while ($fri->dayOfWeek !== \Carbon\Carbon::FRIDAY) {
-                            $fri->subDay();
-                        }
-                        $fri->subDays($i * 7);
-                        $thu = $fri->copy()->addDays(6)->endOfDay();
-                        $weekButtons[$i] = ['from' => $fri->format('Y-m-d'), 'to' => $thu->format('Y-m-d')];
-                    }
-                    $currentFrom = $dateFrom->format('Y-m-d');
-                    $currentTo   = $dateTo->format('Y-m-d');
-                @endphp
+        @include('partials.alerts')
 
-                <div class="d-flex gap-1 flex-wrap">
-                    @foreach([0 => 'Текущая неделя', 1 => 'Прошлая неделя', 2 => '2 недели назад'] as $week => $label)
+        {{-- Форма выбора периода --}}
+        @php
+            $weekButtons = [];
+            for ($i = 0; $i <= 2; $i++) {
+                $fri = \Carbon\Carbon::today()->startOfDay();
+                while ($fri->dayOfWeek !== \Carbon\Carbon::FRIDAY) { $fri->subDay(); }
+                $fri->subDays($i * 7);
+                $thu = $fri->copy()->addDays(6)->endOfDay();
+                $weekButtons[$i] = ['from' => $fri->format('Y-m-d'), 'to' => $thu->format('Y-m-d')];
+            }
+            $currentFrom = $dateFrom->format('Y-m-d');
+            $currentTo   = $dateTo->format('Y-m-d');
+        @endphp
+
+        <form method="GET" id="period-form" class="card shadow-sm mb-3">
+            <div class="card-body py-2 px-3">
+                {{-- Быстрые кнопки --}}
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                    @foreach([0 => 'Тек. неделя', 1 => 'Пред. неделя', 2 => '2 нед. назад'] as $week => $label)
                         @php $isActive = $weekButtons[$week]['from'] === $currentFrom && $weekButtons[$week]['to'] === $currentTo; @endphp
                         <button type="button"
                                 class="btn btn-sm week-btn {{ $isActive ? 'btn-primary' : 'btn-outline-secondary' }}"
@@ -41,30 +39,26 @@
                         </button>
                     @endforeach
                 </div>
-
-                <span class="text-muted small align-self-center">или</span>
-
                 {{-- Произвольный период --}}
-                <div>
-                    <label class="form-label mb-1 small text-muted">С</label>
-                    <input type="date" name="date_from" id="date_from" class="form-control form-control-sm"
-                           value="{{ $dateFrom->format('Y-m-d') }}">
+                <div class="d-flex flex-wrap gap-2 align-items-end">
+                    <div>
+                        <label class="form-label small text-muted mb-1">С</label>
+                        <input type="date" name="date_from" id="date_from"
+                               class="form-control form-control-sm" value="{{ $dateFrom->format('Y-m-d') }}">
+                    </div>
+                    <div>
+                        <label class="form-label small text-muted mb-1">По</label>
+                        <input type="date" name="date_to" id="date_to"
+                               class="form-control form-control-sm" value="{{ $dateTo->format('Y-m-d') }}">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Показать</button>
                 </div>
-                <div>
-                    <label class="form-label mb-1 small text-muted">По</label>
-                    <input type="date" name="date_to" id="date_to" class="form-control form-control-sm"
-                           value="{{ $dateTo->format('Y-m-d') }}">
-                </div>
-                <button type="submit" class="btn btn-primary btn-sm">Показать</button>
-            </form>
-        </div>
+            </div>
+        </form>
 
         {{-- Период --}}
-        <p class="text-muted mb-4">
-            Период:
-            <strong>{{ $dateFrom->translatedFormat('d M Y') }}</strong>
-            —
-            <strong>{{ $dateTo->translatedFormat('d M Y') }}</strong>
+        <p class="text-muted small mb-3">
+            Период: <strong>{{ $dateFrom->translatedFormat('d M Y') }}</strong> — <strong>{{ $dateTo->translatedFormat('d M Y') }}</strong>
             ({{ $receptions->count() }} {{ trans_choice('приёмка|приёмки|приёмок', $receptions->count()) }})
         </p>
 
@@ -74,48 +68,50 @@
             </div>
         @else
 
-            {{-- Итоговая карточка --}}
-            <div class="row g-3 mb-4">
-                <div class="col-sm-6 col-lg-3">
+            {{-- Итоговые карточки --}}
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-lg-3">
                     <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
+                        <div class="card-body py-2 px-3">
                             <div class="text-muted small mb-1">Итого к выплате</div>
-                            <div class="fs-3 fw-bold text-success">
-                                {{ number_format($totalPay, 2, ',', ' ') }} ₽
+                            <div class="fs-4 fw-bold text-success">
+                                {{ number_format($totalPay, 0, ',', ' ') }} ₽
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-sm-6 col-lg-3">
+                <div class="col-6 col-lg-3">
                     <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
+                        <div class="card-body py-2 px-3">
+                            <div class="text-muted small mb-1">Приёмок</div>
+                            <div class="fs-4 fw-bold">{{ $receptions->count() }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body py-2 px-3">
                             <div class="text-muted small mb-1">Позиций продуктов</div>
-                            <div class="fs-3 fw-bold">{{ $summary->count() }}</div>
+                            <div class="fs-4 fw-bold">{{ $summary->count() }}</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-sm-6 col-lg-3">
+                <div class="col-6 col-lg-3">
                     <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
-                            <div class="text-muted small mb-1">Ставка за ед.</div>
-                            <div class="fs-3 fw-bold">{{ number_format(\App\Models\Product::PIECE_RATE, 0, ',', ' ') }} ₽</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-sm-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
-                            <div class="text-muted small mb-1">Приёмок за период</div>
-                            <div class="fs-3 fw-bold">{{ $receptions->count() }}</div>
+                        <div class="card-body py-2 px-3">
+                            <div class="text-muted small mb-1">Базовая ставка</div>
+                            <div class="fs-4 fw-bold">{{ number_format(\App\Models\Product::PIECE_RATE, 0, ',', ' ') }} ₽</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             {{-- Сводка по продуктам --}}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold">Сводка по продуктам</div>
-                <div class="table-responsive">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold py-2">Сводка по продуктам</div>
+
+                {{-- Десктоп --}}
+                <div class="d-none d-md-block table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                         <tr>
@@ -128,14 +124,17 @@
                         </thead>
                         <tbody>
                         @foreach($summary as $row)
+                            @php
+                                $rate = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
+                            @endphp
                             <tr>
                                 <td>{{ $row['product']?->name ?? '—' }}</td>
                                 <td class="text-end">{{ number_format($row['quantity'], 3, ',', ' ') }}</td>
                                 <td class="text-end text-muted">
-                                    × {{ number_format($row['coeff'], 4, ',', ' ') }}
+                                    × {{ number_format($row['coeff'], 1, ',', ' ') }}
                                     <span class="text-muted small ms-1" title="Коэффициент взят из зафиксированных значений приёмки">🔒</span>
                                 </td>
-                                <td class="text-end text-muted">× {{ number_format(\App\Models\Product::PIECE_RATE, 0, ',', ' ') }} ₽</td>
+                                <td class="text-end text-muted">{{ number_format($rate, 0, ',', ' ') }} ₽</td>
                                 <td class="text-end fw-semibold text-success">
                                     {{ number_format($row['pay'], 2, ',', ' ') }} ₽
                                 </td>
@@ -152,11 +151,47 @@
                         </tfoot>
                     </table>
                 </div>
+
+                {{-- Мобильный --}}
+                <div class="d-md-none">
+                    @foreach($summary as $row)
+                        @php
+                            $rate = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
+                        @endphp
+                        <div class="info-block mx-2 my-2">
+                            <div class="info-block-header">
+                                <span class="small fw-semibold">{{ $row['product']?->name ?? '—' }}</span>
+                            </div>
+                            <div class="info-block-body">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="text-muted">Количество</span>
+                                    <span class="fw-semibold">{{ number_format($row['quantity'], 3, ',', ' ') }} м²</span>
+                                </div>
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="text-muted">Коэф. 🔒</span>
+                                    <span>× {{ number_format($row['coeff'], 1, ',', ' ') }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="text-muted">Ставка</span>
+                                    <span>{{ number_format($rate, 0, ',', ' ') }} ₽</span>
+                                </div>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-muted">Заработано</span>
+                                    <span class="fw-bold text-success">{{ number_format($row['pay'], 2, ',', ' ') }} ₽</span>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                    <div class="d-flex justify-content-between fw-bold px-3 py-2 border-top">
+                        <span>ИТОГО:</span>
+                        <span class="text-success">{{ number_format($totalPay, 2, ',', ' ') }} ₽</span>
+                    </div>
+                </div>
             </div>
 
             {{-- Детализация: список приёмок --}}
             <div class="card shadow-sm">
-                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                <div class="card-header fw-semibold d-flex justify-content-between align-items-center py-2">
                     <span>Приёмки за период</span>
                     <div class="d-flex gap-2 align-items-center">
                         @if($worker->user)
@@ -168,12 +203,14 @@
                         @endif
                         <button class="btn btn-sm btn-outline-secondary" id="toggle-receptions" type="button">
                             <i class="bi bi-chevron-up" id="toggle-icon"></i>
-                            <span id="toggle-label">Свернуть</span>
+                            <span id="toggle-label" class="d-none d-sm-inline">Свернуть</span>
                         </button>
                     </div>
                 </div>
                 <div id="receptionsList">
-                    <div class="table-responsive">
+
+                    {{-- Десктоп --}}
+                    <div class="d-none d-md-block table-responsive">
                         <table class="table table-sm table-hover mb-0">
                             <thead class="table-light">
                             <tr>
@@ -222,6 +259,46 @@
                             </tbody>
                         </table>
                     </div>
+
+                    {{-- Мобильный --}}
+                    <div class="d-md-none">
+                        @foreach($receptions as $log)
+                            <div class="info-block mx-2 my-2 {{ $log->type === 'updated' ? 'border-warning' : '' }}">
+                                <div class="info-block-header d-flex justify-content-between align-items-center">
+                                    <span class="small text-muted">{{ $log->created_at->format('d.m.Y H:i') }}</span>
+                                    <div class="d-flex gap-1 align-items-center">
+                                        @if($log->type === 'created')
+                                            <span class="badge bg-success" style="font-size:.65rem">Создание</span>
+                                        @else
+                                            <span class="badge bg-warning text-dark" style="font-size:.65rem">Правка</span>
+                                        @endif
+                                        <a href="{{ route('stone-receptions.edit', $log->stone_reception_id) }}"
+                                           class="btn btn-sm btn-outline-secondary"
+                                           style="width:24px;height:24px;padding:0;font-size:.7rem"
+                                           title="Редактировать">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="info-block-body">
+                                    <div class="small text-muted mb-1">
+                                        <i class="bi bi-building me-1"></i>{{ $log->stoneReception?->store?->name ?? '—' }}
+                                        <span class="ms-2"><i class="bi bi-person me-1"></i>{{ $log->receiver?->name ?? '—' }}</span>
+                                    </div>
+                                    @foreach($log->items as $item)
+                                        @php $delta = (float) $item->quantity_delta; @endphp
+                                        <div class="small d-flex justify-content-between">
+                                            <span>{{ $item->product?->name ?? '?' }}</span>
+                                            <span class="{{ $delta >= 0 ? 'text-success' : 'text-danger' }} fw-semibold">
+                                                {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }}
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
                 </div>
             </div>
 
@@ -243,31 +320,21 @@
                 toggleBtn.addEventListener('click', function (e) {
                     e.stopPropagation();
                     const isVisible = list.style.display !== 'none';
-                    list.style.display    = isVisible ? 'none' : '';
-                    toggleIcon.className  = isVisible ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
-                    toggleLabel.textContent = isVisible ? 'Развернуть' : 'Свернуть';
+                    list.style.display      = isVisible ? 'none' : '';
+                    toggleIcon.className    = isVisible ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+                    if (toggleLabel) toggleLabel.textContent = isVisible ? 'Развернуть' : 'Свернуть';
                 });
             }
 
             // ── Быстрые кнопки недель ─────────────────────────────────────────────
-            // Рабочая неделя: пятница–четверг (как в контроллере)
             function getWorkWeek(weeksAgo) {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-
-                // Находим ближайшую прошедшую (или сегодняшнюю) пятницу
                 const friday = new Date(today);
-                while (friday.getDay() !== 5) {
-                    friday.setDate(friday.getDate() - 1);
-                }
-
-                // Смещаем на нужное количество недель назад
+                while (friday.getDay() !== 5) { friday.setDate(friday.getDate() - 1); }
                 friday.setDate(friday.getDate() - weeksAgo * 7);
-
-                // Четверг = пятница + 6 дней
                 const thursday = new Date(friday);
                 thursday.setDate(thursday.getDate() + 6);
-
                 return { from: friday, to: thursday };
             }
 

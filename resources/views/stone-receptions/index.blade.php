@@ -16,6 +16,20 @@
 
         @include('stone-receptions.partials.mobile-tabs', ['activeTab' => 'index'])
 
+        {{-- Десктоп: переключатель вида --}}
+        <ul class="nav nav-pills mb-3 mb-md-4 d-none d-md-flex">
+            <li class="nav-item">
+                <a class="nav-link active py-1 px-3" href="{{ route('stone-receptions.index') }}">
+                    <i class="bi bi-table"></i> По партиям
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link py-1 px-3" href="{{ route('stone-receptions.logs') }}">
+                    <i class="bi bi-journal-text"></i> По приёмкам
+                </a>
+            </li>
+        </ul>
+
         {{-- ═══════════════════════ ФИЛЬТРЫ ═══════════════════════ --}}
         <form method="GET" id="filter-form" class="card shadow-sm mb-2 mb-md-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
