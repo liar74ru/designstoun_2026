@@ -486,9 +486,10 @@ class RawMaterialBatchController extends Controller
             // Пишем перемещение в историю
             // При добавлении: основной склад → склад партии
             // При убавлении:  склад партии → основной склад
-            $envStoreId = env('DEFAULT_STORE_ID', $batchStoreId);
-            // Если DEFAULT_STORE_ID не существует в БД — используем склад партии (актуально для тестов)
-            $defaultStoreId = \App\Models\Store::where('id', $envStoreId)->exists() ? $envStoreId : $batchStoreId;
+            $envStoreId = env('DEFAULT_STORE_ID') ?: null;
+            $defaultStoreId = ($envStoreId && \App\Models\Store::where('id', $envStoreId)->exists())
+                ? $envStoreId
+                : $batchStoreId;
             $movement = RawMaterialMovement::create([
                 'batch_id'       => $batch->id,
                 'from_store_id'  => $delta < 0 ? $batchStoreId    : $defaultStoreId,
@@ -505,7 +506,6 @@ class RawMaterialBatchController extends Controller
 
         // Синхронизация с МойСклад (вне транзакции — ошибка API не откатывает БД)
         if ($movement && $batch->product?->moysklad_id) {
-            $defaultStoreId = env('DEFAULT_STORE_ID');
             try {
                 $product = $batch->product;
 
@@ -515,14 +515,6 @@ class RawMaterialBatchController extends Controller
                     ->whereNotNull('moysklad_move_id')
                     ->orderBy('created_at')
                     ->first();
-
-                $moveData = [
-                    'from_store_id' => $delta < 0 ? $batchStoreId : $defaultStoreId,
-                    'to_store_id'   => $delta > 0 ? $batchStoreId : $defaultStoreId,
-                    'products'      => [['product_id' => $product->moysklad_id, 'quantity' => abs($delta)]],
-                    'name'          => ($delta > 0 ? 'Пополнение' : 'Списание') . ' партии: ' . ($batch->batch_number ?? '№'.$batch->id),
-                    'description'   => 'Корректировка остатка партии через систему. Новый остаток: ' . number_format($newRemaining, 3) . ' м³',
-                ];
 
                 if ($originalMovement?->moysklad_move_id) {
                     // Обновляем существующее перемещение в МойСклад.
@@ -578,19 +570,10 @@ class RawMaterialBatchController extends Controller
                         ]);
                     }
                 } else {
-                    // Исходного перемещения нет — создаём новое
-                    $result = $this->moySkladMoveService->createMove($moveData);
-                    if ($result['success']) {
-                        $movement->update([
-                            'moysklad_move_id' => $result['move_id'],
-                            'moysklad_synced'  => true,
-                        ]);
-                    } else {
-                        \Illuminate\Support\Facades\Log::warning('Ошибка создания перемещения в МойСклад', [
-                            'error'    => $result['message'],
-                            'batch_id' => $batch->id,
-                        ]);
-                    }
+                    // Исходного перемещения в МойСклад нет — корректировку не синхронизируем
+                    \Illuminate\Support\Facades\Log::warning('Корректировка без синхронизации МойСклад — исходное перемещение не найдено', [
+                        'batch_id' => $batch->id,
+                    ]);
                 }
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Исключение при синхронизации корректировки с МойСклад', [
