@@ -1,157 +1,180 @@
 @extends('layouts.app')
-@section('title', 'Корректировка партии #' . $batch->id)
+@section('title', 'Корректировка партии')
 
 @section('content')
-    <div class="container py-4" style="max-width:600px">
+<div class="container py-3" style="max-width:560px">
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h3 mb-0">⚖️ Корректировка партии #{{ $batch->id }}</h1>
-            <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i> Назад
-            </a>
+    <x-page-header
+        title="⚖️ Корректировка партии"
+        mobileTitle="Корректировка"
+        :backUrl="$backUrl"
+        backLabel="Назад">
+    </x-page-header>
+
+    @include('partials.alerts')
+
+    {{-- Информация о партии (стиль как в index, без кнопок) --}}
+    @php $fmt = fn($v) => rtrim(rtrim(number_format($v, 2), '0'), '.'); @endphp
+    <div class="info-block mb-3">
+        <div class="info-block-header d-flex justify-content-between align-items-center">
+            <span class="fw-semibold small text-dark">{{ $batch->batch_number ?? '#'.$batch->id }}</span>
+            <span class="badge {{ $batch->statusBadgeClass() }}">{{ $batch->statusLabel() }}</span>
         </div>
-
-        @if($errors->any())
-            <div class="alert alert-danger">
-                <ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+        <div class="info-block-body">
+            <div class="fw-semibold mb-1">{{ $batch->product->name ?? '—' }}</div>
+            <div class="small text-muted mb-1">
+                <i class="bi bi-building me-1"></i>{{ $batch->currentStore->name ?? '—' }}
             </div>
-        @endif
-
-        {{-- Текущее состояние --}}
-        <div class="card mb-4 border-0 bg-light">
-            <div class="card-body py-3">
-                <div class="row text-center">
-                    <div class="col">
-                        <div class="text-muted small">Продукт</div>
-                        <div class="fw-semibold">{{ $batch->product->name ?? '—' }}</div>
-                    </div>
-                    <div class="col">
-                        <div class="text-muted small">Партия</div>
-                        <div class="fw-semibold">{{ $batch->batch_number ?? '#'.$batch->id }}</div>
-                    </div>
-                    <div class="col">
-                        <div class="text-muted small">Текущий остаток</div>
-                        <div class="fw-bold fs-5">{{ number_format($batch->remaining_quantity, 3) }} м³</div>
-                    </div>
-                    <div class="col">
-                        <div class="text-muted small">Статус</div>
-                        <div>
-                            @if($batch->status === 'active') <span class="badge bg-success">Активна</span>
-                            @elseif($batch->status === 'used') <span class="badge bg-warning text-dark">Израсходована</span>
-                            @else <span class="badge bg-secondary">Возвращена</span>
-                            @endif
-                        </div>
-                    </div>
+            @if($batch->currentWorker)
+                <div class="small mb-1">
+                    <i class="bi bi-person me-1 text-muted"></i>
+                    <span class="fw-semibold">{{ $batch->currentWorker->name }}</span>
                 </div>
+            @endif
+            <div class="small text-muted mb-2">
+                <i class="bi bi-calendar me-1"></i>{{ $batch->created_at->format('d.m.Y') }}
             </div>
-        </div>
-
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
-                <h5 class="mb-0">Изменить количество</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ route('raw-batches.adjust', $batch) }}">
-                    @csrf
-
-                    <div class="mb-4">
-                        <label class="form-label fw-semibold">Величина изменения (м³)</label>
-                        <div class="row align-items-end g-3">
-                            <div class="col-auto">
-                                <div class="form-control bg-light text-muted" style="min-width:120px">
-                                    {{ number_format($batch->remaining_quantity, 3) }} м³
-                                </div>
-                                <div class="form-text text-center">сейчас</div>
-                            </div>
-                            <div class="col-auto pb-4 fs-4 text-muted">+</div>
-                            <div class="col-auto">
-                                <input type="number"
-                                       name="delta"
-                                       id="delta"
-                                       class="form-control @error('delta') is-invalid @enderror"
-                                       style="width:140px"
-                                       step="0.001"
-                                       placeholder="0.000"
-                                       value="{{ old('delta') }}"
-                                       autofocus>
-                                <div class="form-text text-center">«−» чтобы убавить</div>
-                                @error('delta')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            </div>
-                            <div class="col-auto pb-4 fs-4 text-muted">=</div>
-                            <div class="col-auto">
-                                <div id="result" class="form-control bg-light fw-bold" style="min-width:120px">
-                                    {{ number_format($batch->remaining_quantity, 3) }} м³
-                                </div>
-                                <div class="form-text text-center">итого</div>
-                            </div>
-                        </div>
-                        <div id="result_hint" class="mt-2 small"></div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="form-label">Примечание</label>
-                        <input type="text" name="notes" class="form-control"
-                               placeholder="Причина корректировки..." value="{{ old('notes') }}">
-                    </div>
-
-                    @if(auth()->user()?->isAdmin())
-                        {{-- Поле для администратора: ручная дата --}}
-                        <div class="mb-4 p-3 border border-warning rounded bg-warning bg-opacity-10">
-                            <label class="form-label fw-semibold text-warning-emphasis">
-                                <i class="bi bi-calendar-event"></i> Дата корректировки
-                                <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Только для админа</span>
-                            </label>
-                            <input type="datetime-local"
-                                   name="manual_created_at"
-                                   class="form-control"
-                                   value="{{ old('manual_created_at') }}">
-                            <div class="form-text">Оставьте пустым — дата установится автоматически</div>
-                        </div>
-                    @endif
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary" id="submitBtn">
-                            <i class="bi bi-check-lg"></i> Применить
-                        </button>
-                        <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-outline-secondary">Отмена</a>
-                    </div>
-                </form>
+            <div class="d-flex flex-column gap-1">
+                <div>
+                    <span class="badge rounded-pill bg-primary">
+                        перемещ.: {{ $batch->latestMovement?->quantity ? $fmt($batch->latestMovement->quantity).' м³' : '—' }}
+                    </span>
+                </div>
+                <div>
+                    <span class="badge rounded-pill"
+                          style="{{ $batch->remaining_quantity > 0 ? 'background:#d1e7dd;color:#0a3622' : 'background:#6c757d;color:#fff' }}">
+                        остаток: {{ $fmt($batch->remaining_quantity) }} м³
+                    </span>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const current   = {{ (float)$batch->remaining_quantity }};
-            const deltaInput = document.getElementById('delta');
-            const resultDiv  = document.getElementById('result');
-            const hint       = document.getElementById('result_hint');
-            const submitBtn  = document.getElementById('submitBtn');
-
-            deltaInput.addEventListener('input', function () {
-                const delta  = parseFloat(this.value) || 0;
-                const result = Math.round((current + delta) * 1000) / 1000;
-
-                resultDiv.textContent = result.toFixed(3) + ' м³';
-
-                if (result < 0) {
-                    resultDiv.className = 'form-control bg-light fw-bold text-danger';
-                    hint.innerHTML = '<span class="text-danger">⚠ Нельзя убрать больше чем есть в остатке</span>';
-                    submitBtn.disabled = true;
-                } else if (delta > 0) {
-                    resultDiv.className = 'form-control bg-light fw-bold text-success';
-                    hint.innerHTML = `<span class="text-success">+ добавляем ${Math.abs(delta).toFixed(3)} м³ — остаток увеличится, склад синхронизируется</span>`;
-                    submitBtn.disabled = false;
-                } else if (delta < 0) {
-                    resultDiv.className = 'form-control bg-light fw-bold text-warning';
-                    hint.innerHTML = `<span class="text-warning">− убираем ${Math.abs(delta).toFixed(3)} м³ — остаток уменьшится, склад синхронизируется</span>`;
-                    submitBtn.disabled = false;
-                } else {
-                    resultDiv.className = 'form-control bg-light fw-bold';
-                    hint.innerHTML = '';
-                    submitBtn.disabled = false;
+    {{-- Блок корректировки --}}
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-2">
+            <span class="fw-semibold small text-muted">Изменение остатка</span>
+        </div>
+        <div class="card-body">
+            <style>
+                #adjustForm .form-control { border-radius: .4rem; }
+                .qty-display {
+                    font-size: 1.4rem;
+                    font-weight: 700;
+                    padding: .4rem .75rem;
+                    border-radius: .4rem;
+                    background: #f8f9fa;
+                    border: 1px solid #dee2e6;
+                    text-align: center;
+                    letter-spacing: .02em;
                 }
-            });
-        });
-    </script>
+            </style>
+            <form method="POST" action="{{ route('raw-batches.adjust', $batch) }}" id="adjustForm">
+                @csrf
+
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Текущий остаток</div>
+                    <div class="qty-display text-secondary">
+                        {{ $fmt($batch->remaining_quantity) }} <span class="fs-6 fw-normal">м³</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="delta" class="form-label fw-semibold">
+                        Изменение <span class="text-muted fw-normal small">(«−» чтобы убавить)</span>
+                    </label>
+                    <input type="number" name="delta" id="delta"
+                           class="form-control form-control-lg text-center @error('delta') is-invalid @enderror"
+                           step="0.001" placeholder="например: +1.5 или -0.5"
+                           value="{{ old('delta') }}" autofocus>
+                    @error('delta')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+
+                <div class="mb-4">
+                    <div class="text-muted small mb-1">Итого будет</div>
+                    <div class="qty-display" id="result">
+                        {{ $fmt($batch->remaining_quantity) }} <span class="fs-6 fw-normal">м³</span>
+                    </div>
+                    <div id="result_hint" class="mt-2 small"></div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Примечание</label>
+                    <input type="text" name="notes" class="form-control"
+                           placeholder="Причина корректировки..." value="{{ old('notes') }}">
+                </div>
+
+                @if(auth()->user()?->isAdmin())
+                    <div class="mb-4 p-3 border border-warning rounded bg-warning bg-opacity-10">
+                        <label class="form-label fw-semibold text-warning-emphasis">
+                            <i class="bi bi-calendar-event"></i> Дата корректировки
+                            <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Только для админа</span>
+                        </label>
+                        <input type="datetime-local" name="manual_created_at"
+                               class="form-control" value="{{ old('manual_created_at') }}">
+                        <div class="form-text">Оставьте пустым — дата установится автоматически</div>
+                    </div>
+                @endif
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="bi bi-check-lg"></i> Применить
+                    </button>
+                    <a href="{{ $backUrl }}" class="btn btn-outline-secondary text-nowrap">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const current   = {{ (float)$batch->remaining_quantity }};
+    const deltaInput = document.getElementById('delta');
+    const resultEl   = document.getElementById('result');
+    const hint       = document.getElementById('result_hint');
+    const submitBtn  = document.getElementById('submitBtn');
+
+    function fmt(v) {
+        return ('' + (Math.round(v * 100) / 100))
+            .replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    }
+
+    deltaInput.addEventListener('input', function () {
+        const delta  = parseFloat(this.value) || 0;
+        const result = Math.round((current + delta) * 1000) / 1000;
+
+        resultEl.innerHTML = fmt(result) + ' <span class="fs-6 fw-normal">м³</span>';
+
+        if (result < 0) {
+            resultEl.style.color = '#842029';
+            resultEl.style.background = '#f8d7da';
+            resultEl.style.borderColor = '#f5c2c7';
+            hint.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Нельзя убрать больше чем есть в остатке</span>';
+            submitBtn.disabled = true;
+        } else if (delta > 0) {
+            resultEl.style.color = '#0a3622';
+            resultEl.style.background = '#d1e7dd';
+            resultEl.style.borderColor = '#a3cfbb';
+            hint.innerHTML = `<span class="text-success"><i class="bi bi-plus-circle me-1"></i>Добавляем ${fmt(Math.abs(delta))} м³ — остаток увеличится</span>`;
+            submitBtn.disabled = false;
+        } else if (delta < 0) {
+            resultEl.style.color = '#664d03';
+            resultEl.style.background = '#fff3cd';
+            resultEl.style.borderColor = '#ffda6a';
+            hint.innerHTML = `<span class="text-warning"><i class="bi bi-dash-circle me-1"></i>Убираем ${fmt(Math.abs(delta))} м³ — остаток уменьшится</span>`;
+            submitBtn.disabled = false;
+        } else {
+            resultEl.style.color = '';
+            resultEl.style.background = '#f8f9fa';
+            resultEl.style.borderColor = '#dee2e6';
+            hint.innerHTML = '';
+            submitBtn.disabled = false;
+        }
+    });
+});
+</script>
+@endpush
 @endsection

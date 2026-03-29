@@ -4,31 +4,14 @@
 
 @section('content')
     <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">📄 Партия #{{ $batch->id }}</h1>
-            <a href="{{ route('raw-batches.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> К списку
-            </a>
-        </div>
+        <x-page-header
+            title="📄 Партия #{{ $batch->batch_number ?? $batch->id }}"
+            mobileTitle="Партия #{{ $batch->batch_number ?? $batch->id }}"
+            backUrl="{{ route('raw-batches.index') }}"
+            backLabel="К списку">
+        </x-page-header>
 
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show">
-                <i class="bi bi-check-circle-fill"></i> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show">
-                <i class="bi bi-exclamation-triangle-fill"></i> {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-        @if(session('info'))
-            <div class="alert alert-info alert-dismissible fade show">
-                <i class="bi bi-info-circle-fill"></i> {{ session('info') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+        @include('partials.alerts')
 
         <div class="row">
             <!-- Левая колонка: информация о партии -->
@@ -95,19 +78,18 @@
 
                 @if($batch->status !== 'archived')
                     <div class="card shadow-sm mb-4">
-                        <div class="card-body">
-                            <div class="d-flex flex-wrap gap-2">
+                        <div class="card-header bg-white py-2">
+                            <span class="fw-semibold small text-muted">Возможные действия</span>
+                        </div>
+                        <div class="card-body py-2">
+                            <div class="d-grid gap-2">
 
-                                {{-- Редактировать / удалить — только для статуса 'new' --}}
-                                @if($batch->canBeEditedOrDeleted())
-                                    <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-outline-secondary">
-                                        <i class="bi bi-pencil"></i> Редактировать
-                                    </a>
-                                @endif
+                                <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-success">
+                                    <i class="bi bi-plus-slash-minus"></i> Изменить количество
+                                </a>
 
-                                {{-- Корректировка количества — для любой не-архивной партии --}}
-                                <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-outline-primary">
-                                    <i class="bi bi-plus-slash-minus"></i> Скорректировать количество
+                                <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-primary">
+                                    <i class="bi bi-copy"></i> Копировать
                                 </a>
 
                                 @if($batch->isWorkable())
@@ -119,26 +101,38 @@
                                     </a>
                                 @endif
 
-                                {{-- Архив: только для used/returned с нулевым остатком --}}
                                 @if($batch->canBeArchived())
                                     <form method="POST" action="{{ route('raw-batches.archive', $batch) }}"
-                                          onsubmit="return confirm('Отправить партию в архив? Это финальный статус, редактирование будет недоступно.')">
+                                          onsubmit="return confirm('Отправить партию в архив? Это финальный статус.')">
                                         @csrf
-                                        <button type="submit" class="btn btn-dark">
+                                        <button type="submit" class="btn btn-dark w-100">
                                             <i class="bi bi-archive"></i> В архив
                                         </button>
                                     </form>
                                 @elseif(in_array($batch->status, ['used', 'returned']) && (float)$batch->remaining_quantity > 0)
-                                    <button class="btn btn-dark" disabled title="Сначала спишите остаток ({{ number_format($batch->remaining_quantity, 3) }} м³)">
-                                        <i class="bi bi-archive"></i> В архив (остаток не нулевой)
+                                    <button class="btn btn-dark" disabled title="Сначала спишите остаток">
+                                        <i class="bi bi-archive"></i> В архив
                                     </button>
+                                @endif
+
+                                @if($batch->canBeEditedOrDeleted())
+                                    <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-secondary">
+                                        <i class="bi bi-pencil"></i> Изменить <span class="opacity-75 small">(Только для новой)</span>
+                                    </a>
+                                    <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
+                                          onsubmit="return confirm('Удалить партию #{{ $batch->id }}? Это действие необратимо.')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn btn-danger w-100">
+                                            <i class="bi bi-trash"></i> Удалить <span class="opacity-75 small">(Только для новой)</span>
+                                        </button>
+                                    </form>
                                 @endif
 
                             </div>
                         </div>
                     </div>
                 @else
-                    <div class="alert alert-secondary">
+                    <div class="alert alert-secondary py-2 small">
                         <i class="bi bi-archive me-2"></i>
                         <strong>Партия в архиве.</strong> Редактирование недоступно.
                     </div>

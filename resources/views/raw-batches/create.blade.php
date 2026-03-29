@@ -3,10 +3,16 @@
 @section('title', 'Новая партия сырья')
 
 @section('content')
+    @php
+        $fromStoreDefault = old('from_store_id', session('copy_from.from_store_id'))
+            ?: ($stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false)?->id ?? '');
+        $toStoreDefault = old('to_store_id', session('copy_from.to_store_id'))
+            ?: ($stores->first(fn($s) => mb_stripos($s->name, 'цех') !== false)?->id ?? '');
+    @endphp
     <div class="container py-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2 mb-0">➕ Новая партия сырья</h1>
-            <a href="{{ route('raw-batches.index') }}" class="btn btn-outline-secondary">
+            <a href="{{ route('raw-batches.index') }}" class="btn btn-outline-secondary text-nowrap">
                 <i class="bi bi-arrow-left"></i> К списку
             </a>
         </div>
@@ -15,6 +21,10 @@
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-body p-4">
+                        <style>
+                            #batchForm .form-control,
+                            #batchForm .form-select { border-radius: .4rem; }
+                        </style>
                         <form method="POST" action="{{ route('raw-movement.store') }}" id="batchForm">
                             @csrf
 
@@ -28,10 +38,16 @@
 
                             {{-- Продукт — новый пикер вместо x-product-search --}}
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">
-                                    Сырьё <span class="text-danger">*</span>
-                                </label>
-                                <div class="product-picker-row" data-tpl-index="0">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label fw-semibold mb-0">
+                                        Сырьё <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="form-check form-check-inline mb-0" id="allCatalogWrap">
+                                        <input class="form-check-input" type="checkbox" id="allCatalogCheck">
+                                        <label class="form-check-label small text-muted" for="allCatalogCheck">весь каталог</label>
+                                    </div>
+                                </div>
+                                <div class="product-picker-row" data-sku-prefix="01-" data-tpl-index="0">
                                     <div class="flex-grow-1 position-relative">
                                         <div class="input-group">
                                             <input type="text"
@@ -134,7 +150,7 @@
                                     <option value="">— Выберите склад —</option>
                                     @foreach($stores as $store)
                                         <option value="{{ $store->id }}"
-                                            {{ old('from_store_id', session('copy_from.from_store_id')) == $store->id ? 'selected' : '' }}>
+                                            {{ $fromStoreDefault == $store->id ? 'selected' : '' }}>
                                             {{ $store->name }}
                                         </option>
                                     @endforeach
@@ -154,7 +170,7 @@
                                     <option value="">— Выберите склад —</option>
                                     @foreach($stores as $store)
                                         <option value="{{ $store->id }}"
-                                            {{ old('to_store_id', session('copy_from.to_store_id')) == $store->id ? 'selected' : '' }}>
+                                            {{ $toStoreDefault == $store->id ? 'selected' : '' }}>
                                             {{ $store->name }}
                                         </option>
                                     @endforeach
@@ -219,11 +235,40 @@
             const batchInput      = document.getElementById('batchNumberInput');
             const manualCheckbox  = document.getElementById('manualBatchNumber');
             const batchHint       = document.getElementById('batchNumberHint');
+            const allCatalogCheck = document.getElementById('allCatalogCheck');
+
+            const RAW_SKU_PREFIX  = '01-';
+            const fromStoreSelect = document.querySelector('select[name="from_store_id"]');
 
             // Инициализируем пикер продукта
             if (row && window.ProductPicker) {
                 window.ProductPicker.initRow(row);
             }
+
+            // Передаём склад-источник в строку пикера для отображения остатков
+            function syncSourceStore() {
+                if (fromStoreSelect?.value) {
+                    row.dataset.sourceStoreId = fromStoreSelect.value;
+                } else {
+                    delete row.dataset.sourceStoreId;
+                }
+            }
+            fromStoreSelect?.addEventListener('change', syncSourceStore);
+            syncSourceStore();
+
+            // Загружаем карту остатков
+            fetch('/api/products/stocks', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.json())
+                .then(data => { window.ProductPickerStockMap = data; });
+
+            // Чекбокс "весь каталог"
+            allCatalogCheck?.addEventListener('change', function () {
+                if (this.checked) {
+                    delete row.dataset.skuPrefix;
+                } else {
+                    row.dataset.skuPrefix = RAW_SKU_PREFIX;
+                }
+            });
 
             // ── Автогенерация номера партии ──────────────────────────────────────────
 

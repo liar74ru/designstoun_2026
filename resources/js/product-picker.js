@@ -88,6 +88,24 @@ function initSearch(row) {
         return allProducts.filter(p => p.sku && p.sku.startsWith(prefix));
     }
 
+    function fmtStock(val) {
+        if (val === null || val === undefined) return '—';
+        const n = parseFloat(val);
+        return isNaN(n) ? '—' : ('' + Math.round(n * 100) / 100).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    }
+
+    function stockBadge(qty) {
+        const positive = qty > 0;
+        const el = document.createElement('span');
+        el.style.cssText = `display:inline-block;min-width:36px;text-align:center;padding:1px 4px;`
+            + `border-radius:3px;font-size:.7rem;white-space:nowrap;`
+            + (positive
+                ? 'background:#d1e7dd;color:#0a3622'
+                : 'background:#f8d7da;color:#842029');
+        el.textContent = fmtStock(qty);
+        return el;
+    }
+
     function showDrop(items) {
         dropEl.innerHTML = '';
         if (!items.length) {
@@ -96,8 +114,27 @@ function initSearch(row) {
         items.slice(0, 15).forEach(p => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'list-group-item list-group-item-action py-1 small';
-            btn.textContent = p.label;
+            btn.className = 'list-group-item list-group-item-action py-1 small d-flex justify-content-between align-items-center gap-2';
+
+            const label = document.createElement('span');
+            label.className = 'flex-grow-1 text-truncate';
+            label.textContent = p.label;
+            btn.appendChild(label);
+
+            // Остатки, если доступны
+            if (window.ProductPickerStockMap) {
+                const stockData = window.ProductPickerStockMap[p.id];
+                const total     = stockData?.total ?? 0;
+                const storeId   = row.dataset.sourceStoreId;
+                const storeQty  = storeId && stockData?.stores ? (stockData.stores[storeId] ?? 0) : null;
+
+                const badges = document.createElement('span');
+                badges.className = 'd-flex gap-1 flex-shrink-0';
+                badges.appendChild(stockBadge(total));
+                if (storeQty !== null) badges.appendChild(stockBadge(storeQty));
+                btn.appendChild(badges);
+            }
+
             btn.addEventListener('mousedown', e => {
                 e.preventDefault();
                 selectProduct(searchInput, hiddenInput, p);

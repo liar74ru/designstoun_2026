@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductStock;
 use App\Services\StockSyncService;
 use Illuminate\Http\Request;
 use App\Services\MoySkladService;
@@ -210,6 +211,24 @@ class ProductController extends Controller
         });
 
         return response()->json($tree);
+    }
+
+    /**
+     * AJAX: остатки всех продуктов по складам.
+     * Формат: { product_id: { total: X, stores: { store_id: qty } } }
+     */
+    public function stocksJson()
+    {
+        $result = ProductStock::select('product_id', 'store_id', 'quantity')
+            ->get()
+            ->groupBy('product_id')
+            ->map(fn($items) => [
+                'total'  => round((float) $items->sum('quantity'), 3),
+                'stores' => $items->pluck('quantity', 'store_id')
+                    ->map(fn($q) => round((float) $q, 3)),
+            ]);
+
+        return response()->json($result);
     }
 
     /**

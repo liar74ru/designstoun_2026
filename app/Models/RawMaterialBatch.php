@@ -50,6 +50,11 @@ class RawMaterialBatch extends Model
         return $this->hasMany(RawMaterialMovement::class, 'batch_id');
     }
 
+    public function latestMovement()
+    {
+        return $this->hasOne(RawMaterialMovement::class, 'batch_id')->latestOfMany();
+    }
+
     public function receptions()
     {
         return $this->hasMany(StoneReception::class, 'raw_material_batch_id');

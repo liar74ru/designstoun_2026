@@ -85,6 +85,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/batches/{batch}/receptions', [StoneReceptionController::class, 'getReceptionsByBatchJson'])->name('api.batch.receptions');
     Route::get('/api/workers/{worker}/next-batch-number', [RawMaterialBatchController::class, 'nextBatchNumber'])->name('api.worker.next-batch-number');
     Route::get('/api/products/tree', [ProductController::class, 'groupsJson'])->name('api.products.tree');
+    Route::get('/api/products/stocks', [ProductController::class, 'stocksJson'])->name('api.products.stocks');
     Route::get('/api/products/{product}/coeff', [ProductController::class, 'getCoeff'])->name('api.products.coeff');
 
     // Редактирование коэффициентов позиций приёмки (из страницы show)

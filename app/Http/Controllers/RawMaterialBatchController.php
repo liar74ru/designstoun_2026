@@ -32,7 +32,7 @@ class RawMaterialBatchController extends Controller
 
     public function index(Request $request)
     {
-        $baseQuery = RawMaterialBatch::with(['product', 'currentStore', 'currentWorker']);
+        $baseQuery = RawMaterialBatch::with(['product', 'currentStore', 'currentWorker', 'latestMovement.fromStore', 'latestMovement.toStore']);
 
         $batches = QueryBuilder::for($baseQuery)
             ->allowedFilters([
@@ -213,8 +213,9 @@ class RawMaterialBatchController extends Controller
         }
 
         $products = Product::orderBy('name')->get();
+        $backUrl  = url()->previous(route('raw-batches.index'));
 
-        return view('raw-batches.edit', compact('batch', 'products'));
+        return view('raw-batches.edit', compact('batch', 'products', 'backUrl'));
     }
 
     /**
@@ -412,8 +413,9 @@ class RawMaterialBatchController extends Controller
                 ->with('error', 'Архивная партия недоступна для редактирования.');
         }
 
-        $stores = Store::orderBy('name')->get();
-        return view('raw-batches.adjust', compact('batch', 'stores'));
+        $stores  = Store::orderBy('name')->get();
+        $backUrl = url()->previous(route('raw-batches.index'));
+        return view('raw-batches.adjust', compact('batch', 'stores', 'backUrl'));
     }
 
     /**
@@ -642,7 +644,8 @@ class RawMaterialBatchController extends Controller
         }
 
         $workers = Worker::orderBy('name')->get();
-        return view('raw-batches.transfer', compact('batch', 'workers'));
+        $backUrl = url()->previous(route('raw-batches.index'));
+        return view('raw-batches.transfer', compact('batch', 'workers', 'backUrl'));
     }
 
     public function transfer(Request $request, RawMaterialBatch $batch)
@@ -677,7 +680,8 @@ class RawMaterialBatchController extends Controller
             return redirect()->route('raw-batches.show', $batch)->with('error', 'Партия уже неактивна.');
         }
 
-        $stores = Store::orderBy('name')->get();
-        return view('raw-batches.return', compact('batch', 'stores'));
+        $stores  = Store::orderBy('name')->get();
+        $backUrl = url()->previous(route('raw-batches.index'));
+        return view('raw-batches.return', compact('batch', 'stores', 'backUrl'));
     }
 }

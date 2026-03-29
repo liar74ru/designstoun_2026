@@ -194,56 +194,69 @@
                         <a href="{{ route('raw-batches.show', $batch->id) }}" class="fw-semibold small text-decoration-none text-dark">
                             {{ $batch->batch_number ?? '—' }}
                         </a>
-                        <div class="d-flex align-items-center gap-1">
-                            <span class="badge {{ $batch->remaining_quantity > 0 ? 'bg-primary' : 'bg-secondary' }}">
-                                {{ number_format($batch->remaining_quantity, 3) }}
-                            </span>
-                            <span class="badge {{ $batch->statusBadgeClass() }}">
-                                {{ $batch->statusLabel() }}
-                            </span>
-                        </div>
+                        <span class="badge {{ $batch->statusBadgeClass() }}">
+                            {{ $batch->statusLabel() }}
+                        </span>
                     </div>
-                    <div class="info-block-body">
-                        <div class="small text-muted mb-1">{{ $batch->product->name ?? '—' }}</div>
-                        <div class="d-flex gap-3 small text-muted mb-2">
-                            <span><i class="bi bi-building me-1"></i>{{ $batch->currentStore->name ?? '—' }}</span>
-                            <span><i class="bi bi-person me-1"></i>{{ $batch->currentWorker->name ?? '—' }}</span>
+                    @php $fmt = fn($v) => rtrim(rtrim(number_format($v, 2), '0'), '.'); @endphp
+                    <div class="info-block-body d-flex gap-2 align-items-stretch">
+                        {{-- Левая часть: информация --}}
+                        <div class="flex-grow-1 min-w-0 d-flex flex-column justify-content-between">
+                            <div>
+                                <div class="fw-semibold mb-1">{{ $batch->product->name ?? '—' }}</div>
+                                <div class="small text-muted mb-1">
+                                    <i class="bi bi-box-arrow-right me-1"></i>{{ $batch->latestMovement?->fromStore?->name ?? '—' }}
+                                </div>
+                                <div class="small text-muted mb-1">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i>{{ $batch->latestMovement?->toStore?->name ?? '—' }}
+                                </div>
+                                <div class="small mb-1">
+                                    <i class="bi bi-person me-1 text-muted"></i>
+                                    <span class="fw-semibold">{{ $batch->currentWorker?->name ?? '—' }}</span>
+                                </div>
+                                <div class="small text-muted mb-1">
+                                    <i class="bi bi-calendar me-1"></i>{{ $batch->created_at->format('d.m.Y') }}
+                                </div>
+                            </div>
+                            <div class="d-flex flex-column gap-1 mt-1">
+                                <div>
+                                    <span class="badge rounded-pill bg-primary">
+                                        перемещ.: {{ $batch->latestMovement?->quantity ? $fmt($batch->latestMovement->quantity).' м³' : '—' }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span class="badge rounded-pill"
+                                          style="{{ $batch->remaining_quantity > 0 ? 'background:#d1e7dd;color:#0a3622' : 'background:#6c757d;color:#fff' }}">
+                                        остаток: {{ $fmt($batch->remaining_quantity) }} м³
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="small text-muted mb-2">
-                            <i class="bi bi-calendar me-1"></i>{{ $batch->created_at->format('d.m.Y H:i') }}
-                        </div>
-                        {{-- Действия --}}
-                        <div class="d-flex gap-1 flex-wrap">
-                            <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-sm btn-outline-info" title="Просмотр">
-                                <i class="bi bi-eye"></i>
+
+                        {{-- Правая часть: кнопки в столбик --}}
+                        <div class="d-flex flex-column gap-1 flex-shrink-0">
+                            <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-sm btn-outline-info" style="min-width:90px">
+                                <i class="bi bi-eye"></i> Открыть
                             </a>
                             @if($batch->canBeEditedOrDeleted())
-                                <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-sm btn-outline-secondary" title="Редактировать">
-                                    <i class="bi bi-pencil"></i>
+                                <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-sm btn-outline-secondary" style="min-width:90px">
+                                    <i class="bi bi-pencil"></i> Изменить
                                 </a>
-                                <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
-                                      class="d-inline"
-                                      onsubmit="return confirm('Удалить партию #{{ $batch->id }}?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
                             @endif
                             @if($batch->status !== 'archived')
-                                <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-sm btn-outline-success" title="Скорректировать">
-                                    <i class="bi bi-plus-slash-minus"></i>
+                                <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-sm btn-outline-success" style="min-width:90px">
+                                    <i class="bi bi-plus-slash-minus"></i> Остаток
                                 </a>
                             @endif
-                            <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-sm btn-outline-primary" title="Копия">
-                                <i class="bi bi-copy"></i>
+                            <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-sm btn-outline-primary" style="min-width:90px">
+                                <i class="bi bi-copy"></i> Копия
                             </a>
                             @if($batch->isWorkable())
-                                <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-sm btn-outline-warning" title="Передать пильщику">
-                                    <i class="bi bi-arrow-left-right"></i>
+                                <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-sm btn-outline-warning" style="min-width:90px">
+                                    <i class="bi bi-arrow-left-right"></i> Передать
                                 </a>
-                                <a href="{{ route('raw-batches.return.form', $batch) }}" class="btn btn-sm btn-outline-secondary" title="Вернуть на склад">
-                                    <i class="bi bi-arrow-return-left"></i>
+                                <a href="{{ route('raw-batches.return.form', $batch) }}" class="btn btn-sm btn-outline-secondary" style="min-width:90px">
+                                    <i class="bi bi-arrow-return-left"></i> Вернуть
                                 </a>
                             @endif
                         </div>
