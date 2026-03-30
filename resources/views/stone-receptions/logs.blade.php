@@ -324,7 +324,11 @@
             {{-- ─── МОБИЛЬНЫЙ: карточки (скрыты на десктопе) ─── --}}
             <div class="d-md-none" style="padding:.25rem">
                 @foreach($logs as $log)
-                    <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:3px solid {{ $log->type === 'updated' ? '#ffc107' : '#198754' }};background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.07)">
+                    @php
+                        $skuColor = \App\Models\Product::getColorBySku($log->rawMaterialBatch?->product?->sku);
+                        $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
+                    @endphp
+                    <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
                         <div style="padding:.1rem .35rem">
 
                             {{-- Строка 1: Дата слева, кнопки справа --}}

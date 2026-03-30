@@ -327,13 +327,10 @@
                 <div class="d-md-none" style="padding:.25rem">
                     @foreach($receptions as $reception)
                         @php
-                            $borderColor = match($reception->status) {
-                                'processed' => '#6c757d',
-                                'error'     => '#dc3545',
-                                default     => '#198754',
-                            };
+                            $skuColor = \App\Models\Product::getColorBySku($reception->rawMaterialBatch?->product?->sku);
+                            $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
                         @endphp
-                        <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:3px solid {{ $borderColor }};background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.07)">
+                        <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
                             <div style="padding:.1rem .35rem">
 
                                 {{-- Строка 1: дата + ID слева, чекбокс + кнопки справа --}}
