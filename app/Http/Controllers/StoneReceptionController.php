@@ -245,7 +245,9 @@ class StoneReceptionController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($data, $request) {
+            $batchSnapshotBefore = (float) $batch->remaining_quantity;
+
+            DB::transaction(function () use ($data, $request, $batchSnapshotBefore) {
                 $manualDate = $request->input('manual_created_at');
                 if (auth()->user()?->isAdmin() && $manualDate) {
                     $data['manual_created_at'] = \Carbon\Carbon::parse($manualDate);
@@ -262,6 +264,7 @@ class StoneReceptionController extends Controller
                     'receiver_id'           => $reception->receiver_id,
                     'type'                  => ReceptionLog::TYPE_CREATED,
                     'raw_quantity_delta'    => (float) $reception->raw_quantity_used,
+                    'raw_quantity_snapshot' => $batchSnapshotBefore,
                     'created_at'            => $reception->created_at,
                 ]);
                 foreach ($reception->items as $item) {
@@ -334,7 +337,11 @@ class StoneReceptionController extends Controller
         $data['original_created_at'] = $stoneReception->created_at;
 
         try {
-            DB::transaction(function () use ($stoneReception, $data, $rawDelta) {
+            $batchSnapshotBefore = $stoneReception->rawMaterialBatch
+                ? (float) $stoneReception->rawMaterialBatch->remaining_quantity
+                : null;
+
+            DB::transaction(function () use ($stoneReception, $data, $rawDelta, $batchSnapshotBefore) {
 
                 // Запоминаем старые значения продуктов ДО сохранения
                 $preSaveItems = $stoneReception->items()
@@ -381,6 +388,7 @@ class StoneReceptionController extends Controller
                     'receiver_id'           => $stoneReception->receiver_id,
                     'type'                  => ReceptionLog::TYPE_UPDATED,
                     'raw_quantity_delta'    => $rawDelta,
+                    'raw_quantity_snapshot' => $batchSnapshotBefore,
                     'created_at'            => now(),
                 ]);
 

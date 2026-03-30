@@ -58,6 +58,8 @@ class MasterOnly
         'api.worker.next-batch-number',
         'api.products.tree',
         'api.products.coeff',
+        'api.batch.receptions',
+        'api.products.stocks',
 
         // Смена пароля и выход
         'workers.edit-user',

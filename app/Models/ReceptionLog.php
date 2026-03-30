@@ -16,12 +16,14 @@ class ReceptionLog extends Model
         'receiver_id',
         'type',
         'raw_quantity_delta',
+        'raw_quantity_snapshot',
         'created_at',
     ];
 
     protected $casts = [
-        'raw_quantity_delta' => 'decimal:3',
-        'created_at' => 'datetime',
+        'raw_quantity_delta'    => 'decimal:3',
+        'raw_quantity_snapshot' => 'decimal:3',
+        'created_at'            => 'datetime',
     ];
 
     public function stoneReception()

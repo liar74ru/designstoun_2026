@@ -241,10 +241,18 @@
                                     <td><span class="badge bg-primary">{{ number_format($reception->total_quantity, 3) }} м²</span></td>
                                     <td>
                                         @if($reception->rawMaterialBatch)
+                                            @php
+                                                $bInit = (float) ($reception->rawMaterialBatch->initial_quantity ?? 0);
+                                                $bRem  = (float) ($reception->rawMaterialBatch->remaining_quantity ?? 0);
+                                            @endphp
                                             <a href="{{ route('raw-batches.show', $reception->rawMaterialBatch) }}">
                                                 {{ $reception->rawMaterialBatch->product->name }}
                                             </a>
-                                            <br><small class="text-muted">Партия #{{ $reception->rawMaterialBatch->id }}</small>
+                                            <br>
+                                            <div class="d-flex gap-1 mt-1">
+                                                <span title="Всего в партии" style="font-size:.68rem;padding:1px 5px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">{{ number_format($bInit, 3, '.', '') }}</span>
+                                                <span title="Доступно в партии" style="font-size:.68rem;padding:1px 5px;border-radius:3px;background:{{ $bRem > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $bRem > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($bRem, 3, '.', '') }}</span>
+                                            </div>
                                         @else
                                             <span class="text-muted">—</span>
                                         @endif
@@ -427,15 +435,21 @@
 
                                 {{-- Блок: сырьё --}}
                                 @if($reception->rawMaterialBatch)
-                                    <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
-                                        <span class="text-muted" style="font-size:.72rem">
+                                    @php
+                                        $bInit = (float) ($reception->rawMaterialBatch->initial_quantity ?? 0);
+                                        $bRem  = (float) ($reception->rawMaterialBatch->remaining_quantity ?? 0);
+                                    @endphp
+                                    <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
+                                        <span class="text-muted text-truncate me-2" style="font-size:.72rem">
                                             <i class="bi bi-box me-1"></i>
                                             <a href="{{ route('raw-batches.show', $reception->rawMaterialBatch) }}" class="text-muted">
                                                 {{ $reception->rawMaterialBatch->product->name }}
-                                                <span class="text-secondary">#{{ $reception->rawMaterialBatch->id }}</span>
                                             </a>
-                                            <span class="ms-2 text-warning fw-semibold">{{ number_format($reception->raw_quantity_used, 3, ',', '.') }} м³</span>
                                         </span>
+                                        <div class="d-flex gap-1 flex-shrink-0">
+                                            <span title="Всего в партии" style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">{{ number_format($bInit, 3, '.', '') }}</span>
+                                            <span title="Доступно в партии" style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:{{ $bRem > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $bRem > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($bRem, 3, '.', '') }}</span>
+                                        </div>
                                     </div>
                                 @endif
 

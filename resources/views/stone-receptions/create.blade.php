@@ -114,8 +114,7 @@
                                             <div class="mt-1">
                                                 <a id="createBatchLink"
                                                    href="{{ route('raw-batches.create') }}"
-                                                   class="btn btn-sm btn-outline-success"
-                                                   target="_blank">
+                                                   class="btn btn-sm btn-outline-success">
                                                     <i class="bi bi-plus-circle"></i> Создать партию
                                                 </a>
                                             </div>

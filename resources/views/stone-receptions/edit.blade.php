@@ -110,19 +110,12 @@
                                 </div>
                                 <div style="padding:.25rem .4rem .35rem">
 
-                                    {{-- Десктоп: горизонтальный ряд --}}
-                                    <div class="d-none d-sm-flex align-items-end gap-2 flex-wrap">
-                                        <div>
-                                            <label class="form-label text-muted small mb-1">Сейчас</label>
-                                            <div class="form-control form-control-sm bg-light text-muted" style="min-width:100px">
-                                                {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
-                                            </div>
-                                        </div>
-                                        <div class="pb-1 text-muted fs-5">+</div>
-                                        <div>
-                                            <label class="form-label small mb-1">
-                                                Изменение <span class="text-muted fw-normal">(м³, можно «−»)</span>
-                                            </label>
+                                    {{-- Десктоп --}}
+                                    <div class="d-none d-sm-block">
+                                        <label class="form-label small mb-1">
+                                            Изменение <span class="text-muted fw-normal">(м³, можно «−»)</span>
+                                        </label>
+                                        <div class="d-flex align-items-center gap-2">
                                             <input type="number"
                                                    name="raw_quantity_delta"
                                                    id="raw_quantity_delta"
@@ -131,47 +124,46 @@
                                                    step="0.001"
                                                    placeholder="0.000"
                                                    value="{{ old('raw_quantity_delta', 0) }}">
-                                            @error('raw_quantity_delta')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="pb-1 text-muted fs-5">=</div>
-                                        <div>
-                                            <label class="form-label text-muted small mb-1">Итого</label>
-                                            <div id="raw_result" class="form-control form-control-sm bg-light fw-bold" style="min-width:100px">
-                                                {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                            <span class="text-muted">=</span>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <span class="fw-bold" style="font-size:.9rem">Итого:</span>
+                                                <div id="raw_result" class="form-control form-control-sm bg-light fw-bold" style="min-width:110px;font-size:.95rem">
+                                                    {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                                </div>
                                             </div>
                                         </div>
-                                        <div>
-                                            <small id="raw_remaining_info" class="text-info d-block"></small>
-                                        </div>
+                                        @error('raw_quantity_delta')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                                        <small class="d-block mt-1" style="font-size:.72rem">
+                                            <span id="raw_info_before" class="text-muted"></span><span id="raw_info_sep" class="fw-bold text-dark" style="display:none"> | </span><span id="raw_info_after" class="text-info"></span>
+                                        </small>
                                     </div>
 
-                                    {{-- Мобильный: вертикальный --}}
-                                    <div class="d-flex d-sm-none gap-2 align-items-end">
-                                        <div class="flex-fill">
-                                            <label class="form-label small text-muted mb-1">
-                                                Изменение <span class="fw-normal">(м³, можно «−»)</span>
-                                            </label>
+                                    {{-- Мобильный --}}
+                                    <div class="d-sm-none">
+                                        <label class="form-label small text-muted mb-1">
+                                            Изменение <span class="fw-normal">(м³, можно «−»)</span>
+                                        </label>
+                                        <div class="d-flex align-items-center gap-2">
                                             <input type="number"
                                                    name="raw_quantity_delta"
                                                    id="raw_quantity_delta_mobile"
-                                                   class="form-control form-control-sm"
+                                                   class="form-control form-control-sm flex-fill"
                                                    step="0.001"
                                                    placeholder="0.000"
                                                    value="{{ old('raw_quantity_delta', 0) }}"
                                                    data-mirror="raw_quantity_delta">
-                                        </div>
-                                        <div class="text-center flex-shrink-0">
-                                            <div class="text-muted" style="font-size:.7rem">было</div>
-                                            <div class="fw-semibold small">{{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }}</div>
-                                        </div>
-                                        <div class="text-center flex-shrink-0">
-                                            <div class="text-muted" style="font-size:.7rem">итого</div>
-                                            <div id="raw_result_mobile" class="fw-bold small text-primary">
-                                                {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }}
+                                            <span class="text-muted">=</span>
+                                            <div class="text-center flex-shrink-0">
+                                                <div class="fw-bold" style="font-size:.82rem">Итого:</div>
+                                                <div id="raw_result_mobile" class="fw-bold text-primary" style="font-size:.95rem">
+                                                    {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                                </div>
                                             </div>
                                         </div>
+                                        <small class="d-block mt-1" style="font-size:.7rem">
+                                            <span id="raw_info_before_mobile" class="text-muted"></span><span id="raw_info_sep_mobile" class="fw-bold text-dark" style="display:none"> | </span><span id="raw_info_after_mobile" class="text-info"></span>
+                                        </small>
                                     </div>
-                                    <small id="raw_remaining_info_mobile" class="text-info d-block d-sm-none mt-1" style="font-size:.7rem"></small>
 
                                 </div>
                             </div>
@@ -222,12 +214,6 @@
                                                 <span class="text-muted" style="font-size:.8rem">м²</span>
                                             </div>
 
-                                            <div class="d-flex justify-content-end">
-                                                <button type="button" class="btn btn-outline-danger js-remove-existing"
-                                                        style="width:20px;height:20px;padding:0;font-size:.6rem" title="Удалить">
-                                                    <i class="bi bi-trash3"></i>
-                                                </button>
-                                            </div>
                                         </div>
                                     @endforeach
                                 </div>
@@ -295,6 +281,18 @@
                         </dl>
                     </div>
                 </div>
+
+                {{-- Последние приёмки по этому сырью --}}
+                <div class="card shadow-sm mt-3" id="recentReceptionsCard" style="display:none">
+                    <div class="card-header bg-white py-2">
+                        <span class="fw-semibold small"><i class="bi bi-clock-history me-1"></i> Последние приёмки</span>
+                    </div>
+                    <div class="card-body p-2" id="recentReceptionsList">
+                        <div class="text-center text-muted small py-2">
+                            <span class="spinner-border spinner-border-sm"></span> Загрузка...
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -324,38 +322,50 @@
             const currentRaw    = {{ (float)$stoneReception->raw_quantity_used }};
             const rawDeltaInput = document.getElementById('raw_quantity_delta');
             const rawResultDiv  = document.getElementById('raw_result');
-            const rawRemInfo    = document.getElementById('raw_remaining_info');
 
             // Мобильные зеркала
             const rawDeltaMobile  = document.getElementById('raw_quantity_delta_mobile');
             const rawResultMobile = document.getElementById('raw_result_mobile');
-            const rawRemMobile    = document.getElementById('raw_remaining_info_mobile');
+            const rawInfoBefore  = document.getElementById('raw_info_before');
+            const rawInfoSep     = document.getElementById('raw_info_sep');
+            const rawInfoAfter   = document.getElementById('raw_info_after');
+            const rawInfoBeforeM = document.getElementById('raw_info_before_mobile');
+            const rawInfoSepM    = document.getElementById('raw_info_sep_mobile');
+            const rawInfoAfterM  = document.getElementById('raw_info_after_mobile');
 
-            function updateRaw(sourceDelta) {
-                const delta  = parseFloat(sourceDelta) || 0;
+            function updateRaw(delta) {
                 const result = Math.round((currentRaw + delta) * 1000) / 1000;
 
-                // Синхронизируем оба поля дельты
-                if (rawDeltaInput)  rawDeltaInput.value  = sourceDelta;
-                if (rawDeltaMobile) rawDeltaMobile.value = sourceDelta;
-
                 const resultStr = result.toFixed(3) + ' м³';
-                if (rawResultDiv)  { rawResultDiv.textContent = resultStr; rawResultDiv.classList.toggle('text-danger', result < 0); }
-                if (rawResultMobile) { rawResultMobile.textContent = result.toFixed(3); rawResultMobile.classList.toggle('text-danger', result < 0); }
+                if (rawResultDiv)    { rawResultDiv.textContent = resultStr; rawResultDiv.classList.toggle('text-danger', result < 0); }
+                if (rawResultMobile) { rawResultMobile.textContent = result.toFixed(3) + ' м³'; rawResultMobile.classList.toggle('text-danger', result < 0); }
 
                 const batchInput = document.getElementById('raw_material_batch_id');
                 if (batchInput?.value) {
-                    const remaining = parseFloat(batchInput.dataset.remaining) || 0;
-                    const available = Math.round((remaining + currentRaw) * 1000) / 1000;
-                    const infoText  = `Доступно: ${available.toFixed(3)} м³`;
-                    if (rawRemInfo)   rawRemInfo.textContent   = infoText;
-                    if (rawRemMobile) rawRemMobile.textContent = infoText;
+                    const remaining   = parseFloat(batchInput.dataset.remaining) || 0;
+                    const batchBefore = Math.round((remaining + currentRaw) * 1000) / 1000;
+                    const batchAfter  = Math.round((remaining - delta) * 1000) / 1000;
+                    const beforeText  = `Всего было: ${batchBefore.toFixed(3)} м³`;
+                    const afterText   = `Доступно: ${batchAfter.toFixed(3)} м³`;
+                    const afterColor  = batchAfter > 0 ? 'text-success' : 'text-danger';
+                    if (rawInfoBefore)  rawInfoBefore.textContent  = beforeText;
+                    if (rawInfoAfter)   { rawInfoAfter.textContent = afterText; rawInfoAfter.className = afterColor; }
+                    if (rawInfoSep)     rawInfoSep.style.display   = '';
+                    if (rawInfoBeforeM) rawInfoBeforeM.textContent = beforeText;
+                    if (rawInfoAfterM)  { rawInfoAfterM.textContent = afterText; rawInfoAfterM.className = afterColor; }
+                    if (rawInfoSepM)    rawInfoSepM.style.display  = '';
                 }
             }
 
-            rawDeltaInput?.addEventListener('input',  () => updateRaw(rawDeltaInput.value));
-            rawDeltaMobile?.addEventListener('input', () => updateRaw(rawDeltaMobile.value));
-            updateRaw(rawDeltaInput?.value ?? 0);
+            rawDeltaInput?.addEventListener('input', () => {
+                if (rawDeltaMobile) rawDeltaMobile.value = rawDeltaInput.value;
+                updateRaw(parseFloat(rawDeltaInput.value) || 0);
+            });
+            rawDeltaMobile?.addEventListener('input', () => {
+                if (rawDeltaInput) rawDeltaInput.value = rawDeltaMobile.value;
+                updateRaw(parseFloat(rawDeltaMobile.value) || 0);
+            });
+            updateRaw(parseFloat(rawDeltaInput?.value) || 0);
 
             // ── Существующие продукты ────────────────────────────────────────────────
             document.querySelectorAll('.existing-row').forEach(row => {
@@ -363,8 +373,6 @@
                 const deltaInput = row.querySelector('.js-delta');
                 const resultSpan = row.querySelector('.js-result');
                 const qtyOut     = row.querySelector('.js-qty-out');
-                const removeBtn  = row.querySelector('.js-remove-existing');
-
                 function updateRow() {
                     const delta  = parseFloat(deltaInput.value) || 0;
                     const result = Math.round((current + delta) * 1000) / 1000;
@@ -375,17 +383,6 @@
                 }
 
                 deltaInput.addEventListener('input', updateRow);
-
-                removeBtn.addEventListener('click', function () {
-                    deltaInput.value = (-current).toFixed(3);
-                    qtyOut.value = 0;
-                    resultSpan.textContent = '0.000';
-                    resultSpan.classList.add('text-danger');
-                    row.style.opacity = '0.45';
-                    deltaInput.disabled = true;
-                    this.disabled = true;
-                    updateTotal();
-                });
             });
 
             // ── Коэффициенты новых продуктов ────────────────────────────────────────
@@ -442,7 +439,7 @@
 
             let currentSkuPrefix = null;
 
-            function addNewProduct() {
+            function addNewProduct(productId = '', productLabel = '', isUndercut = false) {
                 const idx   = newIdx++;
                 const tpl   = document.getElementById('editPickerRowTemplate');
                 const clone = tpl.content.cloneNode(true);
@@ -479,9 +476,30 @@
                     row.dataset.skuPrefix = currentSkuPrefix;
                 }
                 if (window.ProductPicker) window.ProductPicker.initRow(row);
+
+                // Предзаполнение из копирования
+                if (productId) {
+                    const searchInput = row.querySelector('.product-picker-search');
+                    const hiddenInput = row.querySelector('input[type="hidden"][name*="product_id"]');
+                    if (searchInput) searchInput.value = productLabel;
+                    if (hiddenInput) hiddenInput.value = productId;
+                    if (isUndercut) {
+                        const undercutCb = row.querySelector('.js-new-undercut');
+                        if (undercutCb) undercutCb.checked = true;
+                    }
+                    fetchProductCoeff(productId).then(coeff => {
+                        if (coeff !== null) {
+                            const coeffDisplay = row.querySelector('.js-new-coeff-display');
+                            if (coeffDisplay) {
+                                coeffDisplay.dataset.baseCoeff = coeff;
+                                updateNewRowCoeff(row);
+                            }
+                        }
+                    });
+                }
             }
 
-            document.getElementById('addProductBtn').addEventListener('click', addNewProduct);
+            document.getElementById('addProductBtn').addEventListener('click', () => addNewProduct());
 
             // ── SKU-фильтр продуктов (из партии сырья) ───────────────────────────────
             const allCatalogWrap       = document.getElementById('allCatalogWrap');
@@ -524,6 +542,86 @@
             if (batchHidden?.dataset.productSku) {
                 applySkuPrefix(localDerivePrefix(batchHidden.dataset.productSku));
             }
+
+            // ── Последние приёмки ────────────────────────────────────────────────────
+            const recentCard = document.getElementById('recentReceptionsCard');
+            const recentList = document.getElementById('recentReceptionsList');
+            const batchIdVal = document.getElementById('raw_material_batch_id')?.value;
+
+            function getExistingProductIds() {
+                const ids = new Set();
+                document.querySelectorAll('#existing-products input[name*="[product_id]"]').forEach(el => {
+                    if (el.value) ids.add(String(el.value));
+                });
+                newContainer.querySelectorAll('input[name*="[product_id]"]').forEach(el => {
+                    if (el.value) ids.add(String(el.value));
+                });
+                return ids;
+            }
+
+            function renderReceptionsList(receptions) {
+                if (!receptions.length) {
+                    recentList.innerHTML = '<div class="text-muted small text-center py-2">Нет данных</div>';
+                    return;
+                }
+                recentList.innerHTML = '';
+                receptions.forEach(rec => {
+                    const div = document.createElement('div');
+                    div.className = 'border rounded p-2 mb-2';
+
+                    const header = document.createElement('div');
+                    header.className = 'd-flex justify-content-between align-items-center mb-1';
+                    const copyBtn = document.createElement('button');
+                    copyBtn.type = 'button';
+                    copyBtn.className = 'copy-from-recent-btn btn btn-outline-primary py-0 px-1';
+                    copyBtn.style.fontSize = '.72rem';
+                    copyBtn.dataset.items = JSON.stringify(rec.items);
+                    copyBtn.innerHTML = '<i class="bi bi-clipboard-plus"></i> Скопировать';
+
+                    const meta = document.createElement('span');
+                    meta.className = 'small text-muted';
+                    meta.textContent = rec.created_at + (rec.cutter_name ? ' · ' + rec.cutter_name : '');
+
+                    header.appendChild(meta);
+                    header.appendChild(copyBtn);
+                    div.appendChild(header);
+
+                    const ul = document.createElement('ul');
+                    ul.className = 'mb-0 ps-3 small text-muted';
+                    rec.items.forEach(item => {
+                        const li = document.createElement('li');
+                        li.textContent = item.product_label + (item.is_undercut ? ' (80%)' : '');
+                        ul.appendChild(li);
+                    });
+                    div.appendChild(ul);
+                    recentList.appendChild(div);
+                });
+            }
+
+            if (batchIdVal) {
+                recentCard.style.display = '';
+                fetch(`/api/batches/${batchIdVal}/receptions`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.ok ? r.json() : Promise.reject())
+                .then(data => renderReceptionsList(data))
+                .catch(() => {
+                    recentList.innerHTML = '<div class="text-danger small text-center py-2">Ошибка загрузки</div>';
+                });
+            }
+
+            recentList?.addEventListener('click', function (e) {
+                const btn = e.target.closest('.copy-from-recent-btn');
+                if (!btn) return;
+                const items = JSON.parse(btn.dataset.items);
+                const existing = getExistingProductIds();
+                const toAdd = items.filter(p => !existing.has(String(p.product_id)));
+                if (!toAdd.length) {
+                    alert('Все продукты из этой приёмки уже добавлены');
+                    return;
+                }
+                toAdd.forEach(p => addNewProduct(String(p.product_id), p.product_label, !!p.is_undercut));
+            });
 
             // ── Итого ────────────────────────────────────────────────────────────────
             function updateTotal() {

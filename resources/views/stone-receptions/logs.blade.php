@@ -254,10 +254,25 @@
                                 <td>{{ $log->receiver->name ?? '—' }}</td>
                                 <td>
                                     @if($log->rawMaterialBatch)
+                                        @php
+                                            $rawDelta       = (float) $log->raw_quantity_delta;
+                                            $snapshot       = $log->raw_quantity_snapshot !== null ? (float) $log->raw_quantity_snapshot : null;
+                                            $batchRemaining = (float) ($log->rawMaterialBatch->remaining_quantity ?? 0);
+                                            // delta > 0 = списали сырьё, показываем как отрицательное (красный)
+                                            $deltaDisplay   = $rawDelta != 0 ? ($rawDelta > 0 ? '-' : '+') . number_format(abs($rawDelta), 3, '.', '') : '0.000';
+                                            $deltaIsConsume = $rawDelta > 0;
+                                        @endphp
                                         <a href="{{ route('raw-batches.show', $log->rawMaterialBatch) }}">
                                             {{ $log->rawMaterialBatch->product->name ?? '?' }}
                                         </a>
-                                        <br><small class="text-muted">#{{ $log->raw_material_batch_id }}</small>
+                                        <br>
+                                        <div class="d-flex gap-1 align-items-center mt-1 flex-wrap">
+                                            <span title="Было в партии на момент приёмки" style="font-size:.68rem;padding:1px 5px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">
+                                                {{ $snapshot !== null ? number_format($snapshot, 3, '.', '') : '—' }}
+                                            </span>
+                                            <span title="Изменение сырья в этой приёмке" style="font-size:.68rem;padding:1px 5px;border-radius:3px;background:{{ $deltaIsConsume ? '#f8d7da' : '#d1e7dd' }};color:{{ $deltaIsConsume ? '#842029' : '#0a3622' }};white-space:nowrap">{{ $deltaDisplay }}</span>
+                                            <span title="Текущий остаток в партии" style="font-size:.68rem;padding:1px 5px;border-radius:3px;background:{{ $batchRemaining > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $batchRemaining > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($batchRemaining, 3, '.', '') }}</span>
+                                        </div>
                                     @else
                                         <span class="text-muted">—</span>
                                     @endif
@@ -370,14 +385,25 @@
 
                             {{-- Блок: партия сырья --}}
                             @if($log->rawMaterialBatch)
-                                <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
-                                    <span class="text-muted" style="font-size:.72rem">
+                                @php
+                                    $rawDelta       = (float) $log->raw_quantity_delta;
+                                    $snapshot       = $log->raw_quantity_snapshot !== null ? (float) $log->raw_quantity_snapshot : null;
+                                    $batchRemaining = (float) ($log->rawMaterialBatch->remaining_quantity ?? 0);
+                                    $deltaDisplay   = $rawDelta != 0 ? ($rawDelta > 0 ? '-' : '+') . number_format(abs($rawDelta), 3, '.', '') : '0.000';
+                                    $deltaIsConsume = $rawDelta > 0;
+                                @endphp
+                                <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
+                                    <span class="text-muted text-truncate me-2" style="font-size:.72rem">
                                         <i class="bi bi-box me-1"></i>
                                         <a href="{{ route('raw-batches.show', $log->rawMaterialBatch) }}" class="text-muted">
                                             {{ $log->rawMaterialBatch->product->name ?? '?' }}
-                                            <span>#{{ $log->raw_material_batch_id }}</span>
                                         </a>
                                     </span>
+                                    <div class="d-flex gap-1 flex-shrink-0">
+                                        <span title="Было в партии на момент приёмки" style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">{{ $snapshot !== null ? number_format($snapshot, 3, '.', '') : '—' }}</span>
+                                        <span title="Изменение сырья в этой приёмке" style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:{{ $deltaIsConsume ? '#f8d7da' : '#d1e7dd' }};color:{{ $deltaIsConsume ? '#842029' : '#0a3622' }};white-space:nowrap">{{ $deltaDisplay }}</span>
+                                        <span title="Текущий остаток в партии" style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:{{ $batchRemaining > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $batchRemaining > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($batchRemaining, 3, '.', '') }}</span>
+                                    </div>
                                 </div>
                             @endif
 
