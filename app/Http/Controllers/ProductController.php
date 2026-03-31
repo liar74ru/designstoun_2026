@@ -109,6 +109,8 @@ class ProductController extends Controller
             $message .= ". Синхронизировано групп: {$groupsResult['synced']}";
         }
 
+        cache()->forget('products_tree_json_v2');
+
         return redirect()->route('products.index')->with('success', $message);
     }
 
@@ -156,6 +158,8 @@ class ProductController extends Controller
                 ]),
             ]
         );
+
+        cache()->forget('products_tree_json_v2');
 
         return redirect()->route('products.show', $product->moysklad_id)
             ->with('success', 'Товар обновлен');

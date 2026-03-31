@@ -156,9 +156,11 @@
                 <div class="d-md-none">
                     @foreach($summary as $row)
                         @php
-                            $rate = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
+                            $rate     = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
+                            $skuColor = \App\Models\Product::getColorBySku($row['product']?->sku);
+                            $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
                         @endphp
-                        <div class="info-block mx-2 my-2">
+                        <div class="info-block mx-2 my-2" style="border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};{{ $skuBg }}">
                             <div class="info-block-header">
                                 <span class="small fw-semibold">{{ $row['product']?->name ?? '—' }}</span>
                             </div>
@@ -263,7 +265,11 @@
                     {{-- Мобильный --}}
                     <div class="d-md-none">
                         @foreach($receptions as $log)
-                            <div class="info-block mx-2 my-2 {{ $log->type === 'updated' ? 'border-warning' : '' }}">
+                            @php
+                                $skuColor = \App\Models\Product::getColorBySku($log->rawMaterialBatch?->product?->sku);
+                                $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+                            @endphp
+                            <div class="info-block mx-2 my-2" style="border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};{{ $skuBg }}">
                                 <div class="info-block-header d-flex justify-content-between align-items-center">
                                     <span class="small text-muted">{{ $log->created_at->format('d.m.Y H:i') }}</span>
                                     <div class="d-flex gap-1 align-items-center">

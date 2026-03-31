@@ -509,6 +509,12 @@
             rawQtyInput.addEventListener('input', updateRemainingIndicator);
             updateRemainingIndicator();
 
+            // ── Карта остатков продуктов (для бейджей в пикере) ─────────────────────
+            const storeHidden = document.querySelector('input[name="store_id"]');
+            fetch('/api/products/stocks', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.json())
+                .then(data => { window.ProductPickerStockMap = data; });
+
             // ── Данные продуктов (коэффициенты) ─────────────────────────────────────
             const productCoeffCache = {};
 
@@ -603,6 +609,9 @@
                 const row = clone.querySelector('.product-picker-row');
                 if (currentSkuPrefix && !(allCatalogCheck?.checked)) {
                     row.dataset.skuPrefix = currentSkuPrefix;
+                }
+                if (storeHidden?.value) {
+                    row.dataset.sourceStoreId = storeHidden.value;
                 }
                 container.appendChild(clone);
                 if (window.ProductPicker) window.ProductPicker.initRow(row);
