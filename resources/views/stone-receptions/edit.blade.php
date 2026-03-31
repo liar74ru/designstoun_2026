@@ -66,6 +66,20 @@
                                                    value="{{ $stoneReception->raw_material_batch_id }}"
                                                    data-remaining="{{ (float)($stoneReception->rawMaterialBatch?->remaining_quantity ?? 0) }}"
                                                    data-product-sku="{{ $stoneReception->rawMaterialBatch?->product?->sku ?? '' }}">
+                                            @php $editBatch = $stoneReception->rawMaterialBatch; @endphp
+                                            @if($editBatch && $editBatch->status === \App\Models\RawMaterialBatch::STATUS_IN_WORK && (float)$editBatch->remaining_quantity <= 0)
+                                                <div class="mt-1 p-2 rounded border border-warning bg-warning bg-opacity-10 d-flex justify-content-between align-items-center gap-2" style="flex-wrap:wrap">
+                                                    <span class="small text-warning-emphasis">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i>Остаток 0 м³ — готова к закрытию
+                                                    </span>
+                                                    <form method="POST" action="{{ route('raw-batches.mark-used', $editBatch) }}" id="markUsedForm">
+                                                        @csrf
+                                                        <button type="button" class="btn btn-warning btn-sm text-nowrap" id="markUsedBtn">
+                                                            <i class="bi bi-check2-circle"></i> Израсходована
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -248,9 +262,14 @@
                                 </div>
                             @endif
 
-                            <div class="d-flex gap-2">
+                            <input type="hidden" name="close_batch" value="0" id="closeBatchInput">
+                            <div class="d-flex gap-2 flex-wrap">
                                 <button type="submit" class="btn btn-primary flex-fill">
                                     <i class="bi bi-save"></i> Сохранить
+                                </button>
+                                <button type="button" class="btn btn-warning flex-fill" id="saveCloseBatchBtn"
+                                        title="Сохранить и закрыть партию (доступно при нулевом остатке)" disabled>
+                                    <i class="bi bi-check2-circle"></i> Сохранить + Закрыть партию
                                 </button>
                                 <a href="{{ route('stone-receptions.logs') }}" class="btn btn-outline-secondary">
                                     Отмена
@@ -303,6 +322,30 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
+            // ── Кнопка «Израсходована» для партии с нулевым остатком ─────────────────
+            const markUsedBtn  = document.getElementById('markUsedBtn');
+            const markUsedForm = document.getElementById('markUsedForm');
+            if (markUsedBtn && markUsedForm) {
+                markUsedBtn.addEventListener('click', function () {
+                    if (!confirm('Отметить партию как «Израсходована»?\nСвязанная активная приёмка будет завершена.')) return;
+                    const fd = new FormData(markUsedForm);
+                    fetch(markUsedForm.action, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': fd.get('_token') },
+                        body: fd,
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert(data.error || 'Ошибка');
+                            }
+                        })
+                        .catch(() => alert('Ошибка сети'));
+                });
+            }
+
             // ── Сворачиваемые блоки ───────────────────────────────────────────────────
             [['peopleToggle','peopleBody','peopleChevron'],
              ['storeToggle', 'storeBody', 'storeChevron']
@@ -333,6 +376,14 @@
             const rawInfoSepM    = document.getElementById('raw_info_sep_mobile');
             const rawInfoAfterM  = document.getElementById('raw_info_after_mobile');
 
+            const closeBatchInput   = document.getElementById('closeBatchInput');
+            const saveCloseBatchBtn = document.getElementById('saveCloseBatchBtn');
+
+            function updateCloseBatchBtn(batchAfter) {
+                if (!saveCloseBatchBtn) return;
+                saveCloseBatchBtn.disabled = batchAfter > 0;
+            }
+
             function updateRaw(delta) {
                 const result = Math.round((currentRaw + delta) * 1000) / 1000;
 
@@ -354,8 +405,17 @@
                     if (rawInfoBeforeM) rawInfoBeforeM.textContent = beforeText;
                     if (rawInfoAfterM)  { rawInfoAfterM.textContent = afterText; rawInfoAfterM.className = afterColor; }
                     if (rawInfoSepM)    rawInfoSepM.style.display  = '';
+                    updateCloseBatchBtn(batchAfter);
+                } else {
+                    updateCloseBatchBtn(1); // нет партии — кнопка недоступна
                 }
             }
+
+            saveCloseBatchBtn?.addEventListener('click', function () {
+                if (!confirm('Сохранить приёмку и закрыть партию?\nСвязанная приёмка будет переведена в статус «Завершена».')) return;
+                if (closeBatchInput) closeBatchInput.value = '1';
+                document.getElementById('receptionForm').submit();
+            });
 
             rawDeltaInput?.addEventListener('input', () => {
                 if (rawDeltaMobile) rawDeltaMobile.value = rawDeltaInput.value;
@@ -621,6 +681,7 @@
                     return;
                 }
                 toAdd.forEach(p => addNewProduct(String(p.product_id), p.product_label, !!p.is_undercut));
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             });
 
             // ── Итого ────────────────────────────────────────────────────────────────

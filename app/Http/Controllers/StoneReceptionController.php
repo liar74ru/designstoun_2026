@@ -276,6 +276,20 @@ class StoneReceptionController extends Controller
                 }
             });
 
+            // Закрыть партию если запрошено кнопкой «Сохранить + Закрыть партию»
+            if ($request->boolean('close_batch')) {
+                $batch->refresh();
+                if (in_array($batch->status, [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])) {
+                    DB::transaction(function () use ($batch) {
+                        $batch->update(['status' => RawMaterialBatch::STATUS_USED]);
+                        $batch->receptions()->where('status', StoneReception::STATUS_ACTIVE)
+                            ->each(fn($r) => $r->update(['status' => StoneReception::STATUS_COMPLETED]));
+                    });
+                    return redirect()->route('stone-receptions.create', ['cutter_id' => $request->input('cutter_id')])
+                        ->with('success', 'Приёмка создана. Партия закрыта.');
+                }
+            }
+
             return redirect()->route('stone-receptions.create', ['cutter_id' => $request->input('cutter_id')])
                 ->with('success', 'Приемка создана');
 
@@ -401,6 +415,20 @@ class StoneReceptionController extends Controller
                 }
             });
 
+            // Закрыть партию если запрошено кнопкой «Сохранить + Закрыть партию»
+            if ($request->boolean('close_batch') && $stoneReception->rawMaterialBatch) {
+                $batch = $stoneReception->rawMaterialBatch()->first();
+                if (in_array($batch->status, [\App\Models\RawMaterialBatch::STATUS_NEW, \App\Models\RawMaterialBatch::STATUS_IN_WORK])) {
+                    DB::transaction(function () use ($batch) {
+                        $batch->update(['status' => \App\Models\RawMaterialBatch::STATUS_USED]);
+                        $batch->receptions()->where('status', \App\Models\StoneReception::STATUS_ACTIVE)
+                            ->each(fn($r) => $r->update(['status' => \App\Models\StoneReception::STATUS_COMPLETED]));
+                    });
+                    return redirect()->route('stone-receptions.index')
+                        ->with('success', 'Приёмка обновлена. Партия закрыта.');
+                }
+            }
+
             return redirect()->route('stone-receptions.index')->with('success', 'Приемка обновлена');
 
         } catch (\Exception $e) {
@@ -436,15 +464,11 @@ class StoneReceptionController extends Controller
 
         $newBatch->remaining_quantity = (float) $newBatch->remaining_quantity - $newQty;
 
-        // Если сырьё закончилось — меняем статус
         if ($newBatch->remaining_quantity <= 0) {
             $newBatch->remaining_quantity = 0;
-            $newBatch->status = 'used';
-            // Если вернули сырьё в партию которая была закрыта — снова активируем
-        } elseif ($newBatch->status === 'used') {
-            // Производство уже было — возвращаем в 'in_work'
-            $newBatch->status = \App\Models\RawMaterialBatch::STATUS_IN_WORK;
         }
+        // Статус партии при редактировании приёмки НЕ меняется автоматически.
+        // Управление статусом — только вручную через markAsUsed / markAsInWork.
 
         $newBatch->save();
     }
@@ -611,6 +635,15 @@ class StoneReceptionController extends Controller
         return back()->with('success', 'Статус сброшен на Активна');
     }
 
+    public function markCompleted(StoneReception $stoneReception)
+    {
+        abort_unless($stoneReception->status === StoneReception::STATUS_ACTIVE, 403, 'Завершить можно только активную приёмку');
+
+        $stoneReception->markAsCompleted();
+
+        return back()->with('success', 'Приёмка отмечена как Завершена');
+    }
+
     /**
      * AJAX: партии сырья для пильщика (используется в форме приёмки без перезагрузки страницы)
      */
@@ -623,9 +656,28 @@ class StoneReceptionController extends Controller
                 . ($b->batch_number ? ' №' . $b->batch_number : ''),
             'remaining_quantity' => (float) $b->remaining_quantity,
             'product_sku'        => $b->product->sku ?? '',
+            'status'             => $b->status,
         ]);
 
         return response()->json($batches);
+    }
+
+    /**
+     * AJAX: возвращает активную приёмку партии (статус 'active'), если есть.
+     * Используется в create.blade.php для редиректа вместо создания новой приёмки.
+     */
+    public function getActiveReceptionByBatchJson(\App\Models\RawMaterialBatch $batch)
+    {
+        $reception = $batch->getActiveReception();
+
+        if (!$reception) {
+            return response()->json(null);
+        }
+
+        return response()->json([
+            'reception_id' => $reception->id,
+            'edit_url'     => route('stone-receptions.edit', $reception),
+        ]);
     }
 
     /**

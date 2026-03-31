@@ -63,6 +63,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/stone-receptions/batch/send-to-processing', [StoneReceptionBatchController::class, 'sendToProcessing'])->name('stone-receptions.batch.send-to-processing');
     Route::get('/stone-receptions/batch/stats', [StoneReceptionBatchController::class, 'getStats'])->name('stone-receptions.batch.stats');
     Route::patch('/stone-receptions/{stoneReception}/reset-status', [StoneReceptionController::class, 'resetStatus'])->name('stone-receptions.reset-status');
+    Route::patch('/stone-receptions/{stoneReception}/mark-completed', [StoneReceptionController::class, 'markCompleted'])->name('stone-receptions.mark-completed');
 
     // Партии сырья
     Route::resource('raw-batches', RawMaterialBatchController::class)->except(['edit', 'update', 'store']);
@@ -79,10 +80,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjustForm'])->name('raw-batches.adjust.form');
     Route::post('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjust'])->name('raw-batches.adjust');
     Route::post('raw-batches/{batch}/archive', [RawMaterialBatchController::class, 'archive'])->name('raw-batches.archive');
+    Route::post('raw-batches/{batch}/mark-used', [RawMaterialBatchController::class, 'markAsUsed'])->name('raw-batches.mark-used');
+    Route::post('raw-batches/{batch}/mark-in-work', [RawMaterialBatchController::class, 'markAsInWork'])->name('raw-batches.mark-in-work');
 
     // AJAX-эндпоинты
     Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])->name('api.worker.batches');
     Route::get('/api/batches/{batch}/receptions', [StoneReceptionController::class, 'getReceptionsByBatchJson'])->name('api.batch.receptions');
+    Route::get('/api/batches/{batch}/active-reception', [StoneReceptionController::class, 'getActiveReceptionByBatchJson'])->name('api.batch.active-reception');
     Route::get('/api/workers/{worker}/next-batch-number', [RawMaterialBatchController::class, 'nextBatchNumber'])->name('api.worker.next-batch-number');
     Route::get('/api/products/tree', [ProductController::class, 'groupsJson'])->name('api.products.tree');
     Route::get('/api/products/stocks', [ProductController::class, 'stocksJson'])->name('api.products.stocks');

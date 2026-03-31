@@ -101,8 +101,9 @@
                                                     <option value="{{ $batch->id }}"
                                                             data-remaining="{{ $batch->remaining_quantity }}"
                                                             data-product-sku="{{ $batch->product->sku ?? '' }}"
+                                                            data-status="{{ $batch->status }}"
                                                         {{ old('raw_material_batch_id', request('raw_material_batch_id')) == $batch->id ? 'selected' : '' }}>
-                                                        {{ $batch->product->name }}
+                                                        @if((float)$batch->remaining_quantity <= 0) ⚠ @endif{{ $batch->product->name }}
                                                         (ост: {{ number_format($batch->remaining_quantity, 2) }} м³)
                                                         @if($batch->batch_number) №{{ $batch->batch_number }} @endif
                                                     </option>
@@ -111,6 +112,19 @@
                                             @error('raw_material_batch_id')
                                                 <div class="invalid-feedback">{{ $message }}</div>
                                             @enderror
+                                            {{-- Блок: активная приёмка уже существует --}}
+                                            <div id="activeReceptionAlert" class="mt-1 p-1 rounded bg-info bg-opacity-10 border border-info small" style="display:none">
+                                                <i class="bi bi-info-circle me-1 text-info"></i>
+                                                У партии есть активная приёмка.
+                                                <a id="activeReceptionLink" href="#" class="fw-semibold">Перейти к ней</a>
+                                            </div>
+                                            {{-- Блок: партия с нулевым остатком --}}
+                                            <div id="markUsedBlock" class="mt-1 p-1 rounded bg-warning bg-opacity-10 border border-warning small d-flex justify-content-between align-items-center gap-1" style="display:none">
+                                                <span class="text-warning-emphasis"><i class="bi bi-exclamation-triangle me-1"></i>Остаток 0 м³</span>
+                                                <button type="button" id="markUsedBtnCreate" class="btn btn-warning btn-sm py-0 text-nowrap">
+                                                    <i class="bi bi-check2-circle"></i> Израсходована
+                                                </button>
+                                            </div>
                                             <div class="mt-1">
                                                 <a id="createBatchLink"
                                                    href="{{ route('raw-batches.create') }}"
@@ -185,9 +199,16 @@
                                 </div>
                             @endif
 
-                            <button type="submit" class="btn btn-primary btn-sm w-100 mt-1">
-                                <i class="bi bi-save"></i> Сохранить приёмку
-                            </button>
+                            <input type="hidden" name="close_batch" value="0" id="closeBatchInput">
+                            <div class="d-flex gap-2 flex-wrap mt-1">
+                                <button type="submit" class="btn btn-primary btn-sm flex-fill">
+                                    <i class="bi bi-save"></i> Сохранить приёмку
+                                </button>
+                                <button type="button" class="btn btn-warning btn-sm flex-fill" id="saveCloseBatchBtn"
+                                        title="Доступно когда остаток партии равен нулю" disabled>
+                                    <i class="bi bi-check2-circle"></i> Сохранить + Закрыть партию
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -305,13 +326,17 @@
             })();
 
             // ── Данные ──────────────────────────────────────────────────────────────
-            const cutterSelect  = document.getElementById('cutterSelect');
-            const batchSelect   = document.getElementById('batchSelect');
-            const rawQtyInput   = document.getElementById('rawQtyInput');
-            const remainingInfo = document.getElementById('remainingInfo');
-            const container     = document.getElementById('productsContainer');
-            const totalQtyEl    = document.getElementById('totalQty');
-            const addBtn        = document.getElementById('addProductBtn');
+            const cutterSelect         = document.getElementById('cutterSelect');
+            const batchSelect          = document.getElementById('batchSelect');
+            const rawQtyInput          = document.getElementById('rawQtyInput');
+            const remainingInfo        = document.getElementById('remainingInfo');
+            const container            = document.getElementById('productsContainer');
+            const totalQtyEl           = document.getElementById('totalQty');
+            const addBtn               = document.getElementById('addProductBtn');
+            const activeReceptionAlert = document.getElementById('activeReceptionAlert');
+            const activeReceptionLink  = document.getElementById('activeReceptionLink');
+            const markUsedBlock        = document.getElementById('markUsedBlock');
+            const markUsedBtnCreate    = document.getElementById('markUsedBtnCreate');
 
             const copyItems = @json($copyItems ?? []);
             let rowIndex = 0;
@@ -356,27 +381,41 @@
                         batches.forEach(b => {
                             const opt = document.createElement('option');
                             opt.value = b.id;
-                            opt.dataset.remaining = b.remaining_quantity;
+                            opt.dataset.remaining  = b.remaining_quantity;
                             opt.dataset.productSku = b.product_sku || '';
-                            opt.textContent = b.label;
+                            opt.dataset.status     = b.status || '';
+                            opt.textContent = (b.remaining_quantity <= 0 ? '⚠ ' : '') + b.label;
                             batchSelect.appendChild(opt);
                         });
                     });
             });
 
+            const saveCloseBatchBtn = document.getElementById('saveCloseBatchBtn');
+            const closeBatchInput   = document.getElementById('closeBatchInput');
+
             // ── Остаток партии ───────────────────────────────────────────────────────
             function updateRemainingIndicator() {
                 const opt = batchSelect.options[batchSelect.selectedIndex];
                 if (opt?.value) {
-                    const rem = parseFloat(opt.dataset.remaining) || 0;
+                    const rem  = parseFloat(opt.dataset.remaining) || 0;
+                    const used = parseFloat(rawQtyInput.value) || 0;
+                    const afterRem = Math.round((rem - used) * 1000) / 1000;
                     remainingInfo.textContent = `Доступно: ${rem.toFixed(3)} м³`;
-                    remainingInfo.className = parseFloat(rawQtyInput.value) > rem
+                    remainingInfo.className = used > rem
                         ? 'form-text text-danger'
                         : 'form-text text-info';
+                    if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = afterRem > 0;
                 } else {
                     remainingInfo.textContent = '';
+                    if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = true;
                 }
             }
+
+            saveCloseBatchBtn?.addEventListener('click', function () {
+                if (!confirm('Сохранить приёмку и закрыть партию?\nСвязанная приёмка будет переведена в статус «Завершена».')) return;
+                closeBatchInput.value = '1';
+                document.getElementById('receptionForm').submit();
+            });
 
             // ── Последние приёмки по партии ─────────────────────────────────────────
             function renderReceptionsList(receptions) {
@@ -481,6 +520,68 @@
                 });
             }
 
+            // ── Блоки под select: нулевая партия и активная приёмка ─────────────────
+            function updateBatchSidePanels(opt) {
+                // Сбросить оба блока
+                if (activeReceptionAlert) activeReceptionAlert.style.display = 'none';
+                if (markUsedBlock) markUsedBlock.style.display = 'none';
+                if (!opt?.value) return;
+
+                const rem    = parseFloat(opt.dataset.remaining) || 0;
+                const status = opt.dataset.status || '';
+
+                // Блок «Израсходована» — только если in_work + remaining <= 0
+                if (markUsedBlock && status === 'in_work' && rem <= 0) {
+                    markUsedBlock.style.display = '';
+                    markUsedBlock.dataset.batchId = opt.value;
+                }
+
+                // Проверяем активную приёмку через AJAX
+                if (activeReceptionAlert) {
+                    fetch(`/api/batches/${opt.value}/active-reception`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data && data.edit_url) {
+                                activeReceptionAlert.style.display = '';
+                                if (activeReceptionLink) activeReceptionLink.href = data.edit_url;
+                            }
+                        })
+                        .catch(() => {});
+                }
+            }
+
+            // Кнопка «Израсходована» в create — AJAX + удалить option из select
+            if (markUsedBtnCreate) {
+                markUsedBtnCreate.addEventListener('click', function () {
+                    const batchId = markUsedBlock?.dataset.batchId;
+                    if (!batchId) return;
+                    if (!confirm('Отметить партию как «Израсходована»? Она исчезнет из списка.')) return;
+
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+                        || document.querySelector('input[name="_token"]')?.value;
+
+                    fetch(`/raw-batches/${batchId}/mark-used`, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken },
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Удаляем option из select и сбрасываем выбор
+                                const opt = batchSelect.querySelector(`option[value="${batchId}"]`);
+                                if (opt) opt.remove();
+                                batchSelect.value = '';
+                                batchSelect.dispatchEvent(new Event('change'));
+                            } else {
+                                alert(data.error || 'Ошибка');
+                            }
+                        })
+                        .catch(() => alert('Ошибка сети'));
+                });
+            }
+
             batchSelect.addEventListener('change', function () {
                 const opt = batchSelect.options[batchSelect.selectedIndex];
                 if (opt?.value) {
@@ -492,6 +593,7 @@
                     applySkuPrefix(null);
                 }
                 updateRemainingIndicator();
+                updateBatchSidePanels(opt);
             });
 
             // При загрузке страницы — если партия уже выбрана (old/copy)
@@ -505,6 +607,7 @@
                 if (selectedOpt?.dataset.remaining && (!rawQtyInput.value || parseFloat(rawQtyInput.value) === 0)) {
                     rawQtyInput.value = parseFloat(selectedOpt.dataset.remaining).toFixed(3);
                 }
+                updateBatchSidePanels(selectedOpt);
             }
             rawQtyInput.addEventListener('input', updateRemainingIndicator);
             updateRemainingIndicator();
@@ -643,6 +746,7 @@
                     container.innerHTML = '';
                     rowIndex = 0;
                     items.forEach(p => addRow(p.product_id, p.product_label, '', p.is_undercut));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 } catch (err) {
                     console.error('copy-reception-btn parse error', err);
                 }

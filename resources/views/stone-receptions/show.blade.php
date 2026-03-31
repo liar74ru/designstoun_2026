@@ -24,9 +24,10 @@
 
                         @php
                             $statusMap = [
-                                \App\Models\StoneReception::STATUS_ACTIVE    => ['bg-success', 'Активна'],
-                                \App\Models\StoneReception::STATUS_PROCESSED => ['bg-primary', 'Обработана'],
-                                \App\Models\StoneReception::STATUS_ERROR     => ['bg-danger',  'Ошибка'],
+                                \App\Models\StoneReception::STATUS_ACTIVE    => ['bg-success',          'Активна'],
+                                \App\Models\StoneReception::STATUS_COMPLETED => ['bg-warning text-dark', 'Завершена'],
+                                \App\Models\StoneReception::STATUS_PROCESSED => ['bg-primary',           'Обработана'],
+                                \App\Models\StoneReception::STATUS_ERROR     => ['bg-danger',             'Ошибка'],
                             ];
                             [$badgeClass, $statusLabel] = $statusMap[$stoneReception->status] ?? ['bg-secondary', $stoneReception->status];
                         @endphp
@@ -125,16 +126,17 @@
 
                 {{-- Кнопки действий --}}
                 <div class="card shadow-sm mb-3">
-                    <div style="padding:.4rem .5rem">
-                        <div class="d-flex gap-1">
-                            <a href="{{ route('stone-receptions.edit', $stoneReception) }}"
-                               class="btn btn-outline-secondary btn-sm" title="Редактировать">
-                                <i class="bi bi-pencil"></i>
+                    <div class="card-header bg-white py-2">
+                        <span class="fw-semibold small text-muted">Возможные действия</span>
+                    </div>
+                    <div class="card-body py-2">
+                        <div class="d-grid gap-2">
+
+                            <a href="{{ route('stone-receptions.edit', $stoneReception) }}" class="btn btn-secondary">
+                                <i class="bi bi-pencil"></i> Редактировать
                             </a>
 
-                            <form method="POST"
-                                  action="{{ route('stone-receptions.copy', $stoneReception) }}"
-                                  class="d-inline">
+                            <form method="POST" action="{{ route('stone-receptions.copy', $stoneReception) }}">
                                 @csrf
                                 @if($stoneReception->cutter_id)
                                     <input type="hidden" name="cutter_id" value="{{ $stoneReception->cutter_id }}">
@@ -142,33 +144,48 @@
                                 @if($stoneReception->raw_material_batch_id)
                                     <input type="hidden" name="raw_material_batch_id" value="{{ $stoneReception->raw_material_batch_id }}">
                                 @endif
-                                <button type="submit" class="btn btn-outline-primary btn-sm" title="Копировать">
-                                    <i class="bi bi-copy"></i>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-copy"></i> Новая приёмка на основе текущей
                                 </button>
                             </form>
+
+                            @if($stoneReception->status === \App\Models\StoneReception::STATUS_ACTIVE
+                                && $stoneReception->rawMaterialBatch
+                                && (float)$stoneReception->rawMaterialBatch->remaining_quantity <= 0)
+                                <form method="POST"
+                                      action="{{ route('stone-receptions.mark-completed', $stoneReception) }}"
+                                      onsubmit="return confirm('Отметить приёмку как «Завершена»?\nСырьё в партии закончилось.')">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="btn btn-warning w-100">
+                                        <i class="bi bi-check2-circle"></i> Завершена
+                                        <span class="opacity-75 small">(сырьё израсходовано)</span>
+                                    </button>
+                                </form>
+                            @endif
 
                             @if($stoneReception->status !== \App\Models\StoneReception::STATUS_ACTIVE)
                                 <form method="POST"
                                       action="{{ route('stone-receptions.reset-status', $stoneReception) }}"
-                                      class="d-inline">
+                                      onsubmit="return confirm('Вернуть приёмку в статус «Активна»?')">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" class="btn btn-outline-warning btn-sm" title="Сбросить статус">
-                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Вернуть в работу
                                     </button>
                                 </form>
                             @endif
 
                             <form method="POST"
                                   action="{{ route('stone-receptions.destroy', $stoneReception) }}"
-                                  class="d-inline"
                                   onsubmit="return confirm('Удалить приёмку #{{ $stoneReception->id }}? Остатки будут возвращены в партию.')">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Удалить">
-                                    <i class="bi bi-trash"></i>
+                                <button type="submit" class="btn btn-danger w-100">
+                                    <i class="bi bi-trash"></i> Удалить
                                 </button>
                             </form>
+
                         </div>
                     </div>
                 </div>
