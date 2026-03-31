@@ -189,7 +189,11 @@
         {{-- Мобильный --}}
         <div class="d-md-none">
             @foreach($batches as $batch)
-                <div class="info-block mb-2">
+                @php
+                    $skuColor = \App\Models\Product::getColorBySku($batch->product->sku ?? null);
+                    $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+                @endphp
+                <div class="info-block mb-2" style="border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};{{ $skuBg }}">
                     <div class="info-block-header d-flex justify-content-between align-items-center">
                         <a href="{{ route('raw-batches.show', $batch->id) }}" class="fw-semibold small text-decoration-none text-dark">
                             {{ $batch->batch_number ?? '—' }}
