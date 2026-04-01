@@ -60,6 +60,15 @@ class RawMaterialBatch extends Model
         return $this->hasMany(StoneReception::class, 'raw_material_batch_id');
     }
 
+    /**
+     * Активная приёмка партии (статус 'active').
+     * По бизнес-логике у партии одновременно может быть только одна активная приёмка.
+     */
+    public function getActiveReception(): ?StoneReception
+    {
+        return $this->receptions()->where('status', StoneReception::STATUS_ACTIVE)->latest()->first();
+    }
+
     // --- Проверки статуса ---
 
     public function isNew(): bool

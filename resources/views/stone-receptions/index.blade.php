@@ -142,7 +142,7 @@
                         <div class="col-12 col-sm-6 col-lg-3">
                             <label class="form-label small text-muted mb-1">Статус</label>
                             <div class="d-flex flex-wrap gap-2 mt-1">
-                                @foreach(['active' => 'Активна', 'processed' => 'Обработана', 'error' => 'Ошибка'] as $val => $lbl)
+                                @foreach(['active' => 'Активна', 'completed' => 'Завершена', 'processed' => 'Обработана', 'error' => 'Ошибка'] as $val => $lbl)
                                     <div class="form-check mb-0">
                                         <input class="form-check-input" type="checkbox"
                                                name="filter[status][]" value="{{ $val }}"
@@ -220,9 +220,9 @@
                             </thead>
                             <tbody>
                             @foreach($receptions as $reception)
-                                <tr class="{{ $reception->status == 'processed' ? 'table-success' : ($reception->status == 'error' ? 'table-danger' : '') }}">
+                                <tr class="{{ $reception->status == 'processed' ? 'table-success' : ($reception->status == 'completed' ? 'table-warning' : ($reception->status == 'error' ? 'table-danger' : '')) }}">
                                     <td>
-                                        @if($reception->status == 'active')
+                                        @if(!in_array($reception->status, ['processed', 'error']))
                                             <input type="checkbox" class="form-check-input reception-checkbox"
                                                    value="{{ $reception->id }}">
                                         @endif
@@ -264,6 +264,8 @@
                                     <td>
                                         @if($reception->status == 'active')
                                             <span class="badge bg-success">Активна</span>
+                                        @elseif($reception->status == 'completed')
+                                            <span class="badge bg-warning text-dark">Завершена</span>
                                         @elseif($reception->status == 'processed')
                                             <span class="badge bg-secondary">Обработана</span>
                                             @if($reception->moysklad_processing_id)
@@ -280,6 +282,15 @@
                                                    class="btn btn-sm btn-outline-primary" title="Редактировать">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
+                                            @endif
+                                            @if($reception->status == 'active' && $reception->rawMaterialBatch && (float)$reception->rawMaterialBatch->remaining_quantity <= 0)
+                                                <form method="POST" action="{{ route('raw-batches.mark-used', $reception->rawMaterialBatch) }}" class="d-inline"
+                                                      onsubmit="return confirm('Закрыть партию и завершить приёмку?')">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-warning" title="Завершить приёмку">
+                                                        <i class="bi bi-check2-circle"></i>
+                                                    </button>
+                                                </form>
                                             @endif
                                             <form action="{{ route('stone-receptions.copy', $reception) }}"
                                                   method="POST" class="d-inline">
@@ -340,7 +351,7 @@
                                         <span class="text-secondary ms-1">#{{ $reception->id }}</span>
                                     </span>
                                     <div class="d-flex gap-1 align-items-center">
-                                        @if($reception->status == 'active')
+                                        @if(!in_array($reception->status, ['processed', 'error']))
                                             <input type="checkbox" class="form-check-input reception-checkbox"
                                                    value="{{ $reception->id }}"
                                                    style="width:14px;height:14px;margin:0">
@@ -351,6 +362,18 @@
                                                style="width:22px;height:22px;padding:0;font-size:.65rem" title="Редактировать">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
+                                        @endif
+                                        @if($reception->status == 'active' && $reception->rawMaterialBatch && (float)$reception->rawMaterialBatch->remaining_quantity <= 0)
+                                            <form action="{{ route('raw-batches.mark-used', $reception->rawMaterialBatch) }}"
+                                                  method="POST" class="d-inline-flex"
+                                                  onsubmit="return confirm('Закрыть партию и завершить приёмку?')">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="btn btn-warning d-inline-flex align-items-center justify-content-center"
+                                                        style="width:22px;height:22px;padding:0;font-size:.65rem" title="Завершить приёмку">
+                                                    <i class="bi bi-check2-circle"></i>
+                                                </button>
+                                            </form>
                                         @endif
                                         <form action="{{ route('stone-receptions.copy', $reception) }}"
                                               method="POST" class="d-inline-flex">
@@ -402,6 +425,8 @@
                                     </span>
                                     @if($reception->status == 'active')
                                         <span class="badge bg-success" style="font-size:.65rem">Активна</span>
+                                    @elseif($reception->status == 'completed')
+                                        <span class="badge bg-warning text-dark" style="font-size:.65rem">Завершена</span>
                                     @elseif($reception->status == 'processed')
                                         <span class="badge bg-secondary" style="font-size:.65rem">Обработана</span>
                                     @elseif($reception->status == 'error')

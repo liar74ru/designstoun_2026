@@ -14,9 +14,10 @@ class StoneReception extends Model
     /**
      * Статусы приемки
      */
-    const STATUS_ACTIVE = 'active';
-    const STATUS_PROCESSED = 'processed';
-    const STATUS_ERROR = 'error';
+    const STATUS_ACTIVE    = 'active';
+    const STATUS_COMPLETED = 'completed'; // партия израсходована, ещё не синхронизирована
+    const STATUS_PROCESSED = 'processed'; // финальный, после синхронизации с МойСклад
+    const STATUS_ERROR     = 'error';
 
     protected $fillable = [
         'receiver_id',
@@ -115,6 +116,14 @@ class StoneReception extends Model
             'moysklad_processing_id' => $processingId,
             'synced_at' => now()
         ]);
+    }
+
+    /**
+     * Отметить как завершённую (партия израсходована, синхронизации ещё не было)
+     */
+    public function markAsCompleted(): void
+    {
+        $this->update(['status' => self::STATUS_COMPLETED]);
     }
 
     /**
@@ -219,14 +228,16 @@ class StoneReception extends Model
 
                 $batch->remaining_quantity -= $this->raw_quantity_used;
 
-                // Если сырье закончилось, меняем статус партии
                 if ($batch->remaining_quantity <= 0) {
-                    $batch->status = RawMaterialBatch::STATUS_USED;
                     $batch->remaining_quantity = 0;
-                } else {
-                    // Как только произведена первая приёмка — партия переходит в работу
+                }
+
+                // Первая приёмка переводит партию из 'new' в 'in_work'.
+                // Статус 'used' больше НЕ выставляется автоматически — только вручную.
+                if ($batch->status === RawMaterialBatch::STATUS_NEW) {
                     $batch->status = RawMaterialBatch::STATUS_IN_WORK;
                 }
+
                 $batch->save();
 
                 // ДИАГНОСТИКА: логируем ПОСЛЕ изменения
@@ -275,11 +286,8 @@ class StoneReception extends Model
             if ($reception->rawMaterialBatch) {
                 $batch = $reception->rawMaterialBatch;
                 $batch->remaining_quantity += $reception->raw_quantity_used;
-
-                if ($batch->remaining_quantity > 0) {
-                    // При возврате сырья партия снова "в работе" (уже было производство)
-                    $batch->status = RawMaterialBatch::STATUS_IN_WORK;
-                }
+                // Статус партии при удалении приёмки НЕ меняется автоматически.
+                // Управление статусом — только вручную.
                 $batch->save();
 
                 // Создаем запись о возврате сырья

@@ -101,6 +101,26 @@
                                     </a>
                                 @endif
 
+                                @if($batch->status === \App\Models\RawMaterialBatch::STATUS_IN_WORK)
+                                    <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}"
+                                          onsubmit="return confirm('Отметить партию как «Израсходована»?\nСвязанная активная приёмка будет завершена.')">
+                                        @csrf
+                                        <button type="submit" class="btn btn-warning w-100">
+                                            <i class="bi bi-check2-circle"></i> Израсходована
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if($batch->status === \App\Models\RawMaterialBatch::STATUS_USED)
+                                    <form method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}"
+                                          onsubmit="return confirm('Вернуть партию в статус «В работе»?\nЕсли есть завершённая приёмка, она снова станет активной.')">
+                                        @csrf
+                                        <button type="submit" class="btn btn-success w-100">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Вернуть в работу
+                                        </button>
+                                    </form>
+                                @endif
+
                                 @if($batch->canBeArchived())
                                     <form method="POST" action="{{ route('raw-batches.archive', $batch) }}"
                                           onsubmit="return confirm('Отправить партию в архив? Это финальный статус.')">

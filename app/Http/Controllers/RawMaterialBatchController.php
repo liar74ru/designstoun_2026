@@ -467,17 +467,10 @@ class RawMaterialBatchController extends Controller
             : now();
 
         DB::transaction(function () use ($batch, $delta, $newRemaining, $data, $batchStoreId, $createdAt, &$movement) {
-            // Обновляем остаток и статус партии
-            $newStatus = $batch->status;
-            if ($newRemaining <= 0) {
-                $newStatus = 'used';
-            } elseif (in_array($batch->status, ['used', RawMaterialBatch::STATUS_IN_WORK])) {
-                $newStatus = RawMaterialBatch::STATUS_IN_WORK;
-            }
-
+            // Корректировка только меняет remaining_quantity — статус не трогается.
+            // Перевод в 'used' выполняется вручную через markAsUsed().
             $batch->update([
                 'remaining_quantity' => $newRemaining,
-                'status'             => $newStatus,
             ]);
 
             // Синхронизируем product_stocks
@@ -586,6 +579,61 @@ class RawMaterialBatchController extends Controller
         $action = $delta > 0 ? 'добавлено ' . number_format($delta, 3) . ' м³' : 'убрано ' . number_format(abs($delta), 3) . ' м³';
         return redirect()->route('raw-batches.show', $batch)
             ->with('success', "Количество обновлено: {$action}. Новый остаток: " . number_format($newRemaining, 3) . ' м³');
+    }
+
+    /**
+     * Ручной перевод партии в статус «Израсходована».
+     * Доступен только из статусов 'new' и 'in_work'.
+     * Каскад: активная приёмка партии → 'completed'.
+     */
+    public function markAsUsed(RawMaterialBatch $batch)
+    {
+        if (!in_array($batch->status, [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])) {
+            $msg = 'Перевести в «Израсходована» можно только партии в статусе «Новая» или «В работе».';
+            if (request()->expectsJson()) {
+                return response()->json(['error' => $msg], 422);
+            }
+            return back()->with('error', $msg);
+        }
+
+        DB::transaction(function () use ($batch) {
+            $batch->update(['status' => RawMaterialBatch::STATUS_USED]);
+
+            // Каскад: активная приёмка → 'completed'
+            $batch->receptions()
+                ->where('status', \App\Models\StoneReception::STATUS_ACTIVE)
+                ->each(fn($r) => $r->update(['status' => \App\Models\StoneReception::STATUS_COMPLETED]));
+        });
+
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Партия переведена в «Израсходована»']);
+        }
+
+        return back()->with('success', 'Партия переведена в статус «Израсходована».');
+    }
+
+    /**
+     * Ручной возврат партии из «Израсходована» в «В работе».
+     * Каскад (сценарии а/б/в из плана):
+     *   — приёмка 'completed' → 'active'   (продолжаем работу)
+     *   — приёмка 'processed' → без изменений (будет создана новая)
+     */
+    public function markAsInWork(RawMaterialBatch $batch)
+    {
+        if ($batch->status !== RawMaterialBatch::STATUS_USED) {
+            return back()->with('error', 'Вернуть в работу можно только партию со статусом «Израсходована».');
+        }
+
+        DB::transaction(function () use ($batch) {
+            $batch->update(['status' => RawMaterialBatch::STATUS_IN_WORK]);
+
+            // Каскад: если есть завершённая (но ещё не обработанная) приёмка — возвращаем её в работу
+            $batch->receptions()
+                ->where('status', \App\Models\StoneReception::STATUS_COMPLETED)
+                ->each(fn($r) => $r->update(['status' => \App\Models\StoneReception::STATUS_ACTIVE]));
+        });
+
+        return back()->with('success', 'Партия возвращена в статус «В работе».');
     }
 
     /**

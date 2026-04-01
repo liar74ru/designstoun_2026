@@ -12,9 +12,10 @@ trait HandlesBatchStock
      */
     protected function getActiveBatches($workerId = null)
     {
+        // Партии со статусом 'in_work' показываются независимо от remaining_quantity:
+        // нулевые партии остаются в списке для ручного перевода в «Израсходована».
         $query = RawMaterialBatch::with(['product', 'currentWorker'])
-            ->whereIn('status', [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])
-            ->where('remaining_quantity', '>', 0);
+            ->whereIn('status', [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK]);
 
         if ($workerId) {
             $query->where('current_worker_id', $workerId);

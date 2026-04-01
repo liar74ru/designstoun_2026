@@ -137,7 +137,7 @@ describe('Переход статуса new → in_work', function () {
         expect($batch->status)->toBe('in_work');
     });
 
-    test('при полном расходе из new-партии статус становится used (не in_work)', function () {
+    test('при полном расходе из new-партии статус остаётся in_work (авто-смена отключена)', function () {
         $user     = H::adminUser();
         $receiver = H::worker();
         $cutter   = H::cutter();
@@ -158,7 +158,8 @@ describe('Переход статуса new → in_work', function () {
         ])->assertRedirect();
 
         $batch->refresh();
-        expect($batch->status)->toBe('used');
+        expect($batch->status)->toBe('in_work'); // авто-смена в used отключена
+        expect((float) $batch->remaining_quantity)->toBe(0.0);
     });
 
     test('отмена единственной приёмки НЕ возвращает статус в new — остаётся in_work', function () {

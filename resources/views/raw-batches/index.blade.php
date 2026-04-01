@@ -177,6 +177,24 @@
                                             <i class="bi bi-arrow-return-left"></i>
                                         </a>
                                     @endif
+                                    @if($batch->status === \App\Models\RawMaterialBatch::STATUS_IN_WORK)
+                                        <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline"
+                                              onsubmit="return confirm('Отметить как «Израсходована»?')">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Израсходована">
+                                                <i class="bi bi-check2-circle"></i>
+                                            </button>
+                                        </form>
+                                    @endif
+                                    @if($batch->status === \App\Models\RawMaterialBatch::STATUS_USED)
+                                        <form method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}" class="d-inline"
+                                              onsubmit="return confirm('Вернуть в работу?')">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Вернуть в работу">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                        </form>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -262,6 +280,24 @@
                                 <a href="{{ route('raw-batches.return.form', $batch) }}" class="btn btn-sm btn-outline-secondary" style="min-width:90px">
                                     <i class="bi bi-arrow-return-left"></i> Вернуть
                                 </a>
+                            @endif
+                            @if($batch->status === \App\Models\RawMaterialBatch::STATUS_IN_WORK)
+                                <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}"
+                                      onsubmit="return confirm('Отметить как «Израсходована»?')">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-warning" style="min-width:90px">
+                                        <i class="bi bi-check2-circle"></i> Израсх.
+                                    </button>
+                                </form>
+                            @endif
+                            @if($batch->status === \App\Models\RawMaterialBatch::STATUS_USED)
+                                <form method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}"
+                                      onsubmit="return confirm('Вернуть в работу?')">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-success" style="min-width:90px">
+                                        <i class="bi bi-arrow-counterclockwise"></i> В работу
+                                    </button>
+                                </form>
                             @endif
                         </div>
                     </div>

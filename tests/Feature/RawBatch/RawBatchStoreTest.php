@@ -126,7 +126,7 @@ describe('Корректировка партии [adjust()]', function () {
         expect((float) $batch->remaining_quantity)->toBe(6.0);
     });
 
-    test('при списании до нуля меняет статус на used', function () {
+    test('при списании до нуля статус остаётся in_work (авто-смена отключена)', function () {
         $user    = H::adminUser();
         $product = H::product();
         $store   = H::store();
@@ -139,7 +139,7 @@ describe('Корректировка партии [adjust()]', function () {
             ->post(route('raw-batches.adjust', $batch), ['delta' => -5.0]);
 
         $batch->refresh();
-        expect($batch->status)->toBe('used');
+        expect($batch->status)->toBe('in_work'); // авто-смена в used отключена
         expect((float) $batch->remaining_quantity)->toBe(0.0);
     });
 
