@@ -32,6 +32,7 @@ class MasterOnly
         'stone-receptions.batch.send-to-processing',
         'stone-receptions.batch.stats',
         'stone-receptions.reset-status',
+        'stone-receptions.mark-completed',
         'stone-receptions.update-item-coeff',
 
         // Партии и перемещение сырья
@@ -51,6 +52,8 @@ class MasterOnly
         'raw-batches.adjust.form',
         'raw-batches.adjust',
         'raw-batches.archive',
+        'raw-batches.mark-used',
+        'raw-batches.mark-in-work',
         'raw-movement.store',
 
         // AJAX-эндпоинты, используемые в формах приёмки и партий
@@ -59,6 +62,7 @@ class MasterOnly
         'api.products.tree',
         'api.products.coeff',
         'api.batch.receptions',
+        'api.batch.active-reception',
         'api.products.stocks',
 
         // Смена пароля и выход

@@ -72,12 +72,12 @@
                                                     <span class="small text-warning-emphasis">
                                                         <i class="bi bi-exclamation-triangle me-1"></i>Остаток 0 м³ — готова к закрытию
                                                     </span>
-                                                    <form method="POST" action="{{ route('raw-batches.mark-used', $editBatch) }}" id="markUsedForm">
-                                                        @csrf
-                                                        <button type="button" class="btn btn-warning btn-sm text-nowrap" id="markUsedBtn">
-                                                            <i class="bi bi-check2-circle"></i> Израсходована
-                                                        </button>
-                                                    </form>
+                                                    <button type="button"
+                                                            class="btn btn-warning btn-sm text-nowrap"
+                                                            id="markUsedBtn"
+                                                            data-action="{{ route('raw-batches.mark-used', $editBatch) }}">
+                                                        <i class="bi bi-check2-circle"></i> Израсходована
+                                                    </button>
                                                 </div>
                                             @endif
                                         </div>
@@ -323,16 +323,20 @@
         document.addEventListener('DOMContentLoaded', function () {
 
             // ── Кнопка «Израсходована» для партии с нулевым остатком ─────────────────
-            const markUsedBtn  = document.getElementById('markUsedBtn');
-            const markUsedForm = document.getElementById('markUsedForm');
-            if (markUsedBtn && markUsedForm) {
+            const markUsedBtn = document.getElementById('markUsedBtn');
+            if (markUsedBtn) {
                 markUsedBtn.addEventListener('click', function () {
                     if (!confirm('Отметить партию как «Израсходована»?\nСвязанная активная приёмка будет завершена.')) return;
-                    const fd = new FormData(markUsedForm);
-                    fetch(markUsedForm.action, {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    fetch(markUsedBtn.dataset.action, {
                         method: 'POST',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': fd.get('_token') },
-                        body: fd,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `_token=${encodeURIComponent(csrfToken)}`,
                     })
                         .then(r => r.json())
                         .then(data => {
