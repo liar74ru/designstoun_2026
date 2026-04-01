@@ -284,9 +284,10 @@
                                                 </a>
                                             @endif
                                             @if($reception->status == 'active' && $reception->rawMaterialBatch && (float)$reception->rawMaterialBatch->remaining_quantity <= 0)
-                                                <form method="POST" action="{{ route('raw-batches.mark-used', $reception->rawMaterialBatch) }}" class="d-inline"
-                                                      onsubmit="return confirm('Закрыть партию и завершить приёмку?')">
+                                                <form method="POST" action="{{ route('stone-receptions.mark-completed', $reception) }}" class="d-inline"
+                                                      onsubmit="return confirm('Завершить приёмку? Сырьё израсходовано — партия будет закрыта.')">
                                                     @csrf
+                                                    @method('PATCH')
                                                     <button type="submit" class="btn btn-sm btn-warning" title="Завершить приёмку">
                                                         <i class="bi bi-check2-circle"></i>
                                                     </button>
@@ -364,10 +365,11 @@
                                             </a>
                                         @endif
                                         @if($reception->status == 'active' && $reception->rawMaterialBatch && (float)$reception->rawMaterialBatch->remaining_quantity <= 0)
-                                            <form action="{{ route('raw-batches.mark-used', $reception->rawMaterialBatch) }}"
+                                            <form action="{{ route('stone-receptions.mark-completed', $reception) }}"
                                                   method="POST" class="d-inline-flex"
-                                                  onsubmit="return confirm('Закрыть партию и завершить приёмку?')">
+                                                  onsubmit="return confirm('Завершить приёмку? Сырьё израсходовано — партия будет закрыта.')">
                                                 @csrf
+                                                @method('PATCH')
                                                 <button type="submit"
                                                         class="btn btn-warning d-inline-flex align-items-center justify-content-center"
                                                         style="width:22px;height:22px;padding:0;font-size:.65rem" title="Завершить приёмку">

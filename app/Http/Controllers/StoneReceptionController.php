@@ -245,6 +245,12 @@ class StoneReceptionController extends Controller
         }
 
         try {
+            // Автоматически завершаем существующую активную приёмку для этой партии
+            $existingActive = $batch->getActiveReception();
+            if ($existingActive) {
+                $existingActive->markAsCompleted();
+            }
+
             $batchSnapshotBefore = (float) $batch->remaining_quantity;
 
             DB::transaction(function () use ($data, $request, $batchSnapshotBefore) {
@@ -626,11 +632,32 @@ class StoneReceptionController extends Controller
      */
     public function resetStatus(StoneReception $stoneReception)
     {
-        $stoneReception->update([
-            'status' => StoneReception::STATUS_ACTIVE,
-            'moysklad_processing_id' => null,
-            'synced_at' => null
-        ]);
+        // Блокируем активацию если для этой партии есть более новая приёмка
+        if ($stoneReception->raw_material_batch_id) {
+            $newerExists = StoneReception::where('raw_material_batch_id', $stoneReception->raw_material_batch_id)
+                ->where('id', '!=', $stoneReception->id)
+                ->where('id', '>', $stoneReception->id)
+                ->whereNotIn('status', [StoneReception::STATUS_ERROR])
+                ->exists();
+
+            if ($newerExists) {
+                return back()->with('error', 'Невозможно активировать приёмку: для этой партии сырья есть более новая приёмка');
+            }
+        }
+
+        DB::transaction(function () use ($stoneReception) {
+            $stoneReception->update([
+                'status' => StoneReception::STATUS_ACTIVE,
+                'moysklad_processing_id' => null,
+                'synced_at' => null,
+            ]);
+
+            // Если партия была переведена в «Израсходована» — возвращаем в «В работе»
+            $batch = $stoneReception->rawMaterialBatch;
+            if ($batch && $batch->status === RawMaterialBatch::STATUS_USED) {
+                $batch->update(['status' => RawMaterialBatch::STATUS_IN_WORK]);
+            }
+        });
 
         return back()->with('success', 'Статус сброшен на Активна');
     }
@@ -639,9 +666,20 @@ class StoneReceptionController extends Controller
     {
         abort_unless($stoneReception->status === StoneReception::STATUS_ACTIVE, 403, 'Завершить можно только активную приёмку');
 
-        $stoneReception->markAsCompleted();
+        DB::transaction(function () use ($stoneReception) {
+            $stoneReception->markAsCompleted();
 
-        return back()->with('success', 'Приёмка отмечена как Завершена');
+            // Если остаток партии = 0 — закрываем и партию
+            $batch = $stoneReception->rawMaterialBatch;
+            if ($batch
+                && (float) $batch->remaining_quantity <= 0
+                && in_array($batch->status, [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])
+            ) {
+                $batch->update(['status' => RawMaterialBatch::STATUS_USED]);
+            }
+        });
+
+        return back()->with('success', 'Приёмка завершена');
     }
 
     /**
