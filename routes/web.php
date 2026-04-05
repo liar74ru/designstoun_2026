@@ -9,6 +9,7 @@ use App\Http\Controllers\WorkerDashboardController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\CounterpartyController;
 use App\Http\Controllers\StoreController;
 
 // Главная — редирект на login если не авторизован
@@ -48,6 +49,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/workers/{worker}/store-user', [WorkerController::class, 'storeUser'])->name('workers.store-user');
     Route::get('/workers/{worker}/edit-user', [WorkerController::class, 'editUser'])->name('workers.edit-user');
     Route::put('/workers/{worker}/update-user', [WorkerController::class, 'updateUser'])->name('workers.update-user');
+
+    // Контрагенты
+    Route::get('/counterparties', [CounterpartyController::class, 'index'])->name('counterparties.index');
+    Route::post('/counterparties/sync', [CounterpartyController::class, 'sync'])->name('counterparties.sync');
 
     // Склады
     Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');

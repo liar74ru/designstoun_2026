@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Counterparty;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Models\Store;
@@ -550,6 +551,92 @@ class MoySkladService
             ]);
             return null;
         }
+    }
+
+    /**
+     * Синхронизация контрагентов
+     */
+    public function syncCounterparties(): array
+    {
+        $result = [
+            'success' => false,
+            'synced'  => 0,
+            'updated' => 0,
+            'errors'  => 0,
+            'message' => '',
+        ];
+
+        if (!$this->hasCredentials()) {
+            $result['message'] = 'MoySklad токен не установлен';
+            return $result;
+        }
+
+        try {
+            Log::info('Начинаем синхронизацию контрагентов');
+
+            $offset = 0;
+            $limit  = 1000;
+
+            do {
+                $data = $this->getRequest('/entity/counterparty', [
+                    'limit'  => $limit,
+                    'offset' => $offset,
+                ]);
+
+                if (!$data || !isset($data['rows'])) {
+                    $result['message'] = 'Не удалось получить контрагентов из API';
+                    return $result;
+                }
+
+                foreach ($data['rows'] as $row) {
+                    $moyskladId = $row['id'] ?? null;
+                    if (!$moyskladId) {
+                        continue;
+                    }
+
+                    try {
+                        $existing = Counterparty::where('moysklad_id', $moyskladId)->first();
+
+                        if ($existing) {
+                            $result['updated']++;
+                        } else {
+                            $result['synced']++;
+                        }
+
+                        Counterparty::updateOrCreate(
+                            ['moysklad_id' => $moyskladId],
+                            ['name' => $row['name'] ?? '']
+                        );
+                    } catch (\Exception $e) {
+                        $result['errors']++;
+                        Log::warning('Ошибка при сохранении контрагента', [
+                            'moysklad_id' => $moyskladId,
+                            'error'       => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                $total  = $data['meta']['size'] ?? 0;
+                $offset += $limit;
+            } while ($offset < $total);
+
+            $result['success'] = true;
+            $result['message'] = "Добавлено: {$result['synced']}, обновлено: {$result['updated']}";
+
+            if ($result['errors'] > 0) {
+                $result['message'] .= ", ошибок: {$result['errors']}";
+            }
+
+            Log::info('Синхронизация контрагентов завершена: ' . $result['message']);
+
+        } catch (\Exception $e) {
+            Log::error('Ошибка синхронизации контрагентов', [
+                'error' => $e->getMessage(),
+            ]);
+            $result['message'] = 'Ошибка синхронизации: ' . $e->getMessage();
+        }
+
+        return $result;
     }
 
     /**
