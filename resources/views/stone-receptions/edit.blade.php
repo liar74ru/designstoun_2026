@@ -249,18 +249,8 @@
                                 @error('notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
-                            @if(auth()->user()?->isAdmin())
-                                <div class="mb-3 p-2 border border-warning rounded bg-warning bg-opacity-10">
-                                    <label class="form-label fw-semibold text-warning-emphasis mb-1">
-                                        <i class="bi bi-calendar-event"></i> Дата создания
-                                        <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Только для админа</span>
-                                    </label>
-                                    <input type="datetime-local"
-                                           name="manual_created_at"
-                                           class="form-control form-control-sm"
-                                           value="{{ old('manual_created_at', $stoneReception->created_at->format('Y-m-d\TH:i')) }}">
-                                </div>
-                            @endif
+                            <x-admin-date-field
+                                value="{{ old('manual_created_at', $stoneReception->created_at->format('Y-m-d\TH:i')) }}" />
 
                             <input type="hidden" name="close_batch" value="0" id="closeBatchInput">
                             <div class="d-flex gap-2 flex-wrap">

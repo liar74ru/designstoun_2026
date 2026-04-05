@@ -19,6 +19,8 @@ class Product extends Model
         'description',
         'price',
         'old_price',
+        'min_price',
+        'buy_price',
         'prod_cost_coeff',
         'is_active',
         'attributes',
@@ -27,6 +29,8 @@ class Product extends Model
     protected $casts = [
         'price'           => 'decimal:2',
         'old_price'       => 'decimal:2',
+        'min_price'       => 'decimal:2',
+        'buy_price'       => 'decimal:2',
         'prod_cost_coeff' => 'decimal:4',
         'is_active'       => 'boolean',
         'attributes'      => 'array',
@@ -123,6 +127,18 @@ class Product extends Model
     {
         if (!$this->has_discount) return null;
         return round((($this->old_price - $this->price) / $this->old_price) * 100);
+    }
+
+    /**
+     * Возвращает цену закупки для передачи в МойСклад:
+     * minPrice если задана и > 0, иначе buyPrice.
+     * Результат в рублях (float).
+     */
+    public function effectiveBuyPrice(): float
+    {
+        $min = (float) ($this->min_price ?? 0);
+        $buy = (float) ($this->buy_price ?? 0);
+        return $min > 0 ? $min : $buy;
     }
 
     // ─── Бизнес-логика ───────────────────────────────────────────────────────

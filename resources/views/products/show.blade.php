@@ -91,6 +91,26 @@
                                         </span>
                                         </td>
                                     </tr>
+                                    <tr>
+                                        <th style="width: 150px;">Мин. цена:</th>
+                                        <td>
+                                            @if($product->min_price && $product->min_price > 0)
+                                                <span class="text-success fw-semibold">{{ number_format($product->min_price, 2, ',', ' ') }} ₽</span>
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Закупочная цена:</th>
+                                        <td>
+                                            @if($product->buy_price && $product->buy_price > 0)
+                                                <span class="text-info fw-semibold">{{ number_format($product->buy_price, 2, ',', ' ') }} ₽</span>
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
+                                    </tr>
                                     @if($product->old_price && $product->old_price > 0)
                                         <tr>
                                             <th>Старая цена:</th>

@@ -162,80 +162,125 @@
             <!-- Правая колонка: история и готовая продукция -->
             <div class="col-md-6">
                 <!-- Блок с готовой продукцией (то, что нам нужно) -->
+                @php
+                    $totalQty = $batch->receptions ? $batch->receptions->sum(fn($r) => $r->items->sum('quantity')) : 0;
+                    $totalRaw = $batch->receptions ? $batch->receptions->sum('raw_quantity_used') : 0;
+                @endphp
                 <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">📦 Готовая продукция из этой партии</h5>
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                        <span class="fw-semibold small">📦 Готовая продукция из этой партии</span>
+                        @if($batch->receptions && $batch->receptions->count() > 0)
+                            <span class="badge bg-secondary">{{ $batch->receptions->count() }}</span>
+                        @endif
                     </div>
                     <div class="card-body p-0">
                         @if($batch->receptions && $batch->receptions->count() > 0)
-                            <div class="table-responsive">
-                                <table class="table table-hover mb-0">
-                                    <thead class="table-light">
-                                    <tr>
-                                        <th>Продукт</th>
-                                        <th>Кол-во</th>
-                                        <th>Расход сырья</th>
-                                        <th>Дата</th>
-                                        <th>Приемщик</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    @foreach($batch->receptions as $reception)
+
+                            {{-- Десктоп: таблица --}}
+                            <div class="d-none d-md-block">
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-sm mb-0">
+                                        <thead class="table-light">
                                         <tr>
-                                            <td>
-                                                {{-- Теперь у приёмки много продуктов через items --}}
-                                                @forelse($reception->items as $item)
-                                                    @if($item->product)
-                                                        <a href="{{ route('products.show', $item->product->moysklad_id) }}">
-                                                            {{ $item->product->name }}
-                                                        </a>
-                                                        <span class="badge bg-primary ms-1">{{ number_format($item->quantity, 3) }} м²</span><br>
-                                                    @endif
-                                                @empty
-                                                    <span class="text-muted">—</span>
-                                                @endforelse
-                                            </td>
-                                            <td>
-                                                {{-- Итого по всем позициям --}}
-                                                <span class="badge bg-primary">{{ number_format($reception->items->sum('quantity'), 3) }} м²</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-info">{{ number_format($reception->raw_quantity_used, 3) }} м²</span>
-                                            </td>
-                                            <td>{{ $reception->created_at->format('d.m.Y H:i') }}</td>
-                                            <td>{{ $reception->receiver->name ?? '—' }}</td>
+                                            <th>Продукт</th>
+                                            <th class="text-end">Кол-во</th>
+                                            <th class="text-end">Расход</th>
+                                            <th>Дата</th>
+                                            <th>Приёмщик</th>
                                         </tr>
-                                    @endforeach
-                                    </tbody>
-                                    <tfoot class="table-light">
-                                    @php
-                                        $totalQty = $batch->receptions->sum(fn($r) => $r->items->sum('quantity'));
-                                        $totalRaw = $batch->receptions->sum('raw_quantity_used');
-                                    @endphp
-                                    <tr>
-                                        <th>Итого:</th>
-                                        <th>{{ number_format($totalQty, 3) }} м²</th>
-                                        <th>{{ number_format($totalRaw, 3) }} м²</th>
-                                        <th colspan="2"></th>
-                                    </tr>
-                                    <tr>
-                                        <th colspan="5" class="text-muted">
-                                            Коэффициент выхода:
-                                            @if($batch->initial_quantity > 0)
-                                                {{ number_format(($totalQty / $batch->initial_quantity) * 100, 1) }}%
-                                                (из 1 м² сырья получается {{ number_format($totalQty / $batch->initial_quantity, 3) }} м² плитки)
-                                            @else
-                                                —
-                                            @endif
-                                        </th>
-                                    </tr>
-                                    </tfoot>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($batch->receptions as $reception)
+                                            <tr>
+                                                <td>
+                                                    @forelse($reception->items as $item)
+                                                        @if($item->product)
+                                                            <a href="{{ route('products.show', $item->product->moysklad_id) }}" class="small">
+                                                                {{ $item->product->name }}
+                                                            </a>
+                                                            <span class="text-muted small ms-1">× {{ number_format($item->quantity, 3) }}</span><br>
+                                                        @endif
+                                                    @empty
+                                                        <span class="text-muted small">—</span>
+                                                    @endforelse
+                                                </td>
+                                                <td class="text-end">
+                                                    <span class="badge bg-primary">{{ number_format($reception->items->sum('quantity'), 3) }} м²</span>
+                                                </td>
+                                                <td class="text-end">
+                                                    <span class="badge bg-info">{{ number_format($reception->raw_quantity_used, 3) }} м²</span>
+                                                </td>
+                                                <td class="small text-nowrap">{{ $reception->created_at->format('d.m.Y H:i') }}</td>
+                                                <td class="small">{{ $reception->receiver->name ?? '—' }}</td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                        <tfoot class="table-light">
+                                        <tr>
+                                            <th class="small">Итого:</th>
+                                            <th class="text-end"><span class="badge bg-primary">{{ number_format($totalQty, 3) }} м²</span></th>
+                                            <th class="text-end"><span class="badge bg-info">{{ number_format($totalRaw, 3) }} м²</span></th>
+                                            <th colspan="2" class="text-muted small fw-normal">
+                                                @if($batch->initial_quantity > 0)
+                                                    Выход: {{ number_format(($totalQty / $batch->initial_quantity) * 100, 1) }}%
+                                                @endif
+                                            </th>
+                                        </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
                             </div>
+
+                            {{-- Мобильный: карточки --}}
+                            <div class="d-md-none" style="padding:.35rem .4rem">
+                                @foreach($batch->receptions as $reception)
+                                    @php
+                                        $firstItem  = $reception->items->first();
+                                        $skuColor   = \App\Models\Product::getColorBySku($firstItem?->product?->sku ?? null);
+                                        $skuBg      = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+                                    @endphp
+                                    <div style="border-left:3px solid {{ $skuColor }};{{ $skuBg }}padding:.3rem .4rem;border-bottom:1px solid #f0f0f0;margin-bottom:.2rem;border-radius:.25rem">
+                                        {{-- Дата + расход --}}
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="text-muted" style="font-size:.72rem">{{ $reception->created_at->format('d.m.Y H:i') }}</span>
+                                            <span class="badge bg-info" style="font-size:.65rem">сырьё: {{ number_format($reception->raw_quantity_used, 3) }} м²</span>
+                                        </div>
+                                        {{-- Позиции --}}
+                                        @foreach($reception->items as $item)
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="small fw-semibold text-truncate me-2" style="font-size:.8rem;max-width:65%">
+                                                    {{ $item->product?->name ?? '—' }}
+                                                </div>
+                                                <span class="badge bg-primary" style="font-size:.65rem">{{ number_format($item->quantity, 3) }} м²</span>
+                                            </div>
+                                        @endforeach
+                                        {{-- Приёмщик --}}
+                                        @if($reception->receiver)
+                                            <div class="text-muted mt-1" style="font-size:.7rem">
+                                                <i class="bi bi-person me-1"></i>{{ $reception->receiver->name }}
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
+
+                                {{-- Итого мобильный --}}
+                                <div class="d-flex justify-content-between align-items-center mt-2 pt-1" style="border-top:1px solid #dee2e6">
+                                    <span class="small fw-semibold">Итого:</span>
+                                    <div class="d-flex gap-1">
+                                        <span class="badge bg-primary" style="font-size:.68rem">{{ number_format($totalQty, 3) }} м²</span>
+                                        @if($batch->initial_quantity > 0)
+                                            <span class="badge bg-secondary" style="font-size:.68rem">
+                                                выход {{ number_format(($totalQty / $batch->initial_quantity) * 100, 1) }}%
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
                         @else
                             <div class="text-center py-4">
                                 <i class="bi bi-box-seam display-4 text-muted"></i>
-                                <p class="text-muted mt-3">Из этой партии ещё не произведена готовая продукция</p>
+                                <p class="text-muted mt-3 small">Из этой партии ещё не произведена готовая продукция</p>
                             </div>
                         @endif
                     </div>

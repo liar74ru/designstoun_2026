@@ -1,3 +1,10 @@
+<style>
+.master-nav-btn {
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-width:62px;padding:.18rem .45rem;font-size:.68rem;line-height:1.15;gap:1px;
+}
+.master-nav-btn i { font-size:1.15rem; }
+</style>
 <header class="fixed w-full" style="z-index:1030">
     <nav class="bg-white border-gray-200 shadow-md">
         <div class="max-w-screen-xl px-3 mx-auto">
@@ -13,16 +20,22 @@
                     @auth
                         @if(auth()->user()->isMaster())
                             <a href="{{ route('stone-receptions.logs') }}"
-                               class="btn btn-sm {{ request()->routeIs('stone-receptions.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
+                               class="btn btn-sm master-nav-btn {{ request()->routeIs('stone-receptions.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
                                title="Приёмка">
                                 <i class="bi bi-journal-text"></i>
-                                <span class="ms-1">Приёмка</span>
+                                <span>Приёмка</span>
                             </a>
                             <a href="{{ route('raw-batches.index') }}"
-                               class="btn btn-sm {{ request()->routeIs('raw-batches.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
+                               class="btn btn-sm master-nav-btn {{ request()->routeIs('raw-batches.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
                                title="Сырьё">
-                                <i class="bi bi-box-seam"></i>
-                                <span class="ms-1">Сырьё</span>
+                                <i class="bi bi-arrow-left-right"></i>
+                                <span>Сырьё</span>
+                            </a>
+                            <a href="{{ route('supplier-orders.index') }}"
+                               class="btn btn-sm master-nav-btn {{ request()->routeIs('supplier-orders.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
+                               title="Приём сырья">
+                                <i class="bi bi-plus-circle"></i>
+                                <span>Сырьё</span>
                             </a>
                         @elseif(!auth()->user()->isWorker())
                             {{-- Мобильная иконка домика для администратора --}}

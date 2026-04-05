@@ -104,17 +104,7 @@
                            placeholder="Причина корректировки..." value="{{ old('notes') }}">
                 </div>
 
-                @if(auth()->user()?->isAdmin())
-                    <div class="mb-4 p-3 border border-warning rounded bg-warning bg-opacity-10">
-                        <label class="form-label fw-semibold text-warning-emphasis">
-                            <i class="bi bi-calendar-event"></i> Дата корректировки
-                            <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Только для админа</span>
-                        </label>
-                        <input type="datetime-local" name="manual_created_at"
-                               class="form-control" value="{{ old('manual_created_at') }}">
-                        <div class="form-text">Оставьте пустым — дата установится автоматически</div>
-                    </div>
-                @endif
+                <x-admin-date-field label="Дата корректировки" />
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary" id="submitBtn">

@@ -35,7 +35,7 @@
     {{--    </div>--}}
 
     <!-- Основной контент -->
-    <main style="padding-top:48px;min-height:100vh;background-color:#f0f2f5">
+    <main style="padding-top:64px;min-height:100vh;background-color:#f0f2f5">
         @yield('content')
     </main>
     <!-- Footer -->

@@ -431,6 +431,10 @@ class MoySkladService
             }
         }
 
+        // Минимальная цена и закупочная цена
+        $minPrice = isset($productData['minPrice']['value']) ? $productData['minPrice']['value'] / 100 : null;
+        $buyPrice = isset($productData['buyPrice']['value']) ? $productData['buyPrice']['value'] / 100 : null;
+
         // Артикул
         $sku = $productData['article'] ?? $productData['code'] ?? null;
 
@@ -472,8 +476,10 @@ class MoySkladService
                 'group_name' => $groupName,
                 'sku' => $sku,
                 'description' => $productData['description'] ?? null,
-                'price' => $price,
+                'price'     => $price,
                 'old_price' => $oldPrice,
+                'min_price' => $minPrice,
+                'buy_price' => $buyPrice,
                 'prod_cost_coeff' => $prodCostCoeff,
                 'quantity' => $productData['stock'] ?? 0,
                 'is_active' => true,

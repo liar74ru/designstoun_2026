@@ -124,21 +124,9 @@
                     </div>
                 </div>
 
-                @if(auth()->user()?->isAdmin())
-                    <div class="mb-3 p-3 border border-warning rounded bg-warning bg-opacity-10">
-                        <label for="manual_created_at" class="form-label fw-semibold text-warning-emphasis">
-                            <i class="bi bi-calendar-event"></i> Дата создания
-                            <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Только для админа</span>
-                        </label>
-                        <input type="datetime-local" name="manual_created_at" id="manual_created_at"
-                               class="form-control @error('manual_created_at') is-invalid @enderror"
-                               value="{{ old('manual_created_at', $batch->created_at->format('Y-m-d\TH:i')) }}">
-                        @error('manual_created_at')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        <div class="form-text">Изменение даты синхронизируется с МойСклад.</div>
-                    </div>
-                @endif
+                <x-admin-date-field
+                    hint="Изменение даты синхронизируется с МойСклад."
+                    value="{{ old('manual_created_at', $batch->created_at->format('Y-m-d\TH:i')) }}" />
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">

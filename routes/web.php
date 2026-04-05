@@ -11,6 +11,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\CounterpartyController;
 use App\Http\Controllers\StoreController;
+use App\Http\Controllers\SupplierOrderController;
 
 // Главная — редирект на login если не авторизован
 Route::get('/', function () {
@@ -53,6 +54,18 @@ Route::middleware(['auth'])->group(function () {
     // Контрагенты
     Route::get('/counterparties', [CounterpartyController::class, 'index'])->name('counterparties.index');
     Route::post('/counterparties/sync', [CounterpartyController::class, 'sync'])->name('counterparties.sync');
+
+    // Поступления сырья
+    Route::get('/supplier-orders', [SupplierOrderController::class, 'index'])->name('supplier-orders.index');
+    Route::get('/supplier-orders/create', [SupplierOrderController::class, 'create'])->name('supplier-orders.create');
+    Route::post('/supplier-orders', [SupplierOrderController::class, 'store'])->name('supplier-orders.store');
+    Route::get('/supplier-orders/{supplierOrder}/edit', [SupplierOrderController::class, 'edit'])->name('supplier-orders.edit');
+    Route::put('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'update'])->name('supplier-orders.update');
+    Route::delete('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'destroy'])->name('supplier-orders.destroy');
+    Route::post('/supplier-orders/{supplierOrder}/sync', [SupplierOrderController::class, 'sync'])->name('supplier-orders.sync');
+    Route::get('/supplier-orders/{supplierOrder}/sync-confirm', [SupplierOrderController::class, 'syncConfirm'])->name('supplier-orders.sync-confirm');
+    Route::post('/supplier-orders/{supplierOrder}/force-sync', [SupplierOrderController::class, 'forceSync'])->name('supplier-orders.force-sync');
+    Route::get('/api/supplier-orders/next-number', [SupplierOrderController::class, 'nextOrderNumber'])->name('api.supplier-orders.next-number');
 
     // Склады
     Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');

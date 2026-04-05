@@ -119,16 +119,15 @@
                                                 <a id="activeReceptionLink" href="#" class="fw-semibold">Перейти к ней</a>
                                             </div>
                                             {{-- Блок: партия с нулевым остатком --}}
-                                            <div id="markUsedBlock" class="mt-1 p-1 rounded bg-warning bg-opacity-10 border border-warning small d-flex justify-content-between align-items-center gap-1" style="display:none">
-                                                <span class="text-warning-emphasis"><i class="bi bi-exclamation-triangle me-1"></i>Остаток 0 м³</span>
-                                                <button type="button" id="markUsedBtnCreate" class="btn btn-warning btn-sm py-0 text-nowrap">
+                                            <div id="markUsedBlock" class="mt-1" style="display:none">
+                                                <button type="button" id="markUsedBtnCreate" class="btn btn-sm btn-warning w-100">
                                                     <i class="bi bi-check2-circle"></i> Израсходована
                                                 </button>
                                             </div>
                                             <div class="mt-1">
                                                 <a id="createBatchLink"
                                                    href="{{ route('raw-batches.create') }}"
-                                                   class="btn btn-sm btn-outline-success">
+                                                   class="btn btn-sm btn-outline-success w-100">
                                                     <i class="bi bi-plus-circle"></i> Создать партию
                                                 </a>
                                             </div>
@@ -185,19 +184,7 @@
                                 </div>
                             </div>
 
-                            @if(auth()->user()?->isAdmin())
-                                <div class="mb-2 p-2 border border-warning rounded bg-warning bg-opacity-10">
-                                    <label class="form-label small fw-semibold text-warning-emphasis mb-1">
-                                        <i class="bi bi-calendar-event"></i> Дата создания
-                                        <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Только для админа</span>
-                                    </label>
-                                    <input type="datetime-local"
-                                           name="manual_created_at"
-                                           class="form-control form-control-sm"
-                                           value="{{ old('manual_created_at') }}">
-                                    <div class="form-text small">Оставьте пустым — дата установится автоматически</div>
-                                </div>
-                            @endif
+                            <x-admin-date-field />
 
                             <input type="hidden" name="close_batch" value="0" id="closeBatchInput">
                             <div class="d-flex gap-2 flex-wrap mt-1">

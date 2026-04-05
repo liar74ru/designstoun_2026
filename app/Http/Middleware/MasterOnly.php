@@ -56,6 +56,18 @@ class MasterOnly
         'raw-batches.mark-in-work',
         'raw-movement.store',
 
+        // Поступления сырья
+        'supplier-orders.index',
+        'supplier-orders.create',
+        'supplier-orders.store',
+        'supplier-orders.edit',
+        'supplier-orders.update',
+        'supplier-orders.destroy',
+        'supplier-orders.sync',
+        'supplier-orders.sync-confirm',
+        'supplier-orders.force-sync',
+        'api.supplier-orders.next-number',
+
         // AJAX-эндпоинты, используемые в формах приёмки и партий
         'api.worker.batches',
         'api.worker.next-batch-number',

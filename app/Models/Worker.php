@@ -17,6 +17,7 @@ class Worker extends Model
         'Галтовщик',
         'Приемщик',
         'Разнорабочий',
+        'Кладовщик'
     ];
 
     protected $fillable = [
