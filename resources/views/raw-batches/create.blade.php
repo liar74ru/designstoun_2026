@@ -17,8 +17,10 @@
             </a>
         </div>
 
-        <div class="row justify-content-center">
-            <div class="col-md-8">
+        <div class="row g-3">
+
+            {{-- ═══════════════════════ ФОРМА ═══════════════════════ --}}
+            <div class="col-12 col-lg-7">
                 <div class="card shadow-sm">
                     <div class="card-body p-4">
                         <style>
@@ -36,7 +38,7 @@
                                 </div>
                             @endif
 
-                            {{-- Продукт — новый пикер вместо x-product-search --}}
+                            {{-- Продукт --}}
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <label class="form-label fw-semibold mb-0">
@@ -229,6 +231,84 @@
                     </div>
                 </div>
             </div>
+
+            {{-- ═══════════════════════ ПОСЛЕДНИЕ ПАРТИИ ═══════════════════════ --}}
+            <div class="col-12 col-lg-5">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
+                         id="recentBatchesToggle" style="cursor:pointer" role="button">
+                        <span class="fw-semibold small">
+                            <i class="bi bi-clock-history me-1"></i> Последние партии
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary">{{ $recentBatches->count() }}</span>
+                            <i class="bi bi-chevron-down d-md-none" id="recentBatchesChevron"></i>
+                        </div>
+                    </div>
+
+                    <div id="recentBatchesBody">
+                        <div class="list-group list-group-flush">
+                            @forelse($recentBatches as $batch)
+                                @php
+                                    $createMovement = $batch->movements->first();
+                                    $skuColor = \App\Models\Product::getColorBySku($batch->product?->sku ?? null);
+                                    $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+                                    $copyData = json_encode([
+                                        'product_id'    => $batch->product_id,
+                                        'product_name'  => $batch->product?->name ?? '',
+                                        'quantity'      => (float) $batch->initial_quantity,
+                                        'from_store_id' => $createMovement?->from_store_id ?? '',
+                                        'to_store_id'   => $createMovement?->to_store_id ?? '',
+                                    ], JSON_UNESCAPED_UNICODE);
+                                @endphp
+                                <div class="list-group-item px-2 py-2" style="border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};{{ $skuBg }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1 me-2">
+                                            <div class="d-flex align-items-center gap-2 mb-1">
+                                                <span class="badge {{ $batch->statusBadgeClass() }}" style="font-size:.65rem">
+                                                    {{ $batch->statusLabel() }}
+                                                </span>
+                                                @if($batch->batch_number)
+                                                    <span class="fw-semibold small text-muted">№{{ $batch->batch_number }}</span>
+                                                @endif
+                                                <span class="text-muted" style="font-size:.72rem">
+                                                    {{ $batch->created_at->format('d.m H:i') }}
+                                                </span>
+                                            </div>
+                                            <div class="small fw-semibold text-truncate" style="max-width:180px" title="{{ $batch->product?->name }}">
+                                                {{ $batch->product?->name ?? '—' }}
+                                            </div>
+                                            <div class="d-flex gap-2 mt-1" style="font-size:.75rem">
+                                                <span class="text-muted">
+                                                    <i class="bi bi-box me-1"></i>{{ number_format($batch->initial_quantity, 2) }} м³
+                                                </span>
+                                                @if($batch->currentWorker)
+                                                    <span class="text-muted">
+                                                        <i class="bi bi-hammer me-1"></i>{{ $batch->currentWorker->name }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary copy-batch-btn flex-shrink-0"
+                                                data-batch="{{ $copyData }}"
+                                                style="width:28px;height:28px;padding:0;font-size:.75rem"
+                                                title="Скопировать в форму">
+                                            <i class="bi bi-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="text-center py-4 text-muted">
+                                    <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                                    Нет партий
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 @endsection
@@ -245,6 +325,7 @@
 
             const RAW_SKU_PREFIX  = '01-';
             const fromStoreSelect = document.querySelector('select[name="from_store_id"]');
+            const toStoreSelect   = document.querySelector('select[name="to_store_id"]');
 
             // Инициализируем пикер продукта
             if (row && window.ProductPicker) {
@@ -303,12 +384,10 @@
             // Переключение чекбокса "Задать вручную"
             manualCheckbox?.addEventListener('change', function () {
                 if (this.checked) {
-                    // Ручной режим — разблокируем поле
                     batchInput.readOnly   = false;
                     batchInput.classList.add('border-warning');
                     batchHint.textContent = 'Введите номер партии вручную';
                 } else {
-                    // Авто режим — блокируем и обновляем из API
                     batchInput.readOnly   = true;
                     batchInput.classList.remove('border-warning');
                     fetchBatchNumber(workerSelect?.value);
@@ -323,6 +402,68 @@
             // Кнопка "Создать партию + приёмку"
             document.getElementById('andReceptionBtn')?.addEventListener('click', function () {
                 document.getElementById('andReceptionInput').value = '1';
+            });
+
+            // ── Сворачивание панели на мобильном ─────────────────────────────────────
+            (function () {
+                const toggle  = document.getElementById('recentBatchesToggle');
+                const body    = document.getElementById('recentBatchesBody');
+                const chevron = document.getElementById('recentBatchesChevron');
+                const STORAGE_KEY = 'recent_batches_panel_open';
+
+                function isMobile() { return window.innerWidth < 992; }
+
+                function applyState(open) {
+                    if (!isMobile()) { body.style.display = ''; return; }
+                    body.style.display = open ? '' : 'none';
+                    if (chevron) chevron.className = open ? 'bi bi-chevron-up d-md-none' : 'bi bi-chevron-down d-md-none';
+                }
+
+                applyState(localStorage.getItem(STORAGE_KEY) === 'open');
+
+                toggle.addEventListener('click', function () {
+                    if (!isMobile()) return;
+                    const isHidden = body.style.display === 'none';
+                    applyState(isHidden);
+                    localStorage.setItem(STORAGE_KEY, isHidden ? 'open' : 'closed');
+                });
+
+                window.addEventListener('resize', () => applyState(localStorage.getItem(STORAGE_KEY) === 'open'));
+            })();
+
+            // ── Копирование данных из партии в форму ─────────────────────────────────
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('.copy-batch-btn');
+                if (!btn) return;
+                try {
+                    const data = JSON.parse(btn.dataset.batch || '{}');
+                    if (!data.product_id) return;
+
+                    // Продукт
+                    const pidInput    = document.getElementById('pid_0');
+                    const searchInput = document.getElementById('search_0');
+                    if (pidInput)    pidInput.value    = data.product_id;
+                    if (searchInput) searchInput.value = data.product_name;
+
+                    // Количество
+                    const qtyInput = document.querySelector('input[name="quantity"]');
+                    if (qtyInput && data.quantity) qtyInput.value = data.quantity;
+
+                    // Склад-источник
+                    if (fromStoreSelect && data.from_store_id) {
+                        fromStoreSelect.value = data.from_store_id;
+                        syncSourceStore();
+                    }
+
+                    // Склад-назначение
+                    if (toStoreSelect && data.to_store_id) {
+                        toStoreSelect.value = data.to_store_id;
+                    }
+
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } catch (err) {
+                    console.error('copy-batch-btn parse error', err);
+                }
             });
         });
     </script>

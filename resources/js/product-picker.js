@@ -114,10 +114,11 @@ function initSearch(row) {
         items.slice(0, 15).forEach(p => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'list-group-item list-group-item-action py-1 small d-flex justify-content-between align-items-center gap-2';
+            btn.className = 'list-group-item list-group-item-action py-1 small d-flex justify-content-between align-items-start gap-2';
 
             const label = document.createElement('span');
-            label.className = 'flex-grow-1 text-truncate';
+            label.className = 'flex-grow-1';
+            label.style.cssText = 'font-size:.78rem;line-height:1.3;word-break:break-word';
             label.textContent = p.label;
             btn.appendChild(label);
 

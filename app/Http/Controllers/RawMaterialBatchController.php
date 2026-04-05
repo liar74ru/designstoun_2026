@@ -90,7 +90,16 @@ class RawMaterialBatchController extends Controller
             $copyProductName = Product::find($copyProductId)?->name;
         }
 
-        return view('raw-batches.create', compact('products', 'stores', 'workers', 'copyProductName'));
+        $recentBatches = RawMaterialBatch::with([
+            'product',
+            'currentWorker',
+            'movements' => fn($q) => $q->where('movement_type', 'create')->oldest(),
+        ])
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        return view('raw-batches.create', compact('products', 'stores', 'workers', 'copyProductName', 'recentBatches'));
     }
 
     /**
