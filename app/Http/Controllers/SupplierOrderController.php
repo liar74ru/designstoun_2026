@@ -9,6 +9,7 @@ use App\Models\SupplierOrderItem;
 use App\Models\Worker;
 use App\Services\MoySkladPurchaseOrderService;
 use App\Services\MoySkladSupplyService;
+use App\Services\StockSyncService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class SupplierOrderController extends Controller
     public function __construct(
         private MoySkladPurchaseOrderService $purchaseOrderService,
         private MoySkladSupplyService $supplyService,
+        private StockSyncService $stockSyncService,
     ) {
     }
 
@@ -269,6 +271,7 @@ class SupplierOrderController extends Controller
                 'status'             => SupplierOrder::STATUS_SENT,
                 'sync_error'         => null,
             ]);
+            $this->syncSuppliedProductStocks($supplierOrder);
             return redirect()->route('supplier-orders.index')
                 ->with('success', "Приёмка по поступлению №{$supplierOrder->number} создана в МойСклад.");
         }
@@ -395,6 +398,20 @@ class SupplierOrderController extends Controller
 
         return redirect()->route('supplier-orders.index')
             ->with('warning', 'Действие отменено.');
+    }
+
+    /**
+     * Обновить остатки в БД для всех товаров из поступления.
+     * Вызывается после успешного создания Приёмки в МойСклад.
+     */
+    private function syncSuppliedProductStocks(SupplierOrder $supplierOrder): void
+    {
+        foreach ($supplierOrder->items as $item) {
+            $moyskladId = $item->product?->moysklad_id;
+            if ($moyskladId) {
+                $this->stockSyncService->updateProductStocksByMoyskladId($moyskladId);
+            }
+        }
     }
 
     /**
