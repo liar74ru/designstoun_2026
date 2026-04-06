@@ -29,6 +29,18 @@ class Store extends Model
         'shared' => 'boolean',
     ];
 
+    const DEFAULT_STORE_CODE = '-dggJ2jngG51VKi5mHao91'; // external_code склада по умолчанию (6. Склад Уралия Цех)
+
+    /**
+     * Найти склад по умолчанию: сначала по коду из config/env,
+     * потом по константе, потом первый попавшийся.
+     */
+    public static function getDefault(): ?self
+    {
+        $code = config('app.default_store_code') ?: self::DEFAULT_STORE_CODE;
+        return self::where('external_code', $code)->first() ?? self::first();
+    }
+
     /**
      * Получить родительский склад (группу)
      */

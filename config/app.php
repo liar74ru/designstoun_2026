@@ -123,4 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'default_store_code' => env('DEFAULT_STORE_CODE'),
+
 ];

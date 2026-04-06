@@ -21,20 +21,7 @@ trait HandlesBatchStock
             $query->where('current_worker_id', $workerId);
         }
 
-        $batches = $query->orderBy('created_at', 'desc')->get();
-
-        // Временное логирование
-        \Log::info('getActiveBatches возвращает:', [
-            'worker_id' => $workerId,
-            'count' => $batches->count(),
-            'batches' => $batches->map(fn($b) => [
-                'id' => $b->id,
-                'product' => $b->product->name,
-                'remaining' => $b->remaining_quantity
-            ])->toArray()
-        ]);
-
-        return $batches;
+        return $query->orderBy('created_at', 'desc')->get();
     }
 
     /**
@@ -47,36 +34,35 @@ trait HandlesBatchStock
     }
 
     /**
-     * Обрабатывает изменения в партии сырья при обновлении
+     * Обрабатывает изменения в партии сырья при обновлении приёмки.
+     * Возвращает старое количество в старую партию, списывает новое из новой.
+     * Статус партии не меняется — только вручную через markAsUsed/markAsInWork.
      */
     protected function handleBatchChanges(StoneReception $reception, array $newData): void
     {
         $oldBatchId = $reception->raw_material_batch_id;
-        $oldQuantity = $reception->raw_quantity_used;
+        $oldQty     = (float) $reception->raw_quantity_used;
         $newBatchId = $newData['raw_material_batch_id'];
-        $newQuantity = $newData['raw_quantity_used'];
+        $newQty     = (float) $newData['raw_quantity_used'];
 
-        // Если ничего не изменилось, выходим
-        if ($oldBatchId == $newBatchId && $oldQuantity == $newQuantity) {
+        // Если партия та же и количество не изменилось — ничего не делаем
+        if ($oldBatchId == $newBatchId && abs($oldQty - $newQty) < 0.0001) {
             return;
         }
 
-        // Возвращаем сырье в старую партию
-        if ($oldBatchId) {
-            $oldBatch = RawMaterialBatch::find($oldBatchId);
-            if ($oldBatch) {
-                $oldBatch->remaining_quantity += $oldQuantity;
-                $oldBatch->save();
-            }
+        // Возвращаем старое количество обратно в старую партию
+        if ($oldBatchId && $oldBatch = RawMaterialBatch::find($oldBatchId)) {
+            $oldBatch->remaining_quantity = (float) $oldBatch->remaining_quantity + $oldQty;
+            $oldBatch->save();
         }
 
         // Проверяем и списываем из новой партии
-        if (!$this->checkBatchStock($newBatchId, $newQuantity)) {
-            throw new \Exception('Недостаточно сырья в новой партии');
+        $newBatch = RawMaterialBatch::find($newBatchId);
+        if (!$newBatch || (float) $newBatch->remaining_quantity < $newQty) {
+            throw new \Exception('Недостаточно сырья');
         }
 
-        $newBatch = RawMaterialBatch::find($newBatchId);
-        $newBatch->remaining_quantity -= $newQuantity;
+        $newBatch->remaining_quantity = max(0, (float) $newBatch->remaining_quantity - $newQty);
         $newBatch->save();
     }
 }
