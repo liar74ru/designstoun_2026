@@ -10,6 +10,7 @@ use App\Models\Worker;
 use App\Services\MoySkladPurchaseOrderService;
 use App\Services\MoySkladSupplyService;
 use App\Services\StockSyncService;
+use App\Support\DocumentNaming;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -110,6 +111,13 @@ class SupplierOrderController extends Controller
         // Синхронизация с МойСклад (вне транзакции — не блокируем сохранение при ошибке API)
         $order->load(['counterparty', 'store', 'items.product']);
         $syncResult = $this->purchaseOrderService->createPurchaseOrder($order);
+
+        // Коллизия имени — обновляем номер с суффиксом и повторяем
+        if (!$syncResult['success'] && $syncResult['code'] === 'duplicate_name') {
+            $newNumber = DocumentNaming::nextSuffix($order->number);
+            $order->update(['number' => $newNumber]);
+            $syncResult = $this->purchaseOrderService->createPurchaseOrder($order, $newNumber);
+        }
 
         if ($syncResult['success']) {
             $order->update([
@@ -278,7 +286,7 @@ class SupplierOrderController extends Controller
 
         // Коллизия имени приёмки
         if ($result['code'] === 'duplicate_name') {
-            $suggested = $this->nextSuffixName($supplierOrder->number);
+            $suggested = DocumentNaming::nextSuffix($supplierOrder->number);
             session()->put("sync_confirm_{$supplierOrder->id}", [
                 'issue'          => 'duplicate_supply',
                 'suggested_name' => $suggested,
@@ -331,7 +339,7 @@ class SupplierOrderController extends Controller
             $poResult = $this->purchaseOrderService->createPurchaseOrder($supplierOrder, $poName);
 
             if (!$poResult['success'] && $poResult['code'] === 'duplicate_name') {
-                $poName   = $this->nextSuffixName($poName);
+                $poName   = DocumentNaming::nextSuffix($poName);
                 $poResult = $this->purchaseOrderService->createPurchaseOrder($supplierOrder, $poName);
             }
 
@@ -354,7 +362,7 @@ class SupplierOrderController extends Controller
             $supplyResult = $this->supplyService->createSupply($supplierOrder, $supplyName);
 
             if (!$supplyResult['success'] && $supplyResult['code'] === 'duplicate_name') {
-                $supplyName   = $this->nextSuffixName($supplyName);
+                $supplyName   = DocumentNaming::nextSuffix($supplyName);
                 $supplyResult = $this->supplyService->createSupply($supplierOrder, $supplyName);
             }
 
@@ -376,7 +384,7 @@ class SupplierOrderController extends Controller
         }
 
         if ($mode === 'suffix_supply') {
-            $supplyName   = $request->input('suggested_name') ?: $this->nextSuffixName($supplierOrder->number);
+            $supplyName   = $request->input('suggested_name') ?: DocumentNaming::nextSuffix($supplierOrder->number);
             $supplyResult = $this->supplyService->createSupply($supplierOrder, $supplyName);
 
             if (!$supplyResult['success']) {
@@ -415,34 +423,16 @@ class SupplierOrderController extends Controller
     }
 
     /**
-     * Генерирует следующий суффиксный номер:
-     * «26-15-ПРОГ-01» → «26-15-ПРОГ-01_01»
-     * «26-15-ПРОГ-01_01» → «26-15-ПРОГ-01_02»
-     */
-    private function nextSuffixName(string $name): string
-    {
-        if (preg_match('/^(.+)_(\d+)$/', $name, $m)) {
-            return $m[1] . '_' . str_pad((int)$m[2] + 1, 2, '0', STR_PAD_LEFT);
-        }
-        return $name . '_01';
-    }
-
-    /**
      * API: следующий номер заказа на текущей неделе.
      * Формат: ГГ-НН-ПРОГ-ПП (например: 26-15-ПРОГ-01)
      */
     public function nextOrderNumber(): \Illuminate\Http\JsonResponse
     {
-        $year  = now()->format('y');
-        $week  = now()->format('W');
-
         $count = SupplierOrder::whereBetween('created_at', [
             now()->startOfWeek(),
             now()->endOfWeek(),
         ])->count();
 
-        $number = "{$year}-{$week}-ПРОГ-" . str_pad($count + 1, 2, '0', STR_PAD_LEFT);
-
-        return response()->json(['number' => $number]);
+        return response()->json(['number' => DocumentNaming::weeklyName('ПРОГ', $count + 1)]);
     }
 }

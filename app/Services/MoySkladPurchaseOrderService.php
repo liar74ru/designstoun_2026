@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SupplierOrder;
+use App\Support\DocumentNaming;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -103,17 +104,13 @@ class MoySkladPurchaseOrderService
 
             if (!$response->successful()) {
                 $errors   = $response->json()['errors'] ?? [];
-                $errorCode = (int) ($errors[0]['code'] ?? 0);
-                $errorMsg  = $errors[0]['title'] ?? 'Неизвестная ошибка';
-                $isDuplicate = $errorCode === 3000
-                    || str_contains(mb_strtolower($errorMsg), 'уникальн')
-                    || str_contains(mb_strtolower($errorMsg), 'unique');
+                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
                 Log::error('Ошибка создания заказа поставщику в МойСклад', [
                     'status'   => $response->status(),
                     'response' => $response->json(),
                     'order_id' => $order->id,
                 ]);
-                $result['code']    = $isDuplicate ? 'duplicate_name' : 'api_error';
+                $result['code']    = DocumentNaming::isDuplicateName($errors) ? 'duplicate_name' : 'api_error';
                 $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
                 return $result;
             }

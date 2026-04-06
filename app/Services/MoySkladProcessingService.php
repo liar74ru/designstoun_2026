@@ -3,6 +3,7 @@
 
 namespace App\Services;
 
+use App\Support\DocumentNaming;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Store;
@@ -182,17 +183,19 @@ class MoySkladProcessingService
     /**
      * Создать техоперацию в МойСклад
      *
-     * @param array $receptions Массив приемок (как массивы, не объекты)
-     * @param string $storeId ID склада
-     * @return array
+     * @param array       $receptions Массив приемок (как массивы, не объекты)
+     * @param string      $storeId    ID склада
+     * @param string|null $name       Имя документа; если не передано — генерируется автоматически
+     * @return array ['success', 'processing_id', 'code', 'message']
      */
-    public function createProcessing(array $receptions, string $storeId): array
+    public function createProcessing(array $receptions, string $storeId, ?string $name = null): array
     {
         $result = [
-            'success' => false,
+            'success'       => false,
             'processing_id' => null,
-            'message' => '',
-            'receptions' => $receptions
+            'code'          => '',
+            'message'       => '',
+            'receptions'    => $receptions,
         ];
 
         try {
@@ -331,10 +334,10 @@ class MoySkladProcessingService
                     'meta' => $storeMeta
                 ],
                 'processingSum' => $processingSum,
-                'products' => $products,
-                'materials' => $materials,
-                'name' => 'Техоперация от ' . now()->format('d.m.Y H:i'),
-                'quantity' => $totalQuantity
+                'products'      => $products,
+                'materials'     => $materials,
+                'name'          => $name ?? DocumentNaming::weeklyName('ТО', 1),
+                'quantity'      => $totalQuantity
             ];
 
             Log::info('Отправка запроса в МойСклад', [
@@ -359,18 +362,18 @@ class MoySkladProcessingService
             ])->post($this->baseUrl . '/entity/processing', $processingData);
 
             if (!$response->successful()) {
-                $errorResponse = $response->json();
-                $errorMessage = $errorResponse['errors'][0]['error'] ??
-                    $errorResponse['errors'][0]['title'] ??
-                    'Неизвестная ошибка';
+                $errors   = $response->json()['errors'] ?? [];
+                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
 
                 Log::error('Ошибка API МойСклад', [
-                    'status' => $response->status(),
-                    'response' => $errorResponse,
-                    'request_data' => $processingData
+                    'status'       => $response->status(),
+                    'response'     => $response->json(),
+                    'request_data' => $processingData,
                 ]);
 
-                throw new \Exception('Ошибка API МойСклад: ' . $errorMessage);
+                $result['code']    = DocumentNaming::isDuplicateName($errors) ? 'duplicate_name' : 'api_error';
+                $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
+                return $result;
             }
 
             $processingResponse = $response->json();

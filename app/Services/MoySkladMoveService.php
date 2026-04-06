@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\DocumentNaming;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Store;
@@ -119,10 +120,11 @@ class MoySkladMoveService
     public function createMove(array $data): array
     {
         $result = [
-            'success' => false,
-            'move_id' => null,
-            'message' => '',
-            'external_id' => null
+            'success'     => false,
+            'move_id'     => null,
+            'code'        => '',
+            'message'     => '',
+            'external_id' => null,
         ];
 
         if (!$this->hasCredentials()) {
@@ -194,11 +196,14 @@ class MoySkladMoveService
             ])->post($this->baseUrl . '/entity/move', $moveData);
 
             if (!$response->successful()) {
+                $errors  = $response->json()['errors'] ?? [];
+                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
                 Log::error('Ошибка создания перемещения в МойСклад', [
-                    'status' => $response->status(),
-                    'response' => $response->json()
+                    'status'   => $response->status(),
+                    'response' => $response->json(),
                 ]);
-                $result['message'] = 'Ошибка API МойСклад: ' . ($response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка');
+                $result['code']    = DocumentNaming::isDuplicateName($errors) ? 'duplicate_name' : 'api_error';
+                $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
                 return $result;
             }
 
@@ -284,12 +289,14 @@ class MoySkladMoveService
             ])->put($this->baseUrl . '/entity/move/' . $moveId, $moveData);
 
             if (!$response->successful()) {
+                $errors   = $response->json()['errors'] ?? [];
+                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
                 Log::error('Ошибка обновления перемещения в МойСклад', [
-                    'move_id' => $moveId,
-                    'status'  => $response->status(),
-                    'response'=> $response->json(),
+                    'move_id'  => $moveId,
+                    'status'   => $response->status(),
+                    'response' => $response->json(),
                 ]);
-                $result['message'] = 'Ошибка API МойСклад: ' . ($response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка');
+                $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
                 return $result;
             }
 

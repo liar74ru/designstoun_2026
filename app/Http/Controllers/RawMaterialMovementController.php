@@ -7,6 +7,7 @@ use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Models\Store;
 use App\Services\MoySkladMoveService;
+use App\Support\DocumentNaming;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -112,16 +113,17 @@ class RawMaterialMovementController extends Controller
                 return;
             }
 
+            $batchNumber = $data['batch_number'] ?? $batch->id;
             $moveData = [
                 'from_store_id' => $data['from_store_id'],
-                'to_store_id' => $data['to_store_id'],
-                'products' => [
+                'to_store_id'   => $data['to_store_id'],
+                'products'      => [
                     [
                         'product_id' => $product->moysklad_id,
-                        'quantity' => $data['quantity']
+                        'quantity'   => $data['quantity'],
                     ]
                 ],
-                'name' => 'Партия: ' . ($data['batch_number'] ?? $batch->id),
+                'name'        => 'Партия: ' . $batchNumber,
                 'description' => 'Автоматическое перемещение из системы',
                 'external_id' => 'movement_' . $movement->id,
                 'created_at'  => $batch->created_at,
@@ -129,22 +131,25 @@ class RawMaterialMovementController extends Controller
 
             $result = $this->moySkladMoveService->createMove($moveData);
 
+            // Коллизия имени — суффикс применяем к номеру партии и обновляем в БД
+            if (!$result['success'] && $result['code'] === 'duplicate_name') {
+                $batchNumber      = DocumentNaming::nextSuffix($batchNumber);
+                $moveData['name'] = 'Партия: ' . $batchNumber;
+                $result           = $this->moySkladMoveService->createMove($moveData);
+
+                if ($result['success']) {
+                    $batch->update(['batch_number' => $batchNumber]);
+                }
+            }
+
             if ($result['success']) {
-                // Сохраняем ID перемещения в МойСклад
                 $movement->update([
                     'moysklad_move_id' => $result['move_id'],
-                    'moysklad_synced' => true
+                    'moysklad_synced'  => true,
                 ]);
-
-                \Illuminate\Support\Facades\Log::info(
-                    'Перемещение синхронизировано с МойСклад',
-                    ['move_id' => $result['move_id']]
-                );
+                Log::info('Перемещение синхронизировано с МойСклад', ['move_id' => $result['move_id']]);
             } else {
-                \Illuminate\Support\Facades\Log::warning(
-                    'Ошибка синхронизации перемещения с МойСклад',
-                    ['error' => $result['message']]
-                );
+                Log::warning('Ошибка синхронизации перемещения с МойСклад', ['error' => $result['message']]);
             }
 
         } catch (\Exception $e) {
