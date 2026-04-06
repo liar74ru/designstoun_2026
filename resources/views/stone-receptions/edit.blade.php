@@ -291,15 +291,75 @@
                     </div>
                 </div>
 
-                {{-- Последние приёмки по этому сырью --}}
-                <div class="card shadow-sm mt-3" id="recentReceptionsCard" style="display:none">
-                    <div class="card-header bg-white py-2">
-                        <span class="fw-semibold small"><i class="bi bi-clock-history me-1"></i> Последние приёмки</span>
-                    </div>
-                    <div class="card-body p-2" id="recentReceptionsList">
-                        <div class="text-center text-muted small py-2">
-                            <span class="spinner-border spinner-border-sm"></span> Загрузка...
+                {{-- Последние приёмки --}}
+                <div class="card shadow-sm mt-3">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
+                         id="lastReceptionsToggle" style="cursor:pointer" role="button">
+                        <span class="fw-semibold small">
+                            <i class="bi bi-clock-history me-1"></i> Последние приёмки
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary">{{ $lastReceptions->total() }}</span>
+                            <i class="bi bi-chevron-down d-md-none" id="lastReceptionsChevron"></i>
                         </div>
+                    </div>
+
+                    <div id="lastReceptionsBody">
+                        <div class="list-group list-group-flush">
+                            @forelse($lastReceptions as $reception)
+                                <div class="list-group-item px-2 py-2">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1 me-2">
+                                            <div class="d-flex align-items-center gap-2 mb-1">
+                                                <span class="fw-semibold small">#{{ $reception->id }}</span>
+                                                <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size:.7rem">
+                                                    {{ number_format($reception->total_quantity, 2) }} м²
+                                                </span>
+                                                <span class="text-muted" style="font-size:.72rem">
+                                                    {{ $reception->created_at->format('d.m H:i') }}
+                                                </span>
+                                            </div>
+                                            @foreach($reception->items as $item)
+                                                <div class="text-muted" style="font-size:.75rem">
+                                                    {{ $item->product->name }}
+                                                    <span class="text-dark">× {{ number_format($item->quantity, 2) }}</span>
+                                                </div>
+                                            @endforeach
+                                            @if($reception->cutter)
+                                                <div class="text-muted mt-1" style="font-size:.72rem">
+                                                    <i class="bi bi-hammer me-1"></i>{{ $reception->cutter->name }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @php
+                                            $copyItemsData = $reception->items->map(fn($item) => [
+                                                'product_id'    => $item->product_id,
+                                                'product_label' => $item->product?->name ?? '',
+                                                'is_undercut'   => (bool) $item->is_undercut,
+                                            ])->toJson(JSON_UNESCAPED_UNICODE);
+                                        @endphp
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary copy-reception-btn flex-shrink-0"
+                                                data-items="{{ $copyItemsData }}"
+                                                style="width:28px;height:28px;padding:0;font-size:.75rem"
+                                                title="Скопировать продукты">
+                                            <i class="bi bi-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="text-center py-4 text-muted">
+                                    <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                                    Нет приёмок
+                                </div>
+                            @endforelse
+                        </div>
+
+                        @if($lastReceptions->hasPages())
+                            <div class="card-footer py-2">
+                                {{ $lastReceptions->links('pagination::bootstrap-5') }}
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -597,85 +657,57 @@
                 applySkuPrefix(localDerivePrefix(batchHidden.dataset.productSku));
             }
 
-            // ── Последние приёмки ────────────────────────────────────────────────────
-            const recentCard = document.getElementById('recentReceptionsCard');
-            const recentList = document.getElementById('recentReceptionsList');
-            const batchIdVal = document.getElementById('raw_material_batch_id')?.value;
+            // ── Последние приёмки: сворачивание на мобильном ────────────────────────
+            (function () {
+                const toggle  = document.getElementById('lastReceptionsToggle');
+                const body    = document.getElementById('lastReceptionsBody');
+                const chevron = document.getElementById('lastReceptionsChevron');
+                const STORAGE_KEY = 'last_receptions_edit_open';
 
-            function getExistingProductIds() {
-                const ids = new Set();
-                document.querySelectorAll('#existing-products input[name*="[product_id]"]').forEach(el => {
-                    if (el.value) ids.add(String(el.value));
-                });
-                newContainer.querySelectorAll('input[name*="[product_id]"]').forEach(el => {
-                    if (el.value) ids.add(String(el.value));
-                });
-                return ids;
-            }
+                function isMobile() { return window.innerWidth < 768; }
 
-            function renderReceptionsList(receptions) {
-                if (!receptions.length) {
-                    recentList.innerHTML = '<div class="text-muted small text-center py-2">Нет данных</div>';
-                    return;
+                function applyState(open) {
+                    if (!isMobile()) { body.style.display = ''; return; }
+                    body.style.display = open ? '' : 'none';
+                    if (chevron) chevron.className = open ? 'bi bi-chevron-up d-md-none' : 'bi bi-chevron-down d-md-none';
                 }
-                recentList.innerHTML = '';
-                receptions.forEach(rec => {
-                    const div = document.createElement('div');
-                    div.className = 'border rounded p-2 mb-2';
 
-                    const header = document.createElement('div');
-                    header.className = 'd-flex justify-content-between align-items-center mb-1';
-                    const copyBtn = document.createElement('button');
-                    copyBtn.type = 'button';
-                    copyBtn.className = 'copy-from-recent-btn btn btn-outline-primary py-0 px-1';
-                    copyBtn.style.fontSize = '.72rem';
-                    copyBtn.dataset.items = JSON.stringify(rec.items);
-                    copyBtn.innerHTML = '<i class="bi bi-clipboard-plus"></i> Скопировать';
+                applyState(localStorage.getItem(STORAGE_KEY) === 'open');
 
-                    const meta = document.createElement('span');
-                    meta.className = 'small text-muted';
-                    meta.textContent = rec.created_at + (rec.cutter_name ? ' · ' + rec.cutter_name : '');
-
-                    header.appendChild(meta);
-                    header.appendChild(copyBtn);
-                    div.appendChild(header);
-
-                    const ul = document.createElement('ul');
-                    ul.className = 'mb-0 ps-3 small text-muted';
-                    rec.items.forEach(item => {
-                        const li = document.createElement('li');
-                        li.textContent = item.product_label + (item.is_undercut ? ' (80%)' : '');
-                        ul.appendChild(li);
-                    });
-                    div.appendChild(ul);
-                    recentList.appendChild(div);
+                toggle.addEventListener('click', function () {
+                    if (!isMobile()) return;
+                    const isHidden = body.style.display === 'none';
+                    applyState(isHidden);
+                    localStorage.setItem(STORAGE_KEY, isHidden ? 'open' : 'closed');
                 });
-            }
 
-            if (batchIdVal) {
-                recentCard.style.display = '';
-                fetch(`/api/batches/${batchIdVal}/receptions`, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(r => r.ok ? r.json() : Promise.reject())
-                .then(data => renderReceptionsList(data))
-                .catch(() => {
-                    recentList.innerHTML = '<div class="text-danger small text-center py-2">Ошибка загрузки</div>';
-                });
-            }
+                window.addEventListener('resize', () => applyState(localStorage.getItem(STORAGE_KEY) === 'open'));
+            })();
 
-            recentList?.addEventListener('click', function (e) {
-                const btn = e.target.closest('.copy-from-recent-btn');
+            // ── Копирование продуктов из последних приёмок ───────────────────────────
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('.copy-reception-btn');
                 if (!btn) return;
-                const items = JSON.parse(btn.dataset.items);
-                const existing = getExistingProductIds();
-                const toAdd = items.filter(p => !existing.has(String(p.product_id)));
-                if (!toAdd.length) {
-                    alert('Все продукты из этой приёмки уже добавлены');
-                    return;
+                try {
+                    const items = JSON.parse(btn.dataset.items || '[]');
+                    if (!items.length) return;
+                    const existing = new Set();
+                    document.querySelectorAll('#existing-products input[name*="[product_id]"]').forEach(el => {
+                        if (el.value) existing.add(String(el.value));
+                    });
+                    newContainer.querySelectorAll('input[name*="[product_id]"]').forEach(el => {
+                        if (el.value) existing.add(String(el.value));
+                    });
+                    const toAdd = items.filter(p => !existing.has(String(p.product_id)));
+                    if (!toAdd.length) {
+                        alert('Все продукты из этой приёмки уже добавлены');
+                        return;
+                    }
+                    toAdd.forEach(p => addNewProduct(String(p.product_id), p.product_label, !!p.is_undercut));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } catch (err) {
+                    console.error('copy-reception-btn parse error', err);
                 }
-                toAdd.forEach(p => addNewProduct(String(p.product_id), p.product_label, !!p.is_undercut));
-                window.scrollTo({ top: 0, behavior: 'smooth' });
             });
 
             // ── Итого ────────────────────────────────────────────────────────────────

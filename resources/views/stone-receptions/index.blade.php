@@ -279,8 +279,8 @@
                                         <div class="d-flex gap-1 justify-content-end">
                                             @if($reception->status == 'active')
                                                 <a href="{{ route('stone-receptions.edit', $reception) }}"
-                                                   class="btn btn-sm btn-outline-primary" title="Редактировать">
-                                                    <i class="bi bi-pencil"></i>
+                                                   class="btn btn-sm btn-success" title="Редактировать">
+                                                    <i class="bi bi-plus-lg"></i>
                                                 </a>
                                             @endif
                                             @if($reception->status == 'active' && $reception->rawMaterialBatch && (float)$reception->rawMaterialBatch->remaining_quantity <= 0)
@@ -359,9 +359,9 @@
                                         @endif
                                         @if($reception->status == 'active')
                                             <a href="{{ route('stone-receptions.edit', $reception) }}"
-                                               class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center"
+                                               class="btn btn-success d-inline-flex align-items-center justify-content-center"
                                                style="width:22px;height:22px;padding:0;font-size:.65rem" title="Редактировать">
-                                                <i class="bi bi-pencil"></i>
+                                                <i class="bi bi-plus-lg"></i>
                                             </a>
                                         @endif
                                         @if($reception->status == 'active' && $reception->rawMaterialBatch && (float)$reception->rawMaterialBatch->remaining_quantity <= 0)
