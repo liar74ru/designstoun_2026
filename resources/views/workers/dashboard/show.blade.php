@@ -410,23 +410,36 @@
                                            style="width:22px;height:22px;padding:0;font-size:.65rem" title="Посмотреть партию">
                                             <i class="bi bi-eye"></i>
                                         </a>
-                                        @if($isActive)
-                                            <a href="{{ route('raw-batches.adjust.form', $batch) }}"
-                                               class="btn btn-outline-warning d-inline-flex align-items-center justify-content-center"
-                                               style="width:22px;height:22px;padding:0;font-size:.65rem" title="Откорректировать остаток">
-                                                <i class="bi bi-pencil-square"></i>
-                                            </a>
-                                        @endif
-                                        @if($isActive && $bRem <= 0)
-                                            <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline-flex"
-                                                  onsubmit="return confirm('Завершить партию? Сырьё будет отмечено как израсходованное.')">
-                                                @csrf
-                                                <button type="submit"
-                                                        class="btn btn-warning d-inline-flex align-items-center justify-content-center"
-                                                        style="width:22px;height:22px;padding:0;font-size:.65rem" title="Завершить партию">
-                                                    <i class="bi bi-check2-circle"></i>
-                                                </button>
-                                            </form>
+                                        @if(auth()->user()->isAdmin() || auth()->user()->isMaster())
+                                            @if($isActive)
+                                                <a href="{{ route('raw-batches.adjust-remaining.form', $batch) }}"
+                                                   class="btn btn-outline-warning d-inline-flex align-items-center justify-content-center"
+                                                   style="width:22px;height:22px;padding:0;font-size:.65rem" title="Откорректировать остаток">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </a>
+                                            @endif
+                                            @if($isActive && $bRem <= 0)
+                                                <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline-flex"
+                                                      onsubmit="return confirm('Завершить партию? Сырьё будет отмечено как израсходованное.')">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="btn btn-warning d-inline-flex align-items-center justify-content-center"
+                                                            style="width:22px;height:22px;padding:0;font-size:.65rem" title="Завершить партию">
+                                                        <i class="bi bi-check2-circle"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            @if($batch->status === \App\Models\RawMaterialBatch::STATUS_USED)
+                                                <form method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}" class="d-inline-flex"
+                                                      onsubmit="return confirm('Вернуть партию в работу?')">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="btn btn-outline-success d-inline-flex align-items-center justify-content-center"
+                                                            style="width:22px;height:22px;padding:0;font-size:.65rem" title="Вернуть в работу">
+                                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
                                         @endif
                                     </div>
 

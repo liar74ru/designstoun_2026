@@ -97,6 +97,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('raw-batches/create', [RawMaterialMovementController::class, 'store'])->name('raw-movement.store');
     Route::get('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjustForm'])->name('raw-batches.adjust.form');
     Route::post('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjust'])->name('raw-batches.adjust');
+    Route::get('raw-batches/{batch}/adjust-remaining', [RawMaterialBatchController::class, 'adjustRemainingForm'])->name('raw-batches.adjust-remaining.form');
+    Route::post('raw-batches/{batch}/adjust-remaining', [RawMaterialBatchController::class, 'adjustRemaining'])->name('raw-batches.adjust-remaining');
     Route::post('raw-batches/{batch}/archive', [RawMaterialBatchController::class, 'archive'])->name('raw-batches.archive');
     Route::post('raw-batches/{batch}/mark-used', [RawMaterialBatchController::class, 'markAsUsed'])->name('raw-batches.mark-used');
     Route::post('raw-batches/{batch}/mark-in-work', [RawMaterialBatchController::class, 'markAsInWork'])->name('raw-batches.mark-in-work');

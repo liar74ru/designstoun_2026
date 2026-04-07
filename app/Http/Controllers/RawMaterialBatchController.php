@@ -591,6 +591,63 @@ class RawMaterialBatchController extends Controller
     }
 
     /**
+     * Форма корректировки остатка партии без синхронизации с МойСклад.
+     * Логика аналогична изменению raw_quantity_used в приёмке.
+     */
+    public function adjustRemainingForm(RawMaterialBatch $batch)
+    {
+        if ($batch->status === 'archived') {
+            return redirect()->route('raw-batches.show', $batch)
+                ->with('error', 'Архивная партия недоступна для редактирования.');
+        }
+
+        $backUrl = url()->previous(route('raw-batches.index'));
+        return view('raw-batches.adjust-remaining', compact('batch', 'backUrl'));
+    }
+
+    /**
+     * Применяет корректировку остатка партии без синхронизации с МойСклад.
+     * Меняет только remaining_quantity — аналогично handleBatchChanges в приёмках.
+     */
+    public function adjustRemaining(Request $request, RawMaterialBatch $batch)
+    {
+        if ($batch->status === 'archived') {
+            return back()->with('error', 'Архивная партия недоступна для редактирования.');
+        }
+
+        $data = $request->validate([
+            'delta' => 'required|numeric|not_in:0',
+            'notes' => 'nullable|string|max:500',
+        ], [
+            'delta.required' => 'Укажите величину изменения',
+            'delta.not_in'   => 'Изменение не может быть равно нулю',
+        ]);
+
+        $delta        = (float) $data['delta'];
+        $newRemaining = (float) $batch->remaining_quantity + $delta;
+        $initial      = (float) $batch->initial_quantity;
+
+        if ($newRemaining < 0) {
+            return back()
+                ->withErrors(['delta' => 'Нельзя убрать больше чем есть в партии (остаток: ' . number_format($batch->remaining_quantity, 3) . ' м³)'])
+                ->withInput();
+        }
+
+        if ($newRemaining > $initial) {
+            return back()
+                ->withErrors(['delta' => 'Остаток не может превышать начальное количество партии (' . number_format($initial, 3) . ' м³)'])
+                ->withInput();
+        }
+
+        $batch->update(['remaining_quantity' => $newRemaining]);
+
+        $backUrl = $request->input('back_url', route('raw-batches.show', $batch));
+        $action  = $delta > 0 ? 'добавлено ' . number_format($delta, 3) . ' м³' : 'убрано ' . number_format(abs($delta), 3) . ' м³';
+        return redirect($backUrl)
+            ->with('success', "Остаток скорректирован: {$action}. Новый остаток: " . number_format($newRemaining, 3) . ' м³');
+    }
+
+    /**
      * Ручной перевод партии в статус «Израсходована».
      * Доступен только из статусов 'new' и 'in_work'.
      * Каскад: активная приёмка партии → 'completed'.

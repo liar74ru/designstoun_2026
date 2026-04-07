@@ -52,6 +52,8 @@ class MasterOnly
         'raw-batches.return',
         'raw-batches.adjust.form',
         'raw-batches.adjust',
+        'raw-batches.adjust-remaining.form',
+        'raw-batches.adjust-remaining',
         'raw-batches.archive',
         'raw-batches.mark-used',
         'raw-batches.mark-in-work',
