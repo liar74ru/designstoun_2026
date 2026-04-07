@@ -81,6 +81,7 @@
             </div>
         @else
 
+            @if(auth()->user()->isAdmin() || auth()->id() === $worker->user?->id)
             {{-- Итоговые карточки --}}
             <div class="row g-2 mb-3">
                 <div class="col-6">
@@ -102,8 +103,10 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             {{-- Сводка по продуктам --}}
+            @if(auth()->user()->isAdmin() || auth()->id() === $worker->user?->id)
             <div class="card shadow-sm mb-3">
                 <div class="card-header fw-semibold py-2">Сводка по продуктам за период</div>
                 <div class="table-responsive">
@@ -161,6 +164,7 @@
                     </table>
                 </div>
             </div>
+            @endif
 
             {{-- Детализация: список приёмок --}}
             <div class="card shadow-sm">
@@ -202,8 +206,8 @@
                                         <div class="d-flex gap-1 align-items-center">
                                             @if(auth()->user()->isAdmin() && $reception->rawMaterialBatch)
                                                 <a href="{{ route('stone-receptions.show', $reception) }}"
-                                                   class="text-muted d-inline-flex align-items-center"
-                                                   style="font-size:.8rem" title="Открыть приёмку">
+                                                   class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center"
+                                                   style="width:22px;height:22px;padding:0;font-size:.65rem" title="Открыть приёмку">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
                                             @endif
