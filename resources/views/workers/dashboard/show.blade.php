@@ -164,19 +164,22 @@
 
             {{-- Детализация: список приёмок --}}
             <div class="card shadow-sm">
-                <div class="card-header bg-white py-2">
-                    <ul class="nav nav-pills mb-0">
-                        <li class="nav-item">
-                            <button type="button" id="view-btn-batches" class="nav-link py-1 px-3">
-                                <i class="bi bi-table"></i> По партиям
-                            </button>
-                        </li>
-                        <li class="nav-item">
-                            <button type="button" id="view-btn-logs" class="nav-link py-1 px-3">
-                                <i class="bi bi-journal-text"></i> По приёмкам
-                            </button>
-                        </li>
-                    </ul>
+                <div class="card-header bg-white p-0">
+                    <div class="d-flex w-100" style="background:#e9ecef;padding:4px;gap:3px;min-width:0">
+                        @php $activeRawCount = $rawBatches->whereIn('status', ['new','in_work'])->count() @endphp
+                        <button type="button" id="view-btn-batches"
+                                style="flex:1;min-width:0;border:none;border-radius:4px;padding:.35rem .25rem;font-size:.75rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:transparent;color:#6c757d;transition:all .15s">
+                            По партиям
+                        </button>
+                        <button type="button" id="view-btn-logs"
+                                style="flex:1;min-width:0;border:none;border-radius:4px;padding:.35rem .25rem;font-size:.75rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:transparent;color:#6c757d;transition:all .15s">
+                            По приёмкам
+                        </button>
+                        <button type="button" id="view-btn-raw"
+                                style="flex:1;min-width:0;border:none;border-radius:4px;padding:.35rem .25rem;font-size:.75rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:transparent;color:#6c757d;transition:all .15s">
+                            Сырьё@if($activeRawCount) <span class="badge bg-success" style="font-size:.6rem;vertical-align:middle">{{ $activeRawCount }}</span>@endif
+                        </button>
+                    </div>
                 </div>
 
                 <div style="padding:.25rem">
@@ -198,11 +201,10 @@
                                         </span>
                                         <div class="d-flex gap-1 align-items-center">
                                             @if(auth()->user()->isAdmin() && $reception->rawMaterialBatch)
-                                                
-                                                    <a href="{{ route('stone-receptions.show', $reception) }}"
-                                               class="btn btn-sm btn-outline-secondary" title="Просмотр">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
+                                                <a href="{{ route('stone-receptions.show', $reception) }}"
+                                                   class="text-muted d-inline-flex align-items-center"
+                                                   style="font-size:.8rem" title="Открыть приёмку">
+                                                    <i class="bi bi-eye"></i>
                                                 </a>
                                             @endif
                                             @if($reception->status === 'active')
@@ -232,7 +234,7 @@
                                             @endforeach
                                             <div class="d-flex justify-content-end" style="margin-top:.1rem">
                                                 <span class="text-muted text-nowrap" style="font-size:.7rem">
-                                                    Итого: {{ number_format($reception->total_quantity, 3, ',', '.') }} м²
+                                                    Итого: <span class="fw-semibold text-primary">{{ number_format($reception->total_quantity, 3, ',', '.') }} м²</span>
                                                 </span>
                                             </div>
                                         </div>
@@ -248,9 +250,11 @@
                                             <span class="text-muted text-truncate me-2" style="font-size:.72rem">
                                                 <i class="bi bi-box me-1"></i>{{ $reception->rawMaterialBatch->product->name ?? '?' }}
                                             </span>
-                                            <div class="d-flex gap-1 flex-shrink-0">
-                                                <span title="Всего в партии" style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">{{ number_format($bInit, 3, '.', '') }}</span>
-                                                <span title="Остаток в партии" style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:{{ $bRem > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $bRem > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($bRem, 3, '.', '') }}</span>
+                                            <div class="d-flex gap-1 flex-shrink-0 align-items-center">
+                                                <span style="font-size:.6rem;color:#6c757d;white-space:nowrap">нач.</span>
+                                                <span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">{{ number_format($bInit, 3, '.', '') }}</span>
+                                                <span style="font-size:.6rem;color:#6c757d;white-space:nowrap">ост.</span>
+                                                <span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:{{ $bRem > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $bRem > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($bRem, 3, '.', '') }}</span>
                                             </div>
                                         </div>
                                     @endif
@@ -345,6 +349,97 @@
                         @endforelse
                     </div>
 
+                    {{-- ═══ ВИД: СЫРЬЁ (RawMaterialBatch) ═══ --}}
+                    <div id="view-raw">
+                        @forelse($rawBatches as $batch)
+                            @php
+                                $skuColor = \App\Models\Product::getColorBySku($batch->product?->sku);
+                                $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
+                                $bInit    = (float) ($batch->initial_quantity ?? 0);
+                                $bRem     = (float) ($batch->remaining_quantity ?? 0);
+                                $isActive = in_array($batch->status, ['new', 'in_work']);
+                            @endphp
+                            <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07);{{ !$isActive ? 'opacity:.75' : '' }}">
+                                <div style="padding:.2rem .35rem">
+
+                                    {{-- Строка 1: №партии слева | статус справа --}}
+                                    <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
+                                        @if($batch->batch_number)
+                                            <span class="text-muted" style="font-size:.72rem">№{{ $batch->batch_number }}</span>
+                                        @else
+                                            <span></span>
+                                        @endif
+                                        <span class="badge {{ $batch->statusBadgeClass() }}" style="font-size:.65rem">
+                                            {{ $batch->statusLabel() }}
+                                        </span>
+                                    </div>
+
+                                    {{-- Строка 2: продукт слева | нач./ост. в столбик справа --}}
+                                    <div class="d-flex justify-content-between align-items-start" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
+                                        <span class="fw-semibold me-2" style="font-size:.75rem">
+                                            <i class="bi bi-box text-secondary me-1"></i>{{ $batch->product?->name ?? '—' }}
+                                        </span>
+                                        <div class="d-flex flex-column align-items-end flex-shrink-0" style="gap:.1rem">
+                                            <div class="d-flex gap-1 align-items-center">
+                                                <span style="font-size:.6rem;color:#6c757d;white-space:nowrap">нач.</span>
+                                                <span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">{{ number_format($bInit, 3, '.', '') }}</span>
+                                            </div>
+                                            <div class="d-flex gap-1 align-items-center">
+                                                <span style="font-size:.6rem;color:#6c757d;white-space:nowrap">ост.</span>
+                                                <span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:{{ $bRem > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $bRem > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($bRem, 3, '.', '') }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Строка 3: дата создания слева | склад справа --}}
+                                    <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
+                                        <span class="fw-bold" style="font-size:.72rem">
+                                            <i class="bi bi-calendar3 text-secondary me-1"></i>{{ $batch->created_at->format('d.m.Y H:i') }}
+                                        </span>
+                                        @if($batch->currentStore)
+                                            <span class="text-muted" style="font-size:.65rem">
+                                                <i class="bi bi-building me-1"></i>{{ $batch->currentStore->name }}
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    {{-- Строка 4: кнопки действий --}}
+                                    <div class="d-flex gap-1 justify-content-end" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
+                                        <a href="{{ route('raw-batches.show', $batch) }}"
+                                           class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center"
+                                           style="width:22px;height:22px;padding:0;font-size:.65rem" title="Посмотреть партию">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        @if($isActive)
+                                            <a href="{{ route('raw-batches.adjust.form', $batch) }}"
+                                               class="btn btn-outline-warning d-inline-flex align-items-center justify-content-center"
+                                               style="width:22px;height:22px;padding:0;font-size:.65rem" title="Откорректировать остаток">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </a>
+                                        @endif
+                                        @if($isActive && $bRem <= 0)
+                                            <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline-flex"
+                                                  onsubmit="return confirm('Завершить партию? Сырьё будет отмечено как израсходованное.')">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="btn btn-warning d-inline-flex align-items-center justify-content-center"
+                                                        style="width:22px;height:22px;padding:0;font-size:.65rem" title="Завершить партию">
+                                                    <i class="bi bi-check2-circle"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                                Партий сырья за период нет
+                            </div>
+                        @endforelse
+                    </div>
+
                 </div>
             </div>
 
@@ -376,27 +471,38 @@
                 });
             })();
 
-            // ── Переключатель вида: по партиям / по приёмкам ──────────────────────
+            // ── Переключатель вида: по партиям / по приёмкам / сырьё ─────────────
             (function () {
                 const STORAGE_KEY = 'dashboard_receptions_view';
-                const btnBatches  = document.getElementById('view-btn-batches');
-                const btnLogs     = document.getElementById('view-btn-logs');
-                const viewBatches = document.getElementById('view-batches');
-                const viewLogs    = document.getElementById('view-logs');
+                const views = {
+                    batches: { btn: document.getElementById('view-btn-batches'), el: document.getElementById('view-batches') },
+                    logs:    { btn: document.getElementById('view-btn-logs'),    el: document.getElementById('view-logs') },
+                    raw:     { btn: document.getElementById('view-btn-raw'),     el: document.getElementById('view-raw') },
+                };
 
                 function applyView(view) {
-                    const isBatches = view === 'batches';
-                    viewBatches.style.display = isBatches ? '' : 'none';
-                    viewLogs.style.display    = isBatches ? 'none' : '';
-                    btnBatches.classList.toggle('active', isBatches);
-                    btnLogs.classList.toggle('active', !isBatches);
+                    Object.entries(views).forEach(([key, { btn, el }]) => {
+                        const active = key === view;
+                        if (el) el.style.display = active ? '' : 'none';
+                        if (btn) {
+                            btn.style.background = active ? '#0d6efd' : 'transparent';
+                            btn.style.color      = active ? '#fff' : '#0d6efd';
+                            btn.style.boxShadow  = active ? '0 1px 3px rgba(0,0,0,.2)' : 'none';
+                            btn.style.fontWeight = active ? '600' : '500';
+                            btn.style.border     = active ? 'none' : '1.5px solid #0d6efd';
+                        }
+                    });
                 }
 
                 const saved = localStorage.getItem(STORAGE_KEY) || 'batches';
                 applyView(saved);
 
-                btnBatches.addEventListener('click', () => { applyView('batches'); localStorage.setItem(STORAGE_KEY, 'batches'); });
-                btnLogs.addEventListener('click',    () => { applyView('logs');    localStorage.setItem(STORAGE_KEY, 'logs'); });
+                Object.entries(views).forEach(([key, { btn }]) => {
+                    if (btn) btn.addEventListener('click', () => {
+                        applyView(key);
+                        localStorage.setItem(STORAGE_KEY, key);
+                    });
+                });
             })();
 
             // ── Быстрые кнопки недель ─────────────────────────────────────────────

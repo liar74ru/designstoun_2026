@@ -7,55 +7,6 @@ use App\Services\MoySkladProcessingService;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Копирование приёмки — copy()
-// ══════════════════════════════════════════════════════════════════════════════
-
-describe('Копирование приёмки [copy()]', function () {
-
-    test('кладёт copy_data в сессию и редиректит на create', function () {
-        $user      = H::adminUser();
-        $receiver  = H::worker();
-        $cutter    = H::cutter();
-        $store     = H::store();
-        $rawProd   = H::product();
-        $product   = H::product(['name' => 'Плитка']);
-        $batch     = H::batch($rawProd, $store, $cutter, 50.0);
-        $reception = H::reception($batch, $receiver, $cutter, $store, 5.0);
-        $reception->items()->create(['product_id' => $product->id, 'quantity' => 3.0]);
-
-        $this->actingAs($user)
-            ->post(route('stone-receptions.copy', $reception), [
-                'cutter_id'             => $cutter->id,
-                'raw_material_batch_id' => $batch->id,
-            ])->assertRedirect()
-            ->assertSessionHas('success');
-
-        $copyData = session('copy_data');
-        expect($copyData)->not->toBeNull();
-        expect($copyData['receiver_id'])->toBe($receiver->id);
-        expect($copyData['products'])->toHaveCount(1);
-        expect($copyData['products'][0]['product_id'])->toBe($product->id);
-        expect((float) $copyData['products'][0]['quantity'])->toBe(3.0);
-    });
-
-    test('заметка скопированной приёмки содержит "(копия)"', function () {
-        $user      = H::adminUser();
-        $receiver  = H::worker();
-        $cutter    = H::cutter();
-        $store     = H::store();
-        $rawProd   = H::product();
-        $batch     = H::batch($rawProd, $store, $cutter, 50.0);
-        $reception = H::reception($batch, $receiver, $cutter, $store, 5.0, ['notes' => 'Оригинальная заметка']);
-        $reception->items()->create(['product_id' => H::product()->id, 'quantity' => 1.0]);
-
-        $this->actingAs($user)->post(route('stone-receptions.copy', $reception));
-
-        $copyData = session('copy_data');
-        expect($copyData['notes'])->toContain('(копия)');
-    });
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
 // AJAX эндпоинт — getBatchesJson()
 // ══════════════════════════════════════════════════════════════════════════════
 

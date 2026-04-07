@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
 use App\Models\ReceptionLog;
 use App\Models\StoneReceptionItem;
@@ -98,6 +99,21 @@ class WorkerDashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Партии сырья: активные у пильщика + задействованные в периоде
+        $rawBatches = RawMaterialBatch::with(['product', 'currentStore'])
+            ->where(function ($q) use ($worker, $dateFrom, $dateTo) {
+                $q->where(function ($q2) use ($worker) {
+                    $q2->whereIn('status', [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])
+                        ->where('current_worker_id', $worker->id);
+                })->orWhereHas('receptions', function ($q2) use ($worker, $dateFrom, $dateTo) {
+                    $q2->where('cutter_id', $worker->id)
+                        ->whereBetween('created_at', [$dateFrom, $dateTo]);
+                });
+            })
+            ->orderByRaw("CASE status WHEN 'in_work' THEN 0 WHEN 'new' THEN 1 ELSE 2 END")
+            ->orderByDesc('updated_at')
+            ->get();
+
         // Считаем сводку по продуктам за период на основе дельт лога
         $summary = $this->buildProductSummary($logs);
 
@@ -108,6 +124,7 @@ class WorkerDashboardController extends Controller
             'worker',
             'receptions',
             'stoneReceptions',
+            'rawBatches',
             'summary',
             'totalPay',
             'dateFrom',

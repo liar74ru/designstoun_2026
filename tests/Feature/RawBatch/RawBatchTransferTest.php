@@ -158,21 +158,23 @@ describe('Возврат партии на склад [return()]', function () {
 
 describe('Копирование партии [copy()]', function () {
 
-    test('кладёт copy_from в сессию и редиректит на create', function () {
+    test('редиректит на create с query-параметрами продукта и работника', function () {
         $user    = H::adminUser();
         $product = H::product();
         $store   = H::store();
         $cutter  = H::cutter();
         $batch   = H::batch($product, $store, $cutter, 15.0);
 
-        $this->actingAs($user)
-            ->get(route('raw-batches.copy', $batch))
-            ->assertRedirect(route('raw-batches.create'))
-            ->assertSessionHas('copy_from');
+        $response = $this->actingAs($user)
+            ->get(route('raw-batches.copy', $batch));
 
-        $copyFrom = session('copy_from');
-        expect($copyFrom['product_id'])->toBe($product->id);
-        expect($copyFrom['worker_id'])->toBe($cutter->id);
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $location = $response->headers->get('Location');
+        expect($location)->toContain('copy_worker=' . $batch->current_worker_id);
+        expect($location)->toContain('copy_product=' . $batch->product_id);
+        expect($location)->toContain('copy_to_store=' . $batch->current_store_id);
     });
 });
 
