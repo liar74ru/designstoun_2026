@@ -50,11 +50,18 @@ class WorkerDashboardController extends Controller
 
         // Определяем, чьи данные показываем:
         // - администратор может смотреть любого работника (через параметр URL)
+        // - мастер с отделом может смотреть работников своего отдела
         // - обычный работник видит только себя
         if ($user->isAdmin() && $workerId) {
             $worker = Worker::findOrFail($workerId);
+        } elseif ($user->isMaster() && $workerId) {
+            $worker = Worker::findOrFail($workerId);
+            $masterDeptId = $user->worker?->department_id;
+            if ($masterDeptId && $worker->department_id !== $masterDeptId) {
+                abort(403, 'Нет доступа к дашборду этого работника');
+            }
         } else {
-            // Для не-администратора — только его собственный профиль
+            // Для не-мастера и не-администратора — только свой профиль
             abort_unless($user->worker_id, 403, 'Ваш аккаунт не привязан к работнику');
             $worker = $user->worker;
         }

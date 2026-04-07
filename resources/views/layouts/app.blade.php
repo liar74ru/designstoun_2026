@@ -35,13 +35,27 @@
     {{--    </div>--}}
 
     <!-- Основной контент -->
-    <main style="padding-top:64px;min-height:100vh;background-color:#f0f2f5">
+    <main id="main-content" style="padding-top:64px;min-height:100vh;background-color:#f0f2f5">
         @yield('content')
     </main>
     <!-- Footer -->
     @include('layouts.partials.footer')
     <!-- Scripts -->
     @stack('scripts')
+    <script>
+        (function () {
+            var header = document.querySelector('header');
+            var main   = document.getElementById('main-content');
+            if (!header || !main) return;
+            function syncPadding() {
+                main.style.paddingTop = header.offsetHeight + 'px';
+            }
+            syncPadding();
+            window.addEventListener('resize', syncPadding);
+            // Повторно после загрузки шрифтов/изображений
+            window.addEventListener('load', syncPadding);
+        })();
+    </script>
 </div>
 </body>
 </html>

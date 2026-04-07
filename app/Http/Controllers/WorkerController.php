@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\User;
 use App\Models\Worker;
-use App\Models\Department;
 use Illuminate\Http\Request;
 
 class WorkerController extends Controller
@@ -12,11 +12,50 @@ class WorkerController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::all();
-        $workers = Worker::with('department')->orderBy('name')->paginate(15);
-        return view('workers.index', compact('workers', 'users'));
+        $query = Worker::with('department');
+
+        // Мастер с отделом видит только работников своего отдела
+        $authUser = auth()->user();
+        if ($authUser->isMaster() && $authUser->worker?->department_id) {
+            $query->where('department_id', $authUser->worker->department_id);
+        }
+
+        if ($request->filled('filter.position')) {
+            $query->where('position', $request->input('filter.position'));
+        }
+
+        if ($request->filled('filter.department_id')) {
+            $query->where('department_id', $request->input('filter.department_id'));
+        }
+
+        if ($request->filled('filter.has_account')) {
+            if ($request->input('filter.has_account') == '1') {
+                $query->whereHas('user');
+            } else {
+                $query->whereDoesntHave('user');
+            }
+        }
+
+        $workers = $query
+            ->orderByRaw("CASE position
+                WHEN 'Директор'     THEN 1
+                WHEN 'Мастер'       THEN 2
+                WHEN 'Приёмщик'     THEN 3
+                WHEN 'Пильщик'      THEN 4
+                WHEN 'Галтовщик'    THEN 5
+                WHEN 'Разнорабочий' THEN 6
+                ELSE 7
+            END")
+            ->orderBy('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        $departments = Department::orderBy('name')->get();
+        $positions = array_combine(Worker::POSITIONS, Worker::POSITIONS);
+
+        return view('workers.index', compact('workers', 'departments', 'positions'));
     }
 
     /**
@@ -25,6 +64,7 @@ class WorkerController extends Controller
     public function create()
     {
         $departments = Department::orderBy('name')->get();
+
         return view('workers.create', compact('departments'));
     }
 
@@ -35,7 +75,7 @@ class WorkerController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'position' => 'required|string|in:' . implode(',', Worker::POSITIONS),
+            'position' => 'required|string|in:'.implode(',', Worker::POSITIONS),
             'email' => 'nullable|email|unique:workers,email',
             'phone' => 'nullable|string|max:50',
             'department_id' => 'nullable|exists:departments,id',
@@ -61,6 +101,7 @@ class WorkerController extends Controller
     public function edit(Worker $worker)
     {
         $departments = Department::orderBy('name')->get();
+
         return view('workers.edit', compact('worker', 'departments'));
     }
 
@@ -71,8 +112,8 @@ class WorkerController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'position' => 'required|string|in:' . implode(',', Worker::POSITIONS),
-            'email' => 'nullable|email|unique:workers,email,' . $worker->id,
+            'position' => 'required|string|in:'.implode(',', Worker::POSITIONS),
+            'email' => 'nullable|email|unique:workers,email,'.$worker->id,
             'phone' => 'nullable|string|max:50',
             'department_id' => 'nullable|exists:departments,id',
         ]);
@@ -112,16 +153,17 @@ class WorkerController extends Controller
 
     public function editUser(Worker $worker)
     {
-        if (!$worker->user) {
+        if (! $worker->user) {
             return redirect()->route('workers.index')
                 ->with('error', 'У этого работника нет учётной записи');
         }
+
         return view('workers.edit-user', compact('worker'));
     }
 
     public function updateUser(Request $request, Worker $worker)
     {
-        if (!$worker->user) {
+        if (! $worker->user) {
             return redirect()->route('workers.index')
                 ->with('error', 'У этого работника нет учётной записи');
         }
@@ -132,15 +174,15 @@ class WorkerController extends Controller
             'password' => 'required|string|min:6|confirmed',
             'is_admin' => 'boolean',
         ], [
-            'password.required'  => 'Введите новый пароль',
-            'password.min'       => 'Пароль должен быть не менее 6 символов',
+            'password.required' => 'Введите новый пароль',
+            'password.min' => 'Пароль должен быть не менее 6 символов',
             'password.confirmed' => 'Пароли не совпадают',
         ]);
 
         $updateData = [
             'password' => bcrypt($validated['password']),
             // Телефон всегда берём из worker — единственный источник правды
-            'phone'    => $worker->phone,
+            'phone' => $worker->phone,
         ];
 
         // is_admin — только администратор может менять
@@ -157,7 +199,7 @@ class WorkerController extends Controller
         }
 
         return redirect()->route('workers.index')
-            ->with('success', 'Учётная запись работника ' . $worker->name . ' обновлена');
+            ->with('success', 'Учётная запись работника '.$worker->name.' обновлена');
     }
 
     public function storeUser(Request $request, Worker $worker)
@@ -168,7 +210,7 @@ class WorkerController extends Controller
         }
 
         // Проверяем, есть ли телефон у работника
-        if (!$worker->phone) {
+        if (! $worker->phone) {
             return back()->with('error', 'У работника не указан телефон. Сначала добавьте телефон.');
         }
 
@@ -191,6 +233,6 @@ class WorkerController extends Controller
         ]);
 
         return redirect()->route('workers.index')
-            ->with('success', 'Пользователь успешно создан для работника ' . $worker->name);
+            ->with('success', 'Пользователь успешно создан для работника '.$worker->name);
     }
 }

@@ -11,6 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
  * Мастер может посещать только:
  *   - приёмку камня (stone-receptions.*)
  *   - перемещение сырья (raw-batches.*, raw-movement.*)
+ *   - поступления сырья (supplier-orders.*)
+ *   - список и просмотр работников (workers.index, workers.show)
  *   - связанные AJAX-эндпоинты
  *   - страницу смены пароля (/workers/{id}/edit-user)
  *   - выход из системы
@@ -79,6 +81,11 @@ class MasterOnly
         'api.batch.receptions',
         'api.batch.active-reception',
         'api.products.stocks',
+
+        // Работники (просмотр списка — мастер видит в хедере)
+        'workers.index',
+        'workers.show',
+        'worker.dashboard.by-id',
 
         // Смена пароля и выход
         'workers.edit-user',
