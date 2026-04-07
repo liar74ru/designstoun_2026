@@ -112,6 +112,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Редактирование коэффициентов позиций приёмки (из страницы show)
     Route::post('/stone-receptions/{stoneReception}/item-coeffs', [StoneReceptionController::class, 'updateItemCoeff'])->name('stone-receptions.update-item-coeff');
+    Route::post('/stone-receptions/{stoneReception}/refresh-item-coeffs', [StoneReceptionController::class, 'refreshItemCoeffs'])->name('stone-receptions.refresh-item-coeffs');
 });
 
 require __DIR__.'/auth.php';

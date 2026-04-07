@@ -75,6 +75,7 @@ class WorkerDashboardController extends Controller
                 'items.product',
                 'stoneReception.store',
                 'stoneReception.items',   // нужны для effective_cost_coeff
+                'rawMaterialBatch.product',
                 'receiver',
             ])
             ->where('cutter_id', $worker->id)
@@ -85,6 +86,18 @@ class WorkerDashboardController extends Controller
         // Для обратной совместимости с шаблоном — $receptions теперь это логи
         $receptions = $logs;
 
+        // Приёмки за период (для вида «По партиям»)
+        $stoneReceptions = StoneReception::with([
+                'items.product',
+                'rawMaterialBatch.product',
+                'receiver',
+                'store',
+            ])
+            ->where('cutter_id', $worker->id)
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         // Считаем сводку по продуктам за период на основе дельт лога
         $summary = $this->buildProductSummary($logs);
 
@@ -94,6 +107,7 @@ class WorkerDashboardController extends Controller
         return view('workers.dashboard.show', compact(
             'worker',
             'receptions',
+            'stoneReceptions',
             'summary',
             'totalPay',
             'dateFrom',
@@ -156,7 +170,7 @@ class WorkerDashboardController extends Controller
                 ];
             })
             ->filter(fn($row) => abs($row['quantity']) > 0.0001) // убираем нулевые строки
-            ->sortByDesc('pay')
+            ->sortBy(fn($row) => $row['product']?->sku ?? '')
             ->values();
     }
 }

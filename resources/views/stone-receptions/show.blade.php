@@ -7,7 +7,7 @@
 
         <x-page-header
             title="🪨 Приёмка #{{ $stoneReception->id }}"
-            back-url="{{ route('stone-receptions.index') }}"
+            back-url="{{ $backUrl }}"
             back-label="К списку"
         />
 
@@ -199,13 +199,26 @@
                 <div class="card shadow-sm mb-3">
                     <div style="background:#f8f9fa;padding:.3rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0;display:flex;justify-content:space-between;align-items:center">
                         <span class="small fw-semibold">📦 Принятая продукция</span>
-                        <button type="button"
-                                class="btn btn-sm btn-outline-warning"
-                                id="toggleCoeffEdit"
-                                title="Редактировать коэффициенты">
-                            <i class="bi bi-pencil-square"></i>
-                            <span class="d-none d-sm-inline ms-1">Коэффициенты</span>
-                        </button>
+                        <div class="d-flex gap-1">
+                            <form method="POST"
+                                  action="{{ route('stone-receptions.refresh-item-coeffs', $stoneReception) }}"
+                                  onsubmit="return confirm('Обновить коэффициенты из справочника товаров?\nЗначения effective_cost_coeff будут пересчитаны по текущим prod_cost_coeff.')">
+                                @csrf
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        title="Обновить коэффициенты из справочника товаров">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                    <span class="d-none d-sm-inline ms-1">Обновить коэф.</span>
+                                </button>
+                            </form>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-warning"
+                                    id="toggleCoeffEdit"
+                                    title="Редактировать коэффициенты">
+                                <i class="bi bi-pencil-square"></i>
+                                <span class="d-none d-sm-inline ms-1">Коэффициенты</span>
+                            </button>
+                        </div>
                     </div>
 
                     @if($stoneReception->items->count() > 0)

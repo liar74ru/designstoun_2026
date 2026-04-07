@@ -34,6 +34,7 @@ class MasterOnly
         'stone-receptions.reset-status',
         'stone-receptions.mark-completed',
         'stone-receptions.update-item-coeff',
+        'stone-receptions.refresh-item-coeffs',
 
         // Партии и перемещение сырья
         'raw-batches.index',

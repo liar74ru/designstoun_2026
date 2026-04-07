@@ -279,7 +279,12 @@ class StoneReceptionController extends Controller
             'receptionLogs.cutter',
         ]);
 
-        return view('stone-receptions.show', compact('stoneReception'));
+        $backUrl = url()->previous(route('stone-receptions.index'));
+        if (rtrim($backUrl, '/') === rtrim(url()->current(), '/')) {
+            $backUrl = route('stone-receptions.index');
+        }
+
+        return view('stone-receptions.show', compact('stoneReception', 'backUrl'));
     }
 
     /**
@@ -575,6 +580,30 @@ class StoneReceptionController extends Controller
         });
 
         return back()->with('success', 'Коэффициенты обновлены');
+    }
+
+    /**
+     * Обновляет effective_cost_coeff позиций приёмки из текущего справочника товаров (prod_cost_coeff).
+     * Флаг is_undercut при этом сохраняется, коэффициент пересчитывается.
+     */
+    public function refreshItemCoeffs(StoneReception $stoneReception)
+    {
+        $stoneReception->loadMissing('items.product');
+
+        DB::transaction(function () use ($stoneReception) {
+            foreach ($stoneReception->items as $item) {
+                if (!$item->product || $item->product->prod_cost_coeff === null) {
+                    continue;
+                }
+
+                $baseCoeff  = (float) $item->product->prod_cost_coeff;
+                $effCoeff   = \App\Models\StoneReceptionItem::computeEffectiveCoeff($baseCoeff, (bool) $item->is_undercut);
+
+                $item->update(['effective_cost_coeff' => $effCoeff]);
+            }
+        });
+
+        return back()->with('success', "Коэффициенты обновлены из справочника");
     }
 
     /**

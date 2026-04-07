@@ -540,6 +540,11 @@
                 }
             });
 
+            // ── Карта остатков продуктов (для бейджей в пикере) ─────────────────────
+            fetch('/api/products/stocks', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.json())
+                .then(data => { window.ProductPickerStockMap = data; });
+
             // ── Новые продукты ───────────────────────────────────────────────────────
             let newIdx = {{ $stoneReception->items->count() }};
             const newContainer = document.getElementById('new-products-container');

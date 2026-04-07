@@ -376,7 +376,7 @@
                                     @foreach($log->items as $item)
                                         @php $delta = (float) $item->quantity_delta; @endphp
                                         <div class="d-flex justify-content-between align-items-baseline" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
-                                            <span class="text-truncate me-2" style="font-size:.72rem;max-width:65%">
+                                            <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
                                                 <i class="bi bi-grid-3x3 text-secondary me-1"></i>{{ $item->product?->name ?? '?' }}
                                             </span>
                                             <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }} text-nowrap" style="font-size:.72rem">

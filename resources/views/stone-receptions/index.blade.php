@@ -441,7 +441,7 @@
                                     <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                                         @foreach($reception->items as $item)
                                             <div class="d-flex justify-content-between align-items-baseline" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
-                                                <span class="text-truncate me-2" style="font-size:.72rem;max-width:65%">
+                                                <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
                                                     <i class="bi bi-grid-3x3 text-secondary me-1"></i>{{ $item->product->name }}
                                                 </span>
                                                 <span class="fw-semibold text-primary text-nowrap" style="font-size:.72rem">

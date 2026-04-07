@@ -5,10 +5,17 @@
 @section('content')
     <div class="container py-3 py-md-4">
 
-        <x-page-header
-            title="⛏️ {{ $worker->name }}"
-            mobileTitle="{{ $worker->name }}"
-        />
+        {{-- Имя рабочего + кнопка смены пароля --}}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 class="fs-2 mb-0 fw-bold">{{ $worker->name }}</h1>
+            @if($worker->user)
+                <a href="{{ route('workers.edit-user', $worker) }}"
+                   class="btn btn-sm btn-outline-secondary"
+                   title="Учётная запись / смена пароля">
+                    <i class="bi bi-key"></i>
+                </a>
+            @endif
+        </div>
 
         @include('partials.alerts')
 
@@ -27,40 +34,46 @@
         @endphp
 
         <form method="GET" id="period-form" class="card shadow-sm mb-3">
-            <div class="card-body py-2 px-3">
-                {{-- Быстрые кнопки --}}
-                <div class="d-flex flex-wrap gap-1 mb-2">
-                    @foreach([0 => 'Тек. неделя', 1 => 'Пред. неделя', 2 => '2 нед. назад'] as $week => $label)
-                        @php $isActive = $weekButtons[$week]['from'] === $currentFrom && $weekButtons[$week]['to'] === $currentTo; @endphp
-                        <button type="button"
-                                class="btn btn-sm week-btn {{ $isActive ? 'btn-primary' : 'btn-outline-secondary' }}"
-                                data-week="{{ $week }}">
-                            {{ $label }}
-                        </button>
-                    @endforeach
-                </div>
-                {{-- Произвольный период --}}
-                <div class="d-flex flex-wrap gap-2 align-items-end">
-                    <div>
-                        <label class="form-label small text-muted mb-1">С</label>
-                        <input type="date" name="date_from" id="date_from"
-                               class="form-control form-control-sm" value="{{ $dateFrom->format('Y-m-d') }}">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
+                 style="cursor:pointer" id="period-toggle" role="button">
+                <span class="fw-semibold text-muted small">
+                    <i class="bi bi-calendar3 me-1"></i> Период:
+                    <strong class="text-body ms-1">
+                        {{ $dateFrom->translatedFormat('d M Y') }} — {{ $dateTo->translatedFormat('d M Y') }}
+                    </strong>
+                </span>
+                <i class="bi bi-chevron-down" id="period-chevron"></i>
+            </div>
+            <div id="period-collapse" style="display:none">
+                <div class="card-body py-2 px-3">
+                    {{-- Быстрые кнопки --}}
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        @foreach([0 => 'Тек. неделя', 1 => 'Пред. неделя', 2 => '2 нед. назад'] as $week => $label)
+                            @php $isActive = $weekButtons[$week]['from'] === $currentFrom && $weekButtons[$week]['to'] === $currentTo; @endphp
+                            <button type="button"
+                                    class="btn btn-sm week-btn {{ $isActive ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                    data-week="{{ $week }}">
+                                {{ $label }}
+                            </button>
+                        @endforeach
                     </div>
-                    <div>
-                        <label class="form-label small text-muted mb-1">По</label>
-                        <input type="date" name="date_to" id="date_to"
-                               class="form-control form-control-sm" value="{{ $dateTo->format('Y-m-d') }}">
+                    {{-- Произвольный период --}}
+                    <div class="d-flex flex-wrap gap-2 align-items-end">
+                        <div>
+                            <label class="form-label small text-muted mb-1">С</label>
+                            <input type="date" name="date_from" id="date_from"
+                                   class="form-control form-control-sm" value="{{ $dateFrom->format('Y-m-d') }}">
+                        </div>
+                        <div>
+                            <label class="form-label small text-muted mb-1">По</label>
+                            <input type="date" name="date_to" id="date_to"
+                                   class="form-control form-control-sm" value="{{ $dateTo->format('Y-m-d') }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">Показать</button>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-sm">Показать</button>
                 </div>
             </div>
         </form>
-
-        {{-- Период --}}
-        <p class="text-muted small mb-3">
-            Период: <strong>{{ $dateFrom->translatedFormat('d M Y') }}</strong> — <strong>{{ $dateTo->translatedFormat('d M Y') }}</strong>
-            ({{ $receptions->count() }} {{ trans_choice('приёмка|приёмки|приёмок', $receptions->count()) }})
-        </p>
 
         @if($summary->isEmpty())
             <div class="alert alert-info">
@@ -70,7 +83,7 @@
 
             {{-- Итоговые карточки --}}
             <div class="row g-2 mb-3">
-                <div class="col-6 col-lg-3">
+                <div class="col-6">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body py-2 px-3">
                             <div class="text-muted small mb-1">Итого к выплате</div>
@@ -80,23 +93,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body py-2 px-3">
-                            <div class="text-muted small mb-1">Приёмок</div>
-                            <div class="fs-4 fw-bold">{{ $receptions->count() }}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body py-2 px-3">
-                            <div class="text-muted small mb-1">Позиций продуктов</div>
-                            <div class="fs-4 fw-bold">{{ $summary->count() }}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-lg-3">
+                <div class="col-6">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body py-2 px-3">
                             <div class="text-muted small mb-1">Базовая ставка</div>
@@ -108,201 +105,244 @@
 
             {{-- Сводка по продуктам --}}
             <div class="card shadow-sm mb-3">
-                <div class="card-header fw-semibold py-2">Сводка по продуктам</div>
-
-                {{-- Десктоп --}}
-                <div class="d-none d-md-block table-responsive">
-                    <table class="table table-hover mb-0">
+                <div class="card-header fw-semibold py-2">Сводка по продуктам за период</div>
+                <div class="table-responsive">
+                    <table class="table mb-0" style="font-size:.75rem;table-layout:auto">
+                        <colgroup>
+                            <col>{{-- Плитка: остаток --}}
+                            <col style="width:1%">{{-- м²: минимум --}}
+                            <col style="width:1%">{{-- Коэф.: минимум --}}
+                            <col style="width:1%">{{-- Ставка: минимум --}}
+                            <col style="width:1%">{{-- Сумма: минимум --}}
+                        </colgroup>
                         <thead class="table-light">
                         <tr>
-                            <th>Продукт</th>
-                            <th class="text-end">Количество</th>
-                            <th class="text-end" title="Коэффициент зафиксирован на момент приёмки">Коэф. (факт.)</th>
-                            <th class="text-end">Ставка</th>
-                            <th class="text-end">Заработано</th>
+                            <th style="border-left:4px solid transparent;padding:.3rem .1rem .3rem .4rem">Плитка</th>
+                            <th class="text-end text-nowrap" style="padding:.3rem .25rem .3rem .1rem">м²</th>
+                            <th class="text-end text-nowrap" style="padding:.3rem .25rem" title="Коэффициент зафиксирован на момент приёмки">Коэф.</th>
+                            <th class="text-end text-nowrap" style="padding:.3rem .25rem">Ставка</th>
+                            <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .25rem">Сумма</th>
                         </tr>
                         </thead>
                         <tbody>
                         @foreach($summary as $row)
                             @php
-                                $rate = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
+                                $rate     = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
+                                $skuColor = \App\Models\Product::getColorBySku($row['product']?->sku);
+                                $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
                             @endphp
                             <tr>
-                                <td>{{ $row['product']?->name ?? '—' }}</td>
-                                <td class="text-end">{{ number_format($row['quantity'], 3, ',', ' ') }}</td>
-                                <td class="text-end text-muted">
-                                    × {{ number_format($row['coeff'], 1, ',', ' ') }}
-                                    <span class="text-muted small ms-1" title="Коэффициент взят из зафиксированных значений приёмки">🔒</span>
+                                <td style="border-left:4px solid {{ $skuColor }};{{ $skuBg }};word-break:break-word;padding:.3rem .1rem .3rem .4rem">
+                                    {{ $row['product']?->name ?? '—' }}
                                 </td>
-                                <td class="text-end text-muted">{{ number_format($rate, 0, ',', ' ') }} ₽</td>
-                                <td class="text-end fw-semibold text-success">
-                                    {{ number_format($row['pay'], 2, ',', ' ') }} ₽
+                                <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
+                                    {{ number_format($row['quantity'], 3, ',', ' ') }}
+                                </td>
+                                <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
+                                    ×{{ number_format($row['coeff'], 1, ',', ' ') }}
+                                </td>
+                                <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
+                                    {{ number_format($rate, 0, ',', ' ') }} ₽
+                                </td>
+                                <td class="text-end text-nowrap fw-semibold text-success" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .25rem">
+                                    {{ number_format($row['pay'], 0, ',', ' ') }} ₽
                                 </td>
                             </tr>
                         @endforeach
                         </tbody>
                         <tfoot class="table-light">
                         <tr>
-                            <th colspan="4" class="text-end">ИТОГО:</th>
-                            <th class="text-end text-success fs-6">
-                                {{ number_format($totalPay, 2, ',', ' ') }} ₽
+                            <th colspan="4" class="text-end fw-bold" style="padding:.3rem .25rem">ИТОГО:</th>
+                            <th class="text-end text-nowrap text-success" style="font-size:.9rem;padding:.3rem .4rem .3rem .25rem">
+                                {{ number_format($totalPay, 0, ',', ' ') }} ₽
                             </th>
                         </tr>
                         </tfoot>
                     </table>
                 </div>
-
-                {{-- Мобильный --}}
-                <div class="d-md-none">
-                    @foreach($summary as $row)
-                        @php
-                            $rate     = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
-                            $skuColor = \App\Models\Product::getColorBySku($row['product']?->sku);
-                            $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
-                        @endphp
-                        <div class="info-block mx-2 my-2" style="border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};{{ $skuBg }}">
-                            <div class="info-block-header">
-                                <span class="small fw-semibold">{{ $row['product']?->name ?? '—' }}</span>
-                            </div>
-                            <div class="info-block-body">
-                                <div class="d-flex justify-content-between small mb-1">
-                                    <span class="text-muted">Количество</span>
-                                    <span class="fw-semibold">{{ number_format($row['quantity'], 3, ',', ' ') }} м²</span>
-                                </div>
-                                <div class="d-flex justify-content-between small mb-1">
-                                    <span class="text-muted">Коэф. 🔒</span>
-                                    <span>× {{ number_format($row['coeff'], 1, ',', ' ') }}</span>
-                                </div>
-                                <div class="d-flex justify-content-between small mb-1">
-                                    <span class="text-muted">Ставка</span>
-                                    <span>{{ number_format($rate, 0, ',', ' ') }} ₽</span>
-                                </div>
-                                <div class="d-flex justify-content-between small">
-                                    <span class="text-muted">Заработано</span>
-                                    <span class="fw-bold text-success">{{ number_format($row['pay'], 2, ',', ' ') }} ₽</span>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                    <div class="d-flex justify-content-between fw-bold px-3 py-2 border-top">
-                        <span>ИТОГО:</span>
-                        <span class="text-success">{{ number_format($totalPay, 2, ',', ' ') }} ₽</span>
-                    </div>
-                </div>
             </div>
 
             {{-- Детализация: список приёмок --}}
             <div class="card shadow-sm">
-                <div class="card-header fw-semibold d-flex justify-content-between align-items-center py-2">
-                    <span>Приёмки за период</span>
-                    <div class="d-flex gap-2 align-items-center">
-                        @if($worker->user)
-                            <a href="{{ route('workers.edit-user', $worker) }}"
-                               class="btn btn-sm btn-outline-secondary"
-                               title="Учётная запись">
-                                <i class="bi bi-key"></i>
-                            </a>
-                        @endif
-                        <button class="btn btn-sm btn-outline-secondary" id="toggle-receptions" type="button">
-                            <i class="bi bi-chevron-up" id="toggle-icon"></i>
-                            <span id="toggle-label" class="d-none d-sm-inline">Свернуть</span>
-                        </button>
-                    </div>
+                <div class="card-header bg-white py-2">
+                    <ul class="nav nav-pills mb-0">
+                        <li class="nav-item">
+                            <button type="button" id="view-btn-batches" class="nav-link py-1 px-3">
+                                <i class="bi bi-table"></i> По партиям
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" id="view-btn-logs" class="nav-link py-1 px-3">
+                                <i class="bi bi-journal-text"></i> По приёмкам
+                            </button>
+                        </li>
+                    </ul>
                 </div>
-                <div id="receptionsList">
 
-                    {{-- Десктоп --}}
-                    <div class="d-none d-md-block table-responsive">
-                        <table class="table table-sm table-hover mb-0">
-                            <thead class="table-light">
-                            <tr>
-                                <th>Дата</th>
-                                <th>Склад</th>
-                                <th>Приёмщик</th>
-                                <th>Продукция (дельта)</th>
-                                <th class="text-end">Приёмка #</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach($receptions as $log)
-                                <tr class="{{ $log->type === 'updated' ? 'table-warning' : '' }}">
-                                    <td class="text-nowrap">
-                                        {{ $log->created_at->format('d.m.Y H:i') }}
-                                        <div class="small">
-                                            @if($log->type === 'created')
-                                                <span class="badge bg-success">Создание</span>
-                                            @else
-                                                <span class="badge bg-warning text-dark">Правка</span>
+                <div style="padding:.25rem">
+
+                    {{-- ═══ ВИД: ПО ПАРТИЯМ (StoneReception) ═══ --}}
+                    <div id="view-batches">
+                        @forelse($stoneReceptions as $reception)
+                            @php
+                                $skuColor = \App\Models\Product::getColorBySku($reception->rawMaterialBatch?->product?->sku);
+                                $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
+                            @endphp
+                            <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
+                                <div style="padding:.2rem .35rem">
+
+                                    {{-- Строка 1: дата + статус (+ глазик для админа) --}}
+                                    <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
+                                        <span class="text-muted" style="font-size:.72rem">
+                                            {{ $reception->created_at->format('d.m.Y H:i') }}
+                                        </span>
+                                        <div class="d-flex gap-1 align-items-center">
+                                            @if(auth()->user()->isAdmin() && $reception->rawMaterialBatch)
+                                                
+                                                    <a href="{{ route('stone-receptions.show', $reception) }}"
+                                               class="btn btn-sm btn-outline-secondary" title="Просмотр">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                                </a>
+                                            @endif
+                                            @if($reception->status === 'active')
+                                                <span class="badge bg-success" style="font-size:.65rem">Активна</span>
+                                            @elseif($reception->status === 'completed')
+                                                <span class="badge bg-warning text-dark" style="font-size:.65rem">Завершена</span>
+                                            @elseif($reception->status === 'processed')
+                                                <span class="badge bg-secondary" style="font-size:.65rem">Обработана</span>
+                                            @elseif($reception->status === 'error')
+                                                <span class="badge bg-danger" style="font-size:.65rem">Ошибка</span>
                                             @endif
                                         </div>
-                                    </td>
-                                    <td>{{ $log->stoneReception?->store?->name ?? '—' }}</td>
-                                    <td>{{ $log->receiver?->name ?? '—' }}</td>
-                                    <td>
-                                        @foreach($log->items as $item)
-                                            <div class="small">
-                                                {{ $item->product?->name ?? '?' }}
-                                                @php $delta = (float) $item->quantity_delta; @endphp
-                                                <span class="{{ $delta >= 0 ? 'text-success' : 'text-danger' }} fw-semibold">
-                                                    {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }}
+                                    </div>
+
+                                    {{-- Продукция --}}
+                                    @if($reception->items->count() > 0)
+                                        <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
+                                            @foreach($reception->items as $item)
+                                                <div class="d-flex justify-content-between align-items-baseline" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
+                                                    <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
+                                                        <i class="bi bi-grid-3x3 text-secondary me-1"></i>{{ $item->product->name }}
+                                                    </span>
+                                                    <span class="fw-semibold text-primary text-nowrap" style="font-size:.72rem">
+                                                        {{ number_format($item->quantity, 3, ',', '.') }} м²
+                                                    </span>
+                                                </div>
+                                            @endforeach
+                                            <div class="d-flex justify-content-end" style="margin-top:.1rem">
+                                                <span class="text-muted text-nowrap" style="font-size:.7rem">
+                                                    Итого: {{ number_format($reception->total_quantity, 3, ',', '.') }} м²
                                                 </span>
                                             </div>
-                                        @endforeach
-                                    </td>
-                                    <td class="text-end text-nowrap">
-                                        <a href="{{ route('stone-receptions.edit', $log->stone_reception_id) }}"
-                                           class="btn btn-sm btn-outline-secondary"
-                                           title="Редактировать приёмку">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
+                                        </div>
+                                    @endif
+
+                                    {{-- Сырьё (партия) --}}
+                                    @if($reception->rawMaterialBatch)
+                                        @php
+                                            $bInit = (float) ($reception->rawMaterialBatch->initial_quantity ?? 0);
+                                            $bRem  = (float) ($reception->rawMaterialBatch->remaining_quantity ?? 0);
+                                        @endphp
+                                        <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
+                                            <span class="text-muted text-truncate me-2" style="font-size:.72rem">
+                                                <i class="bi bi-box me-1"></i>{{ $reception->rawMaterialBatch->product->name ?? '?' }}
+                                            </span>
+                                            <div class="d-flex gap-1 flex-shrink-0">
+                                                <span title="Всего в партии" style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">{{ number_format($bInit, 3, '.', '') }}</span>
+                                                <span title="Остаток в партии" style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:{{ $bRem > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $bRem > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($bRem, 3, '.', '') }}</span>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    {{-- Приёмщик --}}
+                                    @if($reception->receiver)
+                                        <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
+                                            <span class="text-muted" style="font-size:.65rem">
+                                                <i class="bi bi-building me-1"></i>{{ $reception->store?->name ?? '—' }}
+                                            </span>
+                                            <span class="text-muted" style="font-size:.65rem">
+                                                <i class="bi bi-person-gear me-1"></i>{{ $reception->receiver->name }}
+                                            </span>
+                                        </div>
+                                    @endif
+
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                                Приёмок за период нет
+                            </div>
+                        @endforelse
                     </div>
 
-                    {{-- Мобильный --}}
-                    <div class="d-md-none">
-                        @foreach($receptions as $log)
+                    {{-- ═══ ВИД: ПО ПРИЁМКАМ (ReceptionLog) ═══ --}}
+                    <div id="view-logs">
+                        @forelse($receptions as $log)
                             @php
                                 $skuColor = \App\Models\Product::getColorBySku($log->rawMaterialBatch?->product?->sku);
-                                $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+                                $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
                             @endphp
-                            <div class="info-block mx-2 my-2" style="border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};{{ $skuBg }}">
-                                <div class="info-block-header d-flex justify-content-between align-items-center">
-                                    <span class="small text-muted">{{ $log->created_at->format('d.m.Y H:i') }}</span>
-                                    <div class="d-flex gap-1 align-items-center">
+                            <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
+                                <div style="padding:.2rem .35rem">
+
+                                    {{-- Строка 1: дата + тип --}}
+                                    <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
+                                        <span class="text-muted" style="font-size:.72rem">{{ $log->created_at->format('d.m.Y H:i') }}</span>
                                         @if($log->type === 'created')
                                             <span class="badge bg-success" style="font-size:.65rem">Создание</span>
                                         @else
                                             <span class="badge bg-warning text-dark" style="font-size:.65rem">Правка</span>
                                         @endif
-                                        <a href="{{ route('stone-receptions.edit', $log->stone_reception_id) }}"
-                                           class="btn btn-sm btn-outline-secondary"
-                                           style="width:24px;height:24px;padding:0;font-size:.7rem"
-                                           title="Редактировать">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
                                     </div>
-                                </div>
-                                <div class="info-block-body">
-                                    <div class="small text-muted mb-1">
-                                        <i class="bi bi-building me-1"></i>{{ $log->stoneReception?->store?->name ?? '—' }}
-                                        <span class="ms-2"><i class="bi bi-person me-1"></i>{{ $log->receiver?->name ?? '—' }}</span>
-                                    </div>
-                                    @foreach($log->items as $item)
-                                        @php $delta = (float) $item->quantity_delta; @endphp
-                                        <div class="small d-flex justify-content-between">
-                                            <span>{{ $item->product?->name ?? '?' }}</span>
-                                            <span class="{{ $delta >= 0 ? 'text-success' : 'text-danger' }} fw-semibold">
-                                                {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }}
+
+                                    {{-- Продукция (дельты) --}}
+                                    @if($log->items->count() > 0)
+                                        <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
+                                            @foreach($log->items as $item)
+                                                @php $delta = (float) $item->quantity_delta; @endphp
+                                                <div class="d-flex justify-content-between align-items-baseline" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
+                                                    <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
+                                                        <i class="bi bi-grid-3x3 text-secondary me-1"></i>{{ $item->product?->name ?? '?' }}
+                                                    </span>
+                                                    <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }} text-nowrap" style="font-size:.72rem">
+                                                        {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }} м²
+                                                    </span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+
+                                    {{-- Партия сырья --}}
+                                    @if($log->rawMaterialBatch)
+                                        <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
+                                            <span class="text-muted text-truncate" style="font-size:.72rem">
+                                                <i class="bi bi-box me-1"></i>{{ $log->rawMaterialBatch->product->name ?? '?' }}
                                             </span>
                                         </div>
-                                    @endforeach
+                                    @endif
+
+                                    {{-- Склад + приёмщик --}}
+                                    <div class="d-flex justify-content-between" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
+                                        <span class="text-muted" style="font-size:.65rem">
+                                            <i class="bi bi-building me-1"></i>{{ $log->stoneReception?->store?->name ?? '—' }}
+                                        </span>
+                                        @if($log->receiver)
+                                            <span class="text-muted" style="font-size:.65rem">
+                                                <i class="bi bi-person-gear me-1"></i>{{ $log->receiver->name }}
+                                            </span>
+                                        @endif
+                                    </div>
+
                                 </div>
                             </div>
-                        @endforeach
+                        @empty
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                                Записей за период нет
+                            </div>
+                        @endforelse
                     </div>
 
                 </div>
@@ -316,21 +356,48 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
-            // ── Свернуть / развернуть приёмки ─────────────────────────────────────
-            const toggleBtn   = document.getElementById('toggle-receptions');
-            const list        = document.getElementById('receptionsList');
-            const toggleIcon  = document.getElementById('toggle-icon');
-            const toggleLabel = document.getElementById('toggle-label');
+            // ── Сворачиваемый блок периода ────────────────────────────────────────
+            (function () {
+                const STORAGE_KEY = 'dashboard_period_open';
+                const toggle   = document.getElementById('period-toggle');
+                const collapse = document.getElementById('period-collapse');
+                const chevron  = document.getElementById('period-chevron');
 
-            if (toggleBtn && list) {
-                toggleBtn.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    const isVisible = list.style.display !== 'none';
-                    list.style.display      = isVisible ? 'none' : '';
-                    toggleIcon.className    = isVisible ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
-                    if (toggleLabel) toggleLabel.textContent = isVisible ? 'Развернуть' : 'Свернуть';
+                function applyState(open) {
+                    collapse.style.display = open ? '' : 'none';
+                    chevron.className = open ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+                }
+
+                applyState(localStorage.getItem(STORAGE_KEY) === 'open');
+                toggle.addEventListener('click', function () {
+                    const isHidden = collapse.style.display === 'none';
+                    applyState(isHidden);
+                    localStorage.setItem(STORAGE_KEY, isHidden ? 'open' : 'closed');
                 });
-            }
+            })();
+
+            // ── Переключатель вида: по партиям / по приёмкам ──────────────────────
+            (function () {
+                const STORAGE_KEY = 'dashboard_receptions_view';
+                const btnBatches  = document.getElementById('view-btn-batches');
+                const btnLogs     = document.getElementById('view-btn-logs');
+                const viewBatches = document.getElementById('view-batches');
+                const viewLogs    = document.getElementById('view-logs');
+
+                function applyView(view) {
+                    const isBatches = view === 'batches';
+                    viewBatches.style.display = isBatches ? '' : 'none';
+                    viewLogs.style.display    = isBatches ? 'none' : '';
+                    btnBatches.classList.toggle('active', isBatches);
+                    btnLogs.classList.toggle('active', !isBatches);
+                }
+
+                const saved = localStorage.getItem(STORAGE_KEY) || 'batches';
+                applyView(saved);
+
+                btnBatches.addEventListener('click', () => { applyView('batches'); localStorage.setItem(STORAGE_KEY, 'batches'); });
+                btnLogs.addEventListener('click',    () => { applyView('logs');    localStorage.setItem(STORAGE_KEY, 'logs'); });
+            })();
 
             // ── Быстрые кнопки недель ─────────────────────────────────────────────
             function getWorkWeek(weeksAgo) {
