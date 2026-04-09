@@ -4,16 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductStock;
-use App\Services\StockSyncService;
-use Illuminate\Http\Request;
 use App\Services\MoySkladService;
 use App\Services\ProductGroupService;
+use App\Services\StockSyncService;
+use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 class ProductController extends Controller
 {
     private MoySkladService $moySkladService;
+
     private ProductGroupService $productGroupService;
 
     public function __construct(MoySkladService $moySkladService, ProductGroupService $productGroupService)
@@ -27,7 +28,7 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $sortField     = $request->input('sort', 'name');
+        $sortField = $request->input('sort', 'name');
         $sortDirection = $request->input('direction', 'asc');
 
         $products = QueryBuilder::for(Product::class)
@@ -41,7 +42,7 @@ class ProductController extends Controller
                 }),
                 AllowedFilter::callback('group_id', function ($query, $value) {
                     $groupIds = $this->productGroupService->getGroupAndChildrenIds($value);
-                    if (!empty($groupIds)) {
+                    if (! empty($groupIds)) {
                         $query->whereIn('group_id', $groupIds);
                     }
                 }),
@@ -81,7 +82,7 @@ class ProductController extends Controller
     public function groups()
     {
         $groupsTree = $this->productGroupService->getGroupsTree();
-        $stats      = $this->productGroupService->getStats();
+        $stats = $this->productGroupService->getStats();
 
         return view('products.groups', compact('groupsTree', 'stats'));
     }
@@ -91,15 +92,15 @@ class ProductController extends Controller
      */
     public function syncFromMoySklad()
     {
-        if (!$this->moySkladService->hasCredentials()) {
+        if (! $this->moySkladService->hasCredentials()) {
             return redirect()->route('products.index')
                 ->with('error', 'Логин или пароль МойСклад не найдены в .env');
         }
 
-        $groupsResult   = $this->moySkladService->syncGroups();
+        $groupsResult = $this->moySkladService->syncGroups();
         $productsResult = $this->moySkladService->syncProducts();
 
-        if (!$productsResult['success']) {
+        if (! $productsResult['success']) {
             return redirect()->route('products.index')
                 ->with('error', $productsResult['message']);
         }
@@ -119,17 +120,17 @@ class ProductController extends Controller
      */
     public function refresh($id)
     {
-        if (!$this->moySkladService->hasCredentials()) {
+        if (! $this->moySkladService->hasCredentials()) {
             return back()->with('error', 'Логин или пароль МойСклад не найдены в .env');
         }
 
         $item = $this->moySkladService->fetchProduct($id);
 
-        if (!$item) {
+        if (! $item) {
             return back()->with('error', 'Не удалось обновить товар');
         }
 
-        $price    = 0;
+        $price = 0;
         $oldPrice = null;
 
         if (isset($item['salePrices']) && count($item['salePrices']) > 0) {
@@ -142,18 +143,18 @@ class ProductController extends Controller
         $product = Product::updateOrCreate(
             ['moysklad_id' => $item['id']],
             [
-                'name'            => $item['name'] ?? '',
-                'sku'             => $item['article'] ?? $item['code'] ?? '',
-                'description'     => $item['description'] ?? '',
-                'price'           => $price,
-                'old_price'       => $oldPrice,
+                'name' => $item['name'] ?? '',
+                'sku' => $item['article'] ?? $item['code'] ?? '',
+                'description' => $item['description'] ?? '',
+                'price' => $price,
+                'old_price' => $oldPrice,
                 'prod_cost_coeff' => $this->moySkladService->extractAttributePublic($item, 'prodCostCoeff'),
-                'quantity'        => $item['stock'] ?? 0,
-                'attributes'      => json_encode([
-                    'code'      => $item['code'] ?? null,
-                    'article'   => $item['article'] ?? null,
-                    'weight'    => $item['weight'] ?? null,
-                    'volume'    => $item['volume'] ?? null,
+                'quantity' => $item['stock'] ?? 0,
+                'attributes' => json_encode([
+                    'code' => $item['code'] ?? null,
+                    'article' => $item['article'] ?? null,
+                    'weight' => $item['weight'] ?? null,
+                    'volume' => $item['volume'] ?? null,
                     'path_name' => $item['pathName'] ?? null,
                 ]),
             ]
@@ -192,7 +193,7 @@ class ProductController extends Controller
      */
     public function syncGroups()
     {
-        if (!$this->moySkladService->hasCredentials()) {
+        if (! $this->moySkladService->hasCredentials()) {
             return redirect()->route('products.groups')
                 ->with('error', 'Логин или пароль МойСклад не найдены в .env');
         }
@@ -211,6 +212,7 @@ class ProductController extends Controller
     {
         $tree = cache()->remember('products_tree_json_v2', 600, function () {
             $groups = $this->productGroupService->getGroupsTree();
+
             return $this->attachProductsToTree($groups);
         });
 
@@ -226,10 +228,10 @@ class ProductController extends Controller
         $result = ProductStock::select('product_id', 'store_id', 'quantity')
             ->get()
             ->groupBy('product_id')
-            ->map(fn($items) => [
-                'total'  => round((float) $items->sum('quantity'), 3),
+            ->map(fn ($items) => [
+                'total' => round((float) $items->sum('quantity'), 3),
                 'stores' => $items->pluck('quantity', 'store_id')
-                    ->map(fn($q) => round((float) $q, 3)),
+                    ->map(fn ($q) => round((float) $q, 3)),
             ]);
 
         return response()->json($result);
@@ -256,16 +258,17 @@ class ProductController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'sku'])
                 ->map(fn ($p) => [
-                    'id'    => $p->id,
-                    'label' => $p->name . ($p->sku ? ' (' . $p->sku . ')' : ''),
-                    'sku'   => $p->sku ?? '',
+                    'id' => $p->id,
+                    'label' => $p->name.($p->sku ? ' ('.$p->sku.')' : ''),
+                    'sku' => $p->sku ?? '',
                 ])
                 ->toArray();
 
-            if (!empty($group['children'])) {
+            if (! empty($group['children'])) {
                 $group['children'] = $this->attachProductsToTree($group['children']);
             }
         }
+
         return $groups;
     }
 }

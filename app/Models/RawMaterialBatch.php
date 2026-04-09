@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class RawMaterialBatch extends Model
 {
     // Статусы
-    const STATUS_NEW      = 'new';      // Создана, без действий
-    const STATUS_IN_WORK  = 'in_work';  // В работе (бывший 'active')
-    const STATUS_USED     = 'used';
-    const STATUS_RETURNED = 'returned';
-    const STATUS_ARCHIVED = 'archived';
+    const STATUS_NEW       = 'new';       // Создана, без действий
+    const STATUS_IN_WORK   = 'in_work';   // В работе / Не уточнена (техоперация создана)
+    const STATUS_CONFIRMED = 'confirmed'; // Уточнена (кол-во сырья подтверждено в МойСклад)
+    const STATUS_USED      = 'used';
+    const STATUS_RETURNED  = 'returned';
+    const STATUS_ARCHIVED  = 'archived';
 
     protected $fillable = [
         'product_id',
@@ -21,6 +22,9 @@ class RawMaterialBatch extends Model
         'current_store_id',
         'current_worker_id',
         'batch_number',
+        'moysklad_processing_id',
+        'moysklad_processing_name',
+        'moysklad_sync_error',
         'created_at',
         'updated_at',
     ];
@@ -78,16 +82,41 @@ class RawMaterialBatch extends Model
 
     public function isActive(): bool
     {
-        return $this->status === self::STATUS_IN_WORK;
+        return in_array($this->status, [self::STATUS_IN_WORK, self::STATUS_CONFIRMED]);
     }
 
     /**
      * "Рабочая" партия: доступна для производства.
-     * Покрывает оба рабочих статуса (new + in_work).
+     * Покрывает все рабочие статусы (new + in_work + confirmed).
      */
     public function isWorkable(): bool
     {
-        return in_array($this->status, [self::STATUS_NEW, self::STATUS_IN_WORK]);
+        return in_array($this->status, [self::STATUS_NEW, self::STATUS_IN_WORK, self::STATUS_CONFIRMED]);
+    }
+
+    public function hasMoySkladProcessing(): bool
+    {
+        return !empty($this->moysklad_processing_id);
+    }
+
+    public function hasSyncError(): bool
+    {
+        return !empty($this->moysklad_sync_error);
+    }
+
+    public function isSynced(): bool
+    {
+        return $this->hasMoySkladProcessing() && !$this->hasSyncError();
+    }
+
+    public function syncStatusLabel(): string
+    {
+        return $this->isSynced() ? 'Синхр' : 'Не синхр';
+    }
+
+    public function syncStatusBadgeClass(): string
+    {
+        return $this->isSynced() ? 'bg-success' : 'bg-danger';
     }
 
     public function isArchived(): bool
@@ -121,12 +150,13 @@ class RawMaterialBatch extends Model
     public function statusLabel(): string
     {
         return match ($this->status) {
-            self::STATUS_NEW      => 'Новая',
-            self::STATUS_IN_WORK  => 'В работе',
-            self::STATUS_USED     => 'Израсходована',
-            self::STATUS_RETURNED => 'Возвращена',
-            self::STATUS_ARCHIVED => 'Архив',
-            default               => $this->status,
+            self::STATUS_NEW       => 'Новая',
+            self::STATUS_IN_WORK   => 'Не уточнена',
+            self::STATUS_CONFIRMED => 'Уточнена',
+            self::STATUS_USED      => 'Израсходована',
+            self::STATUS_RETURNED  => 'Возвращена',
+            self::STATUS_ARCHIVED  => 'Архив',
+            default                => $this->status,
         };
     }
 
@@ -136,12 +166,13 @@ class RawMaterialBatch extends Model
     public function statusBadgeClass(): string
     {
         return match ($this->status) {
-            self::STATUS_NEW      => 'bg-info text-dark',
-            self::STATUS_IN_WORK  => 'bg-success',
-            self::STATUS_USED     => 'bg-warning text-dark',
-            self::STATUS_RETURNED => 'bg-secondary',
-            self::STATUS_ARCHIVED => 'bg-dark',
-            default               => 'bg-secondary',
+            self::STATUS_NEW       => 'bg-info text-dark',
+            self::STATUS_IN_WORK   => 'bg-success',
+            self::STATUS_CONFIRMED => 'bg-primary',
+            self::STATUS_USED      => 'bg-warning text-dark',
+            self::STATUS_RETURNED  => 'bg-secondary',
+            self::STATUS_ARCHIVED  => 'bg-dark',
+            default                => 'bg-secondary',
         };
     }
 }

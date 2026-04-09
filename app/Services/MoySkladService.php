@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 class MoySkladService
 {
     private $token;
+
     private $baseUrl = 'https://api.moysklad.ru/api/remap/1.2';
 
     public function __construct()
@@ -29,7 +30,7 @@ class MoySkladService
      */
     public function hasCredentials(): bool
     {
-        return !empty($this->token);
+        return ! empty($this->token);
     }
 
     /**
@@ -39,17 +40,18 @@ class MoySkladService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->token,
+                'Authorization' => 'Bearer '.$this->token,
                 'Accept-Encoding' => 'gzip',
                 'Content-Type' => 'application/json',
-            ])->get($this->baseUrl . $endpoint, $query);
+            ])->get($this->baseUrl.$endpoint, $query);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('Ошибка API МойСклад', [
                     'endpoint' => $endpoint,
                     'status' => $response->status(),
-                    'response' => $response->json()
+                    'response' => $response->json(),
                 ]);
+
                 return null;
             }
 
@@ -58,8 +60,9 @@ class MoySkladService
         } catch (\Exception $e) {
             Log::error('Исключение при запросе к API МойСклад', [
                 'endpoint' => $endpoint,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -69,7 +72,7 @@ class MoySkladService
      */
     private function extractIdFromHref(?string $href): ?string
     {
-        if (!$href) {
+        if (! $href) {
             return null;
         }
 
@@ -90,11 +93,12 @@ class MoySkladService
             'synced' => 0,
             'updated' => 0,
             'errors' => 0,
-            'message' => ''
+            'message' => '',
         ];
 
-        if (!$this->hasCredentials()) {
+        if (! $this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
+
             return $result;
         }
 
@@ -103,8 +107,9 @@ class MoySkladService
 
             $data = $this->getRequest('/entity/store');
 
-            if (!$data || !isset($data['rows'])) {
+            if (! $data || ! isset($data['rows'])) {
                 $result['message'] = 'Не удалось получить склады из API';
+
                 return $result;
             }
 
@@ -114,7 +119,7 @@ class MoySkladService
                 try {
                     $storeId = $storeData['id'] ?? null;
 
-                    if (!$storeId) {
+                    if (! $storeId) {
                         continue;
                     }
 
@@ -150,8 +155,8 @@ class MoySkladService
                             'description' => $storeData['description'] ?? null,
                             'address' => $storeData['address'] ?? null,
                             'address_full' => isset($storeData['addressFull']) ? json_encode($storeData['addressFull']) : null,
-                            'archived' => (bool)($storeData['archived'] ?? false),
-                            'shared' => (bool)($storeData['shared'] ?? false),
+                            'archived' => (bool) ($storeData['archived'] ?? false),
+                            'shared' => (bool) ($storeData['shared'] ?? false),
                             'path_name' => $storeData['pathName'] ?? null,
                             'account_id' => $storeData['accountId'] ?? null,
                             'owner_id' => $ownerId,
@@ -168,7 +173,7 @@ class MoySkladService
                     $result['errors']++;
                     Log::warning('Ошибка при сохранении склада', [
                         'store_id' => $storeData['id'] ?? 'unknown',
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -185,9 +190,9 @@ class MoySkladService
         } catch (\Exception $e) {
             Log::error('Ошибка синхронизации складов', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            $result['message'] = 'Ошибка синхронизации складов: ' . $e->getMessage();
+            $result['message'] = 'Ошибка синхронизации складов: '.$e->getMessage();
         }
 
         return $result;
@@ -204,12 +209,13 @@ class MoySkladService
             'updated' => 0,
             'deleted' => 0,
             'errors' => 0,
-            'message' => ''
+            'message' => '',
         ];
 
-        if (!$this->hasCredentials()) {
+        if (! $this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
             Log::error('Попытка синхронизации групп без токена');
+
             return $result;
         }
 
@@ -226,10 +232,10 @@ class MoySkladService
             do {
                 $data = $this->getRequest('/entity/productfolder', [
                     'limit' => $limit,
-                    'offset' => $offset
+                    'offset' => $offset,
                 ]);
 
-                if (!$data || !isset($data['rows'])) {
+                if (! $data || ! isset($data['rows'])) {
                     Log::error('Не удалось получить группы товаров из API');
                     break;
                 }
@@ -275,7 +281,7 @@ class MoySkladService
                         $result['errors']++;
                         Log::warning('Ошибка при сохранении группы', [
                             'group_id' => $groupData['id'] ?? 'unknown',
-                            'error' => $e->getMessage()
+                            'error' => $e->getMessage(),
                         ]);
                     }
                 }
@@ -290,7 +296,7 @@ class MoySkladService
             } while (count($groups) === $limit);
 
             // Удаляем группы, которых нет в МойСклад
-            if (!empty($moyskladGroupIds)) {
+            if (! empty($moyskladGroupIds)) {
                 $deletedCount = ProductGroup::whereNotIn('moysklad_id', $moyskladGroupIds)->delete();
                 $result['deleted'] = $deletedCount;
 
@@ -322,9 +328,9 @@ class MoySkladService
         } catch (\Exception $e) {
             Log::error('Ошибка синхронизации групп', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            $result['message'] = 'Ошибка синхронизации групп: ' . $e->getMessage();
+            $result['message'] = 'Ошибка синхронизации групп: '.$e->getMessage();
         }
 
         return $result;
@@ -340,11 +346,12 @@ class MoySkladService
             'synced' => 0,
             'updated' => 0,
             'errors' => 0,
-            'message' => ''
+            'message' => '',
         ];
 
-        if (!$this->hasCredentials()) {
+        if (! $this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
+
             return $result;
         }
 
@@ -366,7 +373,7 @@ class MoySkladService
                     'expand' => 'attributes',  // запрашиваем кастомные атрибуты
                 ]);
 
-                if (!$data || !isset($data['rows'])) {
+                if (! $data || ! isset($data['rows'])) {
                     Log::error('Не удалось получить товары из API');
                     break;
                 }
@@ -381,7 +388,7 @@ class MoySkladService
                         $result['errors']++;
                         Log::warning('Ошибка при обработке товара', [
                             'product_id' => $productData['id'] ?? 'unknown',
-                            'error' => $e->getMessage()
+                            'error' => $e->getMessage(),
                         ]);
                     }
                 }
@@ -406,9 +413,9 @@ class MoySkladService
         } catch (\Exception $e) {
             Log::error('Ошибка синхронизации товаров', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            $result['message'] = 'Ошибка синхронизации товаров: ' . $e->getMessage();
+            $result['message'] = 'Ошибка синхронизации товаров: '.$e->getMessage();
         }
 
         return $result;
@@ -446,7 +453,7 @@ class MoySkladService
             $groupId = $this->extractIdFromHref($productData['productFolder']['meta']['href']);
             $groupName = $groupsCache[$groupId] ?? null;
 
-            if (!$groupName && $groupId) {
+            if (! $groupName && $groupId) {
                 $group = ProductGroup::where('moysklad_id', $groupId)->first();
                 if ($group) {
                     $groupName = $group->name;
@@ -476,7 +483,7 @@ class MoySkladService
                 'group_name' => $groupName,
                 'sku' => $sku,
                 'description' => $productData['description'] ?? null,
-                'price'     => $price,
+                'price' => $price,
                 'old_price' => $oldPrice,
                 'min_price' => $minPrice,
                 'buy_price' => $buyPrice,
@@ -519,6 +526,7 @@ class MoySkladService
                 return $attr['value'] ?? null;
             }
         }
+
         return null;
     }
 
@@ -527,24 +535,26 @@ class MoySkladService
      */
     public function fetchProduct(string $id): ?array
     {
-        if (!$this->hasCredentials()) {
+        if (! $this->hasCredentials()) {
             Log::error('Попытка получить товар без токена');
+
             return null;
         }
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->token,
+                'Authorization' => 'Bearer '.$this->token,
                 'Accept-Encoding' => 'gzip',
-            ])->get($this->baseUrl . '/entity/product/' . $id, [
+            ])->get($this->baseUrl.'/entity/product/'.$id, [
                 'expand' => 'attributes',  // получаем кастомные атрибуты
             ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('Ошибка получения товара', [
                     'id' => $id,
-                    'status' => $response->status()
+                    'status' => $response->status(),
                 ]);
+
                 return null;
             }
 
@@ -553,8 +563,9 @@ class MoySkladService
         } catch (\Exception $e) {
             Log::error('Ошибка получения товара', [
                 'id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -566,14 +577,15 @@ class MoySkladService
     {
         $result = [
             'success' => false,
-            'synced'  => 0,
+            'synced' => 0,
             'updated' => 0,
-            'errors'  => 0,
+            'errors' => 0,
             'message' => '',
         ];
 
-        if (!$this->hasCredentials()) {
+        if (! $this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
+
             return $result;
         }
 
@@ -581,22 +593,23 @@ class MoySkladService
             Log::info('Начинаем синхронизацию контрагентов');
 
             $offset = 0;
-            $limit  = 1000;
+            $limit = 1000;
 
             do {
                 $data = $this->getRequest('/entity/counterparty', [
-                    'limit'  => $limit,
+                    'limit' => $limit,
                     'offset' => $offset,
                 ]);
 
-                if (!$data || !isset($data['rows'])) {
+                if (! $data || ! isset($data['rows'])) {
                     $result['message'] = 'Не удалось получить контрагентов из API';
+
                     return $result;
                 }
 
                 foreach ($data['rows'] as $row) {
                     $moyskladId = $row['id'] ?? null;
-                    if (!$moyskladId) {
+                    if (! $moyskladId) {
                         continue;
                     }
 
@@ -617,12 +630,12 @@ class MoySkladService
                         $result['errors']++;
                         Log::warning('Ошибка при сохранении контрагента', [
                             'moysklad_id' => $moyskladId,
-                            'error'       => $e->getMessage(),
+                            'error' => $e->getMessage(),
                         ]);
                     }
                 }
 
-                $total  = $data['meta']['size'] ?? 0;
+                $total = $data['meta']['size'] ?? 0;
                 $offset += $limit;
             } while ($offset < $total);
 
@@ -633,13 +646,13 @@ class MoySkladService
                 $result['message'] .= ", ошибок: {$result['errors']}";
             }
 
-            Log::info('Синхронизация контрагентов завершена: ' . $result['message']);
+            Log::info('Синхронизация контрагентов завершена: '.$result['message']);
 
         } catch (\Exception $e) {
             Log::error('Ошибка синхронизации контрагентов', [
                 'error' => $e->getMessage(),
             ]);
-            $result['message'] = 'Ошибка синхронизации: ' . $e->getMessage();
+            $result['message'] = 'Ошибка синхронизации: '.$e->getMessage();
         }
 
         return $result;

@@ -6,6 +6,7 @@ use App\Models\RawMaterialBatch;
 use App\Models\Product;
 use App\Models\RawMaterialMovement;
 use App\Services\MoySkladMoveService;
+use App\Services\MoySkladProcessingService;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Models\ProductStock;
@@ -231,7 +232,7 @@ class RawMaterialBatchController extends Controller
         }
 
         $products = Product::orderBy('name')->get();
-        $backUrl  = url()->previous(route('raw-batches.index'));
+        $backUrl  = back_url(route('raw-batches.index'));
 
         return view('raw-batches.edit', compact('batch', 'products', 'backUrl'));
     }
@@ -432,7 +433,7 @@ class RawMaterialBatchController extends Controller
         }
 
         $stores  = Store::orderBy('name')->get();
-        $backUrl = url()->previous(route('raw-batches.index'));
+        $backUrl = back_url(route('raw-batches.index'));
         return view('raw-batches.adjust', compact('batch', 'stores', 'backUrl'));
     }
 
@@ -601,7 +602,7 @@ class RawMaterialBatchController extends Controller
                 ->with('error', 'Архивная партия недоступна для редактирования.');
         }
 
-        $backUrl = url()->previous(route('raw-batches.index'));
+        $backUrl = back_url(route('raw-batches.index'));
         return view('raw-batches.adjust-remaining', compact('batch', 'backUrl'));
     }
 
@@ -641,6 +642,12 @@ class RawMaterialBatchController extends Controller
 
         $batch->update(['remaining_quantity' => $newRemaining]);
 
+        // Синхронизируем количество сырья в техоперации МойСклад
+        if ($batch->hasMoySkladProcessing()) {
+            $batch->refresh();
+            $this->syncAdjustToMoySklad($batch);
+        }
+
         $backUrl = $request->input('back_url', route('raw-batches.show', $batch));
         $action  = $delta > 0 ? 'добавлено ' . number_format($delta, 3) . ' м³' : 'убрано ' . number_format(abs($delta), 3) . ' м³';
         return redirect($backUrl)
@@ -654,8 +661,12 @@ class RawMaterialBatchController extends Controller
      */
     public function markAsUsed(RawMaterialBatch $batch)
     {
-        if (!in_array($batch->status, [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])) {
-            $msg = 'Перевести в «Израсходована» можно только партии в статусе «Новая» или «В работе».';
+        if (!in_array($batch->status, [
+            RawMaterialBatch::STATUS_NEW,
+            RawMaterialBatch::STATUS_IN_WORK,
+            RawMaterialBatch::STATUS_CONFIRMED,
+        ])) {
+            $msg = 'Перевести в «Израсходована» можно только партии в статусе «Новая», «Не уточнена» или «Уточнена».';
             if (request()->expectsJson()) {
                 return response()->json(['error' => $msg], 422);
             }
@@ -670,6 +681,20 @@ class RawMaterialBatchController extends Controller
                 ->where('status', \App\Models\StoneReception::STATUS_ACTIVE)
                 ->each(fn($r) => $r->update(['status' => \App\Models\StoneReception::STATUS_COMPLETED]));
         });
+
+        // Переводим техоперацию в статус «завершена» в МойСклад (не блокирует при ошибке)
+        if ($batch->hasMoySkladProcessing()) {
+            /** @var MoySkladProcessingService $service */
+            $service = app(MoySkladProcessingService::class);
+            $result  = $service->completeProcessing($batch->moysklad_processing_id);
+            if (!$result['success']) {
+                Log::warning('markAsUsed: не удалось завершить техоперацию в МойСклад', [
+                    'batch_id'      => $batch->id,
+                    'processing_id' => $batch->moysklad_processing_id,
+                    'message'       => $result['message'],
+                ]);
+            }
+        }
 
         if (request()->expectsJson()) {
             return response()->json(['success' => true, 'message' => 'Партия переведена в «Израсходована»']);
@@ -698,6 +723,10 @@ class RawMaterialBatchController extends Controller
                 ->where('status', \App\Models\StoneReception::STATUS_COMPLETED)
                 ->each(fn($r) => $r->update(['status' => \App\Models\StoneReception::STATUS_ACTIVE]));
         });
+
+        if ($batch->hasMoySkladProcessing()) {
+            app(MoySkladProcessingService::class)->reactivateProcessing($batch->moysklad_processing_id);
+        }
 
         return back()->with('success', 'Партия возвращена в статус «В работе».');
     }
@@ -750,7 +779,7 @@ class RawMaterialBatchController extends Controller
         }
 
         $workers = Worker::orderBy('name')->get();
-        $backUrl = url()->previous(route('raw-batches.index'));
+        $backUrl = back_url(route('raw-batches.index'));
         return view('raw-batches.transfer', compact('batch', 'workers', 'backUrl'));
     }
 
@@ -787,7 +816,120 @@ class RawMaterialBatchController extends Controller
         }
 
         $stores  = Store::orderBy('name')->get();
-        $backUrl = url()->previous(route('raw-batches.index'));
+        $backUrl = back_url(route('raw-batches.index'));
         return view('raw-batches.return', compact('batch', 'stores', 'backUrl'));
+    }
+
+    /**
+     * Ручная синхронизация техоперации с МойСклад.
+     * Если техоперации нет — создаёт новую (как при первой приёмке).
+     * Если есть — обновляет продукты и материал (как при сохранении приёмки).
+     */
+    public function syncProcessing(RawMaterialBatch $batch)
+    {
+        /** @var MoySkladProcessingService $service */
+        $service = app(MoySkladProcessingService::class);
+
+        $batch->loadMissing('product');
+
+        if (!$batch->hasMoySkladProcessing()) {
+            // Техоперации нет — создаём по первой приёмке
+            $firstReception = $batch->receptions()
+                ->with('items.product')
+                ->oldest()
+                ->first();
+
+            if (!$firstReception) {
+                return back()->with('error', 'Нет приёмок для создания техоперации.');
+            }
+
+            $materialQty = (float) $batch->initial_quantity;
+
+            $result = $service->createProcessingForBatch($batch, $materialQty, $firstReception);
+
+            if ($result['success']) {
+                $batch->update([
+                    'moysklad_processing_id'   => $result['processing_id'],
+                    'moysklad_processing_name' => $result['processing_name'],
+                    'moysklad_sync_error'      => null,
+                ]);
+                return back()->with('success', 'Техоперация создана в МойСклад.');
+            }
+
+            $batch->update(['moysklad_sync_error' => $result['message']]);
+            return back()->with('error', 'Ошибка создания техоперации: ' . $result['message']);
+        }
+
+        // Техоперация есть — обновляем продукты и материал
+        $allItems = $batch->receptions()
+            ->with('items.product')
+            ->get()
+            ->flatMap(fn($r) => $r->items);
+
+        if ($allItems->isEmpty()) {
+            return back()->with('error', 'Нет приёмок с продуктами для синхронизации.');
+        }
+
+        $storeId = $batch->receptions()
+            ->whereNotNull('store_id')
+            ->value('store_id');
+
+        $materialQty = (float) $batch->receptions()->sum('raw_quantity_used');
+
+        $result = $service->updateProcessingProducts(
+            $batch->moysklad_processing_id,
+            $allItems,
+            $storeId ?? '',
+            $materialQty ?: null,
+            $batch->product->moysklad_id ?? ''
+        );
+
+        if ($result['success']) {
+            $batch->update(['moysklad_sync_error' => null]);
+            return back()->with('success', 'Техоперация синхронизирована с МойСклад.');
+        }
+
+        $batch->update(['moysklad_sync_error' => $result['message']]);
+        return back()->with('error', 'Ошибка синхронизации: ' . $result['message']);
+    }
+
+    /**
+     * Синхронизирует количество сырья в техоперации после adjustRemaining.
+     * При успехе переводит партию в статус «Уточнена».
+     */
+    private function syncAdjustToMoySklad(RawMaterialBatch $batch): void
+    {
+        $allItems = $batch->receptions()
+            ->with('items.product')
+            ->get()
+            ->flatMap(fn($r) => $r->items);
+
+        $storeId = $batch->receptions()
+            ->whereNotNull('store_id')
+            ->value('store_id');
+
+        /** @var MoySkladProcessingService $service */
+        $service = app(MoySkladProcessingService::class);
+        $result  = $service->updateProcessingProducts(
+            $batch->moysklad_processing_id,
+            $allItems,
+            $storeId ?? '',
+            (float) $batch->remaining_quantity,
+            $batch->product->moysklad_id ?? ''
+        );
+
+        if ($result['success']) {
+            $batch->update([
+                'status'             => RawMaterialBatch::STATUS_CONFIRMED,
+                'moysklad_sync_error' => null,
+            ]);
+        } else {
+            $batch->update(['moysklad_sync_error' => $result['message']]);
+            Log::warning('syncAdjustToMoySklad: ошибка', [
+                'batch_id'      => $batch->id,
+                'processing_id' => $batch->moysklad_processing_id,
+                'message'       => $result['message'],
+            ]);
+        }
     }
 }

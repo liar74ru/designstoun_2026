@@ -81,13 +81,15 @@
                                        class="btn btn-sm btn-success" title="Редактировать учётную запись">
                                         <i class="bi bi-person-check"></i> Связан
                                     </a>
-                                @elseif(auth()->user()->isAdmin())
-                                    <a href="{{ route('workers.create-user', $worker) }}"
-                                       class="btn btn-sm btn-outline-primary" title="Создать учётную запись">
-                                        <i class="bi bi-person-plus"></i> Создать
-                                    </a>
                                 @else
-                                    <span class="text-muted">—</span>
+                                    @if(auth()->user()->isAdmin())
+                                        <a href="{{ route('workers.create-user', $worker) }}"
+                                           class="btn btn-sm btn-outline-primary" title="Создать учётную запись">
+                                            <i class="bi bi-person-plus"></i> Создать
+                                        </a>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
                                 @endif
                             </td>
                             <td>

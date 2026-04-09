@@ -1,17 +1,18 @@
 <?php
 
+use App\Http\Controllers\CounterpartyController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RawMaterialBatchController;
 use App\Http\Controllers\RawMaterialMovementController;
 use App\Http\Controllers\StoneReceptionBatchController;
 use App\Http\Controllers\StoneReceptionController;
+use App\Http\Controllers\StoreController;
+use App\Http\Controllers\SupplierOrderController;
+use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
 use App\Http\Controllers\WorkerDashboardController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\CounterpartyController;
-use App\Http\Controllers\StoreController;
-use App\Http\Controllers\SupplierOrderController;
 
 // Главная — редирект на login если не авторизован
 Route::get('/', function () {
@@ -51,6 +52,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/workers/{worker}/edit-user', [WorkerController::class, 'editUser'])->name('workers.edit-user');
     Route::put('/workers/{worker}/update-user', [WorkerController::class, 'updateUser'])->name('workers.update-user');
 
+    // Синхронизация
+    Route::get('/sync', [SyncController::class, 'index'])->name('sync.index');
+
     // Контрагенты
     Route::get('/counterparties', [CounterpartyController::class, 'index'])->name('counterparties.index');
     Route::post('/counterparties/sync', [CounterpartyController::class, 'sync'])->name('counterparties.sync');
@@ -82,12 +86,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/stone-receptions/batch/stats', [StoneReceptionBatchController::class, 'getStats'])->name('stone-receptions.batch.stats');
     Route::patch('/stone-receptions/{stoneReception}/reset-status', [StoneReceptionController::class, 'resetStatus'])->name('stone-receptions.reset-status');
     Route::patch('/stone-receptions/{stoneReception}/mark-completed', [StoneReceptionController::class, 'markCompleted'])->name('stone-receptions.mark-completed');
+    Route::post('/stone-receptions/{stoneReception}/sync', [StoneReceptionController::class, 'syncToProcessing'])->name('stone-receptions.sync');
 
     // Партии сырья
-    Route::resource('raw-batches', RawMaterialBatchController::class)->except(['edit', 'update', 'store']);
-    Route::post('raw-batches', [RawMaterialBatchController::class, 'store'])->name('raw-batches.store');
-    Route::get('raw-batches/{batch}/edit', [RawMaterialBatchController::class, 'edit'])->name('raw-batches.edit');
-    Route::put('raw-batches/{batch}', [RawMaterialBatchController::class, 'update'])->name('raw-batches.update');
+    Route::resource('raw-batches', RawMaterialBatchController::class);
     Route::delete('raw-batches/{batch}/new', [RawMaterialBatchController::class, 'destroyNew'])->name('raw-batches.destroy-new');
     Route::get('raw-batches/{batch}/copy', [RawMaterialBatchController::class, 'copy'])->name('raw-batches.copy');
     Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])->name('raw-batches.transfer.form');
@@ -102,6 +104,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('raw-batches/{batch}/archive', [RawMaterialBatchController::class, 'archive'])->name('raw-batches.archive');
     Route::post('raw-batches/{batch}/mark-used', [RawMaterialBatchController::class, 'markAsUsed'])->name('raw-batches.mark-used');
     Route::post('raw-batches/{batch}/mark-in-work', [RawMaterialBatchController::class, 'markAsInWork'])->name('raw-batches.mark-in-work');
+    Route::post('raw-batches/{batch}/sync-processing', [RawMaterialBatchController::class, 'syncProcessing'])->name('raw-batches.sync-processing');
 
     // AJAX-эндпоинты
     Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])->name('api.worker.batches');

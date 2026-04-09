@@ -425,15 +425,20 @@
                                     <span class="fw-semibold small">
                                         <i class="bi bi-hammer text-secondary me-1"></i>{{ $reception->cutter->name ?? '—' }}
                                     </span>
-                                    @if($reception->status == 'active')
-                                        <span class="badge bg-success" style="font-size:.65rem">Активна</span>
-                                    @elseif($reception->status == 'completed')
-                                        <span class="badge bg-warning text-dark" style="font-size:.65rem">Завершена</span>
-                                    @elseif($reception->status == 'processed')
-                                        <span class="badge bg-secondary" style="font-size:.65rem">Обработана</span>
-                                    @elseif($reception->status == 'error')
-                                        <span class="badge bg-danger" style="font-size:.65rem">Ошибка</span>
-                                    @endif
+                                    <div class="d-flex gap-1 align-items-center">
+                                        @if($reception->rawMaterialBatch && !$reception->rawMaterialBatch->isSynced())
+                                            <span class="badge {{ $reception->rawMaterialBatch->syncStatusBadgeClass() }}" style="font-size:.65rem">{{ $reception->rawMaterialBatch->syncStatusLabel() }}</span>
+                                        @endif
+                                        @if($reception->status == 'active')
+                                            <span class="badge bg-success" style="font-size:.65rem">Активна</span>
+                                        @elseif($reception->status == 'completed')
+                                            <span class="badge bg-warning text-dark" style="font-size:.65rem">Завершена</span>
+                                        @elseif($reception->status == 'processed')
+                                            <span class="badge bg-secondary" style="font-size:.65rem">Обработана</span>
+                                        @elseif($reception->status == 'error')
+                                            <span class="badge bg-danger" style="font-size:.65rem">Ошибка</span>
+                                        @endif
+                                    </div>
                                 </div>
 
                                 {{-- Блок: продукция --}}

@@ -116,11 +116,39 @@
                             </div>
                         @endif
 
-                        @if($stoneReception->moysklad_processing_id)
-                            <div class="text-muted px-1" style="font-size:.72rem">
-                                <i class="bi bi-cloud me-1"></i>МойСклад: <code style="font-size:.7rem">{{ $stoneReception->moysklad_processing_id }}</code>
+                        {{-- МойСклад: статус техоперации партии --}}
+                        @php $batchForSync = $stoneReception->rawMaterialBatch; @endphp
+                        <div class="info-block">
+                            <div class="info-block-header">
+                                <span class="small fw-semibold text-muted"><i class="bi bi-cloud me-1"></i>МойСклад</span>
                             </div>
-                        @endif
+                            <div class="info-block-body">
+                                @if($batchForSync?->hasSyncError())
+                                    <div class="small text-warning-emphasis">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                        <strong>Ошибка:</strong> {{ $batchForSync->moysklad_sync_error }}
+                                    </div>
+                                @elseif($batchForSync?->hasMoySkladProcessing())
+                                    <div class="small text-success">
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        Синхронизировано
+                                        @if($batchForSync->moysklad_processing_name)
+                                            · <span class="text-muted">{{ $batchForSync->moysklad_processing_name }}</span>
+                                        @endif
+                                    </div>
+                                    @if(auth()->user()->is_admin)
+                                        <div class="text-muted mt-1" style="font-size:.72rem;word-break:break-all">
+                                            <i class="bi bi-fingerprint me-1"></i>
+                                            <code style="font-size:.7rem">{{ $batchForSync->moysklad_processing_id }}</code>
+                                        </div>
+                                    @endif
+                                @else
+                                    <div class="small text-muted">
+                                        <i class="bi bi-cloud-slash me-1"></i>Техоперация не создана
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -135,6 +163,20 @@
                             <a href="{{ route('stone-receptions.edit', $stoneReception) }}" class="btn btn-secondary">
                                 <i class="bi bi-pencil"></i> Редактировать
                             </a>
+
+                            @php
+                                $hasSyncError = $stoneReception->rawMaterialBatch?->hasSyncError();
+                                $hasBatchProcessing = $stoneReception->rawMaterialBatch?->hasMoySkladProcessing();
+                            @endphp
+                            <form method="POST"
+                                  action="{{ route('stone-receptions.sync', $stoneReception) }}">
+                                @csrf
+                                <button type="submit"
+                                        class="btn w-100 {{ $hasSyncError ? 'btn-warning' : ($hasBatchProcessing ? 'btn-outline-secondary' : 'btn-outline-primary') }}">
+                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                    {{ $hasBatchProcessing ? 'Синхронизировать с МойСклад' : 'Создать техоперацию' }}
+                                </button>
+                            </form>
 
                             <form method="POST" action="{{ route('stone-receptions.copy', $stoneReception) }}">
                                 @csrf

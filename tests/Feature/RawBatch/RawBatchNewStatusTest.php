@@ -36,7 +36,8 @@ describe('RawMaterialBatch — статус new (модель)', function () {
 
     test('statusLabel() возвращает правильные названия', function () {
         expect((new RawMaterialBatch(['status' => 'new']))->statusLabel())->toBe('Новая');
-        expect((new RawMaterialBatch(['status' => 'in_work']))->statusLabel())->toBe('В работе');
+        expect((new RawMaterialBatch(['status' => 'in_work']))->statusLabel())->toBe('Не уточнена');
+        expect((new RawMaterialBatch(['status' => 'confirmed']))->statusLabel())->toBe('Уточнена');
         expect((new RawMaterialBatch(['status' => 'used']))->statusLabel())->toBe('Израсходована');
         expect((new RawMaterialBatch(['status' => 'returned']))->statusLabel())->toBe('Возвращена');
         expect((new RawMaterialBatch(['status' => 'archived']))->statusLabel())->toBe('Архив');
