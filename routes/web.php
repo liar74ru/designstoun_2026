@@ -104,7 +104,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('raw-batches/{batch}/archive', [RawMaterialBatchController::class, 'archive'])->name('raw-batches.archive');
     Route::post('raw-batches/{batch}/mark-used', [RawMaterialBatchController::class, 'markAsUsed'])->name('raw-batches.mark-used');
     Route::post('raw-batches/{batch}/mark-in-work', [RawMaterialBatchController::class, 'markAsInWork'])->name('raw-batches.mark-in-work');
-    Route::post('raw-batches/{batch}/sync-processing', [RawMaterialBatchController::class, 'syncProcessing'])->name('raw-batches.sync-processing');
 
     // AJAX-эндпоинты
     Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])->name('api.worker.batches');

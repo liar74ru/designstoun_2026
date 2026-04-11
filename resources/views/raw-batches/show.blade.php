@@ -111,14 +111,6 @@
                             </div>
                         @endif
 
-                        @if($batch->status !== 'archived')
-                            <form method="POST" action="{{ route('raw-batches.sync-processing', $batch) }}">
-                                @csrf
-                                <button type="submit" class="btn btn-sm {{ $batch->hasSyncError() ? 'btn-warning' : 'btn-outline-secondary' }} w-100">
-                                    <i class="bi bi-arrow-repeat"></i> Синхронизировать с МойСклад
-                                </button>
-                            </form>
-                        @endif
                     </div>
                 </div>
 

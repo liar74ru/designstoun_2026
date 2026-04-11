@@ -60,7 +60,6 @@ class MasterOnly
         'raw-batches.archive',
         'raw-batches.mark-used',
         'raw-batches.mark-in-work',
-        'raw-batches.sync-processing',
         'raw-movement.store',
 
         // Поступления сырья
