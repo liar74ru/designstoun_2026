@@ -18,14 +18,16 @@ RUN npm run build
 # ============================================================
 #  STAGE 2 — PHP-зависимости (только prod)
 # ============================================================
-FROM php:8.4-alpine AS vendor
+FROM php:8.4-cli AS vendor
 
 WORKDIR /app
 
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 
-RUN apk add --no-cache postgresql-dev libzip-dev oniguruma-dev icu-dev \
-    && docker-php-ext-install pdo pdo_pgsql zip mbstring intl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq-dev libzip-dev libonig-dev libicu-dev \
+    && docker-php-ext-install pdo pdo_pgsql zip mbstring intl \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY composer.json composer.lock ./
 RUN composer install \

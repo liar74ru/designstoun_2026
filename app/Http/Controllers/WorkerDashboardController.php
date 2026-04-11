@@ -152,11 +152,22 @@ class WorkerDashboardController extends Controller
         // quantity_delta может быть отрицательной (корректировка вниз) — это нормально.
         $allItems = $logs->flatMap(fn($log) => $log->items);
 
-        // Группируем по product_id и суммируем дельты
+        // Группируем по составному ключу product_id + is_undercut,
+        // чтобы один продукт с разными флагами is_undercut попадал в разные строки.
         return $allItems
-            ->groupBy('product_id')
-            ->map(function ($items, $productId) {
-                $product  = $items->first()->product;
+            ->groupBy(function ($logItem) {
+                $receptionItem = $logItem->receptionLog?->stoneReception?->items
+                    ->firstWhere('product_id', $logItem->product_id);
+                $isUndercut = $receptionItem ? (bool) $receptionItem->is_undercut : false;
+                return $logItem->product_id . '_' . ($isUndercut ? '1' : '0');
+            })
+            ->map(function ($items) {
+                $firstLogItem  = $items->first();
+                $product       = $firstLogItem->product;
+                $firstReceptionItem = $firstLogItem->receptionLog?->stoneReception?->items
+                    ->firstWhere('product_id', $firstLogItem->product_id);
+                $isUndercut = $firstReceptionItem ? (bool) $firstReceptionItem->is_undercut : false;
+
                 // Суммируем дельты — итог и есть фактически произведённое количество
                 $quantity = $items->sum(fn($item) => (float) $item->quantity_delta);
 
@@ -186,15 +197,16 @@ class WorkerDashboardController extends Controller
                     ->avg() ?? $product?->prod_cost_coeff ?? 0;
 
                 return [
-                    'product'  => $product,
-                    'quantity' => $quantity,
-                    'coeff'    => $effCoeffDisplay,
-                    'prodCost' => null, // вычисляется по-разному для каждой позиции
-                    'pay'      => $pay,
+                    'product'    => $product,
+                    'quantity'   => $quantity,
+                    'coeff'      => $effCoeffDisplay,
+                    'is_undercut' => $isUndercut,
+                    'prodCost'   => null, // вычисляется по-разному для каждой позиции
+                    'pay'        => $pay,
                 ];
             })
             ->filter(fn($row) => abs($row['quantity']) > 0.0001) // убираем нулевые строки
-            ->sortBy(fn($row) => $row['product']?->sku ?? '')
+            ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '_' . ($row['is_undercut'] ? '1' : '0'))
             ->values();
     }
 }

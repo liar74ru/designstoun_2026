@@ -137,6 +137,9 @@
                             <tr>
                                 <td style="border-left:4px solid {{ $skuColor }};{{ $skuBg }};word-break:break-word;padding:.3rem .1rem .3rem .4rem">
                                     {{ $row['product']?->name ?? '—' }}
+                                    @if(!empty($row['is_undercut']))
+                                        <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">подкол 80%</span>
+                                    @endif
                                 </td>
                                 <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
                                     {{ number_format($row['quantity'], 3, ',', ' ') }}
