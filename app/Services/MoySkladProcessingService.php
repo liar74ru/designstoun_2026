@@ -17,17 +17,46 @@ class MoySkladProcessingService
     private $token;
     private $baseUrl = 'https://api.moysklad.ru/api/remap/1.2';
     private $organizationMeta;
-    private $processingSum = 1100; // Затраты на производство за единицу
+    private float $processingSum;
     private array $processingStatesCache = [];
 
     public function __construct()
     {
         $this->token = config('services.moysklad.token');
         $this->baseUrl = config('services.moysklad.base_url');
+        $this->processingSum = $this->manualCostPerUnit();
 
         if (empty($this->token)) {
             Log::warning('MOYSKLAD_TOKEN не установлен в .env файле');
         }
+    }
+
+    private function manualCostPerUnit(): float
+    {
+        $keys = [
+            'BLADE_WEAR', 'RECEPTION_COST', 'PACKAGING_COST', 'WASTE_REMOVAL',
+            'ELECTRICITY', 'PPE_COST', 'FORKLIFT_COST', 'MACHINE_COST',
+            'RENT_COST', 'OTHER_COSTS',
+        ];
+        return array_sum(array_map(
+            fn ($key) => (float) \App\Models\Setting::get($key, 0),
+            $keys
+        ));
+    }
+
+    /**
+     * processingSum для МойСклад — стоимость за единицу объёма в копейках.
+     * МойСклад хранит и умножает это значение на quantity самостоятельно.
+     *
+     * @param float $totalRubles  Итоговая стоимость производства в рублях (зарплата + накладные)
+     * @param float $totalQty     Суммарное количество продукции
+     */
+    private function calcProcessingSum(float $totalRubles, float $totalQty): int
+    {
+        if ($totalQty <= 0) {
+            return 0;
+        }
+        return (int) round($totalRubles * 100 / $totalQty);
     }
 
     /**
@@ -352,8 +381,7 @@ class MoySkladProcessingService
             $products = array_values($productsGrouped);
             $materials = array_values($materialsGrouped);
 
-            // Рассчитываем processingSum = общее количество продукции * 1100
-            $processingSum = $totalQuantity * 1100;
+            $processingSum = $this->calcProcessingSum($totalQuantity * $this->processingSum, $totalQuantity);
 
             // Формируем данные для запроса
             $processingData = [
@@ -531,11 +559,22 @@ class MoySkladProcessingService
 
             $name = DocumentNaming::weeklyName('ТО', $weekCount + 1);
 
+            // Зарплата пильщика по позициям первой приёмки
+            $reception->loadMissing('items.product');
+            $workerSalaryTotal = 0;
+            foreach ($reception->items as $item) {
+                $workerSalaryTotal += $item->effectiveProdCost() * (float) $item->quantity;
+            }
+            $totalProcessingSum = $this->calcProcessingSum(
+                $workerSalaryTotal + $this->processingSum * $totalQuantity,
+                $totalQuantity
+            );
+
             $processingData = [
                 'organization'   => ['meta' => $organizationMeta],
                 'productsStore'  => ['meta' => $storeMeta],
                 'materialsStore' => ['meta' => $storeMeta],
-                'processingSum'  => $totalQuantity * $this->processingSum,
+                'processingSum'  => $totalProcessingSum,
                 'products'       => array_values($productsGrouped),
                 'materials'      => [[
                     'quantity'   => $materialQuantity,
@@ -714,6 +753,14 @@ class MoySkladProcessingService
                 throw new \Exception('Нет продуктов с moysklad_id для обновления техоперации');
             }
 
+            $workerSalaryTotal = 0;
+            foreach ($allItems as $item) {
+                if (!$item->product || !$item->product->moysklad_id) {
+                    continue;
+                }
+                $workerSalaryTotal += $item->effectiveProdCost() * (float) $item->quantity;
+            }
+
             // Получаем существующие позиции с их id — без id МойСклад добавляет дубли вместо замены
             $existingPositionIds = $this->fetchExistingProductPositionIds($processingId);
 
@@ -729,7 +776,10 @@ class MoySkladProcessingService
             $payload = [
                 'productsStore'  => ['meta' => $storeMeta],
                 'materialsStore' => ['meta' => $storeMeta],
-                'processingSum'  => $totalQuantity * $this->processingSum,
+                'processingSum'  => $this->calcProcessingSum(
+                    $workerSalaryTotal + $totalQuantity * $this->processingSum,
+                    $totalQuantity
+                ),
                 'products'       => $products,
                 'quantity'       => $totalQuantity,
             ];
