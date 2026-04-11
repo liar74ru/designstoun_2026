@@ -74,13 +74,19 @@ class StoneReceptionController extends Controller
     }
 
     /**
-     * Получает последние приемки с пагинацией
+     * Получает последние приемки с пагинацией.
+     * Если передан $rawMaterialProductId — фильтрует по сырью партии.
      */
-    private function getLastReceptions($perPage = 15)
+    private function getLastReceptions($perPage = 15, ?int $rawMaterialProductId = null)
     {
-        return StoneReception::with(['receiver', 'cutter', 'store', 'items.product', 'rawMaterialBatch.product'])
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        $query = StoneReception::with(['receiver', 'cutter', 'store', 'items.product', 'rawMaterialBatch.product'])
+            ->orderBy('created_at', 'desc');
+
+        if ($rawMaterialProductId) {
+            $query->whereHas('rawMaterialBatch', fn($q) => $q->where('product_id', $rawMaterialProductId));
+        }
+
+        return $query->paginate($perPage);
     }
 
     /**
@@ -300,7 +306,9 @@ class StoneReceptionController extends Controller
     public function edit(StoneReception $stoneReception)
     {
         $data = $this->getFormData($stoneReception);
-        $data['lastReceptions'] = $this->getLastReceptions();
+
+        $rawProductId = $stoneReception->rawMaterialBatch?->product_id;
+        $data['lastReceptions'] = $this->getLastReceptions(15, $rawProductId);
 
         return view('stone-receptions.edit', $data);
     }
