@@ -545,6 +545,9 @@ class MoySkladProcessingService
                 $totalQuantity += (float) $item->quantity;
             }
 
+            // Исключаем позиции с нулевым количеством (МойСклад их отклоняет)
+            $productsGrouped = array_filter($productsGrouped, fn($p) => $p['quantity'] > 0);
+
             if (empty($productsGrouped)) {
                 throw new \Exception('Нет продуктов с moysklad_id для создания техоперации');
             }
