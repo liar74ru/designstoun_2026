@@ -103,6 +103,16 @@
                                 </a>
                             @endif
 
+                            {{-- Настройки: только admin --}}
+                            @if($user->isAdmin())
+                                <a href="{{ route('admin.settings.index') }}"
+                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('admin.settings.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                   title="Настройки">
+                                    <i class="bi bi-gear"></i>
+                                    <span>Настройки</span>
+                                </a>
+                            @endif
+
                         @endif
                     @endauth
                 </div>

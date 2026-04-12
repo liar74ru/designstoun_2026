@@ -77,9 +77,7 @@ class StoneReceptionItem extends Model
      */
     public function effectiveProdCost(): float
     {
-        $coeff   = (float) $this->effective_cost_coeff;
-        $perUnit = Product::PIECE_RATE + (Product::PIECE_RATE * 0.17) * $coeff;
-        return floor($perUnit / 10) * 10;
+        return $this->product->prodCost((float) $this->effective_cost_coeff);
     }
 
     /**

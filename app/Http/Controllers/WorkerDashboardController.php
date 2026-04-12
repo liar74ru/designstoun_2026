@@ -201,7 +201,7 @@ class WorkerDashboardController extends Controller
                     'quantity'   => $quantity,
                     'coeff'      => $effCoeffDisplay,
                     'is_undercut' => $isUndercut,
-                    'prodCost'   => null, // вычисляется по-разному для каждой позиции
+                    'prodCost'   => $product->prodCost($effCoeffDisplay), // вычисляется по-разному для каждой позиции
                     'pay'        => $pay,
                 ];
             })

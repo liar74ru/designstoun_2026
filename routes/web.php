@@ -11,6 +11,7 @@ use App\Http\Controllers\StoreController;
 use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
+use App\Http\Controllers\AdminSettingController;
 use App\Http\Controllers\WorkerDashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -117,6 +118,12 @@ Route::middleware(['auth'])->group(function () {
     // Редактирование коэффициентов позиций приёмки (из страницы show)
     Route::post('/stone-receptions/{stoneReception}/item-coeffs', [StoneReceptionController::class, 'updateItemCoeff'])->name('stone-receptions.update-item-coeff');
     Route::post('/stone-receptions/{stoneReception}/refresh-item-coeffs', [StoneReceptionController::class, 'refreshItemCoeffs'])->name('stone-receptions.refresh-item-coeffs');
+
+    // Настройки системы (только администратор — проверка в контроллере)
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/settings',  [AdminSettingController::class, 'index'])->name('settings.index');
+        Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
+    });
 });
 
 require __DIR__.'/auth.php';

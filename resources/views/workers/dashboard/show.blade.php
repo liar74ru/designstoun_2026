@@ -98,7 +98,7 @@
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body py-2 px-3">
                             <div class="text-muted small mb-1">Базовая ставка</div>
-                            <div class="fs-4 fw-bold">{{ number_format(\App\Models\Product::PIECE_RATE, 0, ',', ' ') }} ₽</div>
+                            <div class="fs-4 fw-bold">{{ number_format(\App\Models\Product::pieceRate(), 0, ',', ' ') }} ₽</div>
                         </div>
                     </div>
                 </div>
@@ -130,7 +130,7 @@
                         <tbody>
                         @foreach($summary as $row)
                             @php
-                                $rate     = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
+//                                $rate     = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
                                 $skuColor = \App\Models\Product::getColorBySku($row['product']?->sku);
                                 $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
                             @endphp
@@ -148,7 +148,7 @@
                                     ×{{ number_format($row['coeff'], 1, ',', ' ') }}
                                 </td>
                                 <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
-                                    {{ number_format($rate, 0, ',', ' ') }} ₽
+                                    {{ number_format($row['prodCost'], 0, ',', ' ') }} ₽
                                 </td>
                                 <td class="text-end text-nowrap fw-semibold text-success" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .25rem">
                                     {{ number_format($row['pay'], 0, ',', ' ') }} ₽

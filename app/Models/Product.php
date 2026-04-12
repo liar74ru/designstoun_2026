@@ -36,7 +36,13 @@ class Product extends Model
         'attributes'      => 'array',
     ];
 
-    const PIECE_RATE = 390.0;
+    /**
+     * Берем базовый коэффициент.
+     */
+    public static function pieceRate(): float
+    {
+        return (float) \App\Models\Setting::get('PIECE_RATE', 390.0);
+    }
 
     /**
      * Цветовая дифференциация по SKU-группе сырья.
@@ -143,15 +149,16 @@ class Product extends Model
 
     // ─── Бизнес-логика ───────────────────────────────────────────────────────
 
-    public function prodCost()
+    public function prodCost($coeffCustom = null): float|int
     {
 //        if ((float)($this->prod_cost_coeff ?? 0) === 0.0) {
 //            return 0.0;
 //        }
 
         // ОКРУГЛВНИЗ((PIECE_RATE + PIECE_RATE*17% * coeff) / 10; 0) * 10
-        $coeff   = (float)$this->prod_cost_coeff ?? 0;
-        $perUnit = self::PIECE_RATE + (self::PIECE_RATE * 0.17) * $coeff;
+        $coeff   = $coeffCustom ?? (float)$this->prod_cost_coeff ?? 0;
+        $rate    = self::pieceRate();
+        $perUnit = $rate + ($rate * 0.17) * $coeff;
         $rounded = floor($perUnit / 10) * 10;
 
         return $rounded;
