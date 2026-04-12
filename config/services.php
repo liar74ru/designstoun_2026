@@ -35,12 +35,9 @@ return [
         ],
     ],
 
-    // 1. Добавить в config/services.php:
     'moysklad' => [
-        'token'                          => env('MOYSKLAD_TOKEN'),
-        'base_url'                       => env('MOYSKLAD_BASE_URL', 'https://api.moysklad.ru/api/remap/1.2'),
-        'processing_done_state_name'     => env('MOYSKLAD_PROCESSING_DONE_STATE_NAME', ''),
-        'processing_in_work_state_name'  => env('MOYSKLAD_PROCESSING_IN_WORK_STATE_NAME', ''),
+        'token'    => env('MOYSKLAD_TOKEN'),
+        'base_url' => env('MOYSKLAD_BASE_URL', 'https://api.moysklad.ru/api/remap/1.2'),
     ],
 
 ];

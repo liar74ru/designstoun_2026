@@ -41,6 +41,16 @@
 
                         @if(!$user->isWorker())
 
+                            {{-- Дашборд мастера --}}
+                            @if($user->isMaster())
+                                <a href="{{ route('master.dashboard') }}"
+                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('master.dashboard') ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                   title="Дашборд мастера">
+                                    <i class="bi bi-bar-chart-line"></i>
+                                    <span>Дашборд</span>
+                                </a>
+                            @endif
+
                             {{-- Домой: только admin --}}
                             @if($user->isAdmin())
                                 <a href="{{ url('/') }}"

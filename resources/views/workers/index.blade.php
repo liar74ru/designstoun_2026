@@ -100,6 +100,12 @@
                                             <i class="bi bi-bar-chart"></i>
                                         </a>
                                     @endif
+                                    @if($worker->position === 'Мастер')
+                                        <a href="{{ route('master.dashboard.by-id', $worker->id) }}"
+                                           class="btn btn-sm btn-outline-success" title="Выработка мастера">
+                                            <i class="bi bi-bar-chart"></i>
+                                        </a>
+                                    @endif
                                     @if(auth()->user()->isAdmin())
                                         <a href="{{ route('workers.edit', $worker) }}"
                                            class="btn btn-sm btn-outline-primary" title="Редактировать">
@@ -194,6 +200,12 @@
                         <div class="d-flex flex-column gap-1 flex-shrink-0" style="min-width:90px">
                             @if($worker->position === 'Пильщик')
                                 <a href="{{ route('worker.dashboard.by-id', $worker->id) }}"
+                                   class="btn btn-sm btn-outline-success w-100">
+                                    <i class="bi bi-bar-chart"></i> Выработка
+                                </a>
+                            @endif
+                            @if($worker->position === 'Мастер')
+                                <a href="{{ route('master.dashboard.by-id', $worker->id) }}"
                                    class="btn btn-sm btn-outline-success w-100">
                                     <i class="bi bi-bar-chart"></i> Выработка
                                 </a>

@@ -3,6 +3,7 @@
 
 namespace App\Services;
 
+use App\Models\Setting;
 use App\Support\DocumentNaming;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -587,7 +588,7 @@ class MoySkladProcessingService
                 'quantity'       => $totalQuantity,
             ];
 
-            $inWorkName = config('services.moysklad.processing_in_work_state_name', '');
+            $inWorkName = Setting::get('MOYSKLAD_IN_WORK_STATE', '');
             if ($inWorkName) {
                 $inWorkHref = $this->getProcessingStateHref($inWorkName);
                 if ($inWorkHref) {
@@ -850,9 +851,9 @@ class MoySkladProcessingService
                 throw new \Exception('MoySklad токен не установлен');
             }
 
-            $stateName = config('services.moysklad.processing_done_state_name', '');
+            $stateName = Setting::get('MOYSKLAD_DONE_STATE', '');
             if (empty($stateName)) {
-                throw new \Exception('Не задано имя завершающего статуса (MOYSKLAD_PROCESSING_DONE_STATE_NAME)');
+                throw new \Exception('Не задано имя завершающего статуса (MOYSKLAD_DONE_STATE)');
             }
 
             $stateMetaHref = $this->getProcessingStateHref($stateName);
@@ -920,9 +921,9 @@ class MoySkladProcessingService
                 throw new \Exception('MoySklad токен не установлен');
             }
 
-            $stateName = config('services.moysklad.processing_in_work_state_name', '');
+            $stateName = Setting::get('MOYSKLAD_IN_WORK_STATE', '');
             if (empty($stateName)) {
-                throw new \Exception('Не задано имя статуса «В работе» (MOYSKLAD_PROCESSING_IN_WORK_STATE_NAME)');
+                throw new \Exception('Не задано имя статуса «В работе» (MOYSKLAD_IN_WORK_STATE)');
             }
 
             $stateMetaHref = $this->getProcessingStateHref($stateName);

@@ -13,6 +13,7 @@ use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
 use App\Http\Controllers\AdminSettingController;
 use App\Http\Controllers\WorkerDashboardController;
+use App\Http\Controllers\MasterDashboardController;
 use Illuminate\Support\Facades\Route;
 
 // Главная — редирект на login если не авторизован
@@ -24,6 +25,9 @@ Route::get('/', function () {
 Route::middleware(['auth'])->group(function () {
 
     Route::get('/', function () {
+        if (auth()->user()?->isMaster()) {
+            return redirect()->route('master.dashboard');
+        }
         return view('home');
     })->name('home');
 
@@ -31,6 +35,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Страница работника
     Route::get('/my-work', [WorkerDashboardController::class, 'show'])->name('worker.dashboard');
+    Route::get('/master-work', [MasterDashboardController::class, 'show'])->name('master.dashboard');
+    Route::get('/master-work/{workerId}', [MasterDashboardController::class, 'show'])->name('master.dashboard.by-id');
     Route::get('/workers/{workerId}/dashboard', [WorkerDashboardController::class, 'show'])
         ->name('worker.dashboard.by-id');
 

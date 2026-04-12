@@ -76,6 +76,42 @@ class SettingsSeeder extends Seeder
                 'label'       => 'Прочее, ₽/м²',
                 'description' => null,
             ],
+            [
+                'key'         => 'MASTER_BASE_RATE',
+                'value'       => '100',
+                'label'       => 'Базовая ставка, ₽/м²',
+                'description' => 'Базовая ставка мастера за каждый м² принятой продукции.',
+            ],
+            [
+                'key'         => 'MASTER_UNDERCUT_RATE',
+                'value'       => '50',
+                'label'       => 'Подкол > 80%, ₽/м²',
+                'description' => 'Ставка за приёмки с флагом подкол > 80%.',
+            ],
+            [
+                'key'         => 'MASTER_PACKAGING_RATE',
+                'value'       => '30',
+                'label'       => 'Фасовка в ящик, ₽/м²',
+                'description' => 'Ставка за фасовку продукции в ящик.',
+            ],
+            [
+                'key'         => 'MASTER_SMALL_TILE_RATE',
+                'value'       => '50',
+                'label'       => 'Плитка < 50мм, ₽/м²',
+                'description' => 'Ставка за приёмку мелкой плитки (менее 50 мм).',
+            ],
+            [
+                'key'         => 'MOYSKLAD_IN_WORK_STATE',
+                'value'       => 'В работе',
+                'label'       => 'Статус «В работе»',
+                'description' => 'Точное имя статуса в МойСклад, который назначается при создании техоперации.',
+            ],
+            [
+                'key'         => 'MOYSKLAD_DONE_STATE',
+                'value'       => 'Завершена',
+                'label'       => 'Статус «Завершена»',
+                'description' => 'Точное имя статуса в МойСклад, который назначается при завершении техоперации.',
+            ],
         ];
 
         foreach ($settings as $data) {

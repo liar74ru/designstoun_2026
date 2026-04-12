@@ -92,6 +92,11 @@ class MasterOnly
         'workers.edit-user',
         'workers.update-user',
         'logout',
+
+        // Дашборд мастера
+        'home',
+        'master.dashboard',
+        'master.dashboard.by-id',
     ];
 
     public function handle(Request $request, Closure $next): Response
