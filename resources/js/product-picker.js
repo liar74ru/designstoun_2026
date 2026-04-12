@@ -83,9 +83,18 @@ function initSearch(row) {
     fetchTree().then(tree => { allProducts = flattenProducts(tree); });
 
     function getActiveProducts() {
+        let products = allProducts;
         const prefix = row.dataset.skuPrefix;
-        if (!prefix) return allProducts;
-        return allProducts.filter(p => p.sku && p.sku.startsWith(prefix));
+        if (prefix) products = products.filter(p => p.sku && p.sku.startsWith(prefix));
+
+        const allowedAttr = row.dataset.allowedIds;
+        if (allowedAttr) {
+            try {
+                const ids = new Set(JSON.parse(allowedAttr));
+                products = products.filter(p => ids.has(p.id));
+            } catch(e) {}
+        }
+        return products;
     }
 
     function fmtStock(val) {
@@ -323,6 +332,17 @@ function initRow(row) {
     if (removeBtn) {
         removeBtn.addEventListener('click', () => {
             row.remove();
+            document.dispatchEvent(new CustomEvent('product-picker:removed'));
+        });
+    }
+
+    const clearBtn = row.querySelector('.product-picker-clear');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            const si = row.querySelector('.product-picker-search');
+            const hi = row.querySelector('input[type="hidden"]');
+            if (si) si.value = '';
+            if (hi) hi.value = '';
             document.dispatchEvent(new CustomEvent('product-picker:removed'));
         });
     }

@@ -15,7 +15,7 @@ function makeWorker(array $attrs = []): Worker
     ], $attrs));
 }
 
-function makeDepartment(): Department
+function makeWorkerTestDept(): Department
 {
     return Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 }
@@ -84,7 +84,7 @@ describe('WorkerController store()', function () {
     });
 
     test('создаёт работника с отделом', function () {
-        $dept = makeDepartment();
+        $dept = makeWorkerTestDept();
 
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [

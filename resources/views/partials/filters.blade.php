@@ -18,6 +18,7 @@
                    + ($showStatus !== false ? 1 : 0);
     $colClass      = $filterCount >= 4 ? 'col-lg-3' : ($filterCount === 3 ? 'col-lg-4' : 'col-lg-6');
     $rawValue      = request()->input("filter.$rawProductParam", '');
+    $rawLabel      = $filterRawProducts ? ($filterRawProducts->firstWhere('id', $rawValue)?->name ?? '') : '';
     $pickerValue   = request('filter.product_id', '');
     $pickerLabel   = $filterProducts ? ($filterProducts->firstWhere('id', $pickerValue)?->name ?? '') : '';
 @endphp
@@ -92,14 +93,16 @@
                 @if($filterRawProducts)
                 <div class="col-12 col-sm-6 {{ $colClass }}">
                     <label class="form-label small text-muted mb-1">Сырьё</label>
-                    <select name="filter[{{ $rawProductParam }}]" class="form-select" style="border-radius:.4rem">
-                        <option value="">Все виды сырья</option>
-                        @foreach($filterRawProducts as $rawProduct)
-                            <option value="{{ $rawProduct->id }}"
-                                {{ $rawValue == $rawProduct->id ? 'selected' : '' }}>
-                                {{ $rawProduct->name }}</option>
-                        @endforeach
-                    </select>
+                    @include('partials.product-picker', [
+                        'id'          => 'filter_raw',
+                        'name'        => 'filter[' . $rawProductParam . ']',
+                        'value'       => $rawValue,
+                        'label'       => $rawLabel,
+                        'placeholder' => 'Введите вид сырья...',
+                        'allowedIds'  => $filterRawProducts->pluck('id')->all(),
+                        'showTree'    => false,
+                        'showClear'   => (bool) $rawValue,
+                    ])
                 </div>
                 @endif
 
@@ -107,35 +110,16 @@
                 @if($filterProducts)
                 <div class="col-12 col-sm-6 {{ $colClass }}">
                     <label class="form-label small text-muted mb-1">Продукт</label>
-                    <div class="product-picker-row" data-index="filter">
-                        <div class="flex-grow-1 position-relative">
-                            <div class="input-group">
-                                <input type="text" id="product_filter_search"
-                                       class="form-control product-picker-search"
-                                       placeholder="Введите название..."
-                                       autocomplete="off" value="{{ $pickerLabel }}">
-                                <button type="button"
-                                        class="btn btn-outline-secondary product-picker-tree-btn"
-                                        data-modal="modal_filter_product"
-                                        data-hidden-id="filter_product_id"
-                                        data-search-id="product_filter_search"
-                                        title="Выбрать из каталога">
-                                    <i class="bi bi-diagram-3"></i>
-                                </button>
-                                @if($pickerValue)
-                                    <button type="button" class="btn btn-outline-secondary"
-                                            id="clear_product_filter" title="Сбросить">
-                                        <i class="bi bi-x"></i>
-                                    </button>
-                                @endif
-                            </div>
-                            <div class="product-picker-dropdown list-group shadow-sm"
-                                 style="display:none;position:absolute;z-index:1050;width:100%;max-height:280px;overflow-y:auto">
-                            </div>
-                        </div>
-                        <input type="hidden" id="filter_product_id"
-                               name="filter[product_id]" value="{{ $pickerValue }}">
-                    </div>
+                    @include('partials.product-picker', [
+                        'id'          => 'filter_product',
+                        'name'        => 'filter[product_id]',
+                        'value'       => $pickerValue,
+                        'label'       => $pickerLabel,
+                        'placeholder' => 'Введите название...',
+                        'allowedIds'  => $filterProducts->pluck('id')->all(),
+                        'showTree'    => true,
+                        'showClear'   => (bool) $pickerValue,
+                    ])
                 </div>
                 @endif
 
@@ -184,25 +168,6 @@
         </div>
     </div>
 </form>
-
-{{-- Модальное дерево продуктов (только если показывается product-picker) --}}
-@if($filterProducts)
-<div class="modal fade" id="modal_filter_product" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Выбрать продукт</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                <input type="text" class="form-control mb-3 tree-search-input"
-                       placeholder="Поиск по каталогу...">
-                <div class="product-tree-container"></div>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
 
 @push('scripts')
 <script>
@@ -268,17 +233,14 @@
         dateFrom.value = ''; dateTo.value = ''; form.submit();
     });
 
-    @if($filterProducts)
-    document.getElementById('clear_product_filter')?.addEventListener('click', () => {
-        document.getElementById('filter_product_id').value = '';
-        document.getElementById('product_filter_search').value = '';
-        form.submit();
+    form.querySelectorAll('.product-picker-clear').forEach(btn => {
+        btn.addEventListener('click', () => { form.submit(); });
     });
 
     document.addEventListener('product-picker:selected', () => {
-        if (document.getElementById('filter_product_id')?.value) form.submit();
+        const pickers = form.querySelectorAll('.product-picker-row input[type="hidden"]');
+        if ([...pickers].some(h => h.value)) form.submit();
     });
-    @endif
 })();
 </script>
 @endpush
