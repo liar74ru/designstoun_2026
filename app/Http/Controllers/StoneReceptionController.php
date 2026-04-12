@@ -94,10 +94,12 @@ class StoneReceptionController extends Controller
      */
     public function index(Request $request)
     {
-        $filterBatches = RawMaterialBatch::whereIn('id',
-            StoneReception::whereNotNull('raw_material_batch_id')
-                ->distinct()->pluck('raw_material_batch_id')
-        )->with('product')->get();
+        $filterRawProducts = Product::whereIn('id',
+            RawMaterialBatch::whereIn('id',
+                StoneReception::whereNotNull('raw_material_batch_id')
+                    ->distinct()->pluck('raw_material_batch_id')
+            )->distinct()->pluck('product_id')
+        )->orderBy('name')->get();
 
         $filterProducts = Product::whereIn('id',
             \App\Models\StoneReceptionItem::distinct()->pluck('product_id')
@@ -113,7 +115,10 @@ class StoneReceptionController extends Controller
                 AllowedFilter::callback('status', function ($query, $value) {
                     $query->whereIn('status', is_array($value) ? $value : [$value]);
                 }),
-                AllowedFilter::exact('raw_material_batch_id'),
+                AllowedFilter::callback('raw_product_id', function ($query, $value) {
+                    $batchIds = RawMaterialBatch::where('product_id', $value)->pluck('id');
+                    $query->whereIn('raw_material_batch_id', $batchIds);
+                }),
                 AllowedFilter::callback('product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q->where('product_id', $value));
                 }),
@@ -129,7 +134,7 @@ class StoneReceptionController extends Controller
             ->withQueryString();
 
         return view('stone-receptions.index', compact(
-            'receptions', 'filterBatches', 'filterProducts', 'filterCutters'
+            'receptions', 'filterRawProducts', 'filterProducts', 'filterCutters'
         ));
     }
 

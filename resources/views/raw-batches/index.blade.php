@@ -25,79 +25,15 @@
 
     @include('partials.alerts')
 
-    {{-- Фильтры --}}
-    <form method="GET" id="filterForm" class="card shadow-sm mb-3">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
-             style="cursor:pointer" id="filter-toggle" role="button">
-            <span class="fw-semibold text-muted small">
-                <i class="bi bi-funnel me-1"></i> Фильтры
-                <span id="filter-active-badge" class="ms-1"></span>
-            </span>
-            <i class="bi bi-chevron-down" id="filter-chevron"></i>
-        </div>
-        <div id="filter-collapse" style="display:none">
-            <div class="card-body pb-2">
-                <div class="row g-2">
-                    <div class="col-6 col-md-3">
-                        <label class="form-label small mb-1">Статус</label>
-                        <select name="filter[status]" class="form-select" style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem">
-                            <option value="">Все</option>
-                            @foreach($statuses as $value => $label)
-                                <option value="{{ $value }}" {{ request('filter.status') == $value ? 'selected' : '' }}>
-                                    {{ $label }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <label class="form-label small mb-1">Пильщик</label>
-                        <select name="filter[current_worker_id]" class="form-select" style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem">
-                            <option value="">Все</option>
-                            @foreach($workers as $worker)
-                                <option value="{{ $worker->id }}" {{ request('filter.current_worker_id') == $worker->id ? 'selected' : '' }}>
-                                    {{ $worker->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <label class="form-label small mb-1">Сырьё</label>
-                        <select name="filter[product_id]" class="form-select" style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem">
-                            <option value="">Все</option>
-                            @foreach($products as $product)
-                                <option value="{{ $product->id }}" {{ request('filter.product_id') == $product->id ? 'selected' : '' }}>
-                                    {{ $product->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <label class="form-label small mb-1">Поиск по номеру</label>
-                        <input type="text" name="filter[batch_number]" class="form-control"
-                               style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
-                               value="{{ request('filter.batch_number') }}">
-                    </div>
-                    <div class="col-12 col-md-3">
-                        <label class="form-label small mb-1">Группа товаров</label>
-                        <x-group-filter
-                            :groups="$groupsTree"
-                            :activeGroupId="request('filter.group_id')"
-                            formId="filterForm"
-                            inputName="filter[group_id]"
-                        />
-                    </div>
-                    <div class="col-12 d-flex gap-2">
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="bi bi-funnel"></i> Применить
-                        </button>
-                        <a href="{{ route('raw-batches.index') }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-x-circle"></i> Сбросить
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </form>
+    @include('partials.filters', [
+        'filterCutters'     => $filterCutters,
+        'cutterParam'       => 'current_worker_id',
+        'filterRawProducts' => $filterRawProducts,
+        'rawProductParam'   => 'product_id',
+        'filterProducts'    => null,
+        'showStatus'        => 'single',
+        'statusOptions'     => $statuses,
+    ])
 
     @if($batches->count() > 0)
 
@@ -322,53 +258,4 @@
 
 </div>
 
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    (function () {
-        const STORAGE_KEY = 'filter_collapsed_' + window.location.pathname.replace(/\//g, '_');
-        const collapse = document.getElementById('filter-collapse');
-        const chevron  = document.getElementById('filter-chevron');
-        const toggle   = document.getElementById('filter-toggle');
-        const badge    = document.getElementById('filter-active-badge');
-
-        const params = new URLSearchParams(window.location.search);
-        const activeFilters = [
-            'filter[status]', 'filter[current_worker_id]',
-            'filter[product_id]', 'filter[batch_number]', 'filter[group_id]'
-        ].filter(k => params.get(k) && params.get(k) !== '').length;
-
-        if (badge && activeFilters > 0) {
-            badge.innerHTML = `<span class="badge bg-primary rounded-pill">${activeFilters}</span>`;
-        }
-
-        const userOpened   = localStorage.getItem(STORAGE_KEY) === 'open';
-        const shouldExpand = activeFilters > 0 || userOpened;
-
-        function applyState(expanded, animate) {
-            if (expanded) {
-                collapse.style.display = '';
-                if (animate) { collapse.style.opacity = '0'; setTimeout(() => collapse.style.opacity = '', 10); }
-                chevron.className = 'bi bi-chevron-up';
-            } else {
-                if (animate) {
-                    collapse.style.opacity = '0';
-                    setTimeout(() => { collapse.style.display = 'none'; collapse.style.opacity = ''; }, 150);
-                } else {
-                    collapse.style.display = 'none';
-                }
-                chevron.className = 'bi bi-chevron-down';
-            }
-        }
-
-        applyState(shouldExpand, false);
-        toggle.addEventListener('click', function () {
-            const isHidden = collapse.style.display === 'none';
-            applyState(isHidden, true);
-            localStorage.setItem(STORAGE_KEY, isHidden ? 'open' : 'closed');
-        });
-    })();
-});
-</script>
-@endpush
 @endsection

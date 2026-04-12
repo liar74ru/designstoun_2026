@@ -35,38 +35,38 @@ class RawMaterialBatchController extends Controller
     {
         $baseQuery = RawMaterialBatch::with(['product', 'currentStore', 'currentWorker', 'latestMovement.fromStore', 'latestMovement.toStore']);
 
-        $batches = QueryBuilder::for($baseQuery)
+        $query = QueryBuilder::for($baseQuery)
             ->allowedFilters([
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('current_worker_id'),
-                AllowedFilter::partial('batch_number'),
                 AllowedFilter::exact('product_id'),
-                AllowedFilter::callback('group_id', function ($query, $value) {
-                    if (!empty($value)) {
-                        $groupIds = $this->productGroupService->getGroupAndChildrenIds($value);
-                        if (!empty($groupIds)) {
-                            $query->whereHas('product', fn($q) => $q->whereIn('group_id', $groupIds));
-                        }
-                    }
-                }),
             ])
             ->defaultSort('-created_at')
-            ->allowedSorts(['batch_number', 'created_at', 'quantity'])
-            ->paginate(15)
-            ->withQueryString();
+            ->allowedSorts(['batch_number', 'created_at', 'quantity']);
 
-        $workers   = Worker::orderBy('name')->get();
-        $products  = Product::orderBy('name')->get();
-        $statuses  = [
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $batches = $query->paginate(15)->withQueryString();
+
+        $filterCutters     = Worker::orderBy('name')->get();
+        $filterRawProducts = Product::whereIn('id',
+            RawMaterialBatch::distinct()->pluck('product_id')
+        )->orderBy('name')->get();
+
+        $statuses = [
             'new'      => 'Новые',
             'in_work'  => 'В работе',
             'used'     => 'Израсходованы',
             'returned' => 'Возвращены',
             'archived' => 'Архив',
         ];
-        $groupsTree = $this->productGroupService->getGroupsTree();
 
-        return view('raw-batches.index', compact('batches', 'workers', 'products', 'statuses', 'groupsTree'));
+        return view('raw-batches.index', compact('batches', 'filterCutters', 'filterRawProducts', 'statuses'));
     }
 
     public function show($id)
