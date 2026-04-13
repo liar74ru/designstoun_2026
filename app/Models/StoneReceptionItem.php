@@ -14,12 +14,14 @@ class StoneReceptionItem extends Model
         'quantity',
         'effective_cost_coeff',
         'is_undercut',
+        'worker_cost_per_m2',
     ];
 
     protected $casts = [
         'quantity'             => 'decimal:3',
         'effective_cost_coeff' => 'decimal:4',
         'is_undercut'          => 'boolean',
+        'worker_cost_per_m2'   => 'decimal:2',
     ];
 
     /**
@@ -77,7 +79,9 @@ class StoneReceptionItem extends Model
      */
     public function effectiveProdCost(): float
     {
-        return $this->product->prodCost((float) $this->effective_cost_coeff);
+        return $this->worker_cost_per_m2 !== null
+            ? (float) $this->worker_cost_per_m2
+            : $this->product->prodCost((float) $this->effective_cost_coeff);
     }
 
     /**

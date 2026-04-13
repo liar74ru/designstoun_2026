@@ -201,7 +201,11 @@ class WorkerDashboardController extends Controller
                     'quantity'   => $quantity,
                     'coeff'      => $effCoeffDisplay,
                     'is_undercut' => $isUndercut,
-                    'prodCost'   => $product->prodCost($effCoeffDisplay), // вычисляется по-разному для каждой позиции
+                    'prodCost'   => $items
+                        ->map(fn($li) => $li->receptionLog?->stoneReception?->items
+                            ->firstWhere('product_id', $li->product_id)?->worker_cost_per_m2)
+                        ->filter()
+                        ->avg() ?? $product?->prodCost($effCoeffDisplay) ?? 0,
                     'pay'        => $pay,
                 ];
             })

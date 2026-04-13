@@ -25,6 +25,7 @@ class RawMaterialBatch extends Model
         'moysklad_processing_id',
         'moysklad_processing_name',
         'moysklad_sync_error',
+        'processing_sum',
         'created_at',
         'updated_at',
     ];
@@ -32,6 +33,7 @@ class RawMaterialBatch extends Model
     protected $casts = [
         'initial_quantity'   => 'decimal:3',
         'remaining_quantity' => 'decimal:3',
+        'processing_sum'     => 'decimal:2',
     ];
 
     public function product()

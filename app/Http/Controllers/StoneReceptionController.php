@@ -695,16 +695,21 @@ class StoneReceptionController extends Controller
         $productMap = Product::whereIn('id', $productIds)->get()->keyBy('id');
 
         foreach ($products as $product) {
-            $baseCoeff  = (float) ($productMap->get($product['product_id'])?->prod_cost_coeff ?? 0);
+            $prod       = $productMap->get($product['product_id']);
+            $baseCoeff  = (float) ($prod?->prod_cost_coeff ?? 0);
             $isUndercut = !empty($product['is_undercut']);
+            $effCoeff   = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
 
             $reception->items()->create([
                 'product_id'           => $product['product_id'],
                 'quantity'             => $product['quantity'],
-                'effective_cost_coeff' => StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut),
+                'effective_cost_coeff' => $effCoeff,
                 'is_undercut'          => $isUndercut,
+                'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
             ]);
         }
+
+        $this->syncBatchProcessingSum($reception);
     }
 
     /**
@@ -736,20 +741,25 @@ class StoneReceptionController extends Controller
                 $existingItems[$productId]->update(['quantity' => $product['quantity']]);
             } else {
                 // Новая позиция — фиксируем коэффициент на текущий момент
-                $baseCoeff  = (float) ($productMap->get($productId)?->prod_cost_coeff ?? 0);
+                $prod       = $productMap->get($productId);
+                $baseCoeff  = (float) ($prod?->prod_cost_coeff ?? 0);
                 $isUndercut = !empty($product['is_undercut']);
+                $effCoeff   = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
 
                 $reception->items()->create([
                     'product_id'           => $productId,
                     'quantity'             => $product['quantity'],
-                    'effective_cost_coeff' => StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut),
+                    'effective_cost_coeff' => $effCoeff,
                     'is_undercut'          => $isUndercut,
+                    'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
                 ]);
             }
         }
 
         // Удаляем позиции которых нет в новых данных
         $reception->items()->whereNotIn('product_id', $newProductIds)->delete();
+
+        $this->syncBatchProcessingSum($reception);
     }
 
     /**
@@ -768,17 +778,20 @@ class StoneReceptionController extends Controller
 
         DB::transaction(function () use ($stoneReception, $validated) {
             foreach ($validated['items'] as $row) {
-                $item = $stoneReception->items()->findOrFail($row['item_id']);
+                $item = $stoneReception->items()->with('product')->findOrFail($row['item_id']);
 
                 $isUndercut = !empty($row['is_undercut']);
                 $baseCoeff  = (float) $row['base_coeff'];
-                $effCoeff   = \App\Models\StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+                $effCoeff   = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
 
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
                     'is_undercut'          => $isUndercut,
+                    'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff),
                 ]);
             }
+
+            $this->syncBatchProcessingSum($stoneReception);
         });
 
         return back()->with('success', 'Коэффициенты обновлены');
@@ -798,11 +811,16 @@ class StoneReceptionController extends Controller
                     continue;
                 }
 
-                $baseCoeff  = (float) $item->product->prod_cost_coeff;
-                $effCoeff   = \App\Models\StoneReceptionItem::computeEffectiveCoeff($baseCoeff, (bool) $item->is_undercut);
+                $baseCoeff = (float) $item->product->prod_cost_coeff;
+                $effCoeff  = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, (bool) $item->is_undercut);
 
-                $item->update(['effective_cost_coeff' => $effCoeff]);
+                $item->update([
+                    'effective_cost_coeff' => $effCoeff,
+                    'worker_cost_per_m2'   => $item->product->prodCost($effCoeff),
+                ]);
             }
+
+            $this->syncBatchProcessingSum($stoneReception);
         });
 
         return back()->with('success', "Коэффициенты обновлены из справочника");
@@ -935,5 +953,25 @@ class StoneReceptionController extends Controller
             ]);
 
         return response()->json($receptions);
+    }
+
+    /**
+     * Сохраняет текущее значение накладных расходов (processing_sum) в партию сырья,
+     * связанную с данной приёмкой. Вызывается при любом изменении позиций или
+     * коэффициентов приёмки, чтобы зафиксировать значение на момент расчёта.
+     */
+    private function syncBatchProcessingSum(StoneReception $reception): void
+    {
+        if (!$reception->raw_material_batch_id) {
+            return;
+        }
+
+        $keys = ['BLADE_WEAR', 'RECEPTION_COST', 'PACKAGING_COST', 'WASTE_REMOVAL',
+                 'ELECTRICITY', 'PPE_COST', 'FORKLIFT_COST', 'MACHINE_COST', 'RENT_COST', 'OTHER_COSTS'];
+        $processingSum = (float) array_sum(array_map(
+            fn ($key) => (float) \App\Models\Setting::get($key, 0), $keys
+        ));
+
+        $reception->rawMaterialBatch?->update(['processing_sum' => $processingSum]);
     }
 }

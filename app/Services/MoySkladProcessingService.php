@@ -32,7 +32,7 @@ class MoySkladProcessingService
         }
     }
 
-    private function manualCostPerUnit(): float
+    public function manualCostPerUnit(): float
     {
         $keys = [
             'BLADE_WEAR', 'RECEPTION_COST', 'PACKAGING_COST', 'WASTE_REMOVAL',

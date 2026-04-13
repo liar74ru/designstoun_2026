@@ -272,6 +272,8 @@
                                     <th>Продукт</th>
                                     <th class="text-center">Подкол</th>
                                     <th class="text-end">Коэф.</th>
+                                    <th class="text-end">₽/м²</th>
+                                    <th class="text-end">Зарплата</th>
                                     <th class="text-end">Кол-во</th>
                                 </tr>
                                 </thead>
@@ -305,6 +307,20 @@
                                                 <span class="text-muted">—</span>
                                             @endif
                                         </td>
+                                        <td class="text-end text-nowrap">
+                                            @if($item->worker_cost_per_m2 !== null)
+                                                <span class="text-muted small">{{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} ₽</span>
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            @if($item->worker_cost_per_m2 !== null)
+                                                <span class="fw-semibold">{{ number_format($item->calculateWorkerPay(), 0, '.', ' ') }} ₽</span>
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
                                         <td class="text-end">
                                             <span class="badge bg-primary">{{ number_format($item->quantity, 3) }} м²</span>
                                         </td>
@@ -313,7 +329,7 @@
                                 </tbody>
                                 <tfoot class="table-light">
                                 <tr>
-                                    <th colspan="3">Итого:</th>
+                                    <th colspan="5">Итого:</th>
                                     <th class="text-end">
                                         <span class="badge bg-primary">{{ number_format($stoneReception->items->sum('quantity'), 3) }} м²</span>
                                     </th>
@@ -324,7 +340,7 @@
                                         $coeff = $totalQty / $stoneReception->raw_quantity_used;
                                     @endphp
                                     <tr>
-                                        <th colspan="4" class="text-muted small fw-normal">
+                                        <th colspan="6" class="text-muted small fw-normal">
                                             Коэф. выхода: {{ number_format($coeff * 100, 1) }}%
                                             (1 м³ → {{ number_format($coeff, 3) }} м²)
                                         </th>
@@ -357,9 +373,19 @@
                                                         коэф: {{ number_format($item->effective_cost_coeff, 4) }}
                                                     </span>
                                                 @endif
+                                                @if($item->worker_cost_per_m2 !== null)
+                                                    <span class="badge bg-light border text-muted" style="font-size:.68rem">
+                                                        {{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} ₽/м²
+                                                    </span>
+                                                @endif
                                             </div>
                                         </div>
-                                        <span class="badge bg-primary flex-shrink-0">{{ number_format($item->quantity, 3) }} м²</span>
+                                        <div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
+                                            <span class="badge bg-primary">{{ number_format($item->quantity, 3) }} м²</span>
+                                            @if($item->worker_cost_per_m2 !== null)
+                                                <span class="small fw-semibold text-nowrap">{{ number_format($item->calculateWorkerPay(), 0, '.', ' ') }} ₽</span>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             @endforeach
@@ -452,6 +478,45 @@
                         </div>
                     @endif
                 </div>
+
+                {{-- Расходы производства (только для администратора) --}}
+                @if(auth()->user()->is_admin)
+                @php
+                    $costTotalQty   = $stoneReception->items->sum('quantity');
+                    $costWorkerPay  = $stoneReception->items->sum(fn($i) => $i->calculateWorkerPay());
+                    $costBatch      = $stoneReception->rawMaterialBatch;
+                    $costReception  = round((float)($costBatch?->processing_sum ?? 0) * $costTotalQty);
+                    $costOther      = 0;
+                    $costGrandTotal = $costWorkerPay + $costReception + $costOther;
+                @endphp
+                <div class="card shadow-sm mb-3">
+                    <div style="background:#f8f9fa;padding:.3rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0">
+                        <span class="small fw-semibold">💰 Расходы производства</span>
+                    </div>
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                        <tr>
+                            <td>Зарплата рабочим</td>
+                            <td class="text-end text-nowrap fw-semibold">{{ number_format($costWorkerPay, 0, '.', ' ') }} ₽</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Затраты на приёмку</td>
+                            <td class="text-end text-nowrap text-muted">{{ number_format($costReception, 0, '.', ' ') }} ₽</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Прочие расходы</td>
+                            <td class="text-end text-nowrap text-muted">{{ number_format($costOther, 0, '.', ' ') }} ₽</td>
+                        </tr>
+                        </tbody>
+                        <tfoot class="table-secondary">
+                        <tr>
+                            <th>Итого</th>
+                            <th class="text-end text-nowrap">{{ number_format($costGrandTotal, 0, '.', ' ') }} ₽</th>
+                        </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                @endif
 
                 {{-- Журнал изменений --}}
                 <div class="card shadow-sm">
