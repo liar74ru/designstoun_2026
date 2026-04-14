@@ -11,9 +11,10 @@ class DocumentNaming
      * @param string $prefix   Уникальный код типа документа (ПРОГ, ТО, ПРИЕМ и т.п.)
      * @param int    $sequence Порядковый номер в рамках недели
      */
-    public static function weeklyName(string $prefix, int $sequence): string
+    public static function weeklyName(string $prefix, int $sequence, ?\Carbon\Carbon $date = null): string
     {
-        return now()->format('y') . '-' . now()->format('W')
+        $d = $date ?? now();
+        return $d->format('y') . '-' . $d->format('W')
             . '-' . $prefix
             . '-' . str_pad($sequence, 2, '0', STR_PAD_LEFT);
     }

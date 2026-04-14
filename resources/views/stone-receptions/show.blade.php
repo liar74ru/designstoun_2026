@@ -116,35 +116,45 @@
                             </div>
                         @endif
 
-                        {{-- МойСклад: статус техоперации партии --}}
-                        @php $batchForSync = $stoneReception->rawMaterialBatch; @endphp
+                        {{-- МойСклад: статус синхронизации приёмки --}}
                         <div class="info-block">
-                            <div class="info-block-header">
+                            <div class="info-block-header d-flex justify-content-between align-items-center">
                                 <span class="small fw-semibold text-muted"><i class="bi bi-cloud me-1"></i>МойСклад</span>
+                                @if($stoneReception->moysklad_sync_status)
+                                    <span class="badge {{ $stoneReception->syncStatusBadgeClass() }} small">
+                                        {{ $stoneReception->syncStatusLabel() }}
+                                    </span>
+                                @endif
                             </div>
                             <div class="info-block-body">
-                                @if($batchForSync?->hasSyncError())
+                                @if($stoneReception->hasSyncError())
                                     <div class="small text-warning-emphasis">
                                         <i class="bi bi-exclamation-triangle me-1"></i>
-                                        <strong>Ошибка:</strong> {{ $batchForSync->moysklad_sync_error }}
+                                        <strong>Ошибка:</strong> {{ $stoneReception->moysklad_sync_error }}
                                     </div>
-                                @elseif($batchForSync?->hasMoySkladProcessing())
+                                @elseif($stoneReception->isSynced())
                                     <div class="small text-success">
                                         <i class="bi bi-check-circle me-1"></i>
                                         Синхронизировано
-                                        @if($batchForSync->moysklad_processing_name)
-                                            · <span class="text-muted">{{ $batchForSync->moysklad_processing_name }}</span>
+                                        @if($stoneReception->moysklad_processing_name)
+                                            · <span class="text-muted">{{ $stoneReception->moysklad_processing_name }}</span>
                                         @endif
                                     </div>
                                     @if(auth()->user()->is_admin)
                                         <div class="text-muted mt-1" style="font-size:.72rem;word-break:break-all">
                                             <i class="bi bi-fingerprint me-1"></i>
-                                            <code style="font-size:.7rem">{{ $batchForSync->moysklad_processing_id }}</code>
+                                            <code style="font-size:.7rem">{{ $stoneReception->moysklad_processing_id }}</code>
                                         </div>
                                     @endif
                                 @else
                                     <div class="small text-muted">
                                         <i class="bi bi-cloud-slash me-1"></i>Техоперация не создана
+                                    </div>
+                                @endif
+                                @if($stoneReception->synced_at)
+                                    <div class="text-muted mt-2" style="font-size:.72rem">
+                                        <i class="bi bi-clock-history me-1"></i>
+                                        Последняя синхр.: {{ $stoneReception->synced_at->format('d.m.Y H:i') }}
                                     </div>
                                 @endif
                             </div>
@@ -164,17 +174,13 @@
                                 <i class="bi bi-pencil"></i> Редактировать
                             </a>
 
-                            @php
-                                $hasSyncError = $stoneReception->rawMaterialBatch?->hasSyncError();
-                                $hasBatchProcessing = $stoneReception->rawMaterialBatch?->hasMoySkladProcessing();
-                            @endphp
                             <form method="POST"
                                   action="{{ route('stone-receptions.sync', $stoneReception) }}">
                                 @csrf
                                 <button type="submit"
-                                        class="btn w-100 {{ $hasSyncError ? 'btn-warning' : ($hasBatchProcessing ? 'btn-outline-secondary' : 'btn-outline-primary') }}">
+                                        class="btn w-100 {{ $stoneReception->hasSyncError() ? 'btn-warning' : ($stoneReception->hasMoySkladProcessing() ? 'btn-outline-secondary' : 'btn-outline-primary') }}">
                                     <i class="bi bi-arrow-repeat me-1"></i>
-                                    {{ $hasBatchProcessing ? 'Синхронизировать с МойСклад' : 'Создать техоперацию' }}
+                                    {{ $stoneReception->hasMoySkladProcessing() ? 'Синхронизировать с МойСклад' : 'Создать техоперацию' }}
                                 </button>
                             </form>
 

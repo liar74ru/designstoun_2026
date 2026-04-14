@@ -5,7 +5,6 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RawMaterialBatchController;
 use App\Http\Controllers\RawMaterialMovementController;
-use App\Http\Controllers\StoneReceptionBatchController;
 use App\Http\Controllers\StoneReceptionController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\SupplierOrderController;
@@ -89,14 +88,12 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('stone-receptions', StoneReceptionController::class);
     Route::get('/stone-receptions-logs', [StoneReceptionController::class, 'logs'])->name('stone-receptions.logs');
     Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])->name('stone-receptions.copy');
-    Route::post('/stone-receptions/batch/send-to-processing', [StoneReceptionBatchController::class, 'sendToProcessing'])->name('stone-receptions.batch.send-to-processing');
-    Route::get('/stone-receptions/batch/stats', [StoneReceptionBatchController::class, 'getStats'])->name('stone-receptions.batch.stats');
     Route::patch('/stone-receptions/{stoneReception}/reset-status', [StoneReceptionController::class, 'resetStatus'])->name('stone-receptions.reset-status');
     Route::patch('/stone-receptions/{stoneReception}/mark-completed', [StoneReceptionController::class, 'markCompleted'])->name('stone-receptions.mark-completed');
     Route::post('/stone-receptions/{stoneReception}/sync', [StoneReceptionController::class, 'syncToProcessing'])->name('stone-receptions.sync');
 
     // Партии сырья
-    Route::resource('raw-batches', RawMaterialBatchController::class);
+    Route::resource('raw-batches', RawMaterialBatchController::class)->parameters(['raw-batches' => 'batch']);
     Route::delete('raw-batches/{batch}/new', [RawMaterialBatchController::class, 'destroyNew'])->name('raw-batches.destroy-new');
     Route::get('raw-batches/{batch}/copy', [RawMaterialBatchController::class, 'copy'])->name('raw-batches.copy');
     Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])->name('raw-batches.transfer.form');

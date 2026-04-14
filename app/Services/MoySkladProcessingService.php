@@ -466,20 +466,42 @@ class MoySkladProcessingService
     }
 
     /**
+     * Создать техоперацию для приёмки (1 приёмка = 1 техоперация).
+     *
+     * Количество материала = raw_quantity_used приёмки.
+     * Сырьё и имя документа берутся через reception->rawMaterialBatch.
+     *
+     * @param  StoneReception  $reception  Приёмка (уже сохранена в БД с items и rawMaterialBatch.product)
+     * @return array ['success', 'processing_id', 'processing_name', 'code', 'message']
+     */
+    public function createProcessingForReception(StoneReception $reception, ?string $customName = null): array
+    {
+        $reception->loadMissing('rawMaterialBatch.product');
+        $batch = $reception->rawMaterialBatch;
+
+        return $this->createProcessingForBatch(
+            $batch,
+            (float) $reception->raw_quantity_used,
+            $reception,
+            $customName
+        );
+    }
+
+    /**
+     * @deprecated Используйте createProcessingForReception()
+     *
      * Создать техоперацию для партии сырья на основе первой приёмки.
      *
-     * Количество материала = весь доступный остаток партии на момент создания приёмки
-     * (до списания, т.е. remaining_quantity + raw_quantity_used этой приёмки).
-     *
      * @param  RawMaterialBatch  $batch
-     * @param  float             $materialQuantity  Количество сырья (до вычета raw_quantity_used)
-     * @param  StoneReception    $reception         Первая приёмка (уже сохранена в БД с items)
+     * @param  float             $materialQuantity
+     * @param  StoneReception    $reception
      * @return array ['success', 'processing_id', 'processing_name', 'code', 'message']
      */
     public function createProcessingForBatch(
         RawMaterialBatch $batch,
         float $materialQuantity,
-        StoneReception $reception
+        StoneReception $reception,
+        ?string $customName = null
     ): array {
         $result = [
             'success'         => false,
@@ -554,14 +576,15 @@ class MoySkladProcessingService
             }
 
             // Определяем имя документа (с retry при коллизии ниже)
+            $receptionDate = $reception->created_at ?? now();
             $weekCount = \App\Models\StoneReception::whereBetween('created_at', [
-                now()->startOfWeek(Carbon::FRIDAY),
-                now()->endOfWeek(Carbon::THURSDAY),
+                $receptionDate->copy()->startOfWeek(Carbon::FRIDAY),
+                $receptionDate->copy()->endOfWeek(Carbon::THURSDAY),
             ])->whereNotNull('raw_material_batch_id')
               ->distinct('raw_material_batch_id')
               ->count();
 
-            $name = DocumentNaming::weeklyName('ТО', $weekCount + 1);
+            $name = $customName ?? DocumentNaming::weeklyName('ТО', $weekCount + 1, $receptionDate);
 
             // Зарплата пильщика по позициям первой приёмки
             $reception->loadMissing('items.product');
@@ -586,6 +609,7 @@ class MoySkladProcessingService
                 ]],
                 'name'           => $name,
                 'quantity'       => $totalQuantity,
+                'moment'         => $receptionDate->format('Y-m-d H:i:s'),
             ];
 
             $inWorkName = Setting::get('MOYSKLAD_IN_WORK_STATE', '');

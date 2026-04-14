@@ -45,12 +45,7 @@
         @if($receptions->count() > 0)
 
             <div class="card shadow-sm">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
-                    <button type="button" class="btn btn-success btn-sm" id="sendToMoySkladBtn" disabled>
-                        <i class="bi bi-cloud-upload"></i>
-                        <span class="d-none d-sm-inline">Отправить в МойСклад</span>
-                        (<span id="selectedCount">0</span>)
-                    </button>
+                <div class="card-header bg-white d-flex justify-content-end align-items-center py-2">
                     <span class="text-muted small">Найдено: {{ $receptions->total() }}</span>
                 </div>
 
@@ -60,7 +55,6 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                             <tr>
-                                <th width="40"><input type="checkbox" class="form-check-input" id="selectAll"></th>
                                 <th>#</th>
                                 <th>Дата</th>
                                 <th>Продукция</th>
@@ -77,12 +71,6 @@
                             <tbody>
                             @foreach($receptions as $reception)
                                 <tr class="{{ $reception->status == 'processed' ? 'table-success' : ($reception->status == 'completed' ? 'table-warning' : ($reception->status == 'error' ? 'table-danger' : '')) }}">
-                                    <td>
-                                        @if(!in_array($reception->status, ['processed', 'error']))
-                                            <input type="checkbox" class="form-check-input reception-checkbox"
-                                                   value="{{ $reception->id }}">
-                                        @endif
-                                    </td>
                                     <td>{{ $reception->id }}</td>
                                     <td class="text-nowrap">{{ $reception->created_at->format('d.m.Y H:i') }}</td>
                                     <td>
@@ -208,11 +196,6 @@
                                         <span class="text-secondary ms-1">#{{ $reception->id }}</span>
                                     </span>
                                     <div class="d-flex gap-1 align-items-center">
-                                        @if(!in_array($reception->status, ['processed', 'error']))
-                                            <input type="checkbox" class="form-check-input reception-checkbox"
-                                                   value="{{ $reception->id }}"
-                                                   style="width:14px;height:14px;margin:0">
-                                        @endif
                                         @if($reception->status == 'active')
                                             <a href="{{ route('stone-receptions.edit', $reception) }}"
                                                class="btn btn-success d-inline-flex align-items-center justify-content-center"
@@ -282,8 +265,8 @@
                                         <i class="bi bi-hammer text-secondary me-1"></i>{{ $reception->cutter->name ?? '—' }}
                                     </span>
                                     <div class="d-flex gap-1 align-items-center">
-                                        @if($reception->rawMaterialBatch && !$reception->rawMaterialBatch->isSynced())
-                                            <span class="badge {{ $reception->rawMaterialBatch->syncStatusBadgeClass() }}" style="font-size:.65rem">{{ $reception->rawMaterialBatch->syncStatusLabel() }}</span>
+                                        @if($reception->moysklad_sync_status && !$reception->isSynced())
+                                            <span class="badge {{ $reception->syncStatusBadgeClass() }}" style="font-size:.65rem">{{ $reception->syncStatusLabel() }}</span>
                                         @endif
                                         @if($reception->status == 'active')
                                             <span class="badge bg-success" style="font-size:.65rem">Активна</span>
@@ -372,54 +355,3 @@
     </div>
 @endsection
 
-@push('scripts')
-    @vite(['resources/js/product-picker.js'])
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-
-            // МойСклад batch
-            const selectAll = document.getElementById('selectAll');
-            const sendBtn   = document.getElementById('sendToMoySkladBtn');
-            const countSpan = document.getElementById('selectedCount');
-
-            function updateCount() {
-                const checked = document.querySelectorAll('.reception-checkbox:checked');
-                const n = checked.length;
-                if (countSpan) countSpan.textContent = n;
-                if (sendBtn)   sendBtn.disabled = n === 0;
-                if (selectAll) {
-                    const all = document.querySelectorAll('.reception-checkbox');
-                    selectAll.checked       = n > 0 && n === all.length;
-                    selectAll.indeterminate = n > 0 && n < all.length;
-                }
-            }
-
-            document.querySelectorAll('.reception-checkbox').forEach(cb =>
-                cb.addEventListener('change', updateCount));
-            selectAll?.addEventListener('change', function () {
-                document.querySelectorAll('.reception-checkbox').forEach(cb => cb.checked = this.checked);
-                updateCount();
-            });
-            sendBtn?.addEventListener('click', function () {
-                const checked = document.querySelectorAll('.reception-checkbox:checked');
-                if (!checked.length || !confirm(`Отправить ${checked.length} приёмок в МойСклад?`)) return;
-                sendBtn.disabled = true;
-                sendBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Отправка...';
-                fetch('{{ route("stone-receptions.batch.send-to-processing") }}', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    body: JSON.stringify({ reception_ids: Array.from(checked).map(cb => cb.value) })
-                })
-                    .then(r => r.json())
-                    .then(data => {
-                        alert(data.success ? data.message : 'Ошибка: ' + data.message);
-                        if (data.success) window.location.reload();
-                        else { sendBtn.disabled = false; updateCount(); }
-                    })
-                    .catch(() => { alert('Ошибка запроса'); sendBtn.disabled = false; updateCount(); });
-            });
-
-            updateCount();
-        });
-    </script>
-@endpush

@@ -184,6 +184,42 @@
                                 </div>
                             </div>
 
+                            {{-- Блок 5: Техоперация МойСклад --}}
+                            <div class="info-block">
+                                <div class="info-block-header d-flex justify-content-between align-items-center"
+                                     id="processingToggle" style="cursor:pointer" role="button">
+                                    <span class="small fw-semibold text-muted">Техоперация МойСклад</span>
+                                    <i class="bi bi-chevron-down" id="processingChevron"></i>
+                                </div>
+                                <div id="processingBody" style="display:none">
+                                    <div class="info-block-body">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <label class="form-label small fw-semibold mb-0">Имя техоперации</label>
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox"
+                                                       id="manualProcessingName" role="switch">
+                                                <label class="form-check-label small text-muted" for="manualProcessingName">
+                                                    Вручную
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <input type="text"
+                                               id="processingNameInput"
+                                               name="processing_name"
+                                               class="form-control form-control-sm @error('processing_name') is-invalid @enderror"
+                                               value="{{ old('processing_name') }}"
+                                               placeholder="Сформируется автоматически..."
+                                               readonly>
+                                        <div class="form-text text-muted small">
+                                            Имя сформируется автоматически в формате ГГ-НН-ТО-ПП
+                                        </div>
+                                        @error('processing_name')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+
                             <x-admin-date-field />
 
                             <input type="hidden" name="close_batch" value="0" id="closeBatchInput">
@@ -780,6 +816,26 @@
                     }
                 }
             });
+
+            // ── Техоперация МойСклад: коллапс + переключатель «Вручную» ─────────────
+            (function () {
+                const toggle     = document.getElementById('processingToggle');
+                const body       = document.getElementById('processingBody');
+                const chevron    = document.getElementById('processingChevron');
+                const nameSwitch = document.getElementById('manualProcessingName');
+                const nameInput  = document.getElementById('processingNameInput');
+
+                toggle.addEventListener('click', function () {
+                    const open = body.style.display === 'none';
+                    body.style.display = open ? '' : 'none';
+                    chevron.className  = open ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+                });
+
+                nameSwitch.addEventListener('change', function () {
+                    nameInput.readOnly = !this.checked;
+                    if (!this.checked) nameInput.value = '';
+                });
+            })();
         });
     </script>
 

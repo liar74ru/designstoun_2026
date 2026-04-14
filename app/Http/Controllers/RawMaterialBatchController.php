@@ -40,6 +40,7 @@ class RawMaterialBatchController extends Controller
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('current_worker_id'),
                 AllowedFilter::exact('product_id'),
+                AllowedFilter::partial('batch_number'),
             ])
             ->defaultSort('-created_at')
             ->allowedSorts(['batch_number', 'created_at', 'quantity']);
@@ -642,12 +643,6 @@ class RawMaterialBatchController extends Controller
 
         $batch->update(['remaining_quantity' => $newRemaining]);
 
-        // Синхронизируем количество сырья в техоперации МойСклад
-        if ($batch->hasMoySkladProcessing()) {
-            $batch->refresh();
-            $this->syncAdjustToMoySklad($batch);
-        }
-
         $backUrl = $request->input('back_url', route('raw-batches.show', $batch));
         $action  = $delta > 0 ? 'добавлено ' . number_format($delta, 3) . ' м³' : 'убрано ' . number_format(abs($delta), 3) . ' м³';
         return redirect($backUrl)
@@ -682,20 +677,6 @@ class RawMaterialBatchController extends Controller
                 ->each(fn($r) => $r->update(['status' => \App\Models\StoneReception::STATUS_COMPLETED]));
         });
 
-        // Переводим техоперацию в статус «завершена» в МойСклад (не блокирует при ошибке)
-        if ($batch->hasMoySkladProcessing()) {
-            /** @var MoySkladProcessingService $service */
-            $service = app(MoySkladProcessingService::class);
-            $result  = $service->completeProcessing($batch->moysklad_processing_id);
-            if (!$result['success']) {
-                Log::warning('markAsUsed: не удалось завершить техоперацию в МойСклад', [
-                    'batch_id'      => $batch->id,
-                    'processing_id' => $batch->moysklad_processing_id,
-                    'message'       => $result['message'],
-                ]);
-            }
-        }
-
         if (request()->expectsJson()) {
             return response()->json(['success' => true, 'message' => 'Партия переведена в «Израсходована»']);
         }
@@ -724,10 +705,6 @@ class RawMaterialBatchController extends Controller
                 ->each(fn($r) => $r->update(['status' => \App\Models\StoneReception::STATUS_ACTIVE]));
         });
 
-        if ($batch->hasMoySkladProcessing()) {
-            app(MoySkladProcessingService::class)->reactivateProcessing($batch->moysklad_processing_id);
-        }
-
         return back()->with('success', 'Партия возвращена в статус «В работе».');
     }
 
@@ -755,18 +732,18 @@ class RawMaterialBatchController extends Controller
             ->with('success', 'Партия отправлена в архив.');
     }
 
-    public function destroy(RawMaterialBatch $raw_batch)
+    public function destroy(RawMaterialBatch $batch)
     {
-        if ($raw_batch->receptions()->exists()) {
+        if ($batch->receptions()->exists()) {
             return back()->with('error', 'Нельзя удалить партию, к которой есть приемки.');
         }
 
-        DB::transaction(function () use ($raw_batch) {
-            if ($raw_batch->isWorkable() && $raw_batch->remaining_quantity > 0) {
-                $this->adjustStock($raw_batch->product_id, $raw_batch->current_store_id, -$raw_batch->remaining_quantity);
+        DB::transaction(function () use ($batch) {
+            if ($batch->isWorkable() && $batch->remaining_quantity > 0) {
+                $this->adjustStock($batch->product_id, $batch->current_store_id, -$batch->remaining_quantity);
             }
-            $raw_batch->movements()->delete();
-            $raw_batch->delete();
+            $batch->movements()->delete();
+            $batch->delete();
         });
 
         return redirect()->route('raw-batches.index')->with('success', 'Партия удалена.');
@@ -820,43 +797,4 @@ class RawMaterialBatchController extends Controller
         return view('raw-batches.return', compact('batch', 'stores', 'backUrl'));
     }
 
-    /**
-     * Синхронизирует количество сырья в техоперации после adjustRemaining.
-     * При успехе переводит партию в статус «Уточнена».
-     */
-    private function syncAdjustToMoySklad(RawMaterialBatch $batch): void
-    {
-        $allItems = $batch->receptions()
-            ->with('items.product')
-            ->get()
-            ->flatMap(fn($r) => $r->items);
-
-        $storeId = $batch->receptions()
-            ->whereNotNull('store_id')
-            ->value('store_id');
-
-        /** @var MoySkladProcessingService $service */
-        $service = app(MoySkladProcessingService::class);
-        $result  = $service->updateProcessingProducts(
-            $batch->moysklad_processing_id,
-            $allItems,
-            $storeId ?? '',
-            (float) $batch->remaining_quantity,
-            $batch->product->moysklad_id ?? ''
-        );
-
-        if ($result['success']) {
-            $batch->update([
-                'status'             => RawMaterialBatch::STATUS_CONFIRMED,
-                'moysklad_sync_error' => null,
-            ]);
-        } else {
-            $batch->update(['moysklad_sync_error' => $result['message']]);
-            Log::warning('syncAdjustToMoySklad: ошибка', [
-                'batch_id'      => $batch->id,
-                'processing_id' => $batch->moysklad_processing_id,
-                'message'       => $result['message'],
-            ]);
-        }
-    }
 }

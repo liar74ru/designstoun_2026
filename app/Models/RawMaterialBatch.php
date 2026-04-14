@@ -22,9 +22,6 @@ class RawMaterialBatch extends Model
         'current_store_id',
         'current_worker_id',
         'batch_number',
-        'moysklad_processing_id',
-        'moysklad_processing_name',
-        'moysklad_sync_error',
         'processing_sum',
         'created_at',
         'updated_at',
@@ -94,31 +91,6 @@ class RawMaterialBatch extends Model
     public function isWorkable(): bool
     {
         return in_array($this->status, [self::STATUS_NEW, self::STATUS_IN_WORK, self::STATUS_CONFIRMED]);
-    }
-
-    public function hasMoySkladProcessing(): bool
-    {
-        return !empty($this->moysklad_processing_id);
-    }
-
-    public function hasSyncError(): bool
-    {
-        return !empty($this->moysklad_sync_error);
-    }
-
-    public function isSynced(): bool
-    {
-        return $this->hasMoySkladProcessing() && !$this->hasSyncError();
-    }
-
-    public function syncStatusLabel(): string
-    {
-        return $this->isSynced() ? 'Синхр' : 'Не синхр';
-    }
-
-    public function syncStatusBadgeClass(): string
-    {
-        return $this->isSynced() ? 'bg-success' : 'bg-danger';
     }
 
     public function isArchived(): bool

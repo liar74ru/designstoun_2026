@@ -31,8 +31,6 @@ class MasterOnly
         'stone-receptions.destroy',
         'stone-receptions.logs',
         'stone-receptions.copy',
-        'stone-receptions.batch.send-to-processing',
-        'stone-receptions.batch.stats',
         'stone-receptions.reset-status',
         'stone-receptions.mark-completed',
         'stone-receptions.update-item-coeff',

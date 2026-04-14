@@ -247,6 +247,8 @@ class StoneReceptionController extends Controller
             $batchSnapshotBefore = (float) $batch->remaining_quantity;
             $createdReception    = null;
 
+            $processingName = $request->input('processing_name') ?: null;
+
             DB::transaction(function () use ($data, $request, $batchSnapshotBefore, &$createdReception) {
                 $manualDate = $request->input('manual_created_at');
                 if (auth()->user()?->isAdmin() && $manualDate) {
@@ -266,7 +268,7 @@ class StoneReceptionController extends Controller
 
             // Синхронизация с МойСклад (не блокирует сохранение при ошибке)
             if ($createdReception) {
-                $this->syncBatchProcessing($batch, $createdReception);
+                $this->syncReceptionProcessing($createdReception, $processingName);
             }
 
             if ($request->boolean('close_batch') && $this->closeBatch($batch)) {
@@ -378,14 +380,12 @@ class StoneReceptionController extends Controller
                     return;
                 }
 
-                $this->writeReceptionLog($stoneReception, ReceptionLog::TYPE_UPDATED, $rawDelta, $batchSnapshotBefore, $deltas);
+                $this->writeReceptionLog($stoneReception, ReceptionLog::TYPE_UPDATED, $rawDelta, $batchSnapshotBefore, $deltas, $stoneReception->created_at);
             });
 
             // Синхронизация с МойСклад (не блокирует сохранение при ошибке)
-            if ($stoneReception->rawMaterialBatch) {
-                $stoneReception->rawMaterialBatch->refresh();
-                $this->syncBatchProcessing($stoneReception->rawMaterialBatch);
-            }
+            $stoneReception->refresh();
+            $this->syncReceptionProcessing($stoneReception);
 
             if ($request->boolean('close_batch') && $stoneReception->rawMaterialBatch) {
                 if ($this->closeBatch($stoneReception->rawMaterialBatch)) {
@@ -459,168 +459,92 @@ class StoneReceptionController extends Controller
                 ->each(fn($r) => $r->update(['status' => StoneReception::STATUS_COMPLETED]));
         });
 
-        if ($batch->hasMoySkladProcessing()) {
-            app(MoySkladProcessingService::class)->completeProcessing($batch->moysklad_processing_id);
-        }
-
         return true;
     }
 
     /**
-     * Синхронизировать партию с МойСклад: создать техоперацию (первая приёмка)
-     * или обновить продукты/материалы (последующие приёмки).
+     * Синхронизировать приёмку с МойСклад: создать техоперацию (первая синхронизация)
+     * или обновить продукты/материалы (повторная синхронизация).
      *
-     * Не бросает исключение — ошибки записываются в batch.moysklad_sync_error.
-     *
-     * @param  RawMaterialBatch       $batch
-     * @param  StoneReception|null    $triggeringReception  Передаётся только при создании (store)
+     * Не бросает исключение — результат записывается в поля приёмки.
      */
-    private function syncBatchProcessing(RawMaterialBatch $batch, ?StoneReception $triggeringReception = null): void
+    private function syncReceptionProcessing(StoneReception $reception, ?string $customName = null): void
     {
+        $batch = $reception->rawMaterialBatch;
+        if (!$batch) {
+            return;
+        }
+
         /** @var MoySkladProcessingService $service */
         $service = app(MoySkladProcessingService::class);
 
         try {
-            if (!$batch->hasMoySkladProcessing()) {
-                // Первая приёмка: создаём техоперацию
-                if (!$triggeringReception) {
-                    // Нет приёмки — ничего не создаём
-                    return;
-                }
-
-                // Количество материала = остаток ДО списания = remaining + raw_quantity_used этой приёмки
-                $materialQty = (float) $batch->remaining_quantity + (float) $triggeringReception->raw_quantity_used;
-                $triggeringReception->loadMissing('items.product');
-
-                $result = $service->createProcessingForBatch($batch, $materialQty, $triggeringReception);
+            if (!$reception->hasMoySkladProcessing()) {
+                // Техоперации у приёмки нет — создаём новую
+                $reception->loadMissing('items.product', 'rawMaterialBatch.product');
+                $result = $service->createProcessingForReception($reception, $customName);
 
                 if ($result['success']) {
-                    $batch->update([
-                        'moysklad_processing_id'   => $result['processing_id'],
-                        'moysklad_processing_name' => $result['processing_name'],
-                        'moysklad_sync_error'      => null,
-                    ]);
+                    $reception->markSynced($result['processing_id'], $result['processing_name']);
                 } else {
-                    $batch->update(['moysklad_sync_error' => $result['message']]);
-                    Log::warning('syncBatchProcessing: не удалось создать техоперацию', [
-                        'batch_id' => $batch->id,
-                        'message'  => $result['message'],
+                    $reception->markSyncError($result['message']);
+                    Log::warning('syncReceptionProcessing: не удалось создать техоперацию', [
+                        'reception_id' => $reception->id,
+                        'message'      => $result['message'],
                     ]);
                 }
             } else {
-                // Последующие приёмки: обновляем продукты в существующей техоперации
-                $allItems = $batch->receptions()
-                    ->with('items.product')
-                    ->get()
-                    ->flatMap(fn($r) => $r->items);
-
-                if ($allItems->isEmpty()) {
-                    // Все приёмки удалены — ничего не обновляем
-                    return;
-                }
-
-                $storeId = $batch->receptions()
-                    ->whereNotNull('store_id')
-                    ->value('store_id');
-
-                $materialQty = (float) $batch->receptions()->sum('raw_quantity_used');
-
+                // Техоперация уже есть — обновляем продукты и материал
+                $reception->loadMissing('items.product', 'rawMaterialBatch.product');
                 $result = $service->updateProcessingProducts(
-                    $batch->moysklad_processing_id,
-                    $allItems,
-                    $storeId ?? '',
-                    $materialQty ?: null,
+                    $reception->moysklad_processing_id,
+                    $reception->items,
+                    $reception->store_id ?? '',
+                    (float) $reception->raw_quantity_used,
                     $batch->product->moysklad_id ?? ''
                 );
 
                 if ($result['success']) {
-                    $batch->update(['moysklad_sync_error' => null]);
+                    $reception->markSynced($reception->moysklad_processing_id);
                 } else {
-                    $batch->update(['moysklad_sync_error' => $result['message']]);
-                    Log::warning('syncBatchProcessing: не удалось обновить техоперацию', [
-                        'batch_id'      => $batch->id,
-                        'processing_id' => $batch->moysklad_processing_id,
+                    $reception->markSyncError($result['message']);
+                    Log::warning('syncReceptionProcessing: не удалось обновить техоперацию', [
+                        'reception_id'  => $reception->id,
+                        'processing_id' => $reception->moysklad_processing_id,
                         'message'       => $result['message'],
                     ]);
                 }
             }
         } catch (\Exception $e) {
-            Log::error('syncBatchProcessing: исключение', [
-                'batch_id' => $batch->id,
-                'error'    => $e->getMessage(),
+            Log::error('syncReceptionProcessing: исключение', [
+                'reception_id' => $reception->id,
+                'error'        => $e->getMessage(),
             ]);
-            $batch->update(['moysklad_sync_error' => 'Ошибка: ' . $e->getMessage()]);
+            $reception->markSyncError('Ошибка: ' . $e->getMessage());
         }
     }
 
     /**
-     * Синхронизирует приёмку с МойСклад через техоперацию партии.
-     * Если техоперации у партии нет — создаёт новую (как при первой приёмке).
-     * Если есть — обновляет продукты и материал (как при сохранении приёмки).
+     * Ручная синхронизация приёмки с МойСклад.
      */
     public function syncToProcessing(StoneReception $stoneReception)
     {
-        $stoneReception->loadMissing('items.product', 'store', 'rawMaterialBatch.product');
-
         if (!$stoneReception->store_id) {
             return back()->with('error', 'Склад не указан — синхронизация невозможна.');
         }
 
-        $batch = $stoneReception->rawMaterialBatch;
-        if (!$batch) {
+        if (!$stoneReception->rawMaterialBatch) {
             return back()->with('error', 'Партия сырья не найдена.');
         }
 
-        /** @var MoySkladProcessingService $service */
-        $service = app(MoySkladProcessingService::class);
+        $this->syncReceptionProcessing($stoneReception);
+        $stoneReception->refresh();
 
-        if (!$batch->hasMoySkladProcessing()) {
-            // Техоперации нет — создаём по текущей приёмке, как при первой приёмке партии
-            $materialQty = (float) $batch->remaining_quantity + (float) $stoneReception->raw_quantity_used;
-
-            $result = $service->createProcessingForBatch($batch, $materialQty, $stoneReception);
-
-            if (!$result['success']) {
-                $batch->update(['moysklad_sync_error' => $result['message']]);
-                return back()->with('error', 'Ошибка создания техоперации: ' . $result['message']);
-            }
-
-            $batch->update([
-                'moysklad_processing_id'   => $result['processing_id'],
-                'moysklad_processing_name' => $result['processing_name'],
-                'moysklad_sync_error'      => null,
-            ]);
-            return back()->with('success', 'Техоперация создана в МойСклад: ' . $result['processing_name']);
-        }
-
-        // Техоперация уже есть — обновляем продукты и материал
-        $allItems = $batch->receptions()
-            ->with('items.product')
-            ->get()
-            ->flatMap(fn($r) => $r->items);
-
-        if ($allItems->isEmpty()) {
-            return back()->with('error', 'Нет приёмок с продуктами для синхронизации.');
-        }
-
-        $storeId     = $batch->receptions()->whereNotNull('store_id')->value('store_id');
-        $materialQty = (float) $batch->receptions()->sum('raw_quantity_used');
-
-        $result = $service->updateProcessingProducts(
-            $batch->moysklad_processing_id,
-            $allItems,
-            $storeId ?? '',
-            $materialQty ?: null,
-            $batch->product->moysklad_id ?? ''
-        );
-
-        if ($result['success']) {
-            $batch->update(['moysklad_sync_error' => null]);
+        if ($stoneReception->isSynced()) {
             return back()->with('success', 'Техоперация синхронизирована с МойСклад.');
         }
 
-        $batch->update(['moysklad_sync_error' => $result['message']]);
-        return back()->with('error', 'Ошибка синхронизации: ' . $result['message']);
+        return back()->with('error', 'Ошибка синхронизации: ' . $stoneReception->moysklad_sync_error);
     }
 
     /**
@@ -632,12 +556,6 @@ class StoneReceptionController extends Controller
 
         try {
             DB::transaction(fn() => $stoneReception->delete());
-
-            // Синхронизируем продукты в техоперации (если есть)
-            if ($batch) {
-                $batch->refresh();
-                $this->syncBatchProcessing($batch);
-            }
 
             return redirect()->route('stone-receptions.index')->with('success', 'Приемка удалена');
         } catch (\Exception $e) {
@@ -846,9 +764,12 @@ class StoneReceptionController extends Controller
 
         DB::transaction(function () use ($stoneReception) {
             $stoneReception->update([
-                'status' => StoneReception::STATUS_ACTIVE,
-                'moysklad_processing_id' => null,
-                'synced_at' => null,
+                'status'                   => StoneReception::STATUS_ACTIVE,
+                'moysklad_processing_id'   => null,
+                'moysklad_processing_name' => null,
+                'moysklad_sync_status'     => null,
+                'moysklad_sync_error'      => null,
+                'synced_at'                => null,
             ]);
 
             // Если партия была переведена в «Израсходована» — возвращаем в «В работе»
@@ -865,25 +786,37 @@ class StoneReceptionController extends Controller
     {
         abort_unless($stoneReception->status === StoneReception::STATUS_ACTIVE, 403, 'Завершить можно только активную приёмку');
 
+        // Ставим финальный статус локально всегда
         DB::transaction(function () use ($stoneReception) {
             $stoneReception->markAsCompleted();
 
-            // Если остаток партии = 0 — закрываем и партию
+            // Автоматически обновляем статус партии
             $batch = $stoneReception->rawMaterialBatch;
-            if ($batch
-                && (float) $batch->remaining_quantity <= 0
-                && in_array($batch->status, [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])
-            ) {
-                $batch->update(['status' => RawMaterialBatch::STATUS_USED]);
+            if ($batch) {
+                $newStatus = (float) $batch->remaining_quantity <= 0
+                    ? RawMaterialBatch::STATUS_USED
+                    : RawMaterialBatch::STATUS_CONFIRMED;
+                $batch->update(['status' => $newStatus]);
             }
         });
 
-        $batch = $stoneReception->rawMaterialBatch?->fresh();
-        if ($batch && $batch->status === RawMaterialBatch::STATUS_USED && $batch->hasMoySkladProcessing()) {
-            app(MoySkladProcessingService::class)->completeProcessing($batch->moysklad_processing_id);
+        // Завершаем техоперацию в МойСклад (не блокирует)
+        $stoneReception->refresh();
+        if ($stoneReception->hasMoySkladProcessing()) {
+            $result = app(MoySkladProcessingService::class)
+                ->completeProcessing($stoneReception->moysklad_processing_id);
+
+            if ($result['success']) {
+                $stoneReception->markSynced($stoneReception->moysklad_processing_id);
+                return back()->with('success', 'Приёмка завершена.');
+            } else {
+                $stoneReception->markSyncError($result['message']);
+                return back()->with('warning',
+                    'Приёмка завершена локально, но ошибка синхронизации с МойСклад: ' . $result['message']);
+            }
         }
 
-        return back()->with('success', 'Приёмка завершена');
+        return back()->with('success', 'Приёмка завершена.');
     }
 
     /**

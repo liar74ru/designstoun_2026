@@ -15,9 +15,15 @@ class StoneReception extends Model
      * Статусы приемки
      */
     const STATUS_ACTIVE    = 'active';
-    const STATUS_COMPLETED = 'completed'; // партия израсходована, ещё не синхронизирована
-    const STATUS_PROCESSED = 'processed'; // финальный, после синхронизации с МойСклад
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_PROCESSED = 'processed';
     const STATUS_ERROR     = 'error';
+
+    /**
+     * Статусы синхронизации с МойСклад
+     */
+    const SYNC_STATUS_SYNCED     = 'synced';
+    const SYNC_STATUS_NOT_SYNCED = 'not_synced';
 
     protected $fillable = [
         'receiver_id',
@@ -27,6 +33,9 @@ class StoneReception extends Model
         'raw_quantity_used',
         'notes',
         'moysklad_processing_id',
+        'moysklad_processing_name',
+        'moysklad_sync_status',
+        'moysklad_sync_error',
         'status',
         'synced_at',
         'created_at',
@@ -146,6 +155,53 @@ class StoneReception extends Model
         $this->update([
             'status' => self::STATUS_ERROR,
             'synced_at' => now()
+        ]);
+    }
+
+    // --- Синхронизация с МойСклад ---
+
+    public function hasMoySkladProcessing(): bool
+    {
+        return !empty($this->moysklad_processing_id);
+    }
+
+    public function hasSyncError(): bool
+    {
+        return !empty($this->moysklad_sync_error);
+    }
+
+    public function isSynced(): bool
+    {
+        return $this->moysklad_sync_status === self::SYNC_STATUS_SYNCED;
+    }
+
+    public function syncStatusLabel(): string
+    {
+        return $this->isSynced() ? 'Синхр' : 'Не синхр';
+    }
+
+    public function syncStatusBadgeClass(): string
+    {
+        return $this->isSynced() ? 'bg-success' : 'bg-danger';
+    }
+
+    public function markSynced(string $processingId, ?string $processingName = null): void
+    {
+        $this->update([
+            'moysklad_processing_id'   => $processingId,
+            'moysklad_processing_name' => $processingName ?? $this->moysklad_processing_name,
+            'moysklad_sync_status'     => self::SYNC_STATUS_SYNCED,
+            'moysklad_sync_error'      => null,
+            'synced_at'                => now(),
+        ]);
+    }
+
+    public function markSyncError(string $error): void
+    {
+        $this->update([
+            'moysklad_sync_status' => self::SYNC_STATUS_NOT_SYNCED,
+            'moysklad_sync_error'  => $error,
+            'synced_at'            => now(),
         ]);
     }
 

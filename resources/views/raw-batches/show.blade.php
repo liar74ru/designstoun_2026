@@ -58,9 +58,6 @@
                                     <span class="badge {{ $batch->statusBadgeClass() }}">
                                         {{ $batch->statusLabel() }}
                                     </span>
-                                    <span class="badge {{ $batch->syncStatusBadgeClass() }}">
-                                        {{ $batch->syncStatusLabel() }}
-                                    </span>
                                 </td>
                             </tr>
                             <tr>
@@ -76,41 +73,6 @@
                                 <td>{{ $batch->created_at ? $batch->created_at->format('d.m.Y H:i:s') : '—' }}</td>
                             </tr>
                         </table>
-                    </div>
-                </div>
-
-                {{-- Блок техоперации МойСклад --}}
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
-                        <span class="fw-semibold small text-muted">
-                            <i class="bi bi-cloud me-1"></i> Техоперация МойСклад
-                        </span>
-                        @if($batch->hasMoySkladProcessing())
-                            <span class="badge bg-secondary small">{{ $batch->moysklad_processing_name ?? '—' }}</span>
-                        @endif
-                    </div>
-                    <div class="card-body py-2">
-                        @if($batch->hasSyncError())
-                            <div class="alert alert-warning py-2 mb-2 small">
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                <strong>Ошибка синхронизации:</strong> {{ $batch->moysklad_sync_error }}
-                            </div>
-                        @elseif($batch->hasMoySkladProcessing())
-                            <div class="small text-success mb-2">
-                                <i class="bi bi-check-circle me-1"></i> Синхронизировано
-                            </div>
-                            @if(auth()->user()->is_admin)
-                                <div class="small text-muted mb-2" style="word-break:break-all">
-                                    <i class="bi bi-fingerprint me-1"></i>
-                                    <code style="font-size:.75em">{{ $batch->moysklad_processing_id }}</code>
-                                </div>
-                            @endif
-                        @else
-                            <div class="small text-muted mb-2">
-                                <i class="bi bi-cloud-slash me-1"></i> Техоперация не создана
-                            </div>
-                        @endif
-
                     </div>
                 </div>
 

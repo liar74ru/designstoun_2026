@@ -57,20 +57,10 @@
     </div>
 
     {{-- Пояснение --}}
-    @if($batch->hasMoySkladProcessing())
-        <div class="alert alert-info py-2 small mb-3">
-            <i class="bi bi-info-circle me-1"></i>
-            Корректировка изменит остаток партии <strong>и обновит количество сырья в техоперации МойСклад</strong>
-            (<code>{{ $batch->moysklad_processing_name }}</code>).
-            После уточнения партия перейдёт в статус <strong>«Уточнена»</strong>.
-        </div>
-    @else
-        <div class="alert alert-secondary py-2 small mb-3">
-            <i class="bi bi-info-circle me-1"></i>
-            Корректировка меняет только остаток в партии — техоперация в МойСклад ещё не создана.
-            Используйте для исправления ошибки в количестве сырья.
-        </div>
-    @endif
+    <div class="alert alert-secondary py-2 small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Корректировка меняет остаток в партии. Используйте для исправления ошибки в количестве сырья.
+    </div>
 
     {{-- Блок корректировки --}}
     <div class="card shadow-sm">

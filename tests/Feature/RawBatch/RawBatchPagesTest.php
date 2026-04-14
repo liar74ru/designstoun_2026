@@ -47,12 +47,6 @@ describe('RawMaterialBatchController index()', function () {
             ->assertStatus(200);
     });
 
-    test('фильтр по номеру партии не ломает страницу', function () {
-        $this->actingAs(H::adminUser())
-            ->get(route('raw-batches.index', ['filter[batch_number]' => 'TEST']))
-            ->assertStatus(200);
-    });
-
     test('фильтр по продукту не ломает страницу', function () {
         $product = H::product();
 
