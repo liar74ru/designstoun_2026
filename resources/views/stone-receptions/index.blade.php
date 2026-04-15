@@ -121,6 +121,9 @@
                                         @elseif($reception->status == 'error')
                                             <span class="badge bg-danger">Ошибка</span>
                                         @endif
+                                        @if($reception->moysklad_sync_status && !$reception->isSynced())
+                                            <br><span class="badge {{ $reception->syncStatusBadgeClass() }} mt-1">{{ $reception->syncStatusLabel() }}</span>
+                                        @endif
                                     </td>
                                     <td>
                                         <div class="d-flex gap-1 justify-content-end">

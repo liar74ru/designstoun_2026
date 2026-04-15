@@ -106,8 +106,8 @@ function initSearch(row) {
     function stockBadge(qty) {
         const positive = qty > 0;
         const el = document.createElement('span');
-        el.style.cssText = `display:inline-block;min-width:36px;text-align:center;padding:1px 4px;`
-            + `border-radius:3px;font-size:.7rem;white-space:nowrap;`
+        el.style.cssText = `display:inline-block;min-width:36px;text-align:center;padding:0 4px;`
+            + `border-radius:3px;font-size:.7rem;line-height:1.2;white-space:nowrap;`
             + (positive
                 ? 'background:#d1e7dd;color:#0a3622'
                 : 'background:#f8d7da;color:#842029');
@@ -123,7 +123,7 @@ function initSearch(row) {
         items.slice(0, 15).forEach(p => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'list-group-item list-group-item-action py-1 small d-flex justify-content-between align-items-start gap-2';
+            btn.className = 'list-group-item list-group-item-action py-1 pe-1 small d-flex justify-content-between align-items-start gap-2';
 
             const label = document.createElement('span');
             label.className = 'flex-grow-1';
@@ -139,7 +139,7 @@ function initSearch(row) {
                 const storeQty  = storeId && stockData?.stores ? (stockData.stores[storeId] ?? 0) : null;
 
                 const badges = document.createElement('span');
-                badges.className = 'd-flex gap-1 flex-shrink-0';
+                badges.className = 'd-flex flex-column gap-1 flex-shrink-0';
                 badges.appendChild(stockBadge(total));
                 if (storeQty !== null) badges.appendChild(stockBadge(storeQty));
                 btn.appendChild(badges);

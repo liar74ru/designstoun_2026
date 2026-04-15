@@ -258,7 +258,7 @@ class ProductController extends Controller
                 ->get(['id', 'name', 'sku'])
                 ->map(fn ($p) => [
                     'id' => $p->id,
-                    'label' => $p->name.($p->sku ? ' ('.$p->sku.')' : ''),
+                    'label' => $p->name,
                     'sku' => $p->sku ?? '',
                 ])
                 ->toArray();
