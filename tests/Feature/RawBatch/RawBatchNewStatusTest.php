@@ -135,7 +135,7 @@ describe('Переход статуса new → in_work', function () {
         ])->assertRedirect();
 
         $batch->refresh();
-        expect($batch->status)->toBe('in_work');
+        expect($batch->status)->toBe('confirmed');
     });
 
     test('при полном расходе из new-партии статус остаётся in_work (авто-смена отключена)', function () {
@@ -185,7 +185,7 @@ describe('Переход статуса new → in_work', function () {
         ]);
 
         $batch->refresh();
-        expect($batch->status)->toBe('in_work');
+        expect($batch->status)->toBe('confirmed');
 
         // Удаляем приёмку
         $reception = StoneReception::first();
@@ -194,8 +194,8 @@ describe('Переход статуса new → in_work', function () {
             ->assertRedirect();
 
         $batch->refresh();
-        // Статус остаётся in_work, не откатывается в new — по правилам ТЗ
-        expect($batch->status)->toBe('in_work');
+        // Статус не откатывается в new — по правилам ТЗ
+        expect($batch->status)->toBe('confirmed');
         expect((float) $batch->remaining_quantity)->toBe(50.0);
     });
 });
@@ -529,28 +529,29 @@ describe('Удаление новой партии [destroyNew()]', function () 
 
 describe('Передача и возврат работают для new и in_work', function () {
 
-    test('new-партию можно передать пильщику', function () {
+    test('уточнённую партию можно передать пильщику', function () {
         $user    = H::adminUser();
         $product = H::product();
         $store   = H::store();
         $cutter1 = H::cutter('Пильщик А');
         $cutter2 = H::cutter('Пильщик Б');
-        $batch   = H::newBatch($product, $store, $cutter1, 10.0);
+        $batch   = H::batch($product, $store, $cutter1, 10.0, ['status' => 'confirmed']);
 
         $this->actingAs($user)
             ->post(route('raw-batches.transfer', $batch), [
                 'to_worker_id' => $cutter2->id,
+                'quantity'     => 4.0,
             ])->assertRedirect(route('raw-batches.show', $batch));
 
         $batch->refresh();
-        expect($batch->current_worker_id)->toBe($cutter2->id);
+        expect((float) $batch->remaining_quantity)->toBe(6.0);
     });
 
-    test('форма передачи открывается для new-партии', function () {
+    test('форма передачи открывается для уточнённой партии', function () {
         $product = H::product();
         $store   = H::store();
         $cutter  = H::cutter();
-        $batch   = H::newBatch($product, $store, $cutter, 10.0);
+        $batch   = H::batch($product, $store, $cutter, 10.0, ['status' => 'confirmed']);
 
         $this->actingAs(H::adminUser())
             ->get(route('raw-batches.transfer.form', $batch))

@@ -194,23 +194,31 @@ describe('RawMaterialMovementController return()', function () {
         $cutter  = H::cutter();
         $fromStore = H::store('Цех');
         $toStore   = H::store('Главный склад');
-        $batch   = H::batch($product, $fromStore, $cutter, 15.0);
+        $batch   = H::batch($product, $fromStore, $cutter, 15.0, ['status' => 'confirmed']);
         H::stock($product, $fromStore, 15.0);
 
         $this->actingAs($user)
             ->post(route('raw-batches.return', $batch), [
                 'to_store_id' => $toStore->id,
+                'quantity'    => 15.0,
             ])
             ->assertRedirect(route('raw-batches.show', $batch))
             ->assertSessionHas('success');
 
+        // Родительская партия: остаток = 0, статус = in_work
         $batch->refresh();
-        expect($batch->status)->toBe('returned');
-        expect($batch->current_store_id)->toBe($toStore->id);
-        expect($batch->current_worker_id)->toBeNull();
+        expect((float) $batch->remaining_quantity)->toBe(0.0);
+        expect($batch->status)->toBe('in_work');
 
-        // Движение записано
-        $movement = RawMaterialMovement::where('batch_id', $batch->id)
+        // Новая партия: статус returned, на складе-назначении
+        $returnedBatch = \App\Models\RawMaterialBatch::where('status', 'returned')
+            ->where('current_store_id', $toStore->id)
+            ->first();
+        expect($returnedBatch)->not->toBeNull();
+        expect($returnedBatch->current_worker_id)->toBeNull();
+
+        // Движение записано на новую партию
+        $movement = RawMaterialMovement::where('batch_id', $returnedBatch->id)
             ->where('movement_type', 'return_to_store')
             ->first();
         expect($movement)->not->toBeNull();
@@ -271,7 +279,7 @@ describe('RawMaterialMovementController return()', function () {
         $product = H::product();
         $cutter  = H::cutter();
         $store   = H::store();
-        $batch   = H::batch($product, $store, $cutter, 10.0);
+        $batch   = H::batch($product, $store, $cutter, 10.0, ['status' => 'confirmed']);
 
         $this->actingAs($user)
             ->post(route('raw-batches.return', $batch), [])
@@ -296,17 +304,18 @@ describe('RawMaterialMovementController return()', function () {
         $cutter  = H::cutter();
         $fromStore = H::store();
         $toStore   = H::store();
-        $batch   = H::batch($product, $fromStore, $cutter, 8.0);
+        $batch   = H::batch($product, $fromStore, $cutter, 8.0, ['status' => 'confirmed']);
         H::stock($product, $fromStore, 8.0);
 
         $this->actingAs($user)
             ->post(route('raw-batches.return', $batch), [
                 'to_store_id' => $toStore->id,
+                'quantity'    => 8.0,
             ])
             ->assertRedirect(route('raw-batches.show', $batch));
 
-        // Возврат всё равно записан в БД
-        $batch->refresh();
-        expect($batch->status)->toBe('returned');
+        // Возврат всё равно записан в БД (новая партия со статусом returned)
+        expect(\App\Models\RawMaterialBatch::where('status', 'returned')
+            ->where('current_store_id', $toStore->id)->exists())->toBeTrue();
     });
 });

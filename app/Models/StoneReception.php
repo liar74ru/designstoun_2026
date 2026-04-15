@@ -288,10 +288,18 @@ class StoneReception extends Model
                     $batch->remaining_quantity = 0;
                 }
 
-                // Первая приёмка переводит партию из 'new' в 'in_work'.
-                // Статус 'used' больше НЕ выставляется автоматически — только вручную.
-                if ($batch->status === RawMaterialBatch::STATUS_NEW) {
-                    $batch->status = RawMaterialBatch::STATUS_IN_WORK;
+                // Пересчитываем статус партии после списания:
+                // - остаток > 0  → confirmed (Уточнена)
+                // - остаток = 0  → in_work (Не уточнена, ожидает ручного закрытия)
+                // Статус 'used'/'returned'/'archived' не трогаем.
+                if (in_array($batch->status, [
+                    RawMaterialBatch::STATUS_NEW,
+                    RawMaterialBatch::STATUS_IN_WORK,
+                    RawMaterialBatch::STATUS_CONFIRMED,
+                ])) {
+                    $batch->status = (float) $batch->remaining_quantity > 0
+                        ? RawMaterialBatch::STATUS_CONFIRMED
+                        : RawMaterialBatch::STATUS_IN_WORK;
                 }
 
                 $batch->save();

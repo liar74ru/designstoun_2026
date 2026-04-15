@@ -228,7 +228,7 @@
                                     <i class="bi bi-save"></i> Сохранить приёмку
                                 </button>
                                 <button type="button" class="btn btn-warning btn-sm flex-fill" id="saveCloseBatchBtn"
-                                        title="Доступно когда остаток партии равен нулю" disabled>
+                                        title="Сохранить приёмку и завершить её" disabled>
                                     <i class="bi bi-check2-circle"></i> Сохранить + Закрыть партию
                                 </button>
                             </div>
@@ -427,7 +427,7 @@
                     remainingInfo.className = used > rem
                         ? 'form-text text-danger'
                         : 'form-text text-info';
-                    if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = afterRem > 0;
+                    if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = false;
                 } else {
                     remainingInfo.textContent = '';
                     if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = true;

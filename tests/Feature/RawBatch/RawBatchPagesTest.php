@@ -139,11 +139,11 @@ describe('RawMaterialBatchController archive() — дополнительные 
 
 describe('RawMaterialBatchController transferForm()', function () {
 
-    test('форма передачи доступна для активной партии', function () {
+    test('форма передачи доступна для уточнённой партии', function () {
         $product = H::product();
         $store   = H::store();
         $cutter  = H::cutter();
-        $batch   = H::batch($product, $store, $cutter, 10.0);
+        $batch   = H::batch($product, $store, $cutter, 10.0, ['status' => 'confirmed']);
 
         $this->actingAs(H::adminUser())
             ->get(route('raw-batches.transfer.form', $batch))

@@ -157,8 +157,8 @@ test('редактирование приёмки не переводит пар
         ],
     ]);
 
-    // Статус партии должен остаться 'in_work' — авто-смена отключена
-    expect($batch->fresh()->status)->toBe('in_work');
+    // Статус партии должен стать 'confirmed' после редактирования с ненулевым остатком
+    expect($batch->fresh()->status)->toBe('confirmed');
 });
 
 // ─── updateStocks: первая приёмка переводит партию new → in_work ─────────────
@@ -188,7 +188,7 @@ test('создание первой приёмки переводит парти
     ]);
 
     $fresh = $batch->fresh();
-    expect($fresh->status)->toBe('in_work');     // new → in_work ✓
+    expect($fresh->status)->toBe('confirmed');    // new → confirmed (остаток > 0) ✓
     expect($fresh->remaining_quantity)->toBe('8.000'); // 10 - 2 = 8
 });
 

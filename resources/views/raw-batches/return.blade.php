@@ -85,6 +85,19 @@
                     @enderror
                 </div>
 
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Количество для возврата (м³) <span class="text-danger">*</span></label>
+                    <input type="number" name="quantity"
+                           class="form-control @error('quantity') is-invalid @enderror"
+                           step="0.001" min="0.001" max="{{ $batch->remaining_quantity }}"
+                           value="{{ old('quantity', rtrim(rtrim(number_format($batch->remaining_quantity, 3, '.', ''), '0'), '.')) }}"
+                           required>
+                    <div class="form-text text-muted">Доступно: {{ $fmt($batch->remaining_quantity) }} м³</div>
+                    @error('quantity')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-secondary">
                         <i class="bi bi-arrow-return-left"></i> Вернуть на склад

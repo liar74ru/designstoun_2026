@@ -100,7 +100,7 @@ describe('StoneReceptionController markCompleted()', function () {
             ->patch(route('stone-receptions.mark-completed', $reception));
 
         $batch->refresh();
-        expect($batch->status)->toBe(RawMaterialBatch::STATUS_IN_WORK);
+        expect($batch->status)->toBe(RawMaterialBatch::STATUS_CONFIRMED);
     });
 
     test('403 если приёмка не активна', function () {

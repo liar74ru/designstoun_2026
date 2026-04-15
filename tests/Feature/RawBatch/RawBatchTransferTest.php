@@ -17,18 +17,25 @@ describe('Передача партии пильщику [transfer()]', function
         $store     = H::store();
         $cutter1   = H::cutter('Пильщик Первый');
         $cutter2   = H::cutter('Пильщик Второй');
-        $batch     = H::batch($product, $store, $cutter1, 20.0);
+        $batch     = H::batch($product, $store, $cutter1, 20.0, ['status' => 'confirmed']);
 
         $this->actingAs($user)
             ->post(route('raw-batches.transfer', $batch), [
                 'to_worker_id' => $cutter2->id,
+                'quantity'     => 8.0,
             ])->assertRedirect(route('raw-batches.show', $batch));
 
+        // Родительская партия уменьшилась
         $batch->refresh();
-        expect($batch->current_worker_id)->toBe($cutter2->id);
+        expect((float) $batch->remaining_quantity)->toBe(12.0);
 
-        // Движение записано
-        $movement = RawMaterialMovement::where('batch_id', $batch->id)
+        // Новая партия создана для получателя
+        $newBatch = \App\Models\RawMaterialBatch::where('current_worker_id', $cutter2->id)->first();
+        expect($newBatch)->not->toBeNull();
+        expect((float) $newBatch->remaining_quantity)->toBe(8.0);
+
+        // Движение записано на новую партию
+        $movement = RawMaterialMovement::where('batch_id', $newBatch->id)
             ->where('movement_type', 'transfer_to_worker')
             ->first();
         expect($movement)->not->toBeNull();
@@ -58,7 +65,7 @@ describe('Передача партии пильщику [transfer()]', function
         $product = H::product();
         $store   = H::store();
         $cutter  = H::cutter();
-        $batch   = H::batch($product, $store, $cutter, 10.0);
+        $batch   = H::batch($product, $store, $cutter, 10.0, ['status' => 'confirmed']);
 
         $this->actingAs($user)
             ->post(route('raw-batches.transfer', $batch), [])
@@ -90,7 +97,7 @@ describe('Возврат партии на склад [return()]', function () {
         $fromStore  = H::store('Цех');
         $toStore    = H::store('Главный склад');
         $cutter     = H::cutter();
-        $batch      = H::batch($product, $fromStore, $cutter, 10.0);
+        $batch      = H::batch($product, $fromStore, $cutter, 10.0, ['status' => 'confirmed']);
 
         // Создаём остатки на складе цеха
         H::stock($product, $fromStore, 10.0);
@@ -98,12 +105,21 @@ describe('Возврат партии на склад [return()]', function () {
         $this->actingAs($user)
             ->post(route('raw-batches.return', $batch), [
                 'to_store_id' => $toStore->id,
+                'quantity'    => 10.0,
             ])->assertRedirect(route('raw-batches.show', $batch));
 
+        // Родительская партия: остаток = 0, статус = in_work
         $batch->refresh();
-        expect($batch->status)->toBe('returned');
-        expect($batch->current_worker_id)->toBeNull();
-        expect($batch->current_store_id)->toBe($toStore->id);
+        expect((float) $batch->remaining_quantity)->toBe(0.0);
+        expect($batch->status)->toBe('in_work');
+
+        // Новая партия создана: статус returned, на складе-назначении
+        $returnedBatch = \App\Models\RawMaterialBatch::where('status', 'returned')
+            ->where('current_store_id', $toStore->id)
+            ->first();
+        expect($returnedBatch)->not->toBeNull();
+        expect((float) $returnedBatch->remaining_quantity)->toBe(10.0);
+        expect($returnedBatch->current_worker_id)->toBeNull();
 
         // Остатки пересчитаны
         expect((float) ProductStock::where('product_id', $product->id)
@@ -111,8 +127,8 @@ describe('Возврат партии на склад [return()]', function () {
         expect((float) ProductStock::where('product_id', $product->id)
             ->where('store_id', $toStore->id)->value('quantity'))->toBe(10.0);
 
-        // Движение записано
-        expect(RawMaterialMovement::where('batch_id', $batch->id)
+        // Движение записано на новую партию
+        expect(RawMaterialMovement::where('batch_id', $returnedBatch->id)
             ->where('movement_type', 'return_to_store')->exists())->toBeTrue();
     });
 

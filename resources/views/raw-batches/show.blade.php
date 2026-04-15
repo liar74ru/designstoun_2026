@@ -7,7 +7,7 @@
         <x-page-header
             title="📄 Партия #{{ $batch->batch_number ?? $batch->id }}"
             mobileTitle="Партия #{{ $batch->batch_number ?? $batch->id }}"
-            backUrl="{{ route('raw-batches.index') }}"
+            backUrl="{{ $backUrl }}"
             backLabel="К списку">
         </x-page-header>
 
@@ -92,7 +92,7 @@
                                     <i class="bi bi-copy"></i> Копировать
                                 </a>
 
-                                @if($batch->isWorkable())
+                                @if($batch->canBeTransferredOrReturned())
                                     <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-warning">
                                         <i class="bi bi-arrow-left-right"></i> Передать пильщику
                                     </a>
@@ -101,10 +101,7 @@
                                     </a>
                                 @endif
 
-                                @if(in_array($batch->status, [
-                                    \App\Models\RawMaterialBatch::STATUS_IN_WORK,
-                                    \App\Models\RawMaterialBatch::STATUS_CONFIRMED,
-                                ]))
+                                @if($batch->canBeMarkedAsUsed())
                                     <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}"
                                           onsubmit="return confirm('Отметить партию как «Израсходована»?\nСвязанная активная приёмка будет завершена.')">
                                         @csrf

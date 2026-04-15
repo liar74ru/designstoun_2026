@@ -186,8 +186,8 @@ class MoySkladMoveService
             }
 
             if (!empty($data['created_at'])) {
-                // МойСклад ожидает формат: 2024-01-15 14:30:00.000
-                $moveData['moment'] = \Carbon\Carbon::parse($data['created_at'])->format('Y-m-d H:i:s.000');
+                // МойСклад ожидает формат: 2024-01-15 14:30:00.000+0500
+                $moveData['moment'] = \Carbon\Carbon::parse($data['created_at'])->format('Y-m-d H:i:s.000O');
             }
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->token,
@@ -280,7 +280,7 @@ class MoySkladMoveService
             if (!empty($data['name']))        $moveData['name']         = $data['name'];
             if (!empty($data['description'])) $moveData['description']  = $data['description'];
             if (!empty($data['external_id'])) $moveData['externalCode'] = $data['external_id'];
-            if (!empty($data['created_at']))  $moveData['moment']       = \Carbon\Carbon::parse($data['created_at'])->format('Y-m-d H:i:s.000');
+            if (!empty($data['created_at']))  $moveData['moment']       = \Carbon\Carbon::parse($data['created_at'])->format('Y-m-d H:i:s.000O');
 
             $response = Http::withHeaders([
                 'Authorization'   => 'Bearer ' . $this->token,

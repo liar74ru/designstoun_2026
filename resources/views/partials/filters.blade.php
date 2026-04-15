@@ -10,12 +10,16 @@
       $statusOptions      — array [ value => label ] (для multi и single)
 --}}
 @php
-    $cutterParam   = $cutterParam   ?? 'cutter_id';
-    $statusOptions = $statusOptions ?? [];
+    $cutterParam       = $cutterParam       ?? 'cutter_id';
+    $statusOptions     = $statusOptions     ?? [];
+    $statusDefaults    = $statusDefaults    ?? [];
+    $showSyncStatus    = $showSyncStatus    ?? false;
+    $syncStatusOptions = $syncStatusOptions ?? [];
     $filterCount   = ($filterCutters    ? 1 : 0)
                    + ($filterRawProducts ? 1 : 0)
                    + ($filterProducts    ? 1 : 0)
-                   + ($showStatus !== false ? 1 : 0);
+                   + ($showStatus !== false ? 1 : 0)
+                   + (!empty($showSyncStatus) ? 1 : 0);
     $colClass      = $filterCount >= 4 ? 'col-lg-3' : ($filterCount === 3 ? 'col-lg-4' : 'col-lg-6');
     $rawValue      = request()->input("filter.$rawProductParam", '');
     $rawLabel      = $filterRawProducts ? ($filterRawProducts->firstWhere('id', $rawValue)?->name ?? '') : '';
@@ -36,9 +40,8 @@
         <div class="card-body pb-2">
 
             {{-- Период: быстрые кнопки --}}
-            <div class="d-flex flex-wrap gap-1 gap-md-2 align-items-center mb-2">
-                <span class="text-muted small fw-semibold me-1 d-none d-sm-inline">Период:</span>
-                @foreach([0 => 'Тек. нед.', 1 => 'Пред. нед.', 2 => '2 нед. назад'] as $w => $lbl)
+            <div class="d-grid gap-1 mb-2" style="grid-template-columns:repeat(4,1fr)">
+                @foreach([0 => 'Тек. нед.', 1 => '1 нед. назад.', 2 => '2 нед. назад'] as $w => $lbl)
                     @php
                         $fri = \Carbon\Carbon::today();
                         while ($fri->dayOfWeek !== \Carbon\Carbon::FRIDAY) $fri->subDay();
@@ -127,13 +130,13 @@
                 @if($showStatus === 'multi')
                 <div class="col-12 col-sm-6 {{ $colClass }}">
                     <label class="form-label small text-muted mb-1">Статус</label>
-                    <div class="d-flex flex-wrap gap-2 mt-1">
+                    <div class="d-flex flex-wrap gap-2 mt-1 px-2 py-2 rounded" style="background:#f8f9fa;border:1px solid #e9ecef">
                         @foreach($statusOptions as $val => $lbl)
                             <div class="form-check mb-0">
                                 <input class="form-check-input" type="checkbox"
                                        name="filter[status][]" value="{{ $val }}"
                                        id="status_{{ $val }}"
-                                    {{ in_array($val, (array) request('filter.status', [])) ? 'checked' : '' }}>
+                                    {{ in_array($val, (array) request('filter.status', $statusDefaults)) ? 'checked' : '' }}>
                                 <label class="form-check-label small" for="status_{{ $val }}">{{ $lbl }}</label>
                             </div>
                         @endforeach
@@ -151,6 +154,24 @@
                                 {{ request('filter.status') == $val ? 'selected' : '' }}>{{ $lbl }}</option>
                         @endforeach
                     </select>
+                </div>
+                @endif
+
+                {{-- Синхронизация МойСклад --}}
+                @if($showSyncStatus)
+                <div class="col-12 col-sm-6 {{ $colClass }}">
+                    <label class="form-label small text-muted mb-1">Синхронизация</label>
+                    <div class="d-flex flex-wrap gap-2 mt-1 px-2 py-2 rounded" style="background:#f0f7ff;border:1px solid #cfe2ff">
+                        @foreach($syncStatusOptions as $val => $lbl)
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox"
+                                       name="filter[sync_status][]" value="{{ $val }}"
+                                       id="sync_{{ $val }}"
+                                    {{ in_array($val, (array) request('filter.sync_status', [])) ? 'checked' : '' }}>
+                                <label class="form-check-label small" for="sync_{{ $val }}">{{ $lbl }}</label>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
                 @endif
 
@@ -190,7 +211,8 @@
     ];
     const activeFilters = filterKeys.filter(k => params.get(k) && params.get(k) !== '').length
         @if($showStatus === 'multi') + params.getAll('filter[status][]').length @endif
-        @if($showStatus === 'single') + (params.get('filter[status]') && params.get('filter[status]') !== '' ? 1 : 0) @endif;
+        @if($showStatus === 'single') + (params.get('filter[status]') && params.get('filter[status]') !== '' ? 1 : 0) @endif
+        @if(!empty($showSyncStatus)) + params.getAll('filter[sync_status][]').length @endif;
 
     if (badge && activeFilters > 0) {
         badge.innerHTML = `<span class="badge bg-primary rounded-pill">${activeFilters}</span>`;

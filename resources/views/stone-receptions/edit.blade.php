@@ -116,6 +116,10 @@
                             </div>
 
                             {{-- ── БЛОК 3: Расход сырья ── --}}
+                            @php
+                                $rawQtyLocked = $stoneReception->rawMaterialBatch &&
+                                    $stoneReception->rawMaterialBatch->current_worker_id != $stoneReception->cutter_id;
+                            @endphp
                             <div class="rounded border border-secondary border-opacity-25 mb-2">
                                 <div class="px-2 py-1 border-bottom border-secondary border-opacity-25">
                                     <span class="text-muted" style="font-size:.7rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase">
@@ -124,60 +128,73 @@
                                 </div>
                                 <div style="padding:.25rem .4rem .35rem">
 
-                                    {{-- Десктоп --}}
-                                    <div class="d-none d-sm-block">
-                                        <label class="form-label small mb-1">
-                                            Изменение <span class="text-muted fw-normal">(м³, можно «−»)</span>
-                                        </label>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <input type="number"
-                                                   name="raw_quantity_delta"
-                                                   id="raw_quantity_delta"
-                                                   class="form-control form-control-sm @error('raw_quantity_delta') is-invalid @enderror"
-                                                   style="width:110px"
-                                                   step="0.001"
-                                                   placeholder="0.000"
-                                                   value="{{ old('raw_quantity_delta', 0) }}">
-                                            <span class="text-muted">=</span>
-                                            <div class="d-flex align-items-center gap-1">
-                                                <span class="fw-bold" style="font-size:.9rem">Итого:</span>
-                                                <div id="raw_result" class="form-control form-control-sm bg-light fw-bold" style="min-width:110px;font-size:.95rem">
-                                                    {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
-                                                </div>
+                                    @if($rawQtyLocked)
+                                        {{-- Партия передана другому пильщику — изменение недоступно --}}
+                                        <input type="hidden" name="raw_quantity_delta" value="0">
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <div class="form-control form-control-sm bg-light fw-bold" style="min-width:110px;font-size:.95rem">
+                                                {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
                                             </div>
                                         </div>
-                                        @error('raw_quantity_delta')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                                        <small class="d-block mt-1" style="font-size:.72rem">
-                                            <span id="raw_info_before" class="text-muted"></span><span id="raw_info_sep" class="fw-bold text-dark" style="display:none"> | </span><span id="raw_info_after" class="text-info"></span>
-                                        </small>
-                                    </div>
+                                        <div class="alert alert-warning py-1 px-2 mb-0" style="font-size:.75rem">
+                                            <i class="bi bi-lock me-1"></i> Партия передана другому пильщику — изменение расхода недоступно.
+                                        </div>
+                                    @else
+                                        {{-- Десктоп --}}
+                                        <div class="d-none d-sm-block">
+                                            <label class="form-label small mb-1">
+                                                Изменение <span class="text-muted fw-normal">(м³, можно «−»)</span>
+                                            </label>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <input type="number"
+                                                       name="raw_quantity_delta"
+                                                       id="raw_quantity_delta"
+                                                       class="form-control form-control-sm @error('raw_quantity_delta') is-invalid @enderror"
+                                                       style="width:110px"
+                                                       step="0.001"
+                                                       placeholder="0.000"
+                                                       value="{{ old('raw_quantity_delta', 0) }}">
+                                                <span class="text-muted">=</span>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <span class="fw-bold" style="font-size:.9rem">Итого:</span>
+                                                    <div id="raw_result" class="form-control form-control-sm bg-light fw-bold" style="min-width:110px;font-size:.95rem">
+                                                        {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @error('raw_quantity_delta')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                                            <small class="d-block mt-1" style="font-size:.72rem">
+                                                <span id="raw_info_before" class="text-muted"></span><span id="raw_info_sep" class="fw-bold text-dark" style="display:none"> | </span><span id="raw_info_after" class="text-info"></span>
+                                            </small>
+                                        </div>
 
-                                    {{-- Мобильный --}}
-                                    <div class="d-sm-none">
-                                        <label class="form-label small text-muted mb-1">
-                                            Изменение <span class="fw-normal">(м³, можно «−»)</span>
-                                        </label>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <input type="number"
-                                                   name="raw_quantity_delta"
-                                                   id="raw_quantity_delta_mobile"
-                                                   class="form-control form-control-sm flex-fill"
-                                                   step="0.001"
-                                                   placeholder="0.000"
-                                                   value="{{ old('raw_quantity_delta', 0) }}"
-                                                   data-mirror="raw_quantity_delta">
-                                            <span class="text-muted">=</span>
-                                            <div class="text-center flex-shrink-0">
-                                                <div class="fw-bold" style="font-size:.82rem">Итого:</div>
-                                                <div id="raw_result_mobile" class="fw-bold text-primary" style="font-size:.95rem">
-                                                    {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                        {{-- Мобильный --}}
+                                        <div class="d-sm-none">
+                                            <label class="form-label small text-muted mb-1">
+                                                Изменение <span class="fw-normal">(м³, можно «−»)</span>
+                                            </label>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <input type="number"
+                                                       name="raw_quantity_delta"
+                                                       id="raw_quantity_delta_mobile"
+                                                       class="form-control form-control-sm flex-fill"
+                                                       step="0.001"
+                                                       placeholder="0.000"
+                                                       value="{{ old('raw_quantity_delta', 0) }}"
+                                                       data-mirror="raw_quantity_delta">
+                                                <span class="text-muted">=</span>
+                                                <div class="text-center flex-shrink-0">
+                                                    <div class="fw-bold" style="font-size:.82rem">Итого:</div>
+                                                    <div id="raw_result_mobile" class="fw-bold text-primary" style="font-size:.95rem">
+                                                        {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <small class="d-block mt-1" style="font-size:.7rem">
+                                                <span id="raw_info_before_mobile" class="text-muted"></span><span id="raw_info_sep_mobile" class="fw-bold text-dark" style="display:none"> | </span><span id="raw_info_after_mobile" class="text-info"></span>
+                                            </small>
                                         </div>
-                                        <small class="d-block mt-1" style="font-size:.7rem">
-                                            <span id="raw_info_before_mobile" class="text-muted"></span><span id="raw_info_sep_mobile" class="fw-bold text-dark" style="display:none"> | </span><span id="raw_info_after_mobile" class="text-info"></span>
-                                        </small>
-                                    </div>
+                                    @endif
 
                                 </div>
                             </div>
@@ -207,11 +224,14 @@
                                             <input type="hidden" name="products[{{ $idx }}][product_id]" value="{{ $item->product_id }}">
                                             <input type="hidden" class="js-qty-out" name="products[{{ $idx }}][quantity]" value="{{ $current }}">
 
-                                            <i class="bi bi-layers-fill position-absolute"
-                                               style="top:.25rem;right:.3rem;font-size:.8rem;color:{{ $item->is_undercut ? '#198754' : '#adb5bd' }}"
-                                               title="{{ $item->is_undercut ? '80% подкол применён' : 'Без подкола' }}"></i>
+                                            @if($item->is_undercut)
+                                                <span class="badge bg-warning text-dark position-absolute"
+                                                      style="top:0;right:0;bottom:0;writing-mode:vertical-rl;transform:rotate(180deg);font-size:.55rem;border-radius:0 .4rem .4rem 0;padding:.25rem .2rem">
+                                                    80% подкол
+                                                </span>
+                                            @endif
 
-                                            <div style="font-size:.85rem;font-weight:600;padding-right:1.3rem;margin-bottom:.15rem">
+                                            <div style="font-size:.85rem;font-weight:600;padding-right:1.8rem;margin-bottom:.15rem">
                                                 {{ $item->product->name ?? '—' }}
                                             </div>
 
@@ -258,7 +278,7 @@
                                     <i class="bi bi-save"></i> Сохранить
                                 </button>
                                 <button type="button" class="btn btn-warning flex-fill" id="saveCloseBatchBtn"
-                                        title="Сохранить и закрыть партию (доступно при нулевом остатке)" disabled>
+                                        title="Сохранить приёмку и завершить её" disabled>
                                     <i class="bi bi-check2-circle"></i> Сохранить + Закрыть партию
                                 </button>
                                 <a href="{{ route('stone-receptions.logs') }}" class="btn btn-outline-secondary">
@@ -433,9 +453,9 @@
             const closeBatchInput   = document.getElementById('closeBatchInput');
             const saveCloseBatchBtn = document.getElementById('saveCloseBatchBtn');
 
-            function updateCloseBatchBtn(batchAfter) {
+            function updateCloseBatchBtn(hasBatch) {
                 if (!saveCloseBatchBtn) return;
-                saveCloseBatchBtn.disabled = batchAfter > 0;
+                saveCloseBatchBtn.disabled = !hasBatch;
             }
 
             function updateRaw(delta) {
@@ -459,9 +479,9 @@
                     if (rawInfoBeforeM) rawInfoBeforeM.textContent = beforeText;
                     if (rawInfoAfterM)  { rawInfoAfterM.textContent = afterText; rawInfoAfterM.className = afterColor; }
                     if (rawInfoSepM)    rawInfoSepM.style.display  = '';
-                    updateCloseBatchBtn(batchAfter);
+                    updateCloseBatchBtn(true);
                 } else {
-                    updateCloseBatchBtn(1); // нет партии — кнопка недоступна
+                    updateCloseBatchBtn(false); // нет партии — кнопка недоступна
                 }
             }
 

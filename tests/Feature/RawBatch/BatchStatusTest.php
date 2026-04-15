@@ -45,7 +45,7 @@ test('markAsUsed переводит партию из in_work в used', function
 
 test('markAsUsed переводит партию из new в used', function () {
     $user  = makeAdminUser();
-    $batch = makeBatch('new', 5.0);
+    $batch = makeBatch('new', 0.0);
 
     $this->actingAs($user)->post(route('raw-batches.mark-used', $batch));
 

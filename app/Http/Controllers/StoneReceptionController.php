@@ -115,6 +115,9 @@ class StoneReceptionController extends Controller
                 AllowedFilter::callback('status', function ($query, $value) {
                     $query->whereIn('status', is_array($value) ? $value : [$value]);
                 }),
+                AllowedFilter::callback('sync_status', function ($query, $value) {
+                    $query->whereIn('moysklad_sync_status', is_array($value) ? $value : [$value]);
+                }),
                 AllowedFilter::callback('raw_product_id', function ($query, $value) {
                     $batchIds = RawMaterialBatch::where('product_id', $value)->pluck('id');
                     $query->whereIn('raw_material_batch_id', $batchIds);
@@ -129,6 +132,10 @@ class StoneReceptionController extends Controller
             $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->filled('date_to'), fn($q) =>
             $q->whereDate('created_at', '<=', $request->date_to))
+            ->when(
+                !array_key_exists('status', $request->input('filter', [])),
+                fn($q) => $q->whereIn('status', ['active', 'error'])
+            )
             ->orderBy('created_at', 'desc')
             ->paginate(20)
             ->withQueryString();
@@ -453,11 +460,35 @@ class StoneReceptionController extends Controller
             return false;
         }
 
+        $activeReceptions = $batch->receptions()
+            ->where('status', StoneReception::STATUS_ACTIVE)
+            ->get();
+
         DB::transaction(function () use ($batch) {
-            $batch->update(['status' => RawMaterialBatch::STATUS_USED]);
+            $newStatus = (float) $batch->remaining_quantity <= 0
+                ? RawMaterialBatch::STATUS_USED
+                : RawMaterialBatch::STATUS_CONFIRMED;
+            $batch->update(['status' => $newStatus]);
             $batch->receptions()->where('status', StoneReception::STATUS_ACTIVE)
                 ->each(fn($r) => $r->update(['status' => StoneReception::STATUS_COMPLETED]));
         });
+
+        $service = app(MoySkladProcessingService::class);
+        foreach ($activeReceptions as $reception) {
+            $reception->refresh();
+            if ($reception->hasMoySkladProcessing()) {
+                $result = $service->completeProcessing($reception->moysklad_processing_id);
+                if ($result['success']) {
+                    $reception->markSynced($reception->moysklad_processing_id);
+                } else {
+                    $reception->markSyncError($result['message']);
+                    Log::warning('closeBatch: не удалось завершить техоперацию', [
+                        'reception_id' => $reception->id,
+                        'error'        => $result['message'],
+                    ]);
+                }
+            }
+        }
 
         return true;
     }

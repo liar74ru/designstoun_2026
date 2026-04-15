@@ -34,6 +34,19 @@
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label fw-semibold">Количество для передачи (м³) <span class="text-danger">*</span></label>
+                            <input type="number" name="quantity"
+                                   class="form-control @error('quantity') is-invalid @enderror"
+                                   step="0.001" min="0.001" max="{{ $batch->remaining_quantity }}"
+                                   value="{{ old('quantity', rtrim(rtrim(number_format($batch->remaining_quantity, 3, '.', ''), '0'), '.')) }}"
+                                   required>
+                            <div class="form-text text-muted">Доступно: {{ rtrim(rtrim(number_format($batch->remaining_quantity, 2), '0'), '.') }} м³</div>
+                            @error('quantity')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label fw-semibold">Новый пильщик <span class="text-danger">*</span></label>
                             <select name="to_worker_id" class="form-select @error('to_worker_id') is-invalid @enderror" required>
                                 <option value="">— Выберите пильщика —</option>
@@ -46,13 +59,6 @@
                             @error('to_worker_id')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Остаток в партии</label>
-                            <input type="text" class="form-control"
-                                   value="{{ rtrim(rtrim(number_format($batch->remaining_quantity, 2), '0'), '.') }} м³"
-                                   readonly>
                         </div>
 
                         <button type="submit" class="btn btn-warning">

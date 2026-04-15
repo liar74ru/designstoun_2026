@@ -15,7 +15,11 @@ trait HandlesBatchStock
         // Партии со статусом 'in_work' показываются независимо от remaining_quantity:
         // нулевые партии остаются в списке для ручного перевода в «Израсходована».
         $query = RawMaterialBatch::with(['product', 'currentWorker'])
-            ->whereIn('status', [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK]);
+            ->whereIn('status', [
+                RawMaterialBatch::STATUS_NEW,
+                RawMaterialBatch::STATUS_IN_WORK,
+                RawMaterialBatch::STATUS_CONFIRMED,
+            ]);
 
         if ($workerId) {
             $query->where('current_worker_id', $workerId);
@@ -50,19 +54,37 @@ trait HandlesBatchStock
             return;
         }
 
-        // Возвращаем старое количество обратно в старую партию
+        // Возвращаем старое количество обратно в старую партию и пересчитываем её статус
         if ($oldBatchId && $oldBatch = RawMaterialBatch::find($oldBatchId)) {
             $oldBatch->remaining_quantity = (float) $oldBatch->remaining_quantity + $oldQty;
+            if (in_array($oldBatch->status, [
+                RawMaterialBatch::STATUS_NEW,
+                RawMaterialBatch::STATUS_IN_WORK,
+                RawMaterialBatch::STATUS_CONFIRMED,
+            ])) {
+                $oldBatch->status = (float) $oldBatch->remaining_quantity > 0
+                    ? RawMaterialBatch::STATUS_CONFIRMED
+                    : RawMaterialBatch::STATUS_IN_WORK;
+            }
             $oldBatch->save();
         }
 
-        // Проверяем и списываем из новой партии
+        // Проверяем и списываем из новой партии, пересчитываем её статус
         $newBatch = RawMaterialBatch::find($newBatchId);
         if (!$newBatch || (float) $newBatch->remaining_quantity < $newQty) {
             throw new \Exception('Недостаточно сырья');
         }
 
         $newBatch->remaining_quantity = max(0, (float) $newBatch->remaining_quantity - $newQty);
+        if (in_array($newBatch->status, [
+            RawMaterialBatch::STATUS_NEW,
+            RawMaterialBatch::STATUS_IN_WORK,
+            RawMaterialBatch::STATUS_CONFIRMED,
+        ])) {
+            $newBatch->status = (float) $newBatch->remaining_quantity > 0
+                ? RawMaterialBatch::STATUS_CONFIRMED
+                : RawMaterialBatch::STATUS_IN_WORK;
+        }
         $newBatch->save();
     }
 }

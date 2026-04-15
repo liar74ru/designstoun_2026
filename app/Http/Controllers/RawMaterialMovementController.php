@@ -32,6 +32,12 @@ class RawMaterialMovementController extends Controller
             'batch_number'     => 'nullable|string|max:255',
         ]);
 
+        if ($data['from_store_id'] === $data['to_store_id']) {
+            return back()
+                ->withErrors(['to_store_id' => 'Склад-источник и склад-назначение не могут совпадать.'])
+                ->withInput();
+        }
+
         // Проверка наличия сырья на складе-источнике
         $sourceStock = ProductStock::where('product_id', $data['product_id'])
             ->where('store_id', $data['from_store_id'])
@@ -160,59 +166,65 @@ class RawMaterialMovementController extends Controller
         }
     }
 
-    /**
-     * Возврат партии со склада
-     */
     public function return(Request $request, RawMaterialBatch $batch)
     {
-        // Валидация
-        $data = $request->validate([
-            'to_store_id' => 'required|exists:stores,id',
-        ]);
-
-        // Проверка, что партия активна
-        if (!$batch->isActive()) {
-            return back()->withErrors(['batch' => 'Эта партия уже неактивна.']);
+        if (!$batch->canBeTransferredOrReturned()) {
+            return back()->withErrors(['batch' => 'Вернуть можно только уточнённую партию с ненулевым остатком.']);
         }
 
-        // Проверка, что партия находится у работника (не на складе)
         if (!$batch->current_worker_id) {
             return back()->withErrors(['batch' => 'Партия уже находится на складе.']);
         }
 
-        DB::transaction(function () use ($batch, $data) {
-            $oldStore = $batch->current_store_id;
-            $oldWorker = $batch->current_worker_id;
-            $quantity = $batch->remaining_quantity;
+        $data = $request->validate([
+            'to_store_id' => 'required|exists:stores,id',
+            'quantity'    => 'required|numeric|min:0.001|max:' . $batch->remaining_quantity,
+        ]);
 
-            // Создаем запись о возврате
-            $movement = RawMaterialMovement::create([
-                'batch_id'       => $batch->id,
+        $qty       = (float) $data['quantity'];
+        $oldStore  = $batch->current_store_id;
+        $oldWorker = $batch->current_worker_id;
+        $newBatch  = null;
+
+        DB::transaction(function () use ($batch, $data, $qty, $oldStore, $oldWorker, &$newBatch) {
+            $newRemaining = (float) $batch->remaining_quantity - $qty;
+            $batch->remaining_quantity = $newRemaining;
+            $batch->status = $newRemaining > 0
+                ? RawMaterialBatch::STATUS_CONFIRMED
+                : RawMaterialBatch::STATUS_IN_WORK;
+            $batch->save();
+
+            $newBatch = RawMaterialBatch::create([
+                'product_id'         => $batch->product_id,
+                'initial_quantity'   => $qty,
+                'remaining_quantity' => $qty,
+                'current_store_id'   => $data['to_store_id'],
+                'current_worker_id'  => null,
+                'status'             => RawMaterialBatch::STATUS_RETURNED,
+                'notes'              => 'Создана от партии №' . ($batch->batch_number ?? $batch->id),
+            ]);
+
+            RawMaterialMovement::create([
+                'batch_id'       => $newBatch->id,
                 'from_store_id'  => $oldStore,
                 'to_store_id'    => $data['to_store_id'],
                 'from_worker_id' => $oldWorker,
                 'to_worker_id'   => null,
                 'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => 'return_to_store',
-                'quantity'       => $quantity,
+                'quantity'       => $qty,
             ]);
 
-            // Обновление остатков
-            $this->adjustStock($batch->product_id, $oldStore, -$quantity);
-            $this->adjustStock($batch->product_id, $data['to_store_id'], +$quantity);
-
-            // Обновление партии
-            $batch->current_store_id = $data['to_store_id'];
-            $batch->current_worker_id = null;
-            $batch->status = 'returned';
-            $batch->save();
-
-            // Создание перемещения в МойСклад
-            $this->createReturnMoveInMoySklad($batch, $movement, $oldStore, $data['to_store_id'], $quantity);
+            $this->adjustStock($batch->product_id, $oldStore, -$qty);
+            $this->adjustStock($batch->product_id, $data['to_store_id'], +$qty);
         });
 
+        $firstMovement = $newBatch->movements()->first();
+        $this->createReturnMoveInMoySklad($newBatch, $firstMovement, $oldStore, $data['to_store_id'], $qty);
+        $this->updateParentBatchMove($batch);
+
         return redirect()->route('raw-batches.show', $batch)
-            ->with('success', 'Партия успешно возвращена на склад.');
+            ->with('success', 'Часть партии возвращена на склад.');
     }
 
     private function createReturnMoveInMoySklad($batch, $movement, $fromStoreId, $toStoreId, $quantity)
@@ -305,6 +317,37 @@ class RawMaterialMovementController extends Controller
                     'trace' => $e->getTraceAsString()
                 ]
             );
+        }
+    }
+
+    private function updateParentBatchMove(RawMaterialBatch $batch): void
+    {
+        try {
+            $product = $batch->product;
+            if (!$product->moysklad_id) {
+                return;
+            }
+
+            $originalMovement = $batch->movements()
+                ->where('movement_type', 'create')
+                ->whereNotNull('moysklad_move_id')
+                ->first();
+
+            if (!$originalMovement) {
+                return;
+            }
+
+            $result = $this->moySkladMoveService->updateMove($originalMovement->moysklad_move_id, [
+                'from_store_id' => $originalMovement->from_store_id,
+                'to_store_id'   => $originalMovement->to_store_id,
+                'products'      => [['product_id' => $product->moysklad_id, 'quantity' => (float) $batch->remaining_quantity]],
+            ]);
+
+            if (!$result['success']) {
+                Log::warning('Ошибка обновления перемещения родительской партии', ['error' => $result['message'], 'batch_id' => $batch->id]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Исключение при обновлении перемещения родительской партии', ['error' => $e->getMessage(), 'batch_id' => $batch->id]);
         }
     }
 

@@ -38,7 +38,10 @@
             'rawProductParam'   => 'raw_product_id',
             'filterProducts'    => $filterProducts,
             'showStatus'        => 'multi',
-            'statusOptions'     => ['active' => 'Активна', 'completed' => 'Завершена', 'processed' => 'Обработана', 'error' => 'Ошибка'],
+            'statusOptions'     => ['active' => 'Активна', 'completed' => 'Завершена', 'error' => 'Ошибка'],
+            'statusDefaults'    => ['active', 'error'],
+            'showSyncStatus'    => true,
+            'syncStatusOptions' => ['synced' => 'Синхронизирована', 'not_synced' => 'Не синхр.'],
         ])
 
         {{-- ═══════════════════════ ДАННЫЕ ═══════════════════════ --}}
@@ -127,9 +130,9 @@
                                                     <i class="bi bi-plus-lg"></i>
                                                 </a>
                                             @endif
-                                            @if($reception->status == 'active' && $reception->rawMaterialBatch && (float)$reception->rawMaterialBatch->remaining_quantity <= 0)
+                                            @if($reception->status == 'active')
                                                 <form method="POST" action="{{ route('stone-receptions.mark-completed', $reception) }}" class="d-inline"
-                                                      onsubmit="return confirm('Завершить приёмку? Сырьё израсходовано — партия будет закрыта.')">
+                                                      onsubmit="return confirm('Завершить приёмку?')">
                                                     @csrf
                                                     @method('PATCH')
                                                     <button type="submit" class="btn btn-sm btn-warning" title="Завершить приёмку">
@@ -203,10 +206,10 @@
                                                 <i class="bi bi-plus-lg"></i>
                                             </a>
                                         @endif
-                                        @if($reception->status == 'active' && $reception->rawMaterialBatch && (float)$reception->rawMaterialBatch->remaining_quantity <= 0)
+                                        @if($reception->status == 'active')
                                             <form action="{{ route('stone-receptions.mark-completed', $reception) }}"
                                                   method="POST" class="d-inline-flex"
-                                                  onsubmit="return confirm('Завершить приёмку? Сырьё израсходовано — партия будет закрыта.')">
+                                                  onsubmit="return confirm('Завершить приёмку?')">
                                                 @csrf
                                                 @method('PATCH')
                                                 <button type="submit"

@@ -11,6 +11,7 @@ use App\Models\Store;
 use App\Models\Worker;
 use App\Models\ProductStock;
 use App\Services\ProductGroupService;
+use App\Support\DocumentNaming;
 use App\Traits\ManagesStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -78,7 +79,9 @@ class RawMaterialBatchController extends Controller
             'receptions' => fn($q) => $q->with(['items.product', 'receiver', 'cutter'])->orderBy('created_at', 'desc'),
         ])->findOrFail($id);
 
-        return view('raw-batches.show', compact('batch'));
+        $backUrl = back_url(route('raw-batches.index'));
+
+        return view('raw-batches.show', compact('batch', 'backUrl'));
     }
 
     public function create(Request $request)
@@ -668,6 +671,14 @@ class RawMaterialBatchController extends Controller
             return back()->with('error', $msg);
         }
 
+        if ((float) $batch->remaining_quantity > 0) {
+            $msg = 'Перевести в «Израсходована» можно только партию с нулевым остатком. Текущий остаток: ' . number_format($batch->remaining_quantity, 3) . ' м³.';
+            if (request()->expectsJson()) {
+                return response()->json(['error' => $msg], 422);
+            }
+            return back()->with('error', $msg);
+        }
+
         DB::transaction(function () use ($batch) {
             $batch->update(['status' => RawMaterialBatch::STATUS_USED]);
 
@@ -751,8 +762,8 @@ class RawMaterialBatchController extends Controller
 
     public function transferForm(RawMaterialBatch $batch)
     {
-        if (!$batch->isWorkable()) {
-            return redirect()->route('raw-batches.show', $batch)->with('error', 'Партия уже неактивна.');
+        if (!$batch->canBeTransferredOrReturned()) {
+            return redirect()->route('raw-batches.show', $batch)->with('error', 'Передать можно только уточнённую партию с ненулевым остатком.');
         }
 
         $workers = Worker::orderBy('name')->get();
@@ -762,28 +773,77 @@ class RawMaterialBatchController extends Controller
 
     public function transfer(Request $request, RawMaterialBatch $batch)
     {
-        if (!$batch->isWorkable()) {
-            return back()->with('error', 'Партия уже неактивна.');
+        if (!$batch->canBeTransferredOrReturned()) {
+            return back()->with('error', 'Передать можно только уточнённую партию с ненулевым остатком.');
         }
 
-        $data = $request->validate(['to_worker_id' => 'required|exists:workers,id']);
+        $data = $request->validate([
+            'to_worker_id' => 'required|exists:workers,id',
+            'quantity'     => 'required|numeric|min:0.001|max:' . $batch->remaining_quantity,
+        ]);
 
-        DB::transaction(function () use ($batch, $data) {
-            RawMaterialMovement::create([
-                'batch_id'       => $batch->id,
-                'from_store_id'  => null,
-                'to_store_id'    => null,
+        $qty = (float) $data['quantity'];
+
+        $originalMovement = $batch->movements()
+            ->where('movement_type', 'create')
+            ->orderBy('created_at')
+            ->first();
+
+        $toStoreId   = $originalMovement?->to_store_id   ?? $batch->current_store_id;
+        $fromStoreId = $originalMovement?->from_store_id ?? null;
+
+        $targetWorker = Worker::find($data['to_worker_id']);
+        $newBatch     = null;
+        $newMovement  = null;
+
+        DB::transaction(function () use ($batch, $data, $qty, $toStoreId, $fromStoreId, $targetWorker, &$newBatch, &$newMovement) {
+            // 1. Убавить остаток родительской партии
+            $newRemaining = (float) $batch->remaining_quantity - $qty;
+            $batch->remaining_quantity = $newRemaining;
+            $batch->status = $newRemaining > 0
+                ? RawMaterialBatch::STATUS_CONFIRMED
+                : RawMaterialBatch::STATUS_IN_WORK;
+            $batch->save();
+
+            // 2. Создать новую партию для получателя
+            $newBatchNumber = ($batch->batch_number ?? $batch->id) . '-' . $targetWorker->name;
+            $newBatch = RawMaterialBatch::create([
+                'product_id'         => $batch->product_id,
+                'initial_quantity'   => $qty,
+                'remaining_quantity' => $qty,
+                'current_store_id'   => $toStoreId,
+                'current_worker_id'  => $data['to_worker_id'],
+                'batch_number'       => $newBatchNumber,
+                'status'             => RawMaterialBatch::STATUS_NEW,
+                'notes'              => 'Передана от партии №' . ($batch->batch_number ?? $batch->id),
+            ]);
+
+            // 3. Создать запись движения для новой партии
+            $newMovement = RawMaterialMovement::create([
+                'batch_id'       => $newBatch->id,
+                'from_store_id'  => $fromStoreId,
+                'to_store_id'    => $toStoreId,
                 'from_worker_id' => $batch->current_worker_id,
                 'to_worker_id'   => $data['to_worker_id'],
                 'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => 'transfer_to_worker',
-                'quantity'       => $batch->remaining_quantity,
+                'quantity'       => $qty,
             ]);
-
-            $batch->update(['current_worker_id' => $data['to_worker_id']]);
         });
 
-        return redirect()->route('raw-batches.show', $batch)->with('success', 'Партия передана.');
+        // 4. Новое МойСклад-перемещение для новой партии (только если есть оригинальное движение)
+        if ($originalMovement) {
+            $this->syncTransferMovement($batch, $newBatch, $newMovement, $originalMovement, $qty);
+
+            // 5. Обновить оригинальное МойСклад-перемещение родительской (только если остаток > 0)
+            if ((float) $batch->remaining_quantity > 0) {
+                $this->updateParentBatchMove($batch);
+            }
+        } else {
+            Log::warning('Передача без синхронизации МойСклад — исходное движение не найдено', ['batch_id' => $batch->id]);
+        }
+
+        return redirect()->route('raw-batches.show', $batch)->with('success', 'Часть партии передана пильщику.');
     }
 
     public function returnForm(RawMaterialBatch $batch)
@@ -795,6 +855,80 @@ class RawMaterialBatchController extends Controller
         $stores  = Store::orderBy('name')->get();
         $backUrl = back_url(route('raw-batches.index'));
         return view('raw-batches.return', compact('batch', 'stores', 'backUrl'));
+    }
+
+    private function syncTransferMovement(
+        RawMaterialBatch $parentBatch,
+        RawMaterialBatch $newBatch,
+        RawMaterialMovement $movement,
+        RawMaterialMovement $originalMovement,
+        float $qty
+    ): void {
+        try {
+            $product = $newBatch->product;
+            if (!$product->moysklad_id) {
+                Log::warning('Товар не синхронизирован с МойСклад (transfer)', ['product_id' => $product->id]);
+                return;
+            }
+
+            $parentRef = $parentBatch->batch_number ?? '№' . $parentBatch->id;
+            $name = 'Передача от партии: ' . $parentRef;
+            $moveData = [
+                'from_store_id' => $originalMovement->from_store_id,
+                'to_store_id'   => $originalMovement->to_store_id,
+                'products'      => [['product_id' => $product->moysklad_id, 'quantity' => $qty]],
+                'name'          => $name,
+                'description'   => 'Передача части партии другому пильщику',
+                'external_id'   => 'movement_' . $movement->id,
+            ];
+
+            $result = $this->moySkladMoveService->createMove($moveData);
+
+            if (!$result['success'] && $result['code'] === 'duplicate_name') {
+                $moveData['name'] = DocumentNaming::nextSuffix($name);
+                $result = $this->moySkladMoveService->createMove($moveData);
+            }
+
+            if ($result['success']) {
+                $movement->update(['moysklad_move_id' => $result['move_id'], 'moysklad_synced' => true]);
+                Log::info('Перемещение (transfer) синхронизировано', ['move_id' => $result['move_id']]);
+            } else {
+                Log::warning('Ошибка синхронизации передачи партии', ['error' => $result['message']]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Исключение при синхронизации передачи партии', ['error' => $e->getMessage()]);
+        }
+    }
+
+    private function updateParentBatchMove(RawMaterialBatch $batch): void
+    {
+        try {
+            $product = $batch->product;
+            if (!$product->moysklad_id) {
+                return;
+            }
+
+            $originalMovement = $batch->movements()
+                ->where('movement_type', 'create')
+                ->whereNotNull('moysklad_move_id')
+                ->first();
+
+            if (!$originalMovement) {
+                return;
+            }
+
+            $result = $this->moySkladMoveService->updateMove($originalMovement->moysklad_move_id, [
+                'from_store_id' => $originalMovement->from_store_id,
+                'to_store_id'   => $originalMovement->to_store_id,
+                'products'      => [['product_id' => $product->moysklad_id, 'quantity' => (float) $batch->remaining_quantity]],
+            ]);
+
+            if (!$result['success']) {
+                Log::warning('Ошибка обновления перемещения родительской партии', ['error' => $result['message'], 'batch_id' => $batch->id]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Исключение при обновлении перемещения родительской партии', ['error' => $e->getMessage(), 'batch_id' => $batch->id]);
+        }
     }
 
 }

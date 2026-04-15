@@ -22,6 +22,7 @@ class RawMaterialBatch extends Model
         'current_store_id',
         'current_worker_id',
         'batch_number',
+        'notes',
         'processing_sum',
         'created_at',
         'updated_at',
@@ -115,6 +116,24 @@ class RawMaterialBatch extends Model
     public function canBeArchived(): bool
     {
         return in_array($this->status, [self::STATUS_USED, self::STATUS_RETURNED])
+            && (float) $this->remaining_quantity <= 0;
+    }
+
+    /**
+     * Передать пильщику или вернуть на склад можно только уточнённую партию с ненулевым остатком.
+     */
+    public function canBeTransferredOrReturned(): bool
+    {
+        return $this->status === self::STATUS_CONFIRMED
+            && (float) $this->remaining_quantity > 0;
+    }
+
+    /**
+     * Вручную перевести в «Израсходована» можно только при нулевом остатке.
+     */
+    public function canBeMarkedAsUsed(): bool
+    {
+        return in_array($this->status, [self::STATUS_IN_WORK, self::STATUS_CONFIRMED])
             && (float) $this->remaining_quantity <= 0;
     }
 

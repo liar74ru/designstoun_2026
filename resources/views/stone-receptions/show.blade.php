@@ -376,7 +376,7 @@
                                                 @endif
                                                 @if($item->effective_cost_coeff !== null)
                                                     <span class="badge bg-light border text-dark" style="font-size:.68rem">
-                                                        коэф: {{ number_format($item->effective_cost_coeff, 4) }}
+                                                        коэф: {{ number_format($item->effective_cost_coeff, 1) }}
                                                     </span>
                                                 @endif
                                                 @if($item->worker_cost_per_m2 !== null)
@@ -406,8 +406,7 @@
                                     $coeff = $totalQty / $stoneReception->raw_quantity_used;
                                 @endphp
                                 <div class="text-muted" style="font-size:.72rem">
-                                    Коэф. выхода: {{ number_format($coeff * 100, 1) }}%
-                                    (1 м³ → {{ number_format($coeff, 3) }} м²)
+                                    Коэф. выхода: 1 м³ → {{ number_format($coeff, 3) }} м²
                                 </div>
                             @endif
                         </div>
