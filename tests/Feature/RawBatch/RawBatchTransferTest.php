@@ -25,22 +25,44 @@ describe('Передача партии пильщику [transfer()]', function
                 'quantity'     => 8.0,
             ])->assertRedirect(route('raw-batches.show', $batch));
 
-        // Родительская партия уменьшилась
+        // Родительская партия: уменьшились initial и remaining
         $batch->refresh();
+        expect((float) $batch->initial_quantity)->toBe(12.0);
         expect((float) $batch->remaining_quantity)->toBe(12.0);
 
         // Новая партия создана для получателя
         $newBatch = \App\Models\RawMaterialBatch::where('current_worker_id', $cutter2->id)->first();
         expect($newBatch)->not->toBeNull();
+        expect((float) $newBatch->initial_quantity)->toBe(8.0);
         expect((float) $newBatch->remaining_quantity)->toBe(8.0);
 
-        // Движение записано на новую партию
+        // Движение записано на новую партию с типом 'create' (как у обычной партии)
         $movement = RawMaterialMovement::where('batch_id', $newBatch->id)
-            ->where('movement_type', 'transfer_to_worker')
+            ->where('movement_type', 'create')
             ->first();
         expect($movement)->not->toBeNull();
         expect($movement->from_worker_id)->toBe($cutter1->id);
         expect($movement->to_worker_id)->toBe($cutter2->id);
+    });
+
+    test('успешно передаёт партию со статусом new', function () {
+        $user    = H::adminUser();
+        $product = H::product();
+        $store   = H::store();
+        $cutter1 = H::cutter('Пильщик Раз');
+        $cutter2 = H::cutter('Пильщик Два');
+        $batch   = H::newBatch($product, $store, $cutter1, 20.0);
+
+        $this->actingAs($user)
+            ->post(route('raw-batches.transfer', $batch), [
+                'to_worker_id' => $cutter2->id,
+                'quantity'     => 5.0,
+            ])->assertRedirect(route('raw-batches.show', $batch));
+
+        $batch->refresh();
+        expect((float) $batch->initial_quantity)->toBe(15.0);
+        expect((float) $batch->remaining_quantity)->toBe(15.0);
+        expect($batch->status)->toBe('new');
     });
 
     test('нельзя передать неактивную партию', function () {

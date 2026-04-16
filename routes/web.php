@@ -4,7 +4,6 @@ use App\Http\Controllers\CounterpartyController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RawMaterialBatchController;
-use App\Http\Controllers\RawMaterialMovementController;
 use App\Http\Controllers\StoneReceptionController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\SupplierOrderController;
@@ -99,8 +98,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])->name('raw-batches.transfer.form');
     Route::post('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transfer'])->name('raw-batches.transfer');
     Route::get('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'returnForm'])->name('raw-batches.return.form');
-    Route::post('raw-batches/{batch}/return', [RawMaterialMovementController::class, 'return'])->name('raw-batches.return');
-    Route::post('raw-batches/create', [RawMaterialMovementController::class, 'store'])->name('raw-movement.store');
+    Route::post('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'return'])->name('raw-batches.return');
     Route::get('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjustForm'])->name('raw-batches.adjust.form');
     Route::post('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjust'])->name('raw-batches.adjust');
     Route::get('raw-batches/{batch}/adjust-remaining', [RawMaterialBatchController::class, 'adjustRemainingForm'])->name('raw-batches.adjust-remaining.form');
@@ -108,6 +106,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('raw-batches/{batch}/archive', [RawMaterialBatchController::class, 'archive'])->name('raw-batches.archive');
     Route::post('raw-batches/{batch}/mark-used', [RawMaterialBatchController::class, 'markAsUsed'])->name('raw-batches.mark-used');
     Route::post('raw-batches/{batch}/mark-in-work', [RawMaterialBatchController::class, 'markAsInWork'])->name('raw-batches.mark-in-work');
+    Route::post('raw-batches/{batch}/sync', [RawMaterialBatchController::class, 'syncBatch'])->name('raw-batches.sync');
 
     // AJAX-эндпоинты
     Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])->name('api.worker.batches');

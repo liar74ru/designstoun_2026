@@ -33,7 +33,7 @@ describe('RawMaterialMovementController store()', function () {
         $cutter  = H::cutter();
         H::stock($product, $from, 50.0);
 
-        $this->actingAs($user)->post(route('raw-movement.store'), [
+        $this->actingAs($user)->post(route('raw-batches.store'), [
             'product_id'    => $product->id,
             'quantity'      => 10.0,
             'worker_id'     => $cutter->id,
@@ -74,7 +74,7 @@ describe('RawMaterialMovementController store()', function () {
         $cutter  = H::cutter();
         H::stock($product, $from, 5.0); // меньше чем запрошено
 
-        $this->actingAs($user)->post(route('raw-movement.store'), [
+        $this->actingAs($user)->post(route('raw-batches.store'), [
             'product_id'    => $product->id,
             'quantity'      => 10.0,
             'worker_id'     => $cutter->id,
@@ -95,7 +95,7 @@ describe('RawMaterialMovementController store()', function () {
         $cutter  = H::cutter();
         // stock не создаём
 
-        $this->actingAs($user)->post(route('raw-movement.store'), [
+        $this->actingAs($user)->post(route('raw-batches.store'), [
             'product_id'    => $product->id,
             'quantity'      => 5.0,
             'worker_id'     => $cutter->id,
@@ -110,7 +110,7 @@ describe('RawMaterialMovementController store()', function () {
         $to     = H::store();
         $cutter = H::cutter();
 
-        $this->actingAs($user)->post(route('raw-movement.store'), [
+        $this->actingAs($user)->post(route('raw-batches.store'), [
             'quantity'      => 5.0,
             'worker_id'     => $cutter->id,
             'from_store_id' => $from->id,
@@ -125,7 +125,7 @@ describe('RawMaterialMovementController store()', function () {
         $to      = H::store();
         $cutter  = H::cutter();
 
-        $this->actingAs($user)->post(route('raw-movement.store'), [
+        $this->actingAs($user)->post(route('raw-batches.store'), [
             'product_id'    => $product->id,
             'quantity'      => 0,
             'worker_id'     => $cutter->id,
@@ -143,7 +143,7 @@ describe('RawMaterialMovementController store()', function () {
         $cutter  = H::cutter();
         H::stock($product, $from, 20.0);
 
-        $this->actingAs($user)->post(route('raw-movement.store'), [
+        $this->actingAs($user)->post(route('raw-batches.store'), [
             'product_id'    => $product->id,
             'quantity'      => 5.0,
             'worker_id'     => $cutter->id,
@@ -155,7 +155,7 @@ describe('RawMaterialMovementController store()', function () {
     });
 
     test('недоступен без авторизации', function () {
-        $this->post(route('raw-movement.store'), [])
+        $this->post(route('raw-batches.store'), [])
             ->assertRedirect('/login');
     });
 
@@ -168,7 +168,7 @@ describe('RawMaterialMovementController store()', function () {
         $cutter  = H::cutter();
         H::stock($product, $from, 20.0);
 
-        $this->actingAs($user)->post(route('raw-movement.store'), [
+        $this->actingAs($user)->post(route('raw-batches.store'), [
             'product_id'    => $product->id,
             'quantity'      => 5.0,
             'worker_id'     => $cutter->id,

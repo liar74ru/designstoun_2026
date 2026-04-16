@@ -15,8 +15,12 @@
 
     <div class="alert alert-info py-2 mb-3 small">
         <i class="bi bi-info-circle me-1"></i>
-        Редактирование доступно только для партий в статусе <strong>«Новая»</strong>.
+        Редактирование доступно для партий в статусе <strong>«Новая»</strong>, <strong>«Не уточнена»</strong> и <strong>«Уточнена»</strong>.
         Изменения продукта и количества будут синхронизированы с МойСклад.
+        @if($batch->status === \App\Models\RawMaterialBatch::STATUS_IN_WORK)
+            <br>Остаток будет пересчитан с учётом уже израсходованного сырья
+            (израсходовано: <strong>{{ number_format($batch->initial_quantity - $batch->remaining_quantity, 3) }} м³</strong>).
+        @endif
     </div>
 
     <div class="card shadow-sm">
@@ -138,7 +142,8 @@
         </div>
     </div>
 
-    {{-- Блок удаления --}}
+    {{-- Блок удаления — только для новых партий --}}
+    @if($batch->canBeEditedOrDeleted())
     <div class="card shadow-sm border-danger mt-3">
         <div class="card-body py-3">
             <h6 class="text-danger mb-1"><i class="bi bi-trash me-1"></i>Удалить партию</h6>
@@ -156,6 +161,7 @@
             </form>
         </div>
     </div>
+    @endif
 
 </div>
 @push('scripts')

@@ -84,26 +84,6 @@ describe('Создание партии — статус new', function () {
         expect($batch->status)->toBe('new');
     });
 
-    test('новая партия через RawMovementController получает статус new', function () {
-        $user      = H::adminUser();
-        $product   = H::product();
-        $fromStore = H::store();
-        $toStore   = H::store();
-        $worker    = H::cutter();
-
-        H::stock($product, $fromStore, 20.0);
-
-        $this->actingAs($user)->post('/raw-batches/create', [
-            'product_id'    => $product->id,
-            'quantity'      => 5.0,
-            'worker_id'     => $worker->id,
-            'from_store_id' => $fromStore->id,
-            'to_store_id'   => $toStore->id,
-        ])->assertRedirect(route('raw-batches.index'));
-
-        $batch = RawMaterialBatch::where('product_id', $product->id)->first();
-        expect($batch->status)->toBe('new');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -256,7 +236,7 @@ describe('Редактирование партии [edit() / update()]', functi
             ->assertStatus(200);
     });
 
-    test('форма редактирования недоступна для in_work-партии', function () {
+    test('форма редактирования доступна для in_work-партии', function () {
         $product = H::product();
         $store   = H::store();
         $cutter  = H::cutter();
@@ -264,8 +244,7 @@ describe('Редактирование партии [edit() / update()]', functi
 
         $this->actingAs(H::adminUser())
             ->get(route('raw-batches.edit', $batch))
-            ->assertRedirect(route('raw-batches.show', $batch))
-            ->assertSessionHas('error');
+            ->assertStatus(200);
     });
 
     test('форма редактирования недоступна для archived-партии', function () {
@@ -360,22 +339,24 @@ describe('Редактирование партии [edit() / update()]', functi
             ->where('store_id', $store->id)->value('quantity'))->toBe(12.0);
     });
 
-    test('update отклоняет обновление in_work-партии', function () {
+    test('update разрешён для in_work-партии', function () {
         $user    = H::adminUser();
         $product = H::product();
         $store   = H::store();
         $cutter  = H::cutter();
         $batch   = H::batch($product, $store, $cutter, 10.0); // in_work
 
+        H::stock($product, $store, 10.0);
+
         $this->actingAs($user)
             ->put(route('raw-batches.update', $batch), [
                 'product_id' => $product->id,
                 'quantity'   => 20.0,
             ])->assertRedirect(route('raw-batches.show', $batch))
-            ->assertSessionHas('error');
+            ->assertSessionHas('success');
 
         $batch->refresh();
-        expect((float) $batch->initial_quantity)->toBe(10.0); // не изменилось
+        expect((float) $batch->initial_quantity)->toBe(20.0);
     });
 
     test('update требует обязательные поля', function () {

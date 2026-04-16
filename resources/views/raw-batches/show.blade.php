@@ -76,6 +76,52 @@
                     </div>
                 </div>
 
+                {{-- МойСклад: статус синхронизации партии --}}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small fw-semibold text-muted"><i class="bi bi-cloud me-1"></i>МойСклад</span>
+                            @if($batch->moysklad_sync_status)
+                                <span class="badge {{ $batch->syncStatusBadgeClass() }} small">
+                                    {{ $batch->syncStatusLabel() }}
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="card-body py-2">
+                        @if($batch->hasSyncError())
+                            <div class="small text-warning-emphasis">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                <strong>Ошибка:</strong> {{ $batch->moysklad_sync_error }}
+                            </div>
+                        @elseif($batch->isSynced())
+                            <div class="small text-success">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Синхронизировано
+                                @if($batch->moysklad_processing_name)
+                                    · <span class="text-muted">{{ $batch->moysklad_processing_name }}</span>
+                                @endif
+                            </div>
+                            @if(auth()->user()->is_admin)
+                                <div class="text-muted mt-1" style="font-size:.72rem;word-break:break-all">
+                                    <i class="bi bi-fingerprint me-1"></i>
+                                    <code style="font-size:.7rem">{{ $batch->moysklad_processing_id }}</code>
+                                </div>
+                            @endif
+                        @else
+                            <div class="small text-muted">
+                                <i class="bi bi-cloud-slash me-1"></i>Перемещение не создано
+                            </div>
+                        @endif
+                        @if($batch->synced_at)
+                            <div class="text-muted mt-2" style="font-size:.72rem">
+                                <i class="bi bi-clock-history me-1"></i>
+                                Последняя синхр.: {{ $batch->synced_at->format('d.m.Y H:i') }}
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
                 @if($batch->status !== 'archived')
                     <div class="card shadow-sm mb-4">
                         <div class="card-header bg-white py-2">
@@ -87,6 +133,15 @@
                                 <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-success">
                                     <i class="bi bi-plus-slash-minus"></i> Изменить количество
                                 </a>
+
+                                <form method="POST" action="{{ route('raw-batches.sync', $batch) }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="btn w-100 {{ $batch->hasSyncError() ? 'btn-warning' : ($batch->hasMoySkladProcessing() ? 'btn-outline-secondary' : 'btn-outline-primary') }}">
+                                        <i class="bi bi-arrow-repeat me-1"></i>
+                                        {{ $batch->hasMoySkladProcessing() ? 'Синхронизировать с МойСклад' : 'Создать перемещение' }}
+                                    </button>
+                                </form>
 
                                 <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-primary">
                                     <i class="bi bi-copy"></i> Копировать
@@ -135,10 +190,13 @@
                                     </button>
                                 @endif
 
-                                @if($batch->canBeEditedOrDeleted())
+                                @if($batch->canEditDetails())
                                     <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-secondary">
-                                        <i class="bi bi-pencil"></i> Изменить <span class="opacity-75 small">(Только для новой)</span>
+                                        <i class="bi bi-pencil"></i> Изменить партию
                                     </a>
+                                @endif
+
+                                @if($batch->canBeEditedOrDeleted())
                                     <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
                                           onsubmit="return confirm('Удалить партию #{{ $batch->id }}? Это действие необратимо.')">
                                         @csrf @method('DELETE')
