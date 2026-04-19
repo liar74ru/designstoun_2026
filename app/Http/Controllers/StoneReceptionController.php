@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Log;
 class StoneReceptionController extends Controller
 {
     // Рефакторинг от 06.04.2026
-    
+
     use ManagesStock, HandlesBatchStock;
 
     /**
@@ -386,8 +386,8 @@ class StoneReceptionController extends Controller
                 if (empty($deltas) && abs($rawDelta) < 0.0001) {
                     return;
                 }
-
-                $this->writeReceptionLog($stoneReception, ReceptionLog::TYPE_UPDATED, $rawDelta, $batchSnapshotBefore, $deltas, $stoneReception->created_at);
+                $dataLog = $data['manual_created_at'] ?? Now();
+                $this->writeReceptionLog($stoneReception, ReceptionLog::TYPE_UPDATED, $rawDelta, $batchSnapshotBefore, $deltas, $dataLog, $data['receiver_id'] ?? null);
             });
 
             // Синхронизация с МойСклад (не блокирует сохранение при ошибке)
@@ -421,13 +421,14 @@ class StoneReceptionController extends Controller
         float $rawDelta,
         ?float $batchSnapshot,
         array $itemDeltas,
-        ?\DateTimeInterface $createdAt = null
+        ?\DateTimeInterface $createdAt = null,
+        ?int $receiverId = null
     ): void {
         $log = ReceptionLog::create([
             'stone_reception_id'    => $reception->id,
             'raw_material_batch_id' => $reception->raw_material_batch_id,
             'cutter_id'             => $reception->cutter_id,
-            'receiver_id'           => $reception->receiver_id,
+            'receiver_id'           => $receiverId ?? auth()->user()->worker_id,
             'type'                  => $type,
             'raw_quantity_delta'    => $rawDelta,
             'raw_quantity_snapshot' => $batchSnapshot,
@@ -612,13 +613,16 @@ class StoneReceptionController extends Controller
     private function prepareReceptionData(array $data, bool $forCreate = true, bool $forCopy = false): array
     {
         $prepared = [
-            'receiver_id' => $data['receiver_id'],
             'cutter_id' => $data['cutter_id'] ?? null,
             'store_id' => $data['store_id'],
             'raw_material_batch_id' => $data['raw_material_batch_id'],
             'raw_quantity_used' => $data['raw_quantity_used'],
             'notes' => $data['notes'] ?? null,
         ];
+
+        if ($forCreate) {
+            $prepared['receiver_id'] = $data['receiver_id'];
+        }
 
         if (!$forCopy) {
             if ($forCreate) {

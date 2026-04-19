@@ -1,11 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Моя выработка — ' . $worker->name)
+@section('title', ($isMaster ? 'Дашборд мастера' : 'Моя выработка') . ' — ' . $worker->name)
 
 @section('content')
     <div class="container py-3 py-md-4">
 
-        {{-- Имя рабочего + кнопка смены пароля --}}
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="fs-2 mb-0 fw-bold">{{ $worker->name }}</h1>
             @if($worker->user)
@@ -46,7 +45,6 @@
             </div>
             <div id="period-collapse" style="display:none">
                 <div class="card-body py-2 px-3">
-                    {{-- Быстрые кнопки --}}
                     <div class="d-flex flex-wrap gap-1 mb-2">
                         @foreach([0 => 'Тек. неделя', 1 => 'Пред. неделя', 2 => '2 нед. назад'] as $week => $label)
                             @php $isActive = $weekButtons[$week]['from'] === $currentFrom && $weekButtons[$week]['to'] === $currentTo; @endphp
@@ -57,7 +55,6 @@
                             </button>
                         @endforeach
                     </div>
-                    {{-- Произвольный период --}}
                     <div class="d-flex flex-wrap gap-2 align-items-end">
                         <div>
                             <label class="form-label small text-muted mb-1">С</label>
@@ -81,99 +78,174 @@
             </div>
         @else
 
-            @if(auth()->user()->isAdmin() || auth()->id() === $worker->user?->id)
-            {{-- Итоговые карточки --}}
-            <div class="row g-2 mb-3">
-                <div class="col-6">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body py-2 px-3">
-                            <div class="text-muted small mb-1">Итого к выплате</div>
-                            <div class="fs-4 fw-bold text-success">
-                                {{ number_format($totalPay, 0, ',', ' ') }} ₽
+            @if($isMaster)
+                {{-- Ставки мастера --}}
+                <div class="row g-2 mb-3">
+                    @foreach([
+                        ['label' => 'Базовая ставка',  'value' => $rates['base']],
+                        ['label' => 'Подкол > 80%',    'value' => $rates['undercut']],
+                        ['label' => 'Фасовка в ящик',  'value' => $rates['packaging']],
+                        ['label' => 'Плитка < 50мм',   'value' => $rates['smallTile']],
+                    ] as $rate)
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body py-2 px-3">
+                                <div class="text-muted small mb-1">{{ $rate['label'] }}</div>
+                                <div class="fs-5 fw-bold">
+                                    {{ number_format($rate['value'], 0, ',', ' ') }} <span class="text-muted small fw-normal">₽/м²</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body py-2 px-3">
+                        <div class="text-muted small mb-1">Итого к выплате</div>
+                        <div class="fs-4 fw-bold text-secondary">—</div>
+                    </div>
+                </div>
+            @else
+                @if(auth()->user()->isAdmin() || auth()->id() === $worker->user?->id)
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body py-2 px-3">
+                                <div class="text-muted small mb-1">Итого к выплате</div>
+                                <div class="fs-4 fw-bold text-success">
+                                    {{ number_format($totalPay, 0, ',', ' ') }} ₽
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body py-2 px-3">
+                                <div class="text-muted small mb-1">Базовая ставка</div>
+                                <div class="fs-4 fw-bold">{{ number_format(\App\Models\Product::pieceRate(), 0, ',', ' ') }} ₽</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-6">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body py-2 px-3">
-                            <div class="text-muted small mb-1">Базовая ставка</div>
-                            <div class="fs-4 fw-bold">{{ number_format(\App\Models\Product::pieceRate(), 0, ',', ' ') }} ₽</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                @endif
             @endif
 
             {{-- Сводка по продуктам --}}
-            @if(auth()->user()->isAdmin() || auth()->id() === $worker->user?->id)
+            @if($isMaster || auth()->user()->isAdmin() || auth()->id() === $worker->user?->id)
             <div class="card shadow-sm mb-3">
-                <div class="card-header fw-semibold py-2">Сводка по продуктам за период</div>
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+                    <span>Сводка по продуктам за период</span>
+                </div>
                 <div class="table-responsive">
-                    <table class="table mb-0" style="font-size:.75rem;table-layout:auto">
-                        <colgroup>
-                            <col>{{-- Плитка: остаток --}}
-                            <col style="width:1%">{{-- м²: минимум --}}
-                            <col style="width:1%">{{-- Коэф.: минимум --}}
-                            <col style="width:1%">{{-- Ставка: минимум --}}
-                            <col style="width:1%">{{-- Сумма: минимум --}}
-                        </colgroup>
-                        <thead class="table-light">
-                        <tr>
-                            <th style="border-left:4px solid transparent;padding:.3rem .1rem .3rem .4rem">Плитка</th>
-                            <th class="text-end text-nowrap" style="padding:.3rem .25rem .3rem .1rem">м²</th>
-                            <th class="text-end text-nowrap" style="padding:.3rem .25rem" title="Коэффициент зафиксирован на момент приёмки">Коэф.</th>
-                            <th class="text-end text-nowrap" style="padding:.3rem .25rem">Ставка</th>
-                            <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .25rem">Сумма</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($summary as $row)
-                            @php
-//                                $rate     = floor((\App\Models\Product::PIECE_RATE + \App\Models\Product::PIECE_RATE * 0.17 * $row['coeff']) / 10) * 10;
-                                $skuColor = \App\Models\Product::getColorBySku($row['product']?->sku);
-                                $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
-                            @endphp
+                    @if($isMaster)
+                        <table class="table mb-0" style="font-size:.75rem;table-layout:auto">
+                            <colgroup>
+                                <col>
+                                <col style="width:1%">
+                            </colgroup>
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="border-left:4px solid transparent;padding:.3rem .1rem .3rem .4rem">Плитка</th>
+                                    <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .25rem">м²</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($summary as $row)
+                                @php
+                                    $skuColor = \App\Models\Product::getColorBySku($row['product']?->sku);
+                                    $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+                                @endphp
+                                <tr>
+                                    <td style="border-left:4px solid {{ $skuColor }};{{ $skuBg }};word-break:break-word;padding:.3rem .1rem .3rem .4rem">
+                                        {{ $row['product']?->name ?? '—' }}
+                                        @if(!empty($row['is_undercut']))
+                                            <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">подкол 80%</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end text-nowrap fw-semibold" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .25rem">
+                                        {{ number_format($row['quantity'], 3, ',', ' ') }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th class="text-end fw-bold" style="padding:.3rem .25rem">ИТОГО:</th>
+                                    <th class="text-end text-nowrap" style="font-size:.9rem;padding:.3rem .4rem .3rem .25rem">
+                                        {{ number_format($summary->sum('quantity'), 3, ',', ' ') }}
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    @else
+                        <table class="table mb-0" style="font-size:.75rem;table-layout:auto">
+                            <colgroup>
+                                <col>
+                                <col style="width:1%">
+                                <col style="width:1%">
+                                <col style="width:1%">
+                                <col style="width:1%">
+                            </colgroup>
+                            <thead class="table-light">
                             <tr>
-                                <td style="border-left:4px solid {{ $skuColor }};{{ $skuBg }};word-break:break-word;padding:.3rem .1rem .3rem .4rem">
-                                    {{ $row['product']?->name ?? '—' }}
-                                    @if(!empty($row['is_undercut']))
-                                        <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">подкол 80%</span>
-                                    @endif
-                                </td>
-                                <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
-                                    {{ number_format($row['quantity'], 3, ',', ' ') }}
-                                </td>
-                                <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
-                                    ×{{ number_format($row['coeff'], 1, ',', ' ') }}
-                                </td>
-                                <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
-                                    {{ number_format($row['prodCost'], 0, ',', ' ') }} ₽
-                                </td>
-                                <td class="text-end text-nowrap fw-semibold text-success" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .25rem">
-                                    {{ number_format($row['pay'], 0, ',', ' ') }} ₽
-                                </td>
+                                <th style="border-left:4px solid transparent;padding:.3rem .1rem .3rem .4rem">Плитка</th>
+                                <th class="text-end text-nowrap" style="padding:.3rem .25rem .3rem .1rem">м²</th>
+                                <th class="text-end text-nowrap" style="padding:.3rem .25rem" title="Коэффициент зафиксирован на момент приёмки">Коэф.</th>
+                                <th class="text-end text-nowrap" style="padding:.3rem .25rem">Ставка</th>
+                                <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .25rem">Сумма</th>
                             </tr>
-                        @endforeach
-                        </tbody>
-                        <tfoot class="table-light">
-                        <tr>
-                            <th colspan="4" class="text-end fw-bold" style="padding:.3rem .25rem">ИТОГО:</th>
-                            <th class="text-end text-nowrap text-success" style="font-size:.9rem;padding:.3rem .4rem .3rem .25rem">
-                                {{ number_format($totalPay, 0, ',', ' ') }} ₽
-                            </th>
-                        </tr>
-                        </tfoot>
-                    </table>
+                            </thead>
+                            <tbody>
+                            @foreach($summary as $row)
+                                @php
+                                    $skuColor = \App\Models\Product::getColorBySku($row['product']?->sku);
+                                    $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+                                @endphp
+                                <tr>
+                                    <td style="border-left:4px solid {{ $skuColor }};{{ $skuBg }};word-break:break-word;padding:.3rem .1rem .3rem .4rem">
+                                        {{ $row['product']?->name ?? '—' }}
+                                        @if(!empty($row['is_undercut']))
+                                            <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">подкол 80%</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
+                                        {{ number_format($row['quantity'], 3, ',', ' ') }}
+                                    </td>
+                                    <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
+                                        ×{{ number_format($row['coeff'], 1, ',', ' ') }}
+                                    </td>
+                                    <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
+                                        {{ number_format($row['prodCost'], 0, ',', ' ') }} ₽
+                                    </td>
+                                    <td class="text-end text-nowrap fw-semibold text-success" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .25rem">
+                                        {{ number_format($row['pay'], 0, ',', ' ') }} ₽
+                                    </td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                            <tfoot class="table-light">
+                            <tr>
+                                <th class="fw-bold" style="padding:.3rem .1rem .3rem .4rem">ИТОГО:</th>
+                                <th class="text-end text-nowrap fw-semibold" style="font-size:.9rem;padding:.3rem .25rem">
+                                    {{ number_format($summary->sum('quantity'), 2, ',', ' ') }} м2
+                                </th>
+                                <th></th>
+                                <th></th>
+                                <th class="text-end text-nowrap text-success" style="font-size:.9rem;padding:.3rem .4rem .3rem .25rem">
+                                    {{ number_format($totalPay, 0, ',', ' ') }} ₽
+                                </th>
+                            </tr>
+                            </tfoot>
+                        </table>
+                    @endif
                 </div>
             </div>
             @endif
 
-            {{-- Детализация: список приёмок --}}
+            {{-- Детализация --}}
             <div class="card shadow-sm">
                 <div class="card-header bg-white p-0">
                     <div class="d-flex w-100" style="background:#e9ecef;padding:4px;gap:3px;min-width:0">
-                        @php $activeRawCount = $rawBatches->whereIn('status', ['new','in_work'])->count() @endphp
                         <button type="button" id="view-btn-batches"
                                 style="flex:1;min-width:0;border:none;border-radius:4px;padding:.35rem .25rem;font-size:.75rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:transparent;color:#6c757d;transition:all .15s">
                             По партиям
@@ -184,7 +256,8 @@
                         </button>
                         <button type="button" id="view-btn-raw"
                                 style="flex:1;min-width:0;border:none;border-radius:4px;padding:.35rem .25rem;font-size:.75rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:transparent;color:#6c757d;transition:all .15s">
-                            Сырьё@if($activeRawCount) <span class="badge bg-success" style="font-size:.6rem;vertical-align:middle">{{ $activeRawCount }}</span>@endif
+                            Сырьё@php $activeRawCount = $rawBatches->whereIn('status', ['new','in_work'])->count() @endphp
+                            @if($activeRawCount) <span class="badge bg-success" style="font-size:.6rem;vertical-align:middle">{{ $activeRawCount }}</span>@endif
                         </button>
                     </div>
                 </div>
@@ -201,13 +274,12 @@
                             <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
                                 <div style="padding:.2rem .35rem">
 
-                                    {{-- Строка 1: дата + статус (+ глазик для админа) --}}
                                     <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
                                         <span class="text-muted" style="font-size:.72rem">
                                             {{ $reception->created_at->format('d.m.Y H:i') }}
                                         </span>
                                         <div class="d-flex gap-1 align-items-center">
-                                            @if(auth()->user()->isAdmin() && $reception->rawMaterialBatch)
+                                            @if(auth()->user()->isAdmin() || $isMaster)
                                                 <a href="{{ route('stone-receptions.show', $reception) }}"
                                                    class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center"
                                                    style="width:22px;height:22px;padding:0;font-size:.65rem" title="Открыть приёмку">
@@ -226,7 +298,6 @@
                                         </div>
                                     </div>
 
-                                    {{-- Продукция --}}
                                     @if($reception->items->count() > 0)
                                         <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                                             @foreach($reception->items as $item)
@@ -247,7 +318,6 @@
                                         </div>
                                     @endif
 
-                                    {{-- Сырьё (партия) --}}
                                     @if($reception->rawMaterialBatch)
                                         @php
                                             $bInit = (float) ($reception->rawMaterialBatch->initial_quantity ?? 0);
@@ -266,17 +336,20 @@
                                         </div>
                                     @endif
 
-                                    {{-- Приёмщик --}}
-                                    @if($reception->receiver)
-                                        <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
+                                    <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
+                                        <span class="text-muted" style="font-size:.65rem">
+                                            <i class="bi bi-building me-1"></i>{{ $reception->store?->name ?? '—' }}
+                                        </span>
+                                        @if($isMaster && $reception->cutter)
                                             <span class="text-muted" style="font-size:.65rem">
-                                                <i class="bi bi-building me-1"></i>{{ $reception->store?->name ?? '—' }}
+                                                <i class="bi bi-person me-1"></i>{{ $reception->cutter->name }}
                                             </span>
+                                        @elseif(!$isMaster && $reception->receiver)
                                             <span class="text-muted" style="font-size:.65rem">
                                                 <i class="bi bi-person-gear me-1"></i>{{ $reception->receiver->name }}
                                             </span>
-                                        </div>
-                                    @endif
+                                        @endif
+                                    </div>
 
                                 </div>
                             </div>
@@ -298,7 +371,6 @@
                             <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
                                 <div style="padding:.2rem .35rem">
 
-                                    {{-- Строка 1: дата + тип --}}
                                     <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
                                         <span class="text-muted" style="font-size:.72rem">{{ $log->created_at->format('d.m.Y H:i') }}</span>
                                         @if($log->type === 'created')
@@ -308,7 +380,6 @@
                                         @endif
                                     </div>
 
-                                    {{-- Продукция (дельты) --}}
                                     @if($log->items->count() > 0)
                                         <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                                             @foreach($log->items as $item)
@@ -325,7 +396,6 @@
                                         </div>
                                     @endif
 
-                                    {{-- Партия сырья --}}
                                     @if($log->rawMaterialBatch)
                                         <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                                             <span class="text-muted text-truncate" style="font-size:.72rem">
@@ -334,12 +404,15 @@
                                         </div>
                                     @endif
 
-                                    {{-- Склад + приёмщик --}}
                                     <div class="d-flex justify-content-between" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
                                         <span class="text-muted" style="font-size:.65rem">
                                             <i class="bi bi-building me-1"></i>{{ $log->stoneReception?->store?->name ?? '—' }}
                                         </span>
-                                        @if($log->receiver)
+                                        @if($isMaster && $log->cutter)
+                                            <span class="text-muted" style="font-size:.65rem">
+                                                <i class="bi bi-person me-1"></i>{{ $log->cutter->name }}
+                                            </span>
+                                        @elseif(!$isMaster && $log->receiver)
                                             <span class="text-muted" style="font-size:.65rem">
                                                 <i class="bi bi-person-gear me-1"></i>{{ $log->receiver->name }}
                                             </span>
@@ -369,7 +442,6 @@
                             <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07);{{ !$isActive ? 'opacity:.75' : '' }}">
                                 <div style="padding:.2rem .35rem">
 
-                                    {{-- Строка 1: №партии слева | статус справа --}}
                                     <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
                                         @if($batch->batch_number)
                                             <span class="text-muted" style="font-size:.72rem">№{{ $batch->batch_number }}</span>
@@ -381,7 +453,6 @@
                                         </span>
                                     </div>
 
-                                    {{-- Строка 2: продукт слева | нач./ост. в столбик справа --}}
                                     <div class="d-flex justify-content-between align-items-start" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                                         <span class="fw-semibold me-2" style="font-size:.75rem">
                                             <i class="bi bi-box text-secondary me-1"></i>{{ $batch->product?->name ?? '—' }}
@@ -398,7 +469,6 @@
                                         </div>
                                     </div>
 
-                                    {{-- Строка 3: дата создания слева | склад справа --}}
                                     <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                                         <span class="fw-bold" style="font-size:.72rem">
                                             <i class="bi bi-calendar3 text-secondary me-1"></i>{{ $batch->created_at->format('d.m.Y H:i') }}
@@ -410,7 +480,6 @@
                                         @endif
                                     </div>
 
-                                    {{-- Строка 4: кнопки действий --}}
                                     <div class="d-flex gap-1 justify-content-end" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
                                         <a href="{{ route('raw-batches.show', $batch) }}"
                                            class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center"
@@ -491,7 +560,7 @@
                 });
             })();
 
-            // ── Переключатель вида: по партиям / по приёмкам / сырьё ─────────────
+            // ── Переключатель вида ────────────────────────────────────────────────
             (function () {
                 const STORAGE_KEY = 'dashboard_receptions_view';
                 const views = {

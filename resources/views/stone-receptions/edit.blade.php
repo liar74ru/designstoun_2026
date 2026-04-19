@@ -43,9 +43,24 @@
                                         <div class="row g-1 mb-1">
                                             <div class="col-6">
                                                 <label class="form-label small text-muted mb-0" style="font-size:.7rem">Приёмщик</label>
-                                                <input type="text" class="form-control form-control-sm bg-light"
-                                                       style="font-size:.8rem" value="{{ $stoneReception->receiver->name ?? '—' }}" readonly>
-                                                <input type="hidden" name="receiver_id" value="{{ $stoneReception->receiver_id }}">
+                                                @if(auth()->user()->isAdmin())
+                                                    <select name="receiver_id"
+                                                            class="form-select form-select-sm @error('receiver_id') is-invalid @enderror"
+                                                            style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem" required>
+                                                        <option value="">— приёмщик —</option>
+                                                        @foreach($masterWorkers as $worker)
+                                                            <option value="{{ $worker->id }}"
+                                                                {{ old('receiver_id', $stoneReception->receiver_id) == $worker->id ? 'selected' : '' }}>
+                                                                {{ $worker->name }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                    @error('receiver_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                                @else
+                                                    <input type="text" class="form-control form-control-sm bg-light"
+                                                           style="font-size:.8rem" value="{{ $stoneReception->receiver->name ?? '—' }}" readonly>
+                                                    <input type="hidden" name="receiver_id" value="{{ $stoneReception->receiver_id }}">
+                                                @endif
                                             </div>
                                             <div class="col-6">
                                                 <label class="form-label small text-muted mb-0" style="font-size:.7rem">Пильщик</label>
@@ -269,8 +284,7 @@
                                 @error('notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
-                            <x-admin-date-field
-                                value="{{ old('manual_created_at', $stoneReception->created_at->format('Y-m-d\TH:i')) }}" />
+                            <x-admin-date-field />
 
                             <input type="hidden" name="close_batch" value="0" id="closeBatchInput">
                             <div class="d-flex gap-2 flex-wrap">

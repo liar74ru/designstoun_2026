@@ -10,8 +10,7 @@ use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
 use App\Http\Controllers\AdminSettingController;
-use App\Http\Controllers\WorkerDashboardController;
-use App\Http\Controllers\MasterDashboardController;
+use App\Http\Controllers\CutterWorkerDashboardController;
 use Illuminate\Support\Facades\Route;
 
 // Главная — редирект на login если не авторизован
@@ -32,11 +31,10 @@ Route::middleware(['auth'])->group(function () {
     // Профиль
 
     // Страница работника
-    Route::get('/my-work', [WorkerDashboardController::class, 'show'])->name('worker.dashboard');
-    Route::get('/master-work', [MasterDashboardController::class, 'show'])->name('master.dashboard');
-    Route::get('/master-work/{workerId}', [MasterDashboardController::class, 'show'])->name('master.dashboard.by-id');
-    Route::get('/workers/{workerId}/dashboard', [WorkerDashboardController::class, 'show'])
-        ->name('worker.dashboard.by-id');
+    Route::get('/my-work', [CutterWorkerDashboardController::class, 'showWorker'])->name('worker.dashboard');
+    Route::get('/master-work', [CutterWorkerDashboardController::class, 'showMaster'])->name('master.dashboard');
+    Route::get('/master-work/{workerId}', [CutterWorkerDashboardController::class, 'showMaster'])->name('master.dashboard.by-id');
+    Route::get('/workers/{workerId}/dashboard', [CutterWorkerDashboardController::class, 'showWorker'])->name('worker.dashboard.by-id');
 
     // Товары
     Route::resource('products', ProductController::class)->only(['index', 'show']);
