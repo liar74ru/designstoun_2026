@@ -35,6 +35,12 @@ class SupplierOrderController extends Controller
         return view('supplier-orders.index', compact('orders'));
     }
 
+    public function show(SupplierOrder $supplierOrder): View
+    {
+        $supplierOrder->load(['counterparty', 'store', 'receiver', 'items.product']);
+        return view('supplier-orders.show', compact('supplierOrder'));
+    }
+
     public function create(Request $request): View
     {
         $stores         = Store::where('archived', false)->orderBy('name')->get();
@@ -255,15 +261,23 @@ class SupplierOrderController extends Controller
      */
     public function sync(SupplierOrder $supplierOrder): RedirectResponse
     {
-        if ($supplierOrder->status !== SupplierOrder::STATUS_NEW) {
-            return redirect()->route('supplier-orders.index')
-                ->with('warning', 'Создать приёмку можно только для поступлений в статусе «Новый».');
+        if ($supplierOrder->status === SupplierOrder::STATUS_SENT) {
+            return redirect()->route('supplier-orders.show', $supplierOrder)
+                ->with('warning', 'Приёмка уже создана в МойСклад.');
         }
 
         $supplierOrder->load(['counterparty', 'store', 'items.product']);
 
         // Проверяем, существует ли Заказ поставщику в МойСклад
-        if ($supplierOrder->moysklad_id && !$this->purchaseOrderService->checkExists($supplierOrder->moysklad_id)) {
+        if (!$supplierOrder->moysklad_id) {
+            session()->put("sync_confirm_{$supplierOrder->id}", [
+                'issue'          => 'order_not_created',
+                'suggested_name' => null,
+            ]);
+            return redirect()->route('supplier-orders.sync-confirm', $supplierOrder);
+        }
+
+        if (!$this->purchaseOrderService->checkExists($supplierOrder->moysklad_id)) {
             session()->put("sync_confirm_{$supplierOrder->id}", [
                 'issue'          => 'order_missing',
                 'suggested_name' => null,
@@ -323,15 +337,41 @@ class SupplierOrderController extends Controller
      */
     public function forceSync(Request $request, SupplierOrder $supplierOrder): RedirectResponse
     {
-        if ($supplierOrder->status !== SupplierOrder::STATUS_NEW) {
-            return redirect()->route('supplier-orders.index')
-                ->with('warning', 'Создать приёмку можно только для поступлений в статусе «Новый».');
+        if ($supplierOrder->status === SupplierOrder::STATUS_SENT) {
+            return redirect()->route('supplier-orders.show', $supplierOrder)
+                ->with('warning', 'Приёмка уже создана в МойСклад.');
         }
 
         $mode = $request->input('mode');
         session()->forget("sync_confirm_{$supplierOrder->id}");
 
         $supplierOrder->load(['counterparty', 'store', 'items.product']);
+
+        if ($mode === 'create_order_only') {
+            $poName   = $supplierOrder->number;
+            $poResult = $this->purchaseOrderService->createPurchaseOrder($supplierOrder, $poName);
+
+            if (!$poResult['success'] && $poResult['code'] === 'duplicate_name') {
+                $poName   = DocumentNaming::nextSuffix($poName);
+                $poResult = $this->purchaseOrderService->createPurchaseOrder($supplierOrder, $poName);
+            }
+
+            if (!$poResult['success']) {
+                $supplierOrder->update(['sync_error' => $poResult['message']]);
+                return redirect()->route('supplier-orders.show', $supplierOrder)
+                    ->with('danger', "Не удалось создать Заказ поставщику в МойСклад: {$poResult['message']}");
+            }
+
+            $supplierOrder->update([
+                'moysklad_id' => $poResult['moysklad_id'],
+                'number'      => $poName,
+                'status'      => SupplierOrder::STATUS_NEW,
+                'sync_error'  => null,
+            ]);
+
+            return redirect()->route('supplier-orders.show', $supplierOrder)
+                ->with('success', "Заказ поставщику №{$poName} создан в МойСклад. Теперь можно создать Приёмку.");
+        }
 
         if ($mode === 'recreate') {
             // Создаём Заказ поставщику заново (с автоподбором суффикса при коллизии)

@@ -65,6 +65,7 @@ Route::middleware(['auth'])->group(function () {
     // Поступления сырья
     Route::get('/supplier-orders', [SupplierOrderController::class, 'index'])->name('supplier-orders.index');
     Route::get('/supplier-orders/create', [SupplierOrderController::class, 'create'])->name('supplier-orders.create');
+    Route::get('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'show'])->name('supplier-orders.show');
     Route::post('/supplier-orders', [SupplierOrderController::class, 'store'])->name('supplier-orders.store');
     Route::get('/supplier-orders/{supplierOrder}/edit', [SupplierOrderController::class, 'edit'])->name('supplier-orders.edit');
     Route::put('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'update'])->name('supplier-orders.update');

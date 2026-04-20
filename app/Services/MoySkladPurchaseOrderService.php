@@ -195,13 +195,27 @@ class MoySkladPurchaseOrderService
         }
 
         try {
+            $counterparty = $order->counterparty;
+            if (!$counterparty?->moysklad_id) {
+                $result['message'] = 'Контрагент не синхронизирован с МойСклад';
+                return $result;
+            }
+            $agentMeta = $this->getCounterpartyMeta($counterparty->moysklad_id);
+            if (!$agentMeta) {
+                $result['message'] = 'Не удалось получить метаданные контрагента из МойСклад';
+                return $result;
+            }
+
             $positions = $this->buildPositions($order);
             if (empty($positions)) {
                 $result['message'] = 'Нет позиций для отправки';
                 return $result;
             }
 
-            $body = ['positions' => $positions];
+            $body = [
+                'agent'     => ['meta' => $agentMeta],
+                'positions' => $positions,
+            ];
             if ($order->note !== null) {
                 $body['description'] = $order->note;
             }
@@ -217,7 +231,7 @@ class MoySkladPurchaseOrderService
                 $result['message'] = 'Заказ обновлён в МойСклад';
                 Log::info('Заказ поставщику обновлён в МойСклад', ['moysklad_id' => $order->moysklad_id]);
             } else {
-                $errorMsg = $response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка';
+                $errorMsg = $response->json()['errors'][0]['error'] ?? 'Неизвестная ошибка';
                 Log::error('Ошибка обновления заказа в МойСклад', [
                     'status'      => $response->status(),
                     'response'    => $response->json(),

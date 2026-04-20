@@ -15,7 +15,48 @@
     <div class="row justify-content-center">
         <div class="col-12 col-md-7 col-lg-5">
 
-            @if($issue === 'order_missing')
+            @if($issue === 'order_not_created')
+
+                <div class="card shadow-sm border-warning">
+                    <div class="card-header bg-warning bg-opacity-10 d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle text-warning fs-5"></i>
+                        <span class="fw-semibold">Заказ поставщику не создан в МойСклад</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2">
+                            Поступление <strong>№{{ $order->number }}</strong> не было передано в МойСклад —
+                            Заказ поставщику отсутствует. Без него нельзя создать Приёмку.
+                        </p>
+                        <p class="text-muted small mb-3">
+                            Можно создать только Заказ поставщику, либо сразу оба документа.
+                            При конфликте имени суффикс <code>_01</code> будет добавлен автоматически.
+                        </p>
+
+                        <div class="d-grid gap-2">
+                            <form method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
+                                @csrf
+                                <input type="hidden" name="mode" value="recreate">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                    Создать Заказ поставщику + Приёмку
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
+                                @csrf
+                                <input type="hidden" name="mode" value="create_order_only">
+                                <button type="submit" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-file-earmark-plus me-1"></i>
+                                    Создать только Заказ поставщику
+                                </button>
+                            </form>
+                            <a href="{{ route('supplier-orders.show', $order) }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i> Отмена
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            @elseif($issue === 'order_missing')
 
                 <div class="card shadow-sm border-warning">
                     <div class="card-header bg-warning bg-opacity-10 d-flex align-items-center gap-2">
@@ -28,9 +69,9 @@
                             поэтому Приёмку нельзя создать без него.
                         </p>
                         <p class="text-muted small mb-3">
-                            Можно воссоздать Заказ поставщику в МойСклад и сразу создать связанную Приёмку.
-                            Если при воссоздании обнаружится конфликт имени — будет автоматически добавлен суффикс
-                            <code>_01</code>, а номер поступления обновится в системе.
+                            Можно воссоздать Заказ поставщику в МойСклад и сразу создать связанную Приёмку,
+                            либо только Заказ поставщику. При конфликте имени суффикс <code>_01</code>
+                            будет добавлен автоматически.
                         </p>
 
                         <div class="d-grid gap-2">
@@ -39,10 +80,18 @@
                                 <input type="hidden" name="mode" value="recreate">
                                 <button type="submit" class="btn btn-primary w-100">
                                     <i class="bi bi-arrow-repeat me-1"></i>
-                                    Создать Поступление сырья + Приёмку
+                                    Создать Заказ поставщику + Приёмку
                                 </button>
                             </form>
-                            <a href="{{ route('supplier-orders.index') }}" class="btn btn-outline-secondary">
+                            <form method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
+                                @csrf
+                                <input type="hidden" name="mode" value="create_order_only">
+                                <button type="submit" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-file-earmark-plus me-1"></i>
+                                    Создать только Заказ поставщику
+                                </button>
+                            </form>
+                            <a href="{{ route('supplier-orders.show', $order) }}" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle me-1"></i> Отмена
                             </a>
                         </div>

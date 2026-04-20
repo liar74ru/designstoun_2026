@@ -74,6 +74,9 @@
                             <td class="text-muted small">{{ $order->created_at->format('d.m.Y H:i') }}</td>
                             <td>
                                 <div class="d-flex gap-1 flex-wrap">
+                                    <a href="{{ route('supplier-orders.show', $order) }}" class="btn btn-sm btn-outline-secondary" title="Просмотр">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
                                     @if($order->status === \App\Models\SupplierOrder::STATUS_NEW)
                                         <form method="POST" action="{{ route('supplier-orders.sync', $order) }}"
                                               class="d-inline"
@@ -163,6 +166,11 @@
                                     </button>
                                 </form>
                             @endif
+                            <a href="{{ route('supplier-orders.show', $order) }}"
+                               class="btn btn-outline-secondary w-100"
+                               style="font-size:.8rem;padding:.23rem .35rem">
+                                <i class="bi bi-eye"></i> Просм
+                            </a>
                             <a href="{{ route('supplier-orders.create', ['copy_from' => $order->id]) }}"
                                class="btn btn-outline-secondary w-100"
                                style="font-size:.8rem;padding:.23rem .35rem">

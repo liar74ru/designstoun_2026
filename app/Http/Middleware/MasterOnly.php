@@ -63,6 +63,7 @@ class MasterOnly
 
         // Поступления сырья
         'supplier-orders.index',
+        'supplier-orders.show',
         'supplier-orders.create',
         'supplier-orders.store',
         'supplier-orders.edit',
