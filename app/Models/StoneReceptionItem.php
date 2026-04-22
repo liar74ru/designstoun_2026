@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Setting;
 use Illuminate\Database\Eloquent\Model;
 
 class StoneReceptionItem extends Model
@@ -14,20 +15,19 @@ class StoneReceptionItem extends Model
         'quantity',
         'effective_cost_coeff',
         'is_undercut',
+        'is_small_tile',
         'worker_cost_per_m2',
+        'master_cost_per_m2',
     ];
 
     protected $casts = [
         'quantity'             => 'decimal:3',
         'effective_cost_coeff' => 'decimal:4',
         'is_undercut'          => 'boolean',
+        'is_small_tile'        => 'boolean',
         'worker_cost_per_m2'   => 'decimal:2',
+        'master_cost_per_m2'   => 'decimal:2',
     ];
-
-    /**
-     * Скидка коэффициента при «80% подкол».
-     */
-    const UNDERCUT_PENALTY = 1.5;
 
     // ─── Связи ───────────────────────────────────────────────────────────────
 
@@ -56,7 +56,7 @@ class StoneReceptionItem extends Model
     public function getBaseCoeffAttribute(): float
     {
         $eff = (float) $this->effective_cost_coeff;
-        return $this->is_undercut ? $eff + self::UNDERCUT_PENALTY : $eff;
+        return $this->is_undercut ? $eff + (float) Setting::get('UNDERCUT_PENALTY', 1.5) : $eff;
     }
 
     /**
@@ -68,7 +68,7 @@ class StoneReceptionItem extends Model
     {
         $coeff = $baseCoeff;
         if ($isUndercut) {
-            $coeff -= self::UNDERCUT_PENALTY;
+            $coeff -= (float) Setting::get('UNDERCUT_PENALTY', 1.5);
         }
         return $coeff;
     }
@@ -90,5 +90,33 @@ class StoneReceptionItem extends Model
     public function calculateWorkerPay(): float
     {
         return (float) $this->quantity * $this->effectiveProdCost();
+    }
+
+    /**
+     * Проверяет, является ли SKU плиткой < 50мм (маска 04-хх-30).
+     */
+    public static function skuIsSmallTile(?string $sku): bool
+    {
+        if (!$sku) return false;
+        $parts = explode('-', $sku);
+        return count($parts) >= 3 && $parts[2] === '30';
+    }
+
+    /**
+     * Ставка мастера за м² по набору флагов.
+     */
+    public static function computeMasterCost(bool $isUndercut, bool $isSmallTile): float
+    {
+        return (float) Setting::get('MASTER_BASE_RATE', 100)
+            + ($isUndercut  ? (float) Setting::get('MASTER_UNDERCUT_RATE',   50) : 0)
+            + ($isSmallTile ? (float) Setting::get('MASTER_SMALL_TILE_RATE', 50) : 0);
+    }
+
+    /**
+     * Зарплата мастера за данную позицию.
+     */
+    public function calculateMasterPay(): float
+    {
+        return (float) $this->quantity * (float) ($this->master_cost_per_m2 ?? 0);
     }
 }

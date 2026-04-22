@@ -46,6 +46,32 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
+
+                    @php $undercutSetting = $settings->firstWhere('key', 'UNDERCUT_PENALTY'); @endphp
+                    @if($undercutSetting)
+                        @php $j = $settings->search(fn($s) => $s->key === 'UNDERCUT_PENALTY'); @endphp
+                        <div class="mb-0 mt-3">
+                            <label for="setting_UNDERCUT_PENALTY" class="form-label fw-semibold mb-1">
+                                {{ $undercutSetting->label }}
+                            </label>
+                            @if($undercutSetting->description)
+                                <div class="text-muted small mb-1">{{ $undercutSetting->description }}</div>
+                            @endif
+                            <input
+                                type="number"
+                                step="any"
+                                id="setting_UNDERCUT_PENALTY"
+                                name="settings[{{ $j }}][value]"
+                                value="{{ old('settings.' . $j . '.value', $undercutSetting->value) }}"
+                                class="form-control @error('settings.' . $j . '.value') is-invalid @enderror"
+                                required
+                            >
+                            <input type="hidden" name="settings[{{ $j }}][key]" value="UNDERCUT_PENALTY">
+                            @error('settings.' . $j . '.value')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

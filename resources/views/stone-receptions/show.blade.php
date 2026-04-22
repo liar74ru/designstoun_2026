@@ -297,11 +297,17 @@
                                             @endif
                                         </td>
                                         <td class="text-center">
-                                            @if($item->is_undercut)
-                                                <span class="badge bg-warning text-dark">⚡ 80%</span>
-                                            @else
-                                                <span class="text-muted small">—</span>
-                                            @endif
+                                            <div class="d-flex flex-column gap-1 align-items-center">
+                                                @if($item->is_undercut)
+                                                    <span class="badge bg-warning text-dark">⚡ 80%</span>
+                                                @endif
+                                                @if($item->is_small_tile)
+                                                    <span class="badge bg-info text-dark">< 50мм</span>
+                                                @endif
+                                                @if(!$item->is_undercut && !$item->is_small_tile)
+                                                    <span class="text-muted small">—</span>
+                                                @endif
+                                            </div>
                                         </td>
                                         <td class="text-end">
                                             @if($item->effective_cost_coeff !== null)
@@ -373,6 +379,9 @@
                                             <div class="d-flex align-items-center gap-1 mt-1">
                                                 @if($item->is_undercut)
                                                     <span class="badge bg-warning text-dark" style="font-size:.68rem">⚡ 80% подкол</span>
+                                                @endif
+                                                @if($item->is_small_tile)
+                                                    <span class="badge bg-info text-dark" style="font-size:.68rem">плитка < 50мм</span>
                                                 @endif
                                                 @if($item->effective_cost_coeff !== null)
                                                     <span class="badge bg-light border text-dark" style="font-size:.68rem">
@@ -601,7 +610,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     cancelBtn?.addEventListener('click', hideEdit);
 
-    const UNDERCUT_PENALTY = 1.5;
+    const UNDERCUT_PENALTY = {{ (float) \App\Models\Setting::get('UNDERCUT_PENALTY', 1.5) }};
 
     function recalcRow(rowIdx) {
         const baseInput  = document.querySelector(`.coeff-base-input[data-row="${rowIdx}"]`);

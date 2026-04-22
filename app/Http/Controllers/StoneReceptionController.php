@@ -267,7 +267,7 @@ class StoneReceptionController extends Controller
                 // Пишем лог создания — перезагружаем items чтобы они точно были в коллекции
                 $reception->load('items');
                 $itemDeltas = $reception->items->mapWithKeys(fn($i) => [$i->product_id => (float) $i->quantity])->toArray();
-                $this->writeReceptionLog($reception, ReceptionLog::TYPE_CREATED, (float) $reception->raw_quantity_used, $batchSnapshotBefore, $itemDeltas, $reception->created_at);
+                $this->writeReceptionLog($reception, ReceptionLog::TYPE_CREATED, (float) $reception->raw_quantity_used, $batchSnapshotBefore, $itemDeltas, $reception->created_at, $reception->receiver_id);
                 $createdReception = $reception;
             });
 
@@ -648,17 +648,20 @@ class StoneReceptionController extends Controller
         $productMap = Product::whereIn('id', $productIds)->get()->keyBy('id');
 
         foreach ($products as $product) {
-            $prod       = $productMap->get($product['product_id']);
-            $baseCoeff  = (float) ($prod?->prod_cost_coeff ?? 0);
-            $isUndercut = !empty($product['is_undercut']);
-            $effCoeff   = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+            $prod        = $productMap->get($product['product_id']);
+            $baseCoeff   = (float) ($prod?->prod_cost_coeff ?? 0);
+            $isUndercut  = !empty($product['is_undercut']);
+            $isSmallTile = StoneReceptionItem::skuIsSmallTile($prod?->sku);
+            $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
 
             $reception->items()->create([
                 'product_id'           => $product['product_id'],
                 'quantity'             => $product['quantity'],
                 'effective_cost_coeff' => $effCoeff,
                 'is_undercut'          => $isUndercut,
+                'is_small_tile'        => $isSmallTile,
                 'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
+                'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
             ]);
         }
 
@@ -694,17 +697,20 @@ class StoneReceptionController extends Controller
                 $existingItems[$productId]->update(['quantity' => $product['quantity']]);
             } else {
                 // Новая позиция — фиксируем коэффициент на текущий момент
-                $prod       = $productMap->get($productId);
-                $baseCoeff  = (float) ($prod?->prod_cost_coeff ?? 0);
-                $isUndercut = !empty($product['is_undercut']);
-                $effCoeff   = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+                $prod        = $productMap->get($productId);
+                $baseCoeff   = (float) ($prod?->prod_cost_coeff ?? 0);
+                $isUndercut  = !empty($product['is_undercut']);
+                $isSmallTile = StoneReceptionItem::skuIsSmallTile($prod?->sku);
+                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
 
                 $reception->items()->create([
                     'product_id'           => $productId,
                     'quantity'             => $product['quantity'],
                     'effective_cost_coeff' => $effCoeff,
                     'is_undercut'          => $isUndercut,
+                    'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
+                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
                 ]);
             }
         }
@@ -733,14 +739,17 @@ class StoneReceptionController extends Controller
             foreach ($validated['items'] as $row) {
                 $item = $stoneReception->items()->with('product')->findOrFail($row['item_id']);
 
-                $isUndercut = !empty($row['is_undercut']);
-                $baseCoeff  = (float) $row['base_coeff'];
-                $effCoeff   = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+                $isUndercut  = !empty($row['is_undercut']);
+                $baseCoeff   = (float) $row['base_coeff'];
+                $isSmallTile = StoneReceptionItem::skuIsSmallTile($item->product?->sku);
+                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
 
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
                     'is_undercut'          => $isUndercut,
+                    'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff),
+                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
                 ]);
             }
 
@@ -764,12 +773,16 @@ class StoneReceptionController extends Controller
                     continue;
                 }
 
-                $baseCoeff = (float) $item->product->prod_cost_coeff;
-                $effCoeff  = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, (bool) $item->is_undercut);
+                $baseCoeff   = (float) $item->product->prod_cost_coeff;
+                $isUndercut  = (bool) $item->is_undercut;
+                $isSmallTile = StoneReceptionItem::skuIsSmallTile($item->product->sku);
+                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
 
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
+                    'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $item->product->prodCost($effCoeff),
+                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
                 ]);
             }
 

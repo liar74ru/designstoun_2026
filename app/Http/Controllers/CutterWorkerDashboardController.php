@@ -115,7 +115,8 @@ class CutterWorkerDashboardController extends Controller
 
         $summary = $this->buildProductSummary($logs);
 
-        $totalPay = $isMaster ? null : $summary->sum('pay');
+        $totalPay        = $isMaster ? null : $summary->sum('pay');
+        $totalMasterPay  = $isMaster ? $summary->sum('masterPay') : null;
         $rates    = $isMaster ? [
             'base'      => (float) Setting::get('MASTER_BASE_RATE', 100),
             'undercut'  => (float) Setting::get('MASTER_UNDERCUT_RATE', 50),
@@ -131,6 +132,7 @@ class CutterWorkerDashboardController extends Controller
             'rawBatches',
             'summary',
             'totalPay',
+            'totalMasterPay',
             'rates',
             'dateFrom',
             'dateTo',
@@ -167,7 +169,8 @@ class CutterWorkerDashboardController extends Controller
                 $product            = $firstLogItem->product;
                 $firstReceptionItem = $firstLogItem->receptionLog?->stoneReception?->items
                     ->firstWhere('product_id', $firstLogItem->product_id);
-                $isUndercut = $firstReceptionItem ? (bool) $firstReceptionItem->is_undercut : false;
+                $isUndercut  = $firstReceptionItem ? (bool) $firstReceptionItem->is_undercut  : false;
+                $isSmallTile = $firstReceptionItem ? (bool) $firstReceptionItem->is_small_tile : false;
 
                 $quantity = $items->sum(fn($item) => (float) $item->quantity_delta);
 
@@ -190,17 +193,32 @@ class CutterWorkerDashboardController extends Controller
                     ->filter()
                     ->avg() ?? $product?->prod_cost_coeff ?? 0;
 
+                $masterPay = $items->sum(function ($logItem) {
+                    $delta = (float) $logItem->quantity_delta;
+                    if (abs($delta) < 0.0001) return 0.0;
+                    $receptionItem = $logItem->receptionLog?->stoneReception?->items
+                        ->firstWhere('product_id', $logItem->product_id);
+                    return $receptionItem ? $delta * (float) ($receptionItem->master_cost_per_m2 ?? 0) : 0.0;
+                });
+
                 return [
-                    'product'    => $product,
-                    'quantity'   => $quantity,
-                    'coeff'      => $effCoeffDisplay,
-                    'is_undercut' => $isUndercut,
-                    'prodCost'   => $items
+                    'product'      => $product,
+                    'quantity'     => $quantity,
+                    'coeff'        => $effCoeffDisplay,
+                    'is_undercut'  => $isUndercut,
+                    'is_small_tile' => $isSmallTile,
+                    'prodCost'     => $items
                         ->map(fn($li) => $li->receptionLog?->stoneReception?->items
                             ->firstWhere('product_id', $li->product_id)?->worker_cost_per_m2)
                         ->filter()
                         ->avg() ?? $product?->prodCost($effCoeffDisplay) ?? 0,
-                    'pay'        => $pay,
+                    'masterCost'   => $items
+                        ->map(fn($li) => $li->receptionLog?->stoneReception?->items
+                            ->firstWhere('product_id', $li->product_id)?->master_cost_per_m2)
+                        ->filter()
+                        ->avg() ?? 0,
+                    'pay'          => $pay,
+                    'masterPay'    => $masterPay,
                 ];
             })
             ->filter(fn($row) => abs($row['quantity']) > 0.0001)

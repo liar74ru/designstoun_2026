@@ -354,7 +354,7 @@ describe('SupplierOrderController sync()', function () {
 
         $this->actingAs($user)
             ->post(route('supplier-orders.sync', $order))
-            ->assertRedirect(route('supplier-orders.index'))
+            ->assertRedirect(route('supplier-orders.show', $order))
             ->assertSessionHas('warning');
     });
 
