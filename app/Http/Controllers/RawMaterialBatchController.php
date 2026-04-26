@@ -15,7 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
-# рефакторинг v2 от 26.04.2026  controller -> service -> service/moysklad
+// рефакторинг v2 от 26.04.2026  controller -> service -> service/moysklad
 
 class RawMaterialBatchController extends Controller
 {

@@ -12,7 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-# рефакторинг v2 от 26.04.2026  controller -> service -> service/moysklad 
+// рефакторинг v2 от 26.04.2026  controller -> service -> service/moysklad 
 
 class SupplierOrderController extends Controller
 {
