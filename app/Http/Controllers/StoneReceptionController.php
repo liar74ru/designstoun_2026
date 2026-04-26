@@ -34,7 +34,11 @@ class StoneReceptionController extends Controller
     private function getFormData(?StoneReception $reception = null, $selectedCutterId = null)
     {
         $data = [
-            'masterWorkers' => Worker::whereIn('position', ['Мастер', 'Директор', 'Администратор'])->orderBy('name')->get(),
+            'masterWorkers' => Worker::where(function ($q) {
+                foreach (['Мастер', 'Директор', 'Администратор'] as $pos) {
+                    $q->orWhereJsonContains('positions', $pos);
+                }
+            })->orderBy('name')->get(),
             'workers' => Worker::orderBy('name')->get(),
             'products' => Product::orderBy('name')->get(),
             'stores' => Store::orderBy('name')->get(),
@@ -528,12 +532,14 @@ class StoneReceptionController extends Controller
             } else {
                 // Техоперация уже есть — обновляем продукты и материал
                 $reception->loadMissing('items.product', 'rawMaterialBatch.product');
+                $batchName = $batch->moysklad_processing_name ?? ($batch->batch_number ? "партия №{$batch->batch_number}" : null);
                 $result = $service->updateProcessingProducts(
                     $reception->moysklad_processing_id,
                     $reception->items,
                     $reception->store_id ?? '',
                     (float) $reception->raw_quantity_used,
-                    $batch->product->moysklad_id ?? ''
+                    $batch->product->moysklad_id ?? '',
+                    $batchName
                 );
 
                 if ($result['success']) {
@@ -880,6 +886,7 @@ class StoneReceptionController extends Controller
             'remaining_quantity' => (float) $b->remaining_quantity,
             'product_sku'        => $b->product->sku ?? '',
             'status'             => $b->status,
+            'batch_number'       => $b->batch_number,
         ]);
 
         return response()->json($batches);

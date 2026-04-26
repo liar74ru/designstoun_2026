@@ -13,7 +13,7 @@ function makeCascadeBatch(string $status = 'in_work', float $remaining = 0.0): R
 {
     $product = Product::factory()->create();
     $store   = Store::factory()->create();
-    $worker  = Worker::create(['name' => 'Пильщик Каскад', 'position' => 'Пильщик']);
+    $worker  = Worker::create(['name' => 'Пильщик Каскад', 'positions' => ['Пильщик']]);
 
     return RawMaterialBatch::create([
         'product_id'         => $product->id,
@@ -28,8 +28,8 @@ function makeCascadeBatch(string $status = 'in_work', float $remaining = 0.0): R
 function makeReception(RawMaterialBatch $batch, string $status = 'active'): int
 {
     $store  = Store::factory()->create();
-    $cutter = Worker::create(['name' => 'Пильщик ' . uniqid(), 'position' => 'Пильщик']);
-    $master = Worker::create(['name' => 'Мастер ' . uniqid(), 'position' => 'Мастер']);
+    $cutter = Worker::create(['name' => 'Пильщик ' . uniqid(), 'positions' => ['Пильщик']]);
+    $master = Worker::create(['name' => 'Мастер ' . uniqid(), 'positions' => ['Мастер']]);
 
     return (int) \Illuminate\Support\Facades\DB::table('stone_receptions')->insertGetId([
         'raw_material_batch_id' => $batch->id,
@@ -50,7 +50,7 @@ function findReception(int $id): StoneReception
 
 function makeCascadeAdmin(): User
 {
-    $worker = Worker::create(['name' => 'Админ Каскад', 'position' => 'Директор']);
+    $worker = Worker::create(['name' => 'Админ Каскад', 'positions' => ['Директор']]);
     return User::factory()->create(['worker_id' => $worker->id, 'is_admin' => true]);
 }
 
@@ -118,8 +118,8 @@ test('редактирование приёмки не переводит пар
     $user    = makeCascadeAdmin();
     $product = Product::factory()->create(['prod_cost_coeff' => 1.0]);
     $store   = Store::factory()->create();
-    $cutter  = Worker::create(['name' => 'Пильщик HBU', 'position' => 'Пильщик']);
-    $master  = Worker::create(['name' => 'Мастер HBU', 'position' => 'Мастер']);
+    $cutter  = Worker::create(['name' => 'Пильщик HBU', 'positions' => ['Пильщик']]);
+    $master  = Worker::create(['name' => 'Мастер HBU', 'positions' => ['Мастер']]);
 
     $batch = RawMaterialBatch::create([
         'product_id'         => $product->id,
@@ -166,7 +166,7 @@ test('редактирование приёмки не переводит пар
 test('создание первой приёмки переводит партию из new в in_work', function () {
     $product = Product::factory()->create(['prod_cost_coeff' => 1.0]);
     $store   = Store::factory()->create();
-    $cutter  = Worker::create(['name' => 'Пильщик New', 'position' => 'Пильщик']);
+    $cutter  = Worker::create(['name' => 'Пильщик New', 'positions' => ['Пильщик']]);
 
     $batch = RawMaterialBatch::create([
         'product_id'         => $product->id,
@@ -195,7 +195,7 @@ test('создание первой приёмки переводит парти
 test('создание приёмки не переводит партию в used даже при нулевом остатке', function () {
     $product = Product::factory()->create(['prod_cost_coeff' => 1.0]);
     $store   = Store::factory()->create();
-    $cutter  = Worker::create(['name' => 'Пильщик Zero', 'position' => 'Пильщик']);
+    $cutter  = Worker::create(['name' => 'Пильщик Zero', 'positions' => ['Пильщик']]);
 
     $batch = RawMaterialBatch::create([
         'product_id'         => $product->id,
@@ -226,7 +226,7 @@ test('getBatchesJson включает партию с нулевым remaining �
     $user    = makeCascadeAdmin();
     $product = Product::factory()->create();
     $store   = Store::factory()->create();
-    $worker  = Worker::create(['name' => 'Пильщик Zero List', 'position' => 'Пильщик']);
+    $worker  = Worker::create(['name' => 'Пильщик Zero List', 'positions' => ['Пильщик']]);
     User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
 
     $batch = RawMaterialBatch::create([
@@ -250,7 +250,7 @@ test('getBatchesJson не возвращает партию в статусе us
     $user    = makeCascadeAdmin();
     $product = Product::factory()->create();
     $store   = Store::factory()->create();
-    $worker  = Worker::create(['name' => 'Пильщик Used List', 'position' => 'Пильщик']);
+    $worker  = Worker::create(['name' => 'Пильщик Used List', 'positions' => ['Пильщик']]);
 
     $batch = RawMaterialBatch::create([
         'product_id'         => $product->id,

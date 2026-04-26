@@ -15,7 +15,7 @@ function makeAdmin(): User
 
 function makeMaster(): User
 {
-    $worker = Worker::create(['name' => 'Мастер', 'position' => 'Мастер']);
+    $worker = Worker::create(['name' => 'Мастер', 'positions' => ['Мастер']]);
     return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
 }
 
@@ -36,7 +36,7 @@ describe('GET /admin/settings', function () {
     });
 
     test('пильщик получает редирект (WorkerOnly middleware)', function () {
-        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Пильщик']);
+        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
         $user   = User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
 
         $this->actingAs($user)
@@ -82,7 +82,7 @@ describe('POST /admin/settings', function () {
     });
 
     test('пильщик получает редирект (WorkerOnly middleware)', function () {
-        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Пильщик']);
+        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
         $user   = User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
 
         $this->actingAs($user)

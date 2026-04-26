@@ -24,9 +24,23 @@ class Worker extends Model
         'name',
         'email',
         'phone',
-        'position',
+        'positions',
         'department_id',
     ];
+
+    protected $casts = [
+        'positions' => 'array',
+    ];
+
+    public function getPositionAttribute(): string
+    {
+        return implode(', ', $this->positions ?? []);
+    }
+
+    public function hasPosition(string $position): bool
+    {
+        return in_array($position, $this->positions ?? []);
+    }
 
     /**
      * Учётная запись этого работника в системе

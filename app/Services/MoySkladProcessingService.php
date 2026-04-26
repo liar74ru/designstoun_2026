@@ -612,6 +612,11 @@ class MoySkladProcessingService
                 'moment'         => $receptionDate->format('Y-m-d H:i:s'),
             ];
 
+            $batchName = $batch->moysklad_processing_name ?? ($batch->batch_number ? "партия №{$batch->batch_number}" : null);
+            if ($batchName) {
+                $processingData['description'] = $batchName;
+            }
+
             $inWorkName = Setting::get('MOYSKLAD_IN_WORK_STATE', '');
             if ($inWorkName) {
                 $inWorkHref = $this->getProcessingStateHref($inWorkName);
@@ -734,7 +739,8 @@ class MoySkladProcessingService
         \Illuminate\Support\Collection $allItems,
         string $storeId,
         ?float $materialQuantity = null,
-        ?string $materialMoyskladId = null
+        ?string $materialMoyskladId = null,
+        ?string $description = null
     ): array {
         $result = ['success' => false, 'code' => '', 'message' => ''];
 
@@ -811,6 +817,10 @@ class MoySkladProcessingService
                 'products'       => $products,
                 'quantity'       => $totalQuantity,
             ];
+
+            if ($description !== null) {
+                $payload['description'] = $description;
+            }
 
             // Всегда передаём материал явно, чтобы МойСклад не пересчитывал его пропорционально
             if ($materialQuantity !== null && $materialQuantity > 0 && $materialMoyskladId) {

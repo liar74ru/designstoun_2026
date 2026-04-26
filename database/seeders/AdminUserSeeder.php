@@ -23,7 +23,7 @@ class AdminUserSeeder extends Seeder
             $worker = Worker::create([
                 'name'     => 'Администратор',
                 'phone'    => '89123456789',
-                'position' => 'Администратор',
+                'positions' => ['Администратор'],
             ]);
 
             // 2. Создаём user и сразу привязываем к worker

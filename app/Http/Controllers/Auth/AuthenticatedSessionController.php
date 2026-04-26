@@ -29,9 +29,8 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
-        // Пильщики, Галтовщики и другие рабочие — на их дашборд
-        if ($user->isWorker()) {
-            return redirect()->route('worker.dashboard');
+        if ($user->isAdmin()) {
+            return redirect()->intended(route('home'));
         }
 
         // Мастер — на журнал приёмок (его стартовая страница)
@@ -39,8 +38,9 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('stone-receptions.logs');
         }
 
-        if ($user->isAdmin()) {
-            return redirect()->intended(route('home'));
+        // Пильщики, Галтовщики и другие рабочие — на их дашборд
+        if ($user->isWorker()) {
+            return redirect()->route('worker.dashboard');
         }
 
         return redirect()->intended(route('home'));

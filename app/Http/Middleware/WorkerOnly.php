@@ -28,8 +28,8 @@ class WorkerOnly
     {
         $user = $request->user();
 
-        // Если пользователь не рабочий — пропускаем (middleware не применяется)
-        if (! $user || ! $user->isWorker()) {
+        // Если пользователь не рабочий, или у него есть более высокая роль — пропускаем
+        if (! $user || ! $user->isWorker() || $user->isMaster() || $user->isAdmin()) {
             return $next($request);
         }
 

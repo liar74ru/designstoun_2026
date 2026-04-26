@@ -8,10 +8,10 @@ use Tests\Helpers\ReceptionTestHelper as H;
 function makeWorker(array $attrs = []): Worker
 {
     return Worker::create(array_merge([
-        'name'     => 'Тестов Тест',
-        'position' => 'Пильщик',
-        'phone'    => null,
-        'email'    => null,
+        'name'      => 'Тестов Тест',
+        'positions' => ['Пильщик'],
+        'phone'     => null,
+        'email'     => null,
     ], $attrs));
 }
 
@@ -74,8 +74,8 @@ describe('WorkerController store()', function () {
     test('успешно создаёт работника', function () {
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
-                'name'     => 'Новиков Иван',
-                'position' => 'Пильщик',
+                'name'      => 'Новиков Иван',
+                'positions' => ['Пильщик'],
             ])
             ->assertRedirect(route('workers.index'))
             ->assertSessionHas('success');
@@ -89,7 +89,7 @@ describe('WorkerController store()', function () {
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
                 'name'          => 'Отделов Отдел',
-                'position'      => 'Мастер',
+                'positions'     => ['Мастер'],
                 'department_id' => $dept->id,
             ])
             ->assertRedirect(route('workers.index'));
@@ -99,17 +99,17 @@ describe('WorkerController store()', function () {
 
     test('отклоняет без имени', function () {
         $this->actingAs(H::adminUser())
-            ->post(route('workers.store'), ['position' => 'Пильщик'])
+            ->post(route('workers.store'), ['positions' => ['Пильщик']])
             ->assertSessionHasErrors('name');
     });
 
     test('отклоняет недопустимую должность', function () {
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
-                'name'     => 'Тестов Тест',
-                'position' => 'НесуществующаяДолжность',
+                'name'      => 'Тестов Тест',
+                'positions' => ['НесуществующаяДолжность'],
             ])
-            ->assertSessionHasErrors('position');
+            ->assertSessionHasErrors('positions.0');
     });
 
     test('отклоняет дублирующийся email', function () {
@@ -117,9 +117,9 @@ describe('WorkerController store()', function () {
 
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
-                'name'     => 'Другой Работник',
-                'position' => 'Пильщик',
-                'email'    => 'dup@test.com',
+                'name'      => 'Другой Работник',
+                'positions' => ['Пильщик'],
+                'email'     => 'dup@test.com',
             ])
             ->assertSessionHasErrors('email');
     });
@@ -159,8 +159,8 @@ describe('WorkerController update()', function () {
 
         $this->actingAs(H::adminUser())
             ->put(route('workers.update', $worker), [
-                'name'     => 'Новое Имя',
-                'position' => 'Мастер',
+                'name'      => 'Новое Имя',
+                'positions' => ['Мастер'],
             ])
             ->assertRedirect(route('workers.index'))
             ->assertSessionHas('success');
@@ -179,9 +179,9 @@ describe('WorkerController update()', function () {
 
         $this->actingAs(H::adminUser())
             ->put(route('workers.update', $worker), [
-                'name'     => 'Синхронов Синх',
-                'position' => 'Пильщик',
-                'phone'    => '999',
+                'name'      => 'Синхронов Синх',
+                'positions' => ['Пильщик'],
+                'phone'     => '999',
             ])
             ->assertRedirect(route('workers.index'));
 
@@ -192,7 +192,7 @@ describe('WorkerController update()', function () {
         $worker = makeWorker();
 
         $this->actingAs(H::adminUser())
-            ->put(route('workers.update', $worker), ['position' => 'Пильщик'])
+            ->put(route('workers.update', $worker), ['positions' => ['Пильщик']])
             ->assertSessionHasErrors('name');
     });
 
@@ -201,9 +201,9 @@ describe('WorkerController update()', function () {
 
         $this->actingAs(H::adminUser())
             ->put(route('workers.update', $worker), [
-                'name'     => $worker->name,
-                'position' => $worker->position,
-                'email'    => 'own@test.com',
+                'name'      => $worker->name,
+                'positions' => $worker->positions,
+                'email'     => 'own@test.com',
             ])
             ->assertRedirect(route('workers.index'));
     });

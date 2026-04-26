@@ -45,9 +45,11 @@ class SupplierOrderController extends Controller
     {
         $stores         = Store::where('archived', false)->orderBy('name')->get();
         $counterparties = Counterparty::orderBy('name')->get();
-        $receivers      = Worker::whereIn('position', ['Директор', 'Администратор', 'Мастер', 'Кладовщик'])
-            ->orderBy('name')
-            ->get();
+        $receivers      = Worker::where(function ($q) {
+                foreach (['Директор', 'Администратор', 'Мастер', 'Кладовщик'] as $pos) {
+                    $q->orWhereJsonContains('positions', $pos);
+                }
+            })->orderBy('name')->get();
 
         $defaultStore    = $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false);
         $currentWorker   = auth()->user()?->worker;
@@ -152,9 +154,11 @@ class SupplierOrderController extends Controller
 
         $stores         = Store::where('archived', false)->orderBy('name')->get();
         $counterparties = Counterparty::orderBy('name')->get();
-        $receivers      = Worker::whereIn('position', ['Директор', 'Администратор', 'Мастер', 'Кладовщик'])
-            ->orderBy('name')
-            ->get();
+        $receivers      = Worker::where(function ($q) {
+                foreach (['Директор', 'Администратор', 'Мастер', 'Кладовщик'] as $pos) {
+                    $q->orWhereJsonContains('positions', $pos);
+                }
+            })->orderBy('name')->get();
 
         $defaultStore = $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false);
 

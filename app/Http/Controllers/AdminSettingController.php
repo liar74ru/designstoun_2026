@@ -23,7 +23,16 @@ class AdminSettingController extends Controller
         $validated = $request->validate([
             'settings'           => ['required', 'array'],
             'settings.*.key'     => ['required', 'string', 'max:100'],
-            'settings.*.value'   => ['required', 'numeric', 'min:0'],
+            'settings.*.value'   => [
+                'required',
+                'string',
+                'max:500',
+                function ($attribute, $value, $fail) {
+                    if (is_numeric($value) && (float) $value < 0) {
+                        $fail('Значение не может быть отрицательным.');
+                    }
+                },
+            ],
         ]);
 
         foreach ($validated['settings'] as $item) {

@@ -27,9 +27,9 @@ class ReceptionTestHelper
     /**
      * Создать работника с позицией
      */
-    public static function worker(string $name = 'Тестов Тест', string $position = 'Приёмщик'): Worker
+    public static function worker(string $name = 'Тестов Тест', string $position = 'Приемщик'): Worker
     {
-        return Worker::create(['name' => $name, 'position' => $position]);
+        return Worker::create(['name' => $name, 'positions' => [$position]]);
     }
 
     /**

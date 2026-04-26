@@ -39,8 +39,6 @@
                             </a>
                         @endif
 
-                        @if(!$user->isWorker())
-
                             {{-- Дашборд мастера --}}
                             @if($user->isMaster())
                                 <a href="{{ route('master.dashboard') }}"
@@ -62,28 +60,34 @@
                             @endif
 
                             {{-- Приёмка: admin + master --}}
-                            <a href="{{ route('stone-receptions.logs') }}"
-                               class="btn btn-sm nav-icon-btn {{ request()->routeIs('stone-receptions.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                               title="Приёмка">
-                                <i class="bi bi-journal-text"></i>
-                                <span>Приём</span>
-                            </a>
+                            @if($user->isMaster() || $user->isAdmin())
+                                <a href="{{ route('stone-receptions.logs') }}"
+                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('stone-receptions.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                   title="Приёмка">
+                                    <i class="bi bi-journal-text"></i>
+                                    <span>Приём</span>
+                                </a>
+                            @endif
 
                             {{-- Сырьё (партии): admin + master --}}
-                            <a href="{{ route('raw-batches.index') }}"
-                               class="btn btn-sm nav-icon-btn {{ request()->routeIs('raw-batches.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                               title="Сырьё">
-                                <i class="bi bi-arrow-left-right"></i>
-                                <span>Сырьё</span>
-                            </a>
+                            @if($user->isMaster() || $user->isAdmin())
+                                <a href="{{ route('raw-batches.index') }}"
+                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('raw-batches.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                   title="Сырьё">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                    <span>Сырьё</span>
+                                </a>
+                            @endif
 
                             {{-- Поступление сырья: admin + master --}}
-                            <a href="{{ route('supplier-orders.index') }}"
+                            @if($user->isMaster() || $user->isAdmin())
+                                <a href="{{ route('supplier-orders.index') }}"
                                class="btn btn-sm nav-icon-btn {{ request()->routeIs('supplier-orders.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
                                title="Поступление">
                                 <i class="bi bi-plus-circle"></i>
                                 <span>Приход</span>
                             </a>
+                            @endif
 
                             {{-- Товары: только admin --}}
                             @if($user->isAdmin())
@@ -96,12 +100,14 @@
                             @endif
 
                             {{-- Работники: admin + master --}}
+                            @if($user->isMaster() || $user->isAdmin())
                             <a href="{{ route('workers.index') }}"
                                class="btn btn-sm nav-icon-btn {{ request()->routeIs('workers.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
                                title="Работники">
                                 <i class="bi bi-people"></i>
                                 <span>Раб-ки</span>
                             </a>
+                           @endif
 
                             {{-- Заказы: только admin --}}
                             @if($user->isAdmin())
@@ -122,8 +128,6 @@
                                     <span>Настройки</span>
                                 </a>
                             @endif
-
-                        @endif
                     @endauth
                 </div>
 

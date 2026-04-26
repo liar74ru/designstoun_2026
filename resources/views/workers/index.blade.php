@@ -47,12 +47,34 @@
                     </tr>
                     </thead>
                     <tbody>
+                    @php
+                        $positionColors = [
+                            'Директор'     => '#212529',
+                            'Мастер'       => '#e6a817',
+                            'Пильщик'      => '#0d6efd',
+                            'Галтовщик'    => '#0dcaf0',
+                            'Приёмщик'     => '#198754',
+                            'Разнорабочий' => '#6c757d',
+                        ];
+                    @endphp
                     @foreach($workers as $worker)
                         @if(auth()->user()->isAdmin() || !($worker->user?->isAdmin()))
                         <tr>
                             <td class="text-muted small">{{ $worker->id }}</td>
                             <td class="fw-bold">{{ $worker->name }}</td>
-                            <td>{{ $worker->position ?? '—' }}</td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @forelse($worker->positions ?? [] as $pos)
+                                        @php $posColor = $positionColors[$pos] ?? '#dee2e6'; @endphp
+                                        <span class="badge small"
+                                              style="background:{{ $posColor }};color:{{ in_array($pos, ['Мастер','Галтовщик']) ? '#212529' : '#fff' }}">
+                                            {{ $pos }}
+                                        </span>
+                                    @empty
+                                        <span class="text-muted">—</span>
+                                    @endforelse
+                                </div>
+                            </td>
                             <td>
                                 @if($worker->department)
                                     <span class="badge bg-info text-dark">
@@ -94,13 +116,13 @@
                             </td>
                             <td>
                                 <div class="d-flex gap-1 justify-content-center">
-                                    @if($worker->position === 'Пильщик')
+                                    @if($worker->hasPosition('Пильщик'))
                                         <a href="{{ route('worker.dashboard.by-id', $worker->id) }}"
                                            class="btn btn-sm btn-outline-success" title="Выработка">
                                             <i class="bi bi-bar-chart"></i>
                                         </a>
                                     @endif
-                                    @if($worker->position === 'Мастер')
+                                    @if($worker->hasPosition('Мастер'))
                                         <a href="{{ route('master.dashboard.by-id', $worker->id) }}"
                                            class="btn btn-sm btn-outline-success" title="Выработка мастера">
                                             <i class="bi bi-bar-chart"></i>
@@ -136,25 +158,24 @@
             @foreach($workers as $worker)
                 @if(auth()->user()->isAdmin() || !($worker->user?->isAdmin()))
                 @php
-                    $positionColors = [
-                        'Директор'     => '#212529',
-                        'Мастер'       => '#e6a817',
-                        'Пильщик'      => '#0d6efd',
-                        'Галтовщик'    => '#0dcaf0',
-                        'Приёмщик'     => '#198754',
-                        'Разнорабочий' => '#6c757d',
-                    ];
-                    $posColor = $positionColors[$worker->position] ?? '#dee2e6';
+                    $posColor = $positionColors[$worker->positions[0] ?? ''] ?? '#dee2e6';
                 @endphp
                 <div class="info-block mb-2"
                      style="border-left:4px solid {{ $posColor }};border-right:4px solid {{ $posColor }}">
 
-                    <div class="info-block-header d-flex justify-content-between align-items-center">
+                    <div class="info-block-header d-flex justify-content-between align-items-start gap-2">
                         <span class="fw-semibold small">{{ $worker->name }}</span>
-                        <span class="badge small"
-                              style="background:{{ $posColor }};color:{{ in_array($worker->position, ['Мастер','Галтовщик']) ? '#212529' : '#fff' }}">
-                            {{ $worker->position ?? '—' }}
-                        </span>
+                        <div class="d-flex flex-wrap gap-1 justify-content-end">
+                            @forelse($worker->positions ?? [] as $pos)
+                                @php $badgeColor = $positionColors[$pos] ?? '#dee2e6'; @endphp
+                                <span class="badge small"
+                                      style="background:{{ $badgeColor }};color:{{ in_array($pos, ['Мастер','Галтовщик']) ? '#212529' : '#fff' }}">
+                                    {{ $pos }}
+                                </span>
+                            @empty
+                                <span class="badge small" style="background:#dee2e6;color:#212529">—</span>
+                            @endforelse
+                        </div>
                     </div>
 
                     <div class="info-block-body d-flex gap-2 align-items-stretch">
@@ -198,13 +219,13 @@
 
                         {{-- Правая часть: кнопки в столбик --}}
                         <div class="d-flex flex-column gap-1 flex-shrink-0" style="min-width:90px">
-                            @if($worker->position === 'Пильщик')
+                            @if($worker->hasPosition('Пильщик'))
                                 <a href="{{ route('worker.dashboard.by-id', $worker->id) }}"
                                    class="btn btn-sm btn-outline-success w-100">
                                     <i class="bi bi-bar-chart"></i> Выработка
                                 </a>
                             @endif
-                            @if($worker->position === 'Мастер')
+                            @if($worker->hasPosition('Мастер'))
                                 <a href="{{ route('master.dashboard.by-id', $worker->id) }}"
                                    class="btn btn-sm btn-outline-success w-100">
                                     <i class="bi bi-bar-chart"></i> Выработка

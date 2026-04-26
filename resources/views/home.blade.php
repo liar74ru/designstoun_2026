@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Task Manager')
+@section('title', 'Дизайн Камень')
 
 @section('content')
     <div class="container py-5">

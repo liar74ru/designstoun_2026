@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\User;
 use App\Models\Worker;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WorkerController extends Controller
 {
@@ -23,7 +24,7 @@ class WorkerController extends Controller
         }
 
         if ($request->filled('filter.position')) {
-            $query->where('position', $request->input('filter.position'));
+            $query->whereJsonContains('positions', $request->input('filter.position'));
         }
 
         if ($request->filled('filter.department_id')) {
@@ -39,15 +40,26 @@ class WorkerController extends Controller
         }
 
         $workers = $query
-            ->orderByRaw("CASE position
-                WHEN 'Директор'     THEN 1
-                WHEN 'Мастер'       THEN 2
-                WHEN 'Приёмщик'     THEN 3
-                WHEN 'Пильщик'      THEN 4
-                WHEN 'Галтовщик'    THEN 5
-                WHEN 'Разнорабочий' THEN 6
-                ELSE 7
-            END")
+            ->orderByRaw(DB::getDriverName() === 'pgsql'
+                ? "CASE
+                    WHEN positions::jsonb @> '[\"Директор\"]'::jsonb     THEN 1
+                    WHEN positions::jsonb @> '[\"Мастер\"]'::jsonb       THEN 2
+                    WHEN positions::jsonb @> '[\"Приёмщик\"]'::jsonb     THEN 3
+                    WHEN positions::jsonb @> '[\"Пильщик\"]'::jsonb      THEN 4
+                    WHEN positions::jsonb @> '[\"Галтовщик\"]'::jsonb    THEN 5
+                    WHEN positions::jsonb @> '[\"Разнорабочий\"]'::jsonb THEN 6
+                    ELSE 7
+                  END"
+                : "CASE
+                    WHEN positions LIKE '%\"Директор\"%'     THEN 1
+                    WHEN positions LIKE '%\"Мастер\"%'       THEN 2
+                    WHEN positions LIKE '%\"Приёмщик\"%'     THEN 3
+                    WHEN positions LIKE '%\"Пильщик\"%'      THEN 4
+                    WHEN positions LIKE '%\"Галтовщик\"%'    THEN 5
+                    WHEN positions LIKE '%\"Разнорабочий\"%' THEN 6
+                    ELSE 7
+                  END"
+            )
             ->orderBy('id')
             ->paginate(15)
             ->withQueryString();
@@ -74,10 +86,11 @@ class WorkerController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'position' => 'required|string|in:'.implode(',', Worker::POSITIONS),
-            'email' => 'nullable|email|unique:workers,email',
-            'phone' => 'nullable|string|max:50',
+            'name'          => 'required|string|max:255',
+            'positions'     => 'required|array|min:1',
+            'positions.*'   => 'string|in:'.implode(',', Worker::POSITIONS),
+            'email'         => 'nullable|email|unique:workers,email',
+            'phone'         => 'nullable|string|max:50',
             'department_id' => 'nullable|exists:departments,id',
         ]);
 
@@ -111,10 +124,11 @@ class WorkerController extends Controller
     public function update(Request $request, Worker $worker)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'position' => 'required|string|in:'.implode(',', Worker::POSITIONS),
-            'email' => 'nullable|email|unique:workers,email,'.$worker->id,
-            'phone' => 'nullable|string|max:50',
+            'name'          => 'required|string|max:255',
+            'positions'     => 'required|array|min:1',
+            'positions.*'   => 'string|in:'.implode(',', Worker::POSITIONS),
+            'email'         => 'nullable|email|unique:workers,email,'.$worker->id,
+            'phone'         => 'nullable|string|max:50',
             'department_id' => 'nullable|exists:departments,id',
         ]);
 
