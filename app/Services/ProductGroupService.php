@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Product;
 use App\Models\ProductGroup;
 use Illuminate\Support\Facades\DB;
 
@@ -143,6 +144,27 @@ class ProductGroupService
         }
 
         return $level;
+    }
+
+    public function attachProductsToTree(array $groups): array
+    {
+        foreach ($groups as &$group) {
+            $group['products'] = Product::where('group_id', $group['id'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'sku'])
+                ->map(fn ($p) => [
+                    'id'    => $p->id,
+                    'label' => $p->name,
+                    'sku'   => $p->sku ?? '',
+                ])
+                ->toArray();
+
+            if (!empty($group['children'])) {
+                $group['children'] = $this->attachProductsToTree($group['children']);
+            }
+        }
+
+        return $groups;
     }
 
     /**
