@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SupplierOrder\StoreSupplierOrderRequest;
 use App\Http\Requests\SupplierOrder\UpdateSupplierOrderRequest;
+use App\Models\Setting;
 use App\Models\SupplierOrder;
 use App\Services\Moysklad\SupplierOrderSyncService;
 use App\Services\SupplierOrderService;
@@ -41,8 +42,11 @@ class SupplierOrderController extends Controller
         ['stores' => $stores, 'counterparties' => $counterparties, 'receivers' => $receivers]
             = $this->service->getFormOptions();
 
-        $defaultStore    = $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false);
-        $currentWorker   = auth()->user()?->worker;
+        $currentWorker = auth()->user()?->worker;
+        $department    = $currentWorker?->department;
+        $defaultStore  = ($department && $department->default_raw_store_id)
+            ? Setting::deptRawStore($department, $stores)
+            : $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false);
         $defaultReceiver = $receivers->firstWhere('id', $currentWorker?->id);
         $recentOrders    = $this->service->getRecentOrders(20);
 

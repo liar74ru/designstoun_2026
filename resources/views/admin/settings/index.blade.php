@@ -223,6 +223,187 @@
         </div>
     </form>
 
+    {{-- Склады по умолчанию для отделов (отдельная форма) --}}
+    <form method="POST" action="{{ route('admin.departments.store-defaults') }}">
+        @csrf
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
+                 role="button"
+                 data-block-id="dept-stores">
+                <span>Склады по умолчанию для отделов</span>
+                <i class="bi bi-chevron-down collapse-icon"></i>
+            </div>
+            <div class="collapse-content" id="block-dept-stores" style="display: none;">
+                <div class="card-body p-0">
+
+                    {{-- Десктоп --}}
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-sm table-bordered mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Отдел</th>
+                                    <th>Склад сырья</th>
+                                    <th>Склад продукции</th>
+                                    <th>Склад производства</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($departments as $dept)
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span class="fw-semibold">{{ $dept->name }}</span>
+                                            <div class="d-flex gap-1">
+                                                <a href="{{ route('admin.departments.show', $dept) }}"
+                                                   class="btn btn-sm btn-link p-0 text-primary border-0" title="Просмотр">
+                                                    <i class="bi bi-eye-fill"></i>
+                                                </a>
+                                                <a href="{{ route('admin.departments.show', $dept) }}"
+                                                   class="btn btn-sm btn-link p-0 text-secondary border-0" title="Редактировать">
+                                                    <i class="bi bi-pencil-fill"></i>
+                                                </a>
+                                                <form action="{{ route('admin.departments.destroy', $dept) }}" method="POST"
+                                                      class="d-inline"
+                                                      onsubmit="return confirm('Удалить отдел «{{ $dept->name }}»?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-link p-0 text-danger border-0" title="Удалить">
+                                                        <i class="bi bi-trash-fill"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <select name="departments[{{ $dept->id }}][raw_store_id]"
+                                                class="form-select form-select-sm">
+                                            <option value="">— не задан —</option>
+                                            @foreach($stores as $store)
+                                                <option value="{{ $store->id }}"
+                                                    {{ $dept->default_raw_store_id === $store->id ? 'selected' : '' }}>
+                                                    {{ $store->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="departments[{{ $dept->id }}][product_store_id]"
+                                                class="form-select form-select-sm">
+                                            <option value="">— не задан —</option>
+                                            @foreach($stores as $store)
+                                                <option value="{{ $store->id }}"
+                                                    {{ $dept->default_product_store_id === $store->id ? 'selected' : '' }}>
+                                                    {{ $store->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="departments[{{ $dept->id }}][production_store_id]"
+                                                class="form-select form-select-sm">
+                                            <option value="">— не задан —</option>
+                                            @foreach($stores as $store)
+                                                <option value="{{ $store->id }}"
+                                                    {{ $dept->default_production_store_id === $store->id ? 'selected' : '' }}>
+                                                    {{ $store->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {{-- Мобильный --}}
+                    <div class="d-md-none">
+                        @foreach($departments as $dept)
+                        <div class="border-bottom px-3 py-2">
+                            <div class="mb-2 d-flex align-items-center justify-content-between">
+                                <span class="fw-semibold">{{ $dept->name }}</span>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ route('admin.departments.show', $dept) }}"
+                                       class="btn btn-sm btn-link p-0 text-primary border-0" title="Просмотр">
+                                        <i class="bi bi-eye-fill"></i>
+                                    </a>
+                                    <a href="{{ route('admin.departments.show', $dept) }}"
+                                       class="btn btn-sm btn-link p-0 text-secondary border-0" title="Редактировать">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </a>
+                                    <form action="{{ route('admin.departments.destroy', $dept) }}" method="POST"
+                                          class="d-inline"
+                                          onsubmit="return confirm('Удалить отдел «{{ $dept->name }}»?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-link p-0 text-danger border-0" title="Удалить">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small text-muted mb-1">Склад сырья</label>
+                                <select name="departments[{{ $dept->id }}][raw_store_id]"
+                                        class="form-select form-select-sm">
+                                    <option value="">— не задан —</option>
+                                    @foreach($stores as $store)
+                                        <option value="{{ $store->id }}"
+                                            {{ $dept->default_raw_store_id === $store->id ? 'selected' : '' }}>
+                                            {{ $store->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small text-muted mb-1">Склад продукции</label>
+                                <select name="departments[{{ $dept->id }}][product_store_id]"
+                                        class="form-select form-select-sm">
+                                    <option value="">— не задан —</option>
+                                    @foreach($stores as $store)
+                                        <option value="{{ $store->id }}"
+                                            {{ $dept->default_product_store_id === $store->id ? 'selected' : '' }}>
+                                            {{ $store->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label small text-muted mb-1">Склад производства</label>
+                                <select name="departments[{{ $dept->id }}][production_store_id]"
+                                        class="form-select form-select-sm">
+                                    <option value="">— не задан —</option>
+                                    @foreach($stores as $store)
+                                        <option value="{{ $store->id }}"
+                                            {{ $dept->default_production_store_id === $store->id ? 'selected' : '' }}>
+                                            {{ $store->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+
+                </div>
+
+                {{-- Добавить отдел --}}
+                <div class="px-3 py-2 border-top">
+                    <a href="{{ route('admin.departments.create') }}"
+                       class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-plus-lg"></i> Добавить отдел
+                    </a>
+                </div>
+
+                <div class="card-footer d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg"></i> Сохранить склады отделов
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
 </div>
 
 <style>

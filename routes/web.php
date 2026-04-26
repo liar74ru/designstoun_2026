@@ -10,6 +10,7 @@ use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
 use App\Http\Controllers\AdminSettingController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\CutterWorkerDashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -124,6 +125,8 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/settings',  [AdminSettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
+        Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
+        Route::resource('departments', DepartmentController::class)->only(['create', 'store', 'show', 'update', 'destroy']);
     });
 });
 

@@ -23,6 +23,7 @@ class DepartmentsTableSeeder extends Seeder
             ['name' => 'МАФ', 'code' => 'МАФ'],
             ['name' => '3д Панель', 'code' => '3д Панель'],
             ['name' => 'Рынок', 'code' => 'Рынок'],
+            ['name' => 'Карьер', 'code' => 'КАРЬЕР'],
         ];
 
         foreach ($departments as $dept) {

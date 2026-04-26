@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -46,5 +47,31 @@ class Setting extends Model
     {
         static::updateOrCreate(['key' => $key], ['value' => $value]);
         Cache::forget(self::CACHE_PREFIX . $key);
+    }
+
+    /**
+     * Получить склад для сырья отдела из уже загруженной коллекции складов.
+     */
+    public static function deptRawStore(Department $dept, Collection $stores): ?Store
+    {
+        return $dept->default_raw_store_id
+            ? $stores->firstWhere('id', $dept->default_raw_store_id)
+            : null;
+    }
+
+    /**
+     * Обновить три склада по умолчанию для отдела.
+     */
+    public static function setDeptStores(
+        Department $dept,
+        ?string $rawStoreId,
+        ?string $productStoreId,
+        ?string $productionStoreId
+    ): void {
+        $dept->update([
+            'default_raw_store_id'        => $rawStoreId ?: null,
+            'default_product_store_id'    => $productStoreId ?: null,
+            'default_production_store_id' => $productionStoreId ?: null,
+        ]);
     }
 }
