@@ -5,8 +5,8 @@ use App\Models\ProductGroup;
 use App\Models\ProductStock;
 use App\Models\Store;
 use App\Models\User;
-use App\Services\MoySkladService;
-use App\Services\StockSyncService;
+use App\Services\Moysklad\MoySkladService;
+use App\Services\Moysklad\StockSyncService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 

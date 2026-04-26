@@ -1,11 +1,10 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Moysklad;
 
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\ProductStock;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -15,29 +14,8 @@ use Illuminate\Support\Facades\Log;
  * Поле products.quantity устарело и не используется.
  * Суммарный остаток = SUM(product_stocks.quantity) по product_id.
  */
-class StockSyncService
+class StockSyncService extends MoySkladBaseService
 {
-    private string $token;
-    private string $baseUrl;
-
-    public function __construct()
-    {
-        $this->token   = config('services.moysklad.token');
-        $this->baseUrl = config('services.moysklad.base_url');
-    }
-
-    private function makeRequest(string $endpoint, array $params = []): ?array
-    {
-        if (empty($this->token)) return null;
-
-        $response = Http::withHeaders([
-            'Authorization'   => 'Bearer ' . $this->token,
-            'Accept-Encoding' => 'gzip',
-        ])->get($this->baseUrl . $endpoint, $params);
-
-        return $response->successful() ? $response->json() : null;
-    }
-
     private function extractProductIdFromHref(string $href): ?string
     {
         preg_match('/\\/product\\/([a-f0-9-]+)/i', $href, $matches);
@@ -96,7 +74,7 @@ class StockSyncService
                 $params = ['limit' => $limit, 'offset' => $offset];
                 if ($storeId) $params['store'] = $storeId;
 
-                $data = $this->makeRequest('/report/stock/bystore', $params);
+                $data = $this->get('/report/stock/bystore', $params);
 
                 if (!$data) {
                     $result['message'] = 'Ошибка получения данных из МойСклад';
@@ -138,7 +116,7 @@ class StockSyncService
     {
         $filter = $this->baseUrl . '/entity/product/' . $moyskladId;
 
-        $data = $this->makeRequest('/report/stock/bystore', [
+        $data = $this->get('/report/stock/bystore', [
             'filter' => 'product=' . $filter,
             'limit'  => 1,
         ]);

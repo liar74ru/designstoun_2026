@@ -2,29 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Counterparty;
-use App\Models\Store;
+use App\Http\Requests\SupplierOrder\StoreSupplierOrderRequest;
+use App\Http\Requests\SupplierOrder\UpdateSupplierOrderRequest;
 use App\Models\SupplierOrder;
-use App\Models\SupplierOrderItem;
-use App\Models\Worker;
-use App\Services\MoySkladPurchaseOrderService;
-use App\Services\MoySkladSupplyService;
-use App\Services\StockSyncService;
-use App\Support\DocumentNaming;
-use Carbon\Carbon;
+use App\Services\Moysklad\SupplierOrderSyncService;
+use App\Services\SupplierOrderService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+
+# рефакторинг v2 от 26.04.2026  controller -> service -> service/moysklad 
 
 class SupplierOrderController extends Controller
 {
     public function __construct(
-        private MoySkladPurchaseOrderService $purchaseOrderService,
-        private MoySkladSupplyService $supplyService,
-        private StockSyncService $stockSyncService,
-    ) {
-    }
+        private SupplierOrderService $service,
+        private SupplierOrderSyncService $syncService,
+    ) {}
 
     public function index(): View
     {
@@ -43,28 +38,17 @@ class SupplierOrderController extends Controller
 
     public function create(Request $request): View
     {
-        $stores         = Store::where('archived', false)->orderBy('name')->get();
-        $counterparties = Counterparty::orderBy('name')->get();
-        $receivers      = Worker::where(function ($q) {
-                foreach (['Директор', 'Администратор', 'Мастер', 'Кладовщик'] as $pos) {
-                    $q->orWhereJsonContains('positions', $pos);
-                }
-            })->orderBy('name')->get();
+        ['stores' => $stores, 'counterparties' => $counterparties, 'receivers' => $receivers]
+            = $this->service->getFormOptions();
 
         $defaultStore    = $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false);
         $currentWorker   = auth()->user()?->worker;
         $defaultReceiver = $receivers->firstWhere('id', $currentWorker?->id);
+        $recentOrders    = $this->service->getRecentOrders(20);
 
-        $recentOrders = SupplierOrder::with(['counterparty', 'store', 'items.product'])
-            ->orderBy('created_at', 'desc')
-            ->limit(20)
-            ->get();
-
-        $copyFrom = null;
-        if ($request->filled('copy_from')) {
-            $copyFrom = SupplierOrder::with(['counterparty', 'items.product'])
-                ->find($request->copy_from);
-        }
+        $copyFrom = $request->filled('copy_from')
+            ? $this->service->getCopySource((int) $request->copy_from)
+            : null;
 
         return view('supplier-orders.create', compact(
             'stores',
@@ -77,163 +61,62 @@ class SupplierOrderController extends Controller
         ));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreSupplierOrderRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'store_id'          => 'required|exists:stores,id',
-            'counterparty_id'   => 'required|exists:counterparties,id',
-            'receiver_id'       => 'nullable|exists:workers,id',
-            'number'            => 'required|string|max:100',
-            'note'              => 'nullable|string|max:1000',
-            'manual_created_at' => 'nullable|date',
-            'products'          => 'required|array|min:1',
-            'products.*.product_id' => 'required|exists:products,id',
-            'products.*.quantity'   => 'required|numeric|min:0.001',
-        ]);
-
-        $createdAt = (auth()->user()?->isAdmin() && !empty($data['manual_created_at']))
-            ? Carbon::parse($data['manual_created_at'])
-            : now();
-
-        DB::transaction(function () use ($data, $createdAt, &$order) {
-            $order = SupplierOrder::create([
-                'number'          => $data['number'],
-                'store_id'        => $data['store_id'],
-                'counterparty_id' => $data['counterparty_id'],
-                'receiver_id'     => $data['receiver_id'] ?? null,
-                'note'            => $data['note'] ?? null,
-                'status'          => SupplierOrder::STATUS_NEW,
-                'created_at'      => $createdAt,
-                'updated_at'      => $createdAt,
-            ]);
-
-            foreach ($data['products'] as $item) {
-                SupplierOrderItem::create([
-                    'supplier_order_id' => $order->id,
-                    'product_id'        => $item['product_id'],
-                    'quantity'          => $item['quantity'],
-                ]);
-            }
-        });
-
-        // Синхронизация с МойСклад (вне транзакции — не блокируем сохранение при ошибке API)
-        $order->load(['counterparty', 'store', 'items.product']);
-        $syncResult = $this->purchaseOrderService->createPurchaseOrder($order);
-
-        // Коллизия имени — обновляем номер с суффиксом и повторяем
-        if (!$syncResult['success'] && $syncResult['code'] === 'duplicate_name') {
-            $newNumber = DocumentNaming::nextSuffix($order->number);
-            $order->update(['number' => $newNumber]);
-            $syncResult = $this->purchaseOrderService->createPurchaseOrder($order, $newNumber);
-        }
+        $order      = $this->service->create($request->validated(), auth()->user()?->isAdmin() ?? false);
+        $syncResult = $this->syncService->syncOrderToMoysklad($order);
 
         if ($syncResult['success']) {
-            $order->update([
-                'moysklad_id' => $syncResult['moysklad_id'],
-                'status'      => SupplierOrder::STATUS_NEW,
-                'sync_error'  => null,
-            ]);
             return redirect()->route('supplier-orders.index')
                 ->with('success', "Поступление №{$order->number} создано и передано в МойСклад.");
         }
 
-        $order->update([
-            'status'     => SupplierOrder::STATUS_ERROR,
-            'sync_error' => $syncResult['message'],
-        ]);
         return redirect()->route('supplier-orders.index')
             ->with('danger', "Поступление №{$order->number} сохранено, но не передано в МойСклад: {$syncResult['message']}");
     }
 
-    public function edit(SupplierOrder $supplierOrder): View|\Illuminate\Http\RedirectResponse
+    public function edit(SupplierOrder $supplierOrder): View|RedirectResponse
     {
         if (!$supplierOrder->isNew()) {
             return redirect()->route('supplier-orders.index')
                 ->with('warning', 'Редактировать можно только поступления в статусе «Новый».');
         }
 
-        $stores         = Store::where('archived', false)->orderBy('name')->get();
-        $counterparties = Counterparty::orderBy('name')->get();
-        $receivers      = Worker::where(function ($q) {
-                foreach (['Директор', 'Администратор', 'Мастер', 'Кладовщик'] as $pos) {
-                    $q->orWhereJsonContains('positions', $pos);
-                }
-            })->orderBy('name')->get();
+        ['stores' => $stores, 'counterparties' => $counterparties, 'receivers' => $receivers]
+            = $this->service->getFormOptions();
 
         $defaultStore = $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false);
-
         $supplierOrder->load(['counterparty', 'store', 'items.product']);
 
-        return view('supplier-orders.edit', compact('supplierOrder', 'stores', 'counterparties', 'receivers', 'defaultStore'));
+        return view('supplier-orders.edit', compact(
+            'supplierOrder',
+            'stores',
+            'counterparties',
+            'receivers',
+            'defaultStore'
+        ));
     }
 
-    public function update(Request $request, SupplierOrder $supplierOrder): \Illuminate\Http\RedirectResponse
+    public function update(UpdateSupplierOrderRequest $request, SupplierOrder $supplierOrder): RedirectResponse
     {
         if (!$supplierOrder->isNew()) {
             return redirect()->route('supplier-orders.index')
                 ->with('warning', 'Редактировать можно только поступления в статусе «Новый».');
         }
 
-        $data = $request->validate([
-            'store_id'          => 'required|exists:stores,id',
-            'counterparty_id'   => 'required|exists:counterparties,id',
-            'receiver_id'       => 'nullable|exists:workers,id',
-            'number'            => 'required|string|max:100',
-            'note'              => 'nullable|string|max:1000',
-            'manual_created_at' => 'nullable|date',
-            'products'          => 'required|array|min:1',
-            'products.*.product_id' => 'required|exists:products,id',
-            'products.*.quantity'   => 'required|numeric|min:0.001',
-        ]);
-
-        $createdAt = (auth()->user()?->isAdmin() && !empty($data['manual_created_at']))
-            ? Carbon::parse($data['manual_created_at'])
-            : $supplierOrder->created_at;
-
-        DB::transaction(function () use ($data, $createdAt, $supplierOrder) {
-            $supplierOrder->update([
-                'number'          => $data['number'],
-                'store_id'        => $data['store_id'],
-                'counterparty_id' => $data['counterparty_id'],
-                'receiver_id'     => $data['receiver_id'] ?? null,
-                'note'            => $data['note'] ?? null,
-                'created_at'      => $createdAt,
-            ]);
-
-            $supplierOrder->items()->delete();
-            foreach ($data['products'] as $item) {
-                SupplierOrderItem::create([
-                    'supplier_order_id' => $supplierOrder->id,
-                    'product_id'        => $item['product_id'],
-                    'quantity'          => $item['quantity'],
-                ]);
-            }
-        });
-
-        // Синхронизация с МойСклад (вне транзакции)
-        $supplierOrder->load(['counterparty', 'store', 'items.product']);
-        $syncResult = $this->purchaseOrderService->updatePurchaseOrder($supplierOrder);
+        $order      = $this->service->update($supplierOrder, $request->validated(), auth()->user()?->isAdmin() ?? false);
+        $syncResult = $this->syncService->updateOrderInMoysklad($order);
 
         if ($syncResult['success']) {
-            // Если был статус error — сбрасываем на new после успешного обновления
-            if ($supplierOrder->status === SupplierOrder::STATUS_ERROR) {
-                $supplierOrder->update(['status' => SupplierOrder::STATUS_NEW, 'sync_error' => null]);
-            } else {
-                $supplierOrder->update(['sync_error' => null]);
-            }
             return redirect()->route('supplier-orders.index')
-                ->with('success', "Поступление №{$supplierOrder->number} обновлено и передано в МойСклад.");
+                ->with('success', "Поступление №{$order->number} обновлено и передано в МойСклад.");
         }
 
-        $supplierOrder->update([
-            'status'     => SupplierOrder::STATUS_ERROR,
-            'sync_error' => $syncResult['message'],
-        ]);
         return redirect()->route('supplier-orders.index')
-            ->with('danger', "Поступление №{$supplierOrder->number} сохранено, но не передано в МойСклад: {$syncResult['message']}");
+            ->with('danger', "Поступление №{$order->number} сохранено, но не передано в МойСклад: {$syncResult['message']}");
     }
 
-    public function destroy(SupplierOrder $supplierOrder): \Illuminate\Http\RedirectResponse
+    public function destroy(SupplierOrder $supplierOrder): RedirectResponse
     {
         if (!$supplierOrder->isNew()) {
             return redirect()->route('supplier-orders.index')
@@ -242,27 +125,20 @@ class SupplierOrderController extends Controller
 
         $number = $supplierOrder->number;
 
-        // Удаляем из МойСклад если есть moysklad_id
         if ($supplierOrder->moysklad_id) {
-            $result = $this->purchaseOrderService->deletePurchaseOrder($supplierOrder->moysklad_id);
+            $result = $this->syncService->deleteOrderFromMoysklad($supplierOrder->moysklad_id);
             if (!$result['success']) {
                 return redirect()->route('supplier-orders.index')
                     ->with('danger', "Не удалось удалить поступление №{$number} из МойСклад: {$result['message']}");
             }
         }
 
-        $supplierOrder->items()->delete();
-        $supplierOrder->delete();
+        $this->service->delete($supplierOrder);
 
         return redirect()->route('supplier-orders.index')
             ->with('success', "Поступление №{$number} удалено.");
     }
 
-    /**
-     * Создать Приёмку в МойСклад на основе Заказа поставщику.
-     * Перед созданием проверяет наличие Заказа поставщику в МойСклад
-     * и обрабатывает коллизии с дублирующимися именами.
-     */
     public function sync(SupplierOrder $supplierOrder): RedirectResponse
     {
         if ($supplierOrder->status === SupplierOrder::STATUS_SENT) {
@@ -270,57 +146,26 @@ class SupplierOrderController extends Controller
                 ->with('warning', 'Приёмка уже создана в МойСклад.');
         }
 
-        $supplierOrder->load(['counterparty', 'store', 'items.product']);
+        $result = $this->syncService->initiateSync($supplierOrder);
 
-        // Проверяем, существует ли Заказ поставщику в МойСклад
-        if (!$supplierOrder->moysklad_id) {
+        if ($result['status'] === 'confirm_needed') {
             session()->put("sync_confirm_{$supplierOrder->id}", [
-                'issue'          => 'order_not_created',
-                'suggested_name' => null,
+                'issue'          => $result['issue'],
+                'suggested_name' => $result['suggested_name'],
             ]);
             return redirect()->route('supplier-orders.sync-confirm', $supplierOrder);
         }
 
-        if (!$this->purchaseOrderService->checkExists($supplierOrder->moysklad_id)) {
-            session()->put("sync_confirm_{$supplierOrder->id}", [
-                'issue'          => 'order_missing',
-                'suggested_name' => null,
-            ]);
-            return redirect()->route('supplier-orders.sync-confirm', $supplierOrder);
-        }
-
-        $result = $this->supplyService->createSupply($supplierOrder);
-
-        if ($result['success']) {
-            $supplierOrder->update([
-                'supply_moysklad_id' => $result['supply_moysklad_id'],
-                'status'             => SupplierOrder::STATUS_SENT,
-                'sync_error'         => null,
-            ]);
-            $this->syncSuppliedProductStocks($supplierOrder);
+        if ($result['status'] === 'success') {
             return redirect()->route('supplier-orders.index')
                 ->with('success', "Приёмка по поступлению №{$supplierOrder->number} создана в МойСклад.");
         }
 
-        // Коллизия имени приёмки
-        if ($result['code'] === 'duplicate_name') {
-            $suggested = DocumentNaming::nextSuffix($supplierOrder->number);
-            session()->put("sync_confirm_{$supplierOrder->id}", [
-                'issue'          => 'duplicate_supply',
-                'suggested_name' => $suggested,
-            ]);
-            return redirect()->route('supplier-orders.sync-confirm', $supplierOrder);
-        }
-
-        $supplierOrder->update(['sync_error' => $result['message']]);
         return redirect()->route('supplier-orders.index')
             ->with('danger', "Не удалось создать приёмку для №{$supplierOrder->number}: {$result['message']}");
     }
 
-    /**
-     * Показать страницу подтверждения при обнаруженной проблеме синхронизации.
-     */
-    public function syncConfirm(SupplierOrder $supplierOrder): \Illuminate\View\View|RedirectResponse
+    public function syncConfirm(SupplierOrder $supplierOrder): View|RedirectResponse
     {
         $confirm = session()->get("sync_confirm_{$supplierOrder->id}");
         if (!$confirm) {
@@ -328,17 +173,12 @@ class SupplierOrderController extends Controller
         }
 
         return view('supplier-orders.sync-confirm', [
-            'order'   => $supplierOrder,
-            'issue'   => $confirm['issue'],
+            'order'     => $supplierOrder,
+            'issue'     => $confirm['issue'],
             'suggested' => $confirm['suggested_name'],
         ]);
     }
 
-    /**
-     * Принудительная синхронизация после подтверждения пользователем.
-     * mode=recreate  — пересоздать Заказ поставщику + Приёмку
-     * mode=suffix_supply — создать Приёмку с суффиксным именем (Заказ существует)
-     */
     public function forceSync(Request $request, SupplierOrder $supplierOrder): RedirectResponse
     {
         if ($supplierOrder->status === SupplierOrder::STATUS_SENT) {
@@ -349,134 +189,34 @@ class SupplierOrderController extends Controller
         $mode = $request->input('mode');
         session()->forget("sync_confirm_{$supplierOrder->id}");
 
-        $supplierOrder->load(['counterparty', 'store', 'items.product']);
+        $result = $this->syncService->forceSync($supplierOrder, $mode, $request->input('suggested_name'));
 
-        if ($mode === 'create_order_only') {
-            $poName   = $supplierOrder->number;
-            $poResult = $this->purchaseOrderService->createPurchaseOrder($supplierOrder, $poName);
-
-            if (!$poResult['success'] && $poResult['code'] === 'duplicate_name') {
-                $poName   = DocumentNaming::nextSuffix($poName);
-                $poResult = $this->purchaseOrderService->createPurchaseOrder($supplierOrder, $poName);
-            }
-
-            if (!$poResult['success']) {
-                $supplierOrder->update(['sync_error' => $poResult['message']]);
-                return redirect()->route('supplier-orders.show', $supplierOrder)
-                    ->with('danger', "Не удалось создать Заказ поставщику в МойСклад: {$poResult['message']}");
-            }
-
-            $supplierOrder->update([
-                'moysklad_id' => $poResult['moysklad_id'],
-                'number'      => $poName,
-                'status'      => SupplierOrder::STATUS_NEW,
-                'sync_error'  => null,
-            ]);
-
-            return redirect()->route('supplier-orders.show', $supplierOrder)
-                ->with('success', "Заказ поставщику №{$poName} создан в МойСклад. Теперь можно создать Приёмку.");
-        }
-
-        if ($mode === 'recreate') {
-            // Создаём Заказ поставщику заново (с автоподбором суффикса при коллизии)
-            $poName   = $supplierOrder->number;
-            $poResult = $this->purchaseOrderService->createPurchaseOrder($supplierOrder, $poName);
-
-            if (!$poResult['success'] && $poResult['code'] === 'duplicate_name') {
-                $poName   = DocumentNaming::nextSuffix($poName);
-                $poResult = $this->purchaseOrderService->createPurchaseOrder($supplierOrder, $poName);
-            }
-
-            if (!$poResult['success']) {
-                $supplierOrder->update(['sync_error' => $poResult['message']]);
-                return redirect()->route('supplier-orders.index')
-                    ->with('danger', "Не удалось создать Заказ поставщику в МойСклад: {$poResult['message']}");
-            }
-
-            // Сохраняем новый moysklad_id (и, возможно, изменившееся имя)
-            $supplierOrder->update([
-                'moysklad_id' => $poResult['moysklad_id'],
-                'number'      => $poName,
-                'sync_error'  => null,
-            ]);
-            $supplierOrder->refresh();
-
-            // Создаём Приёмку (с тем же именем, что и заказ; с автоподбором суффикса при коллизии)
-            $supplyName   = $poName;
-            $supplyResult = $this->supplyService->createSupply($supplierOrder, $supplyName);
-
-            if (!$supplyResult['success'] && $supplyResult['code'] === 'duplicate_name') {
-                $supplyName   = DocumentNaming::nextSuffix($supplyName);
-                $supplyResult = $this->supplyService->createSupply($supplierOrder, $supplyName);
-            }
-
-            if (!$supplyResult['success']) {
-                $supplierOrder->update(['sync_error' => $supplyResult['message']]);
-                return redirect()->route('supplier-orders.index')
-                    ->with('danger', "Заказ поставщику создан, но не удалось создать Приёмку: {$supplyResult['message']}");
-            }
-
-            $supplierOrder->update([
-                'supply_moysklad_id' => $supplyResult['supply_moysklad_id'],
-                'number'             => $supplyName,
-                'status'             => SupplierOrder::STATUS_SENT,
-                'sync_error'         => null,
-            ]);
-
+        if ($result['status'] === 'cancelled') {
             return redirect()->route('supplier-orders.index')
-                ->with('success', "Заказ поставщику и Приёмка №{$supplierOrder->fresh()->number} созданы в МойСклад.");
+                ->with('warning', 'Действие отменено.');
         }
 
-        if ($mode === 'suffix_supply') {
-            $supplyName   = $request->input('suggested_name') ?: DocumentNaming::nextSuffix($supplierOrder->number);
-            $supplyResult = $this->supplyService->createSupply($supplierOrder, $supplyName);
-
-            if (!$supplyResult['success']) {
-                $supplierOrder->update(['sync_error' => $supplyResult['message']]);
-                return redirect()->route('supplier-orders.index')
-                    ->with('danger', "Не удалось создать Приёмку с именем «{$supplyName}»: {$supplyResult['message']}");
-            }
-
-            $supplierOrder->update([
-                'supply_moysklad_id' => $supplyResult['supply_moysklad_id'],
-                'number'             => $supplyName,
-                'status'             => SupplierOrder::STATUS_SENT,
-                'sync_error'         => null,
-            ]);
-
-            return redirect()->route('supplier-orders.index')
-                ->with('success', "Приёмка создана в МойСклад с именем «{$supplyName}». Номер поступления обновлён.");
+        if ($result['status'] === 'error') {
+            $route = $mode === 'create_order_only' ? 'supplier-orders.show' : 'supplier-orders.index';
+            return $mode === 'create_order_only'
+                ? redirect()->route($route, $supplierOrder)->with('danger', $result['message'])
+                : redirect()->route($route)->with('danger', $result['message']);
         }
 
-        return redirect()->route('supplier-orders.index')
-            ->with('warning', 'Действие отменено.');
+        return match ($mode) {
+            'create_order_only' => redirect()->route('supplier-orders.show', $supplierOrder)
+                ->with('success', "Заказ поставщику №{$result['number']} создан в МойСклад. Теперь можно создать Приёмку."),
+            'recreate' => redirect()->route('supplier-orders.index')
+                ->with('success', "Заказ поставщику и Приёмка №{$result['number']} созданы в МойСклад."),
+            'suffix_supply' => redirect()->route('supplier-orders.index')
+                ->with('success', "Приёмка создана в МойСклад с именем «{$result['name']}». Номер поступления обновлён."),
+            default => redirect()->route('supplier-orders.index')
+                ->with('warning', 'Действие отменено.'),
+        };
     }
 
-    /**
-     * Обновить остатки в БД для всех товаров из поступления.
-     * Вызывается после успешного создания Приёмки в МойСклад.
-     */
-    private function syncSuppliedProductStocks(SupplierOrder $supplierOrder): void
+    public function nextOrderNumber(): JsonResponse
     {
-        foreach ($supplierOrder->items as $item) {
-            $moyskladId = $item->product?->moysklad_id;
-            if ($moyskladId) {
-                $this->stockSyncService->updateProductStocksByMoyskladId($moyskladId);
-            }
-        }
-    }
-
-    /**
-     * API: следующий номер заказа на текущей неделе.
-     * Формат: ГГ-НН-ПРОГ-ПП (например: 26-15-ПРОГ-01)
-     */
-    public function nextOrderNumber(): \Illuminate\Http\JsonResponse
-    {
-        $count = SupplierOrder::whereBetween('created_at', [
-            now()->startOfWeek(),
-            now()->endOfWeek(),
-        ])->count();
-
-        return response()->json(['number' => DocumentNaming::weeklyName('ПРОГ', $count + 1)]);
+        return response()->json(['number' => $this->service->nextOrderNumber()]);
     }
 }

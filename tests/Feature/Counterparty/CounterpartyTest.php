@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Counterparty;
-use App\Services\MoySkladService;
+use App\Services\Moysklad\MoySkladService;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 function mockMoySkladForCounterparty(bool $success = true): void

@@ -3,7 +3,7 @@
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
-use App\Services\MoySkladMoveService;
+use App\Services\Moysklad\MoySkladMoveService;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // МойСклад мокаем во всех тестах — реальных HTTP-запросов нет

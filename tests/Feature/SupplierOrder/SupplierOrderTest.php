@@ -5,9 +5,9 @@ use App\Models\Product;
 use App\Models\Store;
 use App\Models\SupplierOrder;
 use App\Models\SupplierOrderItem;
-use App\Services\MoySkladPurchaseOrderService;
-use App\Services\MoySkladSupplyService;
-use App\Services\StockSyncService;
+use App\Services\Moysklad\MoySkladPurchaseOrderService;
+use App\Services\Moysklad\MoySkladSupplyService;
+use App\Services\Moysklad\StockSyncService;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ─── Моки сервисов ───────────────────────────────────────────────────────────

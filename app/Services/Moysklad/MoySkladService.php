@@ -1,72 +1,15 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Moysklad;
 
 use App\Models\Counterparty;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Models\Store;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class MoySkladService
+class MoySkladService extends MoySkladBaseService
 {
-    private $token;
-
-    private $baseUrl = 'https://api.moysklad.ru/api/remap/1.2';
-
-    public function __construct()
-    {
-        $this->token = config('services.moysklad.token');
-        $this->baseUrl = config('services.moysklad.base_url');
-
-        if (empty($this->token)) {
-            Log::warning('MOYSKLAD_TOKEN не установлен в .env файле');
-        }
-    }
-
-    /**
-     * Проверка наличия учетных данных
-     */
-    public function hasCredentials(): bool
-    {
-        return ! empty($this->token);
-    }
-
-    /**
-     * Выполнить GET запрос к API МойСклад
-     */
-    private function getRequest(string $endpoint, array $query = [])
-    {
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer '.$this->token,
-                'Accept-Encoding' => 'gzip',
-                'Content-Type' => 'application/json',
-            ])->get($this->baseUrl.$endpoint, $query);
-
-            if (! $response->successful()) {
-                Log::error('Ошибка API МойСклад', [
-                    'endpoint' => $endpoint,
-                    'status' => $response->status(),
-                    'response' => $response->json(),
-                ]);
-
-                return null;
-            }
-
-            return $response->json();
-
-        } catch (\Exception $e) {
-            Log::error('Исключение при запросе к API МойСклад', [
-                'endpoint' => $endpoint,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
-    }
-
     /**
      * Извлечь ID из href
      */
@@ -105,7 +48,7 @@ class MoySkladService
         try {
             Log::info('Начинаем синхронизацию складов');
 
-            $data = $this->getRequest('/entity/store');
+            $data = $this->get('/entity/store');
 
             if (! $data || ! isset($data['rows'])) {
                 $result['message'] = 'Не удалось получить склады из API';
@@ -230,7 +173,7 @@ class MoySkladService
             $moyskladGroupIds = [];
 
             do {
-                $data = $this->getRequest('/entity/productfolder', [
+                $data = $this->get('/entity/productfolder', [
                     'limit' => $limit,
                     'offset' => $offset,
                 ]);
@@ -366,7 +309,7 @@ class MoySkladService
             $totalProcessed = 0;
 
             do {
-                $data = $this->getRequest('/entity/product', [
+                $data = $this->get('/entity/product', [
                     'limit' => $limit,
                     'offset' => $offset,
                     'order' => 'updated,desc',
@@ -537,37 +480,10 @@ class MoySkladService
     {
         if (! $this->hasCredentials()) {
             Log::error('Попытка получить товар без токена');
-
             return null;
         }
 
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer '.$this->token,
-                'Accept-Encoding' => 'gzip',
-            ])->get($this->baseUrl.'/entity/product/'.$id, [
-                'expand' => 'attributes',  // получаем кастомные атрибуты
-            ]);
-
-            if (! $response->successful()) {
-                Log::error('Ошибка получения товара', [
-                    'id' => $id,
-                    'status' => $response->status(),
-                ]);
-
-                return null;
-            }
-
-            return $response->json();
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка получения товара', [
-                'id' => $id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
+        return $this->get('/entity/product/' . $id, ['expand' => 'attributes']);
     }
 
     /**
@@ -596,7 +512,7 @@ class MoySkladService
             $limit = 1000;
 
             do {
-                $data = $this->getRequest('/entity/counterparty', [
+                $data = $this->get('/entity/counterparty', [
                     'limit' => $limit,
                     'offset' => $offset,
                 ]);

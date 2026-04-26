@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Moysklad;
 
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Support\DocumentNaming;
 use Illuminate\Support\Facades\Log;
 
-class RawBatchMovementSyncService
+class RawMaterialBatchSyncService
 {
     public function __construct(
         private MoySkladMoveService $moveService,

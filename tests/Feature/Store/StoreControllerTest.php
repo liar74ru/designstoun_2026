@@ -1,8 +1,8 @@
 <?php
 
 use App\Models\Store;
-use App\Services\MoySkladService;
-use App\Services\StockSyncService;
+use App\Services\Moysklad\MoySkladService;
+use App\Services\Moysklad\StockSyncService;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 function makeStore(array $attrs = []): Store

@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductStock;
-use App\Services\MoySkladService;
+use App\Services\Moysklad\MoySkladService;
 use App\Services\ProductGroupService;
-use App\Services\StockSyncService;
+use App\Services\Moysklad\StockSyncService;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;

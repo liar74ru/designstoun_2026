@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Counterparty;
-use App\Services\MoySkladService;
+use App\Services\Moysklad\MoySkladService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 

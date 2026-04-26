@@ -1,43 +1,19 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Moysklad;
 
 use App\Models\SupplierOrder;
 use App\Support\DocumentNaming;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class MoySkladPurchaseOrderService
+class MoySkladPurchaseOrderService extends MoySkladBaseService
 {
-    private string $token;
-    private string $baseUrl;
-    private ?array $organizationMeta = null;
-
-    public function __construct()
-    {
-        $this->token   = config('services.moysklad.token');
-        $this->baseUrl = config('services.moysklad.base_url');
-    }
-
-    public function hasCredentials(): bool
-    {
-        return !empty($this->token);
-    }
-
     /**
      * Проверить, существует ли заказ поставщику в МойСклад.
      */
     public function checkExists(string $moyskladId): bool
     {
-        try {
-            $response = Http::withHeaders([
-                'Authorization'   => 'Bearer ' . $this->token,
-                'Accept-Encoding' => 'gzip',
-            ])->get($this->baseUrl . '/entity/purchaseorder/' . $moyskladId);
-            return $response->successful();
-        } catch (\Exception) {
-            return false;
-        }
+        return $this->get('/entity/purchaseorder/' . $moyskladId) !== null;
     }
 
     /**
@@ -60,7 +36,7 @@ class MoySkladPurchaseOrderService
                 return $result;
             }
 
-            $storeMeta = $this->getStoreMeta($order->store_id);
+            $storeMeta = $this->getEntityMeta('store', $order->store_id);
             if (!$storeMeta) {
                 $result['message'] = 'Не удалось получить метаданные склада из МойСклад';
                 return $result;
@@ -71,13 +47,13 @@ class MoySkladPurchaseOrderService
                 $result['message'] = 'Контрагент не синхронизирован с МойСклад';
                 return $result;
             }
-            $agentMeta = $this->getCounterpartyMeta($counterparty->moysklad_id);
+            $agentMeta = $this->getEntityMeta('counterparty', $counterparty->moysklad_id);
             if (!$agentMeta) {
                 $result['message'] = 'Не удалось получить метаданные контрагента из МойСклад';
                 return $result;
             }
 
-            $positions = $this->buildPositions($order);
+            $positions = $this->buildOrderPositions($order);
             if (empty($positions)) {
                 $result['message'] = 'Нет позиций для отправки в МойСклад';
                 return $result;
@@ -96,11 +72,7 @@ class MoySkladPurchaseOrderService
                 $body['description'] = $order->note;
             }
 
-            $response = Http::withHeaders([
-                'Authorization'  => 'Bearer ' . $this->token,
-                'Accept-Encoding' => 'gzip',
-                'Content-Type'   => 'application/json',
-            ])->post($this->baseUrl . '/entity/purchaseorder', $body);
+            $response = $this->post('/entity/purchaseorder', $body);
 
             if (!$response->successful()) {
                 $errors   = $response->json()['errors'] ?? [];
@@ -149,10 +121,7 @@ class MoySkladPurchaseOrderService
         }
 
         try {
-            $response = Http::withHeaders([
-                'Authorization'   => 'Bearer ' . $this->token,
-                'Accept-Encoding' => 'gzip',
-            ])->delete($this->baseUrl . '/entity/purchaseorder/' . $moyskladId);
+            $response = $this->delete('/entity/purchaseorder/' . $moyskladId);
 
             if ($response->successful() || $response->status() === 200) {
                 $result['success'] = true;
@@ -200,13 +169,13 @@ class MoySkladPurchaseOrderService
                 $result['message'] = 'Контрагент не синхронизирован с МойСклад';
                 return $result;
             }
-            $agentMeta = $this->getCounterpartyMeta($counterparty->moysklad_id);
+            $agentMeta = $this->getEntityMeta('counterparty', $counterparty->moysklad_id);
             if (!$agentMeta) {
                 $result['message'] = 'Не удалось получить метаданные контрагента из МойСклад';
                 return $result;
             }
 
-            $positions = $this->buildPositions($order);
+            $positions = $this->buildOrderPositions($order);
             if (empty($positions)) {
                 $result['message'] = 'Нет позиций для отправки';
                 return $result;
@@ -220,11 +189,7 @@ class MoySkladPurchaseOrderService
                 $body['description'] = $order->note;
             }
 
-            $response = Http::withHeaders([
-                'Authorization'   => 'Bearer ' . $this->token,
-                'Accept-Encoding' => 'gzip',
-                'Content-Type'    => 'application/json',
-            ])->put($this->baseUrl . '/entity/purchaseorder/' . $order->moysklad_id, $body);
+            $response = $this->put('/entity/purchaseorder/' . $order->moysklad_id, $body);
 
             if ($response->successful()) {
                 $result['success'] = true;
@@ -233,9 +198,9 @@ class MoySkladPurchaseOrderService
             } else {
                 $errorMsg = $response->json()['errors'][0]['error'] ?? 'Неизвестная ошибка';
                 Log::error('Ошибка обновления заказа в МойСклад', [
-                    'status'      => $response->status(),
-                    'response'    => $response->json(),
-                    'order_id'    => $order->id,
+                    'status'   => $response->status(),
+                    'response' => $response->json(),
+                    'order_id' => $order->id,
                 ]);
                 $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
             }
@@ -248,106 +213,5 @@ class MoySkladPurchaseOrderService
         }
 
         return $result;
-    }
-
-    private function buildPositions(SupplierOrder $order): array
-    {
-        $positions = [];
-
-        foreach ($order->items()->with('product')->get() as $item) {
-            $product = $item->product;
-            if (!$product?->moysklad_id) {
-                Log::warning('Товар не синхронизирован с МойСклад, пропускаем', [
-                    'product_id' => $item->product_id,
-                ]);
-                continue;
-            }
-
-            $priceKopecks = (int) round($product->effectiveBuyPrice() * 100);
-
-            $positions[] = [
-                'quantity'   => (float) $item->quantity,
-                'price'      => $priceKopecks,
-                'assortment' => [
-                    'meta' => [
-                        'href'      => $this->baseUrl . '/entity/product/' . $product->moysklad_id,
-                        'type'      => 'product',
-                        'mediaType' => 'application/json',
-                    ],
-                ],
-            ];
-        }
-
-        return $positions;
-    }
-
-    private function getOrganizationMeta(): ?array
-    {
-        if ($this->organizationMeta) {
-            return $this->organizationMeta;
-        }
-
-        try {
-            $response = Http::withHeaders([
-                'Authorization'  => 'Bearer ' . $this->token,
-                'Accept-Encoding' => 'gzip',
-            ])->get($this->baseUrl . '/entity/organization');
-
-            if (!$response->successful()) {
-                return null;
-            }
-
-            $rows = $response->json()['rows'] ?? [];
-            if (empty($rows)) {
-                return null;
-            }
-
-            $this->organizationMeta = $rows[0]['meta'];
-            return $this->organizationMeta;
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка получения метаданных организации', ['error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    private function getStoreMeta(string $storeId): ?array
-    {
-        try {
-            $response = Http::withHeaders([
-                'Authorization'  => 'Bearer ' . $this->token,
-                'Accept-Encoding' => 'gzip',
-            ])->get($this->baseUrl . '/entity/store/' . $storeId);
-
-            if (!$response->successful()) {
-                return null;
-            }
-
-            return $response->json()['meta'] ?? null;
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка получения метаданных склада', ['store_id' => $storeId, 'error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    private function getCounterpartyMeta(string $moyskladId): ?array
-    {
-        try {
-            $response = Http::withHeaders([
-                'Authorization'  => 'Bearer ' . $this->token,
-                'Accept-Encoding' => 'gzip',
-            ])->get($this->baseUrl . '/entity/counterparty/' . $moyskladId);
-
-            if (!$response->successful()) {
-                return null;
-            }
-
-            return $response->json()['meta'] ?? null;
-
-        } catch (\Exception $e) {
-            Log::error('Ошибка получения метаданных контрагента', ['moysklad_id' => $moyskladId, 'error' => $e->getMessage()]);
-            return null;
-        }
     }
 }
