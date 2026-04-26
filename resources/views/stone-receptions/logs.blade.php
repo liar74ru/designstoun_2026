@@ -151,8 +151,16 @@
 
                             {{-- Строка 1: Дата слева, кнопки справа --}}
                             <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
-                                <span class="text-muted" style="font-size:.72rem">{{ $log->created_at->format('d.m.Y H:i') }}</span>
+                                <span class="text-muted" style="font-size:.72rem">
+                                    {{ $log->created_at->format('d.m.Y H:i') }}
+                                    <span class="text-secondary ms-1">#{{ $log->id }}</span>
+                                </span>
                                 <div class="d-flex gap-1 align-items-center">
+                                    <a href="{{ route('stone-receptions.show', $log->stoneReception) }}"
+                                           class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center"
+                                           style="width:22px;height:22px;padding:0;font-size:.65rem" title="Просмотр">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
                                     @if($log->stoneReception && $log->stoneReception->status === 'active')
                                         <a href="{{ route('stone-receptions.edit', $log->stone_reception_id) }}"
                                            class="btn btn-success d-inline-flex align-items-center justify-content-center"
