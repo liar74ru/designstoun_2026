@@ -7,9 +7,11 @@ use App\Support\DocumentNaming;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use App\Models\RawMaterialBatch;
+use App\Models\ReceptionLog;
 use App\Models\Store;
 use App\Models\Product;
 use App\Models\StoneReception;
+use App\Models\Worker;
 
 class StoneReceptionSyncService extends MoySkladBaseService
 {
@@ -307,7 +309,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
      * @param  StoneReception  $reception
      * @return array ['success', 'processing_id', 'processing_name', 'code', 'message']
      */
-    public function createProcessingForReception(StoneReception $reception, ?string $customName = null): array
+    public function createProcessingForReception(StoneReception $reception, ?string $customName = null, ?string $description = null): array
     {
         $reception->loadMissing('rawMaterialBatch.product');
         $batch = $reception->rawMaterialBatch;
@@ -316,7 +318,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
             $batch,
             (float) $reception->raw_quantity_used,
             $reception,
-            $customName
+            $customName,
+            $description
         );
     }
 
@@ -331,7 +334,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
         RawMaterialBatch $batch,
         float $materialQuantity,
         StoneReception $reception,
-        ?string $customName = null
+        ?string $customName = null,
+        ?string $description = null
     ): array {
         $result = [
             'success'         => false,
@@ -437,9 +441,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 'moment'         => $receptionDate->format('Y-m-d H:i:s'),
             ];
 
-            $batchName = $batch->moysklad_processing_name ?? ($batch->batch_number ? "партия №{$batch->batch_number}" : null);
-            if ($batchName) {
-                $processingData['description'] = $batchName;
+            if ($description !== null) {
+                $processingData['description'] = $description;
             }
 
             $inWorkName = Setting::get('MOYSKLAD_IN_WORK_STATE', '');
@@ -812,9 +815,11 @@ class StoneReceptionSyncService extends MoySkladBaseService
         }
 
         try {
+            $reception->loadMissing('items.product', 'rawMaterialBatch.product');
+            $description = $this->buildReceptionDescription($reception, $batch);
+
             if (!$reception->hasMoySkladProcessing()) {
-                $reception->loadMissing('items.product', 'rawMaterialBatch.product');
-                $result = $this->createProcessingForReception($reception, $customName);
+                $result = $this->createProcessingForReception($reception, $customName, $description ?: null);
 
                 if ($result['success']) {
                     $reception->markSynced($result['processing_id'], $result['processing_name']);
@@ -826,15 +831,13 @@ class StoneReceptionSyncService extends MoySkladBaseService
                     ]);
                 }
             } else {
-                $reception->loadMissing('items.product', 'rawMaterialBatch.product');
-                $batchName = $batch->moysklad_processing_name ?? ($batch->batch_number ? "партия №{$batch->batch_number}" : null);
                 $result = $this->updateProcessingProducts(
                     $reception->moysklad_processing_id,
                     $reception->items,
                     $reception->store_id ?? '',
                     (float) $reception->raw_quantity_used,
                     $batch->product->moysklad_id ?? '',
-                    $batchName
+                    $description ?: null
                 );
 
                 if ($result['success']) {
@@ -855,6 +858,43 @@ class StoneReceptionSyncService extends MoySkladBaseService
             ]);
             $reception->markSyncError('Ошибка: ' . $e->getMessage());
         }
+    }
+
+    private function buildReceptionDescription(StoneReception $reception, RawMaterialBatch $batch): string
+    {
+        $batchName = $batch->moysklad_processing_name
+            ?? ($batch->batch_number ? "партия №{$batch->batch_number}" : '');
+
+        $logs = ReceptionLog::where('stone_reception_id', $reception->id)
+            ->orderBy('created_at')
+            ->with('items.product')
+            ->get();
+
+        if ($logs->isEmpty()) {
+            return $batchName;
+        }
+
+        $undercutMap = $reception->items->keyBy('product_id')->map(fn($i) => (bool) $i->is_undercut);
+        $receiverIds = $logs->pluck('receiver_id')->filter()->unique();
+        $receivers   = Worker::whereIn('id', $receiverIds)->pluck('name', 'id');
+
+        $blocks = $logs->map(function (ReceptionLog $log) use ($receivers, $undercutMap) {
+            $date         = $log->created_at->format('d.m.Y');
+            $receiverName = $receivers[$log->receiver_id] ?? '—';
+            $lines        = ["___", "{$date} #{$log->id} {$receiverName}"];
+
+            foreach ($log->items as $item) {
+                $productName = $item->product?->name ?? "Товар #{$item->product_id}";
+                $delta       = (float) $item->quantity_delta;
+                $sign        = $delta >= 0 ? '+' : '';
+                $suffix      = ($undercutMap[$item->product_id] ?? false) ? ' (подкол)' : '';
+                $lines[]     = "{$productName}: {$sign}" . number_format($delta, 3, '.', '') . $suffix;
+            }
+
+            return implode("\n", $lines);
+        });
+
+        return trim($batchName . "\n" . $blocks->join("\n") . "\n___", "\n");
     }
 
     /**
