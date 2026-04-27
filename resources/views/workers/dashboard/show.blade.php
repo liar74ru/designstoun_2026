@@ -286,92 +286,10 @@
                     {{-- ═══ ВИД: ПО ПАРТИЯМ (StoneReception) ═══ --}}
                     <div id="view-batches">
                         @forelse($stoneReceptions as $reception)
-                            @php
-                                $skuColor = \App\Models\Product::getColorBySku($reception->rawMaterialBatch?->product?->sku);
-                                $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
-                            @endphp
-                            <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
-                                <div style="padding:.2rem .35rem">
-
-                                    <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
-                                        <span class="text-muted" style="font-size:.72rem">
-                                            {{ $reception->created_at->format('d.m.Y H:i') }}
-                                        </span>
-                                        <div class="d-flex gap-1 align-items-center">
-                                            @if(auth()->user()->isAdmin() || $isMaster)
-                                                <a href="{{ route('stone-receptions.show', $reception) }}"
-                                                   class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center"
-                                                   style="width:22px;height:22px;padding:0;font-size:.65rem" title="Открыть приёмку">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
-                                            @endif
-                                            @if($reception->status === 'active')
-                                                <span class="badge bg-success" style="font-size:.65rem">Активна</span>
-                                            @elseif($reception->status === 'completed')
-                                                <span class="badge bg-warning text-dark" style="font-size:.65rem">Завершена</span>
-                                            @elseif($reception->status === 'processed')
-                                                <span class="badge bg-secondary" style="font-size:.65rem">Обработана</span>
-                                            @elseif($reception->status === 'error')
-                                                <span class="badge bg-danger" style="font-size:.65rem">Ошибка</span>
-                                            @endif
-                                        </div>
-                                    </div>
-
-                                    @if($reception->items->count() > 0)
-                                        <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
-                                            @foreach($reception->items as $item)
-                                                <div class="d-flex justify-content-between align-items-baseline" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
-                                                    <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
-                                                        <i class="bi bi-grid-3x3 text-secondary me-1"></i>{{ $item->product->name }}
-                                                    </span>
-                                                    <span class="fw-semibold text-primary text-nowrap" style="font-size:.72rem">
-                                                        {{ number_format($item->quantity, 3, ',', '.') }} м²
-                                                    </span>
-                                                </div>
-                                            @endforeach
-                                            <div class="d-flex justify-content-end" style="margin-top:.1rem">
-                                                <span class="text-muted text-nowrap" style="font-size:.7rem">
-                                                    Итого: <span class="fw-semibold text-primary">{{ number_format($reception->total_quantity, 3, ',', '.') }} м²</span>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    @if($reception->rawMaterialBatch)
-                                        @php
-                                            $bInit = (float) ($reception->rawMaterialBatch->initial_quantity ?? 0);
-                                            $bRem  = (float) ($reception->rawMaterialBatch->remaining_quantity ?? 0);
-                                        @endphp
-                                        <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
-                                            <span class="text-muted text-truncate me-2" style="font-size:.72rem">
-                                                <i class="bi bi-box me-1"></i>{{ $reception->rawMaterialBatch->product->name ?? '?' }}
-                                            </span>
-                                            <div class="d-flex gap-1 flex-shrink-0 align-items-center">
-                                                <span style="font-size:.6rem;color:#6c757d;white-space:nowrap">нач.</span>
-                                                <span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">{{ number_format($bInit, 3, '.', '') }}</span>
-                                                <span style="font-size:.6rem;color:#6c757d;white-space:nowrap">ост.</span>
-                                                <span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:{{ $bRem > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $bRem > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($bRem, 3, '.', '') }}</span>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
-                                        <span class="text-muted" style="font-size:.65rem">
-                                            <i class="bi bi-building me-1"></i>{{ $reception->store?->name ?? '—' }}
-                                        </span>
-                                        @if($isMaster && $reception->cutter)
-                                            <span class="text-muted" style="font-size:.65rem">
-                                                <i class="bi bi-person me-1"></i>{{ $reception->cutter->name }}
-                                            </span>
-                                        @elseif(!$isMaster && $reception->receiver)
-                                            <span class="text-muted" style="font-size:.65rem">
-                                                <i class="bi bi-person-gear me-1"></i>{{ $reception->receiver->name }}
-                                            </span>
-                                        @endif
-                                    </div>
-
-                                </div>
-                            </div>
+                            @include('partials.reception-card', [
+                                'reception'     => $reception,
+                                'showEyeButton' => auth()->user()->isAdmin() || $isMaster,
+                            ])
                         @empty
                             <div class="text-center py-4 text-muted">
                                 <i class="bi bi-inbox fs-3 d-block mb-1"></i>
@@ -383,63 +301,13 @@
                     {{-- ═══ ВИД: ПО ПРИЁМКАМ (ReceptionLog) ═══ --}}
                     <div id="view-logs">
                         @forelse($receptions as $log)
-                            @php
-                                $skuColor = \App\Models\Product::getColorBySku($log->rawMaterialBatch?->product?->sku);
-                                $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
-                            @endphp
-                            <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
-                                <div style="padding:.2rem .35rem">
-
-                                    <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
-                                        <span class="text-muted" style="font-size:.72rem">{{ $log->created_at->format('d.m.Y H:i') }}</span>
-                                        @if($log->type === 'created')
-                                            <span class="badge bg-success" style="font-size:.65rem">Создание</span>
-                                        @else
-                                            <span class="badge bg-warning text-dark" style="font-size:.65rem">Правка</span>
-                                        @endif
-                                    </div>
-
-                                    @if($log->items->count() > 0)
-                                        <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
-                                            @foreach($log->items as $item)
-                                                @php $delta = (float) $item->quantity_delta; @endphp
-                                                <div class="d-flex justify-content-between align-items-baseline" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
-                                                    <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
-                                                        <i class="bi bi-grid-3x3 text-secondary me-1"></i>{{ $item->product?->name ?? '?' }}
-                                                    </span>
-                                                    <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }} text-nowrap" style="font-size:.72rem">
-                                                        {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }} м²
-                                                    </span>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-
-                                    @if($log->rawMaterialBatch)
-                                        <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
-                                            <span class="text-muted text-truncate" style="font-size:.72rem">
-                                                <i class="bi bi-box me-1"></i>{{ $log->rawMaterialBatch->product->name ?? '?' }}
-                                            </span>
-                                        </div>
-                                    @endif
-
-                                    <div class="d-flex justify-content-between" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
-                                        <span class="text-muted" style="font-size:.65rem">
-                                            <i class="bi bi-building me-1"></i>{{ $log->stoneReception?->store?->name ?? '—' }}
-                                        </span>
-                                        @if($isMaster && $log->cutter)
-                                            <span class="text-muted" style="font-size:.65rem">
-                                                <i class="bi bi-person me-1"></i>{{ $log->cutter->name }}
-                                            </span>
-                                        @elseif(!$isMaster && $log->receiver)
-                                            <span class="text-muted" style="font-size:.65rem">
-                                                <i class="bi bi-person-gear me-1"></i>{{ $log->receiver->name }}
-                                            </span>
-                                        @endif
-                                    </div>
-
-                                </div>
-                            </div>
+                            @include('partials.reception-log-card', [
+                                'log'             => $log,
+                                'showActions'     => true,
+                                'showRawDetails'  => false,
+                                'showStoreBottom' => true,
+                                'isMaster'        => $isMaster,
+                            ])
                         @empty
                             <div class="text-center py-4 text-muted">
                                 <i class="bi bi-inbox fs-3 d-block mb-1"></i>
@@ -451,95 +319,7 @@
                     {{-- ═══ ВИД: СЫРЬЁ (RawMaterialBatch) ═══ --}}
                     <div id="view-raw">
                         @forelse($rawBatches as $batch)
-                            @php
-                                $skuColor = \App\Models\Product::getColorBySku($batch->product?->sku);
-                                $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
-                                $bInit    = (float) ($batch->initial_quantity ?? 0);
-                                $bRem     = (float) ($batch->remaining_quantity ?? 0);
-                                $isActive = in_array($batch->status, ['new', 'in_work']);
-                            @endphp
-                            <div style="margin-bottom:.35rem;border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07);{{ !$isActive ? 'opacity:.75' : '' }}">
-                                <div style="padding:.2rem .35rem">
-
-                                    <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.2rem">
-                                        @if($batch->batch_number)
-                                            <span class="text-muted" style="font-size:.72rem">№{{ $batch->batch_number }}</span>
-                                        @else
-                                            <span></span>
-                                        @endif
-                                        <span class="badge {{ $batch->statusBadgeClass() }}" style="font-size:.65rem">
-                                            {{ $batch->statusLabel() }}
-                                        </span>
-                                    </div>
-
-                                    <div class="d-flex justify-content-between align-items-start" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
-                                        <span class="fw-semibold me-2" style="font-size:.75rem">
-                                            <i class="bi bi-box text-secondary me-1"></i>{{ $batch->product?->name ?? '—' }}
-                                        </span>
-                                        <div class="d-flex flex-column align-items-end flex-shrink-0" style="gap:.1rem">
-                                            <div class="d-flex gap-1 align-items-center">
-                                                <span style="font-size:.6rem;color:#6c757d;white-space:nowrap">нач.</span>
-                                                <span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:#e9ecef;color:#495057;white-space:nowrap">{{ number_format($bInit, 3, '.', '') }}</span>
-                                            </div>
-                                            <div class="d-flex gap-1 align-items-center">
-                                                <span style="font-size:.6rem;color:#6c757d;white-space:nowrap">ост.</span>
-                                                <span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:{{ $bRem > 0 ? '#cff4fc' : '#fff3cd' }};color:{{ $bRem > 0 ? '#055160' : '#664d03' }};white-space:nowrap">{{ number_format($bRem, 3, '.', '') }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
-                                        <span class="fw-bold" style="font-size:.72rem">
-                                            <i class="bi bi-calendar3 text-secondary me-1"></i>{{ $batch->created_at->format('d.m.Y H:i') }}
-                                        </span>
-                                        @if($batch->currentStore)
-                                            <span class="text-muted" style="font-size:.65rem">
-                                                <i class="bi bi-building me-1"></i>{{ $batch->currentStore->name }}
-                                            </span>
-                                        @endif
-                                    </div>
-
-                                    <div class="d-flex gap-1 justify-content-end" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
-                                        <a href="{{ route('raw-batches.show', $batch) }}"
-                                           class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center"
-                                           style="width:22px;height:22px;padding:0;font-size:.65rem" title="Посмотреть партию">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        @if(auth()->user()->isAdmin() || auth()->user()->isMaster())
-                                            @if($isActive)
-                                                <a href="{{ route('raw-batches.adjust-remaining.form', $batch) }}"
-                                                   class="btn btn-outline-warning d-inline-flex align-items-center justify-content-center"
-                                                   style="width:22px;height:22px;padding:0;font-size:.65rem" title="Откорректировать остаток">
-                                                    <i class="bi bi-pencil-square"></i>
-                                                </a>
-                                            @endif
-                                            @if($isActive && $bRem <= 0)
-                                                <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline-flex"
-                                                      onsubmit="return confirm('Завершить партию? Сырьё будет отмечено как израсходованное.')">
-                                                    @csrf
-                                                    <button type="submit"
-                                                            class="btn btn-warning d-inline-flex align-items-center justify-content-center"
-                                                            style="width:22px;height:22px;padding:0;font-size:.65rem" title="Завершить партию">
-                                                        <i class="bi bi-check2-circle"></i>
-                                                    </button>
-                                                </form>
-                                            @endif
-                                            @if($batch->status === \App\Models\RawMaterialBatch::STATUS_USED)
-                                                <form method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}" class="d-inline-flex"
-                                                      onsubmit="return confirm('Вернуть партию в работу?')">
-                                                    @csrf
-                                                    <button type="submit"
-                                                            class="btn btn-outline-success d-inline-flex align-items-center justify-content-center"
-                                                            style="width:22px;height:22px;padding:0;font-size:.65rem" title="Вернуть в работу">
-                                                        <i class="bi bi-arrow-counterclockwise"></i>
-                                                    </button>
-                                                </form>
-                                            @endif
-                                        @endif
-                                    </div>
-
-                                </div>
-                            </div>
+                            @include('partials.raw-batch-card', ['batch' => $batch])
                         @empty
                             <div class="text-center py-4 text-muted">
                                 <i class="bi bi-inbox fs-3 d-block mb-1"></i>
