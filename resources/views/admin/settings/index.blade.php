@@ -223,10 +223,8 @@
         </div>
     </form>
 
-    {{-- Склады по умолчанию для отделов (отдельная форма) --}}
-    <form method="POST" action="{{ route('admin.departments.store-defaults') }}">
-        @csrf
-        <div class="card shadow-sm mb-3">
+    {{-- Склады по умолчанию для отделов --}}
+    <div class="card shadow-sm mb-3">
             <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
                  role="button"
                  data-block-id="dept-stores">
@@ -255,11 +253,11 @@
                                             <span class="fw-semibold">{{ $dept->name }}</span>
                                             <div class="d-flex gap-1">
                                                 <a href="{{ route('admin.departments.show', $dept) }}"
-                                                   class="btn btn-sm btn-link p-0 text-primary border-0" title="Просмотр">
+                                                   class="btn btn-sm btn-outline-primary" title="Просмотр">
                                                     <i class="bi bi-eye-fill"></i>
                                                 </a>
                                                 <a href="{{ route('admin.departments.show', $dept) }}"
-                                                   class="btn btn-sm btn-link p-0 text-secondary border-0" title="Редактировать">
+                                                   class="btn btn-sm btn-outline-secondary" title="Редактировать">
                                                     <i class="bi bi-pencil-fill"></i>
                                                 </a>
                                                 <form action="{{ route('admin.departments.destroy', $dept) }}" method="POST"
@@ -267,48 +265,21 @@
                                                       onsubmit="return confirm('Удалить отдел «{{ $dept->name }}»?')">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-link p-0 text-danger border-0" title="Удалить">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
                                                         <i class="bi bi-trash-fill"></i>
                                                     </button>
                                                 </form>
                                             </div>
                                         </div>
                                     </td>
-                                    <td>
-                                        <select name="departments[{{ $dept->id }}][raw_store_id]"
-                                                class="form-select form-select-sm">
-                                            <option value="">— не задан —</option>
-                                            @foreach($stores as $store)
-                                                <option value="{{ $store->id }}"
-                                                    {{ $dept->default_raw_store_id === $store->id ? 'selected' : '' }}>
-                                                    {{ $store->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
+                                    <td class="text-muted small">
+                                        {{ $stores->firstWhere('id', $dept->default_raw_store_id)?->name ?? '— не задан —' }}
                                     </td>
-                                    <td>
-                                        <select name="departments[{{ $dept->id }}][product_store_id]"
-                                                class="form-select form-select-sm">
-                                            <option value="">— не задан —</option>
-                                            @foreach($stores as $store)
-                                                <option value="{{ $store->id }}"
-                                                    {{ $dept->default_product_store_id === $store->id ? 'selected' : '' }}>
-                                                    {{ $store->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
+                                    <td class="text-muted small">
+                                        {{ $stores->firstWhere('id', $dept->default_product_store_id)?->name ?? '— не задан —' }}
                                     </td>
-                                    <td>
-                                        <select name="departments[{{ $dept->id }}][production_store_id]"
-                                                class="form-select form-select-sm">
-                                            <option value="">— не задан —</option>
-                                            @foreach($stores as $store)
-                                                <option value="{{ $store->id }}"
-                                                    {{ $dept->default_production_store_id === $store->id ? 'selected' : '' }}>
-                                                    {{ $store->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
+                                    <td class="text-muted small">
+                                        {{ $stores->firstWhere('id', $dept->default_production_store_id)?->name ?? '— не задан —' }}
                                     </td>
                                 </tr>
                                 @endforeach
@@ -319,16 +290,22 @@
                     {{-- Мобильный --}}
                     <div class="d-md-none">
                         @foreach($departments as $dept)
-                        <div class="border-bottom px-3 py-2">
-                            <div class="mb-2 d-flex align-items-center justify-content-between">
-                                <span class="fw-semibold">{{ $dept->name }}</span>
-                                <div class="d-flex gap-1">
+                        <div class="border-bottom" x-data="{ open: false }">
+                            <div class="px-3 py-2 d-flex align-items-center justify-content-between"
+                                 style="cursor:pointer" @click="open = !open">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi text-muted"
+                                       :class="open ? 'bi-chevron-down' : 'bi-chevron-right'"
+                                       style="font-size:.7rem"></i>
+                                    <span class="fw-semibold">{{ $dept->name }}</span>
+                                </div>
+                                <div class="d-flex gap-1" @click.stop>
                                     <a href="{{ route('admin.departments.show', $dept) }}"
-                                       class="btn btn-sm btn-link p-0 text-primary border-0" title="Просмотр">
+                                       class="btn btn-sm btn-outline-primary" title="Просмотр">
                                         <i class="bi bi-eye-fill"></i>
                                     </a>
                                     <a href="{{ route('admin.departments.show', $dept) }}"
-                                       class="btn btn-sm btn-link p-0 text-secondary border-0" title="Редактировать">
+                                       class="btn btn-sm btn-outline-secondary" title="Редактировать">
                                         <i class="bi bi-pencil-fill"></i>
                                     </a>
                                     <form action="{{ route('admin.departments.destroy', $dept) }}" method="POST"
@@ -336,50 +313,26 @@
                                           onsubmit="return confirm('Удалить отдел «{{ $dept->name }}»?')">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-link p-0 text-danger border-0" title="Удалить">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
                                             <i class="bi bi-trash-fill"></i>
                                         </button>
                                     </form>
                                 </div>
                             </div>
-                            <div class="mb-2">
-                                <label class="form-label small text-muted mb-1">Склад сырья</label>
-                                <select name="departments[{{ $dept->id }}][raw_store_id]"
-                                        class="form-select form-select-sm">
-                                    <option value="">— не задан —</option>
-                                    @foreach($stores as $store)
-                                        <option value="{{ $store->id }}"
-                                            {{ $dept->default_raw_store_id === $store->id ? 'selected' : '' }}>
-                                            {{ $store->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small text-muted mb-1">Склад продукции</label>
-                                <select name="departments[{{ $dept->id }}][product_store_id]"
-                                        class="form-select form-select-sm">
-                                    <option value="">— не задан —</option>
-                                    @foreach($stores as $store)
-                                        <option value="{{ $store->id }}"
-                                            {{ $dept->default_product_store_id === $store->id ? 'selected' : '' }}>
-                                            {{ $store->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="mb-0">
-                                <label class="form-label small text-muted mb-1">Склад производства</label>
-                                <select name="departments[{{ $dept->id }}][production_store_id]"
-                                        class="form-select form-select-sm">
-                                    <option value="">— не задан —</option>
-                                    @foreach($stores as $store)
-                                        <option value="{{ $store->id }}"
-                                            {{ $dept->default_production_store_id === $store->id ? 'selected' : '' }}>
-                                            {{ $store->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                            <div x-show="open" x-transition
+                                 class="px-3 pb-2 bg-light border-top">
+                                <div class="mb-1">
+                                    <span class="small text-muted">Сырьё: </span>
+                                    <span class="small">{{ $stores->firstWhere('id', $dept->default_raw_store_id)?->name ?? '— не задан —' }}</span>
+                                </div>
+                                <div class="mb-1">
+                                    <span class="small text-muted">Продукция: </span>
+                                    <span class="small">{{ $stores->firstWhere('id', $dept->default_product_store_id)?->name ?? '— не задан —' }}</span>
+                                </div>
+                                <div class="mb-0">
+                                    <span class="small text-muted">Производство: </span>
+                                    <span class="small">{{ $stores->firstWhere('id', $dept->default_production_store_id)?->name ?? '— не задан —' }}</span>
+                                </div>
                             </div>
                         </div>
                         @endforeach
@@ -395,14 +348,8 @@
                     </a>
                 </div>
 
-                <div class="card-footer d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-check-lg"></i> Сохранить склады отделов
-                    </button>
-                </div>
-            </div>
         </div>
-    </form>
+    </div>
 
 </div>
 
