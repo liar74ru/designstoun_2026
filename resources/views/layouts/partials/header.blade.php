@@ -136,21 +136,20 @@
                     @auth
                         @php $user = auth()->user(); @endphp
 
-                        {{-- Смена пароля / профиль --}}
                         @if($user->worker)
                             <a href="{{ route('workers.edit-user', $user->worker) }}"
-                               class="btn btn-sm {{ $user->isAdmin() ? 'btn-primary' : 'btn-outline-secondary' }}"
-                               title="{{ $user->isWorker() ? 'Профиль' : 'Пароль' }}">
-                                <i class="bi bi-{{ $user->isWorker() ? 'person' : 'key' }}"></i>
+                               class="btn btn-sm btn-outline-secondary"
+                               title="Профиль">
+                                <i class="bi bi-person-circle"></i>
+                            </a>
+                        @else
+                            <a href="{{ route('logout') }}"
+                               onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
+                               class="btn btn-outline-danger btn-sm" title="Выход">
+                                <i class="bi bi-box-arrow-right"></i>
                             </a>
                         @endif
 
-                        {{-- Выход --}}
-                        <a href="{{ route('logout') }}"
-                           onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
-                           class="btn btn-outline-danger btn-sm" title="Выход">
-                            <i class="bi bi-box-arrow-right"></i>
-                        </a>
                         <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
                             @csrf
                         </form>
