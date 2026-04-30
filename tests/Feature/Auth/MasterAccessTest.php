@@ -88,7 +88,7 @@ test('мастер может открыть журнал приёмок', funct
 
     $this->actingAs($user)
         ->get(route('stone-receptions.logs'))
-        ->assertStatus(200);
+        ->assertRedirect(route('stone-receptions.index', ['view' => 'logs']));
 });
 
 test('мастер может открыть список приёмок', function () {

@@ -35,7 +35,7 @@ class SupplierOrderService
             ->get();
     }
 
-    public function getCopySource(int $id): ?SupplierOrder
+    public function getCopySource(string $id): ?SupplierOrder
     {
         return SupplierOrder::with(['counterparty', 'items.product'])->find($id);
     }

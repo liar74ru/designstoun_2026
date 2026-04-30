@@ -119,6 +119,16 @@
                                 Последняя синхр.: {{ $batch->synced_at->format('d.m.Y H:i') }}
                             </div>
                         @endif
+                        @if($batch->status !== 'archived')
+                            <form method="POST" action="{{ route('raw-batches.sync', $batch) }}" class="mt-2">
+                                @csrf
+                                <button type="submit"
+                                        class="btn btn-sm w-100 {{ $batch->hasSyncError() ? 'btn-warning' : ($batch->hasMoySkladProcessing() ? 'btn-outline-secondary' : 'btn-outline-primary') }}">
+                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                    {{ $batch->hasMoySkladProcessing() ? 'Синхронизировать с МойСклад' : 'Создать перемещение' }}
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
 
@@ -134,14 +144,9 @@
                                     <i class="bi bi-plus-slash-minus"></i> Изменить количество
                                 </a>
 
-                                <form method="POST" action="{{ route('raw-batches.sync', $batch) }}">
-                                    @csrf
-                                    <button type="submit"
-                                            class="btn w-100 {{ $batch->hasSyncError() ? 'btn-warning' : ($batch->hasMoySkladProcessing() ? 'btn-outline-secondary' : 'btn-outline-primary') }}">
-                                        <i class="bi bi-arrow-repeat me-1"></i>
-                                        {{ $batch->hasMoySkladProcessing() ? 'Синхронизировать с МойСклад' : 'Создать перемещение' }}
-                                    </button>
-                                </form>
+                                <a href="{{ route('raw-batches.adjust-remaining.form', $batch) }}" class="btn btn-outline-warning">
+                                    <i class="bi bi-pencil-square"></i> Уточнить остаток
+                                </a>
 
                                 <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-primary">
                                     <i class="bi bi-copy"></i> Копировать
@@ -292,47 +297,11 @@
                             {{-- Мобильный: карточки --}}
                             <div class="d-md-none" style="padding:.35rem .4rem">
                                 @foreach($batch->receptions as $reception)
-                                    @php
-                                        $firstItem  = $reception->items->first();
-                                        $skuColor   = \App\Models\Product::getColorBySku($firstItem?->product?->sku ?? null);
-                                        $skuBg      = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
-                                    @endphp
-                                    <div style="border-left:3px solid {{ $skuColor }};{{ $skuBg }}padding:.3rem .4rem;border-bottom:1px solid #f0f0f0;margin-bottom:.2rem;border-radius:.25rem">
-                                        {{-- Дата + расход --}}
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <span class="text-muted" style="font-size:.72rem">{{ $reception->created_at->format('d.m.Y H:i') }}</span>
-                                            <span class="badge bg-info" style="font-size:.65rem">сырьё: {{ number_format($reception->raw_quantity_used, 3) }} м²</span>
-                                        </div>
-                                        {{-- Позиции --}}
-                                        @foreach($reception->items as $item)
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div class="small fw-semibold text-truncate me-2" style="font-size:.8rem;max-width:65%">
-                                                    {{ $item->product?->name ?? '—' }}
-                                                </div>
-                                                <span class="badge bg-primary" style="font-size:.65rem">{{ number_format($item->quantity, 3) }} м²</span>
-                                            </div>
-                                        @endforeach
-                                        {{-- Приёмщик --}}
-                                        @if($reception->receiver)
-                                            <div class="text-muted mt-1" style="font-size:.7rem">
-                                                <i class="bi bi-person me-1"></i>{{ $reception->receiver->name }}
-                                            </div>
-                                        @endif
-                                    </div>
+                                    @include('partials.reception-card', [
+                                        'reception'   => $reception,
+                                        'showActions' => true,
+                                    ])
                                 @endforeach
-
-                                {{-- Итого мобильный --}}
-                                <div class="d-flex justify-content-between align-items-center mt-2 pt-1" style="border-top:1px solid #dee2e6">
-                                    <span class="small fw-semibold">Итого:</span>
-                                    <div class="d-flex gap-1">
-                                        <span class="badge bg-primary" style="font-size:.68rem">{{ number_format($totalQty, 3) }} м²</span>
-                                        @if($batch->initial_quantity > 0)
-                                            <span class="badge bg-secondary" style="font-size:.68rem">
-                                                выход {{ number_format(($totalQty / $batch->initial_quantity) * 100, 1) }}%
-                                            </span>
-                                        @endif
-                                    </div>
-                                </div>
                             </div>
 
                         @else

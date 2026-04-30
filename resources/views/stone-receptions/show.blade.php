@@ -19,18 +19,15 @@
             <div class="col-md-6">
 
                 {{-- Основная информация --}}
-                <div class="card shadow-sm mb-3">
-                    <div style="padding:.4rem .5rem">
-
-                        @php
-                            $statusMap = [
-                                \App\Models\StoneReception::STATUS_ACTIVE    => ['bg-success',          'Активна'],
-                                \App\Models\StoneReception::STATUS_COMPLETED => ['bg-warning text-dark', 'Завершена'],
-                                \App\Models\StoneReception::STATUS_PROCESSED => ['bg-primary',           'Обработана'],
-                                \App\Models\StoneReception::STATUS_ERROR     => ['bg-danger',             'Ошибка'],
-                            ];
-                            [$badgeClass, $statusLabel] = $statusMap[$stoneReception->status] ?? ['bg-secondary', $stoneReception->status];
-                        @endphp
+                @php
+                    $statusMap = [
+                        \App\Models\StoneReception::STATUS_ACTIVE    => ['bg-success',          'Активна'],
+                        \App\Models\StoneReception::STATUS_COMPLETED => ['bg-warning text-dark', 'Завершена'],
+                        \App\Models\StoneReception::STATUS_PROCESSED => ['bg-primary',           'Обработана'],
+                        \App\Models\StoneReception::STATUS_ERROR     => ['bg-danger',             'Ошибка'],
+                    ];
+                    [$badgeClass, $statusLabel] = $statusMap[$stoneReception->status] ?? ['bg-secondary', $stoneReception->status];
+                @endphp
 
                         {{-- Статус + дата --}}
                         <div class="info-block">
@@ -69,39 +66,17 @@
                             </div>
                         </div>
 
-                        {{-- Партия и расход --}}
+                        {{-- Партия сырья --}}
                         <div class="info-block">
                             <div class="info-block-header">
                                 <span class="small fw-semibold text-muted">Партия сырья</span>
                             </div>
                             <div class="info-block-body">
-                                <div class="row g-1">
-                                    <div class="col-8">
-                                        <div class="text-muted" style="font-size:.72rem">Партия</div>
-                                        @if($stoneReception->rawMaterialBatch)
-                                            <a href="{{ route('raw-batches.show', $stoneReception->rawMaterialBatch) }}" class="small fw-semibold">
-                                                {{ $stoneReception->rawMaterialBatch->product->name ?? '—' }}
-                                                @if($stoneReception->rawMaterialBatch->batch_number)
-                                                    №{{ $stoneReception->rawMaterialBatch->batch_number }}
-                                                @endif
-                                            </a>
-                                        @else
-                                            <span class="small text-muted">—</span>
-                                        @endif
-                                    </div>
-                                    <div class="col-4">
-                                        <div class="text-muted" style="font-size:.72rem">Расход</div>
-                                        <span class="badge bg-info">{{ number_format($stoneReception->raw_quantity_used, 3) }} м³</span>
-                                    </div>
-                                </div>
-                                <div class="d-flex gap-3 mt-1" style="font-size:.72rem">
-                                    <span class="text-muted">Склад: {{ $stoneReception->store->name ?? '—' }}</span>
-                                    @if($stoneReception->rawMaterialBatch)
-                                        <span class="text-muted">Остаток:
-                                            <span class="fw-semibold text-dark">{{ number_format($stoneReception->rawMaterialBatch->remaining_quantity, 3) }} м³</span>
-                                        </span>
-                                    @endif
-                                </div>
+                                @if($stoneReception->rawMaterialBatch)
+                                    @include('partials.raw-batch-card', ['batch' => $stoneReception->rawMaterialBatch])
+                                @else
+                                    <span class="small text-muted">—</span>
+                                @endif
                             </div>
                         </div>
 
@@ -157,10 +132,18 @@
                                         Последняя синхр.: {{ $stoneReception->synced_at->format('d.m.Y H:i') }}
                                     </div>
                                 @endif
+                                <form method="POST"
+                                      action="{{ route('stone-receptions.sync', $stoneReception) }}"
+                                      class="mt-2">
+                                    @csrf
+                                    <button type="submit"
+                                            class="btn btn-sm w-100 {{ $stoneReception->hasSyncError() ? 'btn-warning' : ($stoneReception->hasMoySkladProcessing() ? 'btn-outline-secondary' : 'btn-outline-primary') }}">
+                                        <i class="bi bi-arrow-repeat me-1"></i>
+                                        {{ $stoneReception->hasMoySkladProcessing() ? 'Синхронизировать с МойСклад' : 'Создать техоперацию' }}
+                                    </button>
+                                </form>
                             </div>
                         </div>
-                    </div>
-                </div>
 
                 {{-- Кнопки действий --}}
                 <div class="card shadow-sm mb-3">
@@ -170,32 +153,9 @@
                     <div class="card-body py-2">
                         <div class="d-grid gap-2">
 
-                            <a href="{{ route('stone-receptions.edit', $stoneReception) }}" class="btn btn-secondary">
-                                <i class="bi bi-pencil"></i> Редактировать
+                            <a href="{{ route('stone-receptions.edit', $stoneReception) }}" class="btn btn-success">
+                                <i class="bi bi-plus-lg"></i> Добавить приёмку
                             </a>
-
-                            <form method="POST"
-                                  action="{{ route('stone-receptions.sync', $stoneReception) }}">
-                                @csrf
-                                <button type="submit"
-                                        class="btn w-100 {{ $stoneReception->hasSyncError() ? 'btn-warning' : ($stoneReception->hasMoySkladProcessing() ? 'btn-outline-secondary' : 'btn-outline-primary') }}">
-                                    <i class="bi bi-arrow-repeat me-1"></i>
-                                    {{ $stoneReception->hasMoySkladProcessing() ? 'Синхронизировать с МойСклад' : 'Создать техоперацию' }}
-                                </button>
-                            </form>
-
-                            <form method="POST" action="{{ route('stone-receptions.copy', $stoneReception) }}">
-                                @csrf
-                                @if($stoneReception->cutter_id)
-                                    <input type="hidden" name="cutter_id" value="{{ $stoneReception->cutter_id }}">
-                                @endif
-                                @if($stoneReception->raw_material_batch_id)
-                                    <input type="hidden" name="raw_material_batch_id" value="{{ $stoneReception->raw_material_batch_id }}">
-                                @endif
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="bi bi-copy"></i> Новая приёмка на основе текущей
-                                </button>
-                            </form>
 
                             @if($stoneReception->status === \App\Models\StoneReception::STATUS_ACTIVE
                                 && $stoneReception->rawMaterialBatch
@@ -270,80 +230,82 @@
                     </div>
 
                     @if($stoneReception->items->count() > 0)
-                        {{-- Десктоп: таблица --}}
-                        <div class="d-none d-md-block" id="itemsViewTable">
-                            <table class="table table-sm mb-0">
+                        <div class="table-responsive">
+                            <table class="table mb-0" style="font-size:.75rem;table-layout:auto">
+                                <colgroup>
+                                    <col>
+                                    <col style="width:1%">
+                                    <col style="width:1%">
+                                    <col style="width:1%">
+                                    <col style="width:1%">
+                                </colgroup>
                                 <thead class="table-light">
                                 <tr>
-                                    <th>Продукт</th>
-                                    <th class="text-center">Подкол</th>
-                                    <th class="text-end">Коэф.</th>
-                                    <th class="text-end">₽/м²</th>
-                                    <th class="text-end">Зарплата</th>
-                                    <th class="text-end">Кол-во</th>
+                                    <th style="border-left:4px solid transparent;padding:.3rem .1rem .3rem .4rem">Продукт</th>
+                                    <th class="text-end text-nowrap" style="padding:.3rem .25rem .3rem .1rem">м²</th>
+                                    <th class="text-end text-nowrap" style="padding:.3rem .25rem" title="Коэффициент зафиксирован на момент приёмки">Коэф.</th>
+                                    <th class="text-end text-nowrap" style="padding:.3rem .25rem">₽/м²</th>
+                                    <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .25rem">Зарплата</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 @foreach($stoneReception->items as $item)
+                                    @php
+                                        $skuColor = \App\Models\Product::getColorBySku($item->product?->sku);
+                                        $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+                                    @endphp
                                     <tr>
-                                        <td>
+                                        <td style="border-left:4px solid {{ $skuColor }};{{ $skuBg }};word-break:break-word;padding:.3rem .1rem .3rem .4rem">
                                             @if($item->product)
-                                                <a href="{{ route('products.show', $item->product->moysklad_id) }}">{{ $item->product->name }}</a>
-                                                @if($item->product->sku)
-                                                    <br><small class="text-muted">{{ $item->product->sku }}</small>
-                                                @endif
+                                                <a href="{{ route('products.show', $item->product->moysklad_id) }}"
+                                                   class="text-body text-decoration-none">{{ $item->product->name }}</a>
                                             @else
-                                                <span class="text-danger small">Продукт не найден</span>
+                                                <span class="text-danger">Продукт не найден</span>
+                                            @endif
+                                            @if($item->is_undercut)
+                                                <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">подкол 80%</span>
+                                            @endif
+                                            @if($item->is_small_tile)
+                                                <span class="badge bg-info text-dark ms-1" style="font-size:.6rem">< 50мм</span>
                                             @endif
                                         </td>
-                                        <td class="text-center">
-                                            <div class="d-flex flex-column gap-1 align-items-center">
-                                                @if($item->is_undercut)
-                                                    <span class="badge bg-warning text-dark">⚡ 80%</span>
-                                                @endif
-                                                @if($item->is_small_tile)
-                                                    <span class="badge bg-info text-dark">< 50мм</span>
-                                                @endif
-                                                @if(!$item->is_undercut && !$item->is_small_tile)
-                                                    <span class="text-muted small">—</span>
-                                                @endif
-                                            </div>
+                                        <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
+                                            {{ number_format($item->quantity, 3, ',', ' ') }}
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
                                             @if($item->effective_cost_coeff !== null)
-                                                <span class="badge bg-light border text-dark">{{ number_format($item->effective_cost_coeff, 4) }}</span>
-                                                @if($item->is_undercut)
-                                                    <br><small class="text-muted" style="font-size:10px">база: {{ number_format($item->base_coeff, 4) }}</small>
-                                                @endif
+                                                ×{{ number_format($item->effective_cost_coeff, 1, ',', ' ') }}
                                             @else
-                                                <span class="text-muted">—</span>
+                                                —
                                             @endif
                                         </td>
-                                        <td class="text-end text-nowrap">
+                                        <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
                                             @if($item->worker_cost_per_m2 !== null)
-                                                <span class="text-muted small">{{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} ₽</span>
+                                                {{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} ₽
                                             @else
-                                                <span class="text-muted">—</span>
+                                                —
                                             @endif
                                         </td>
-                                        <td class="text-end text-nowrap">
+                                        <td class="text-end text-nowrap fw-semibold text-success" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .25rem">
                                             @if($item->worker_cost_per_m2 !== null)
-                                                <span class="fw-semibold">{{ number_format($item->calculateWorkerPay(), 0, '.', ' ') }} ₽</span>
+                                                {{ number_format($item->calculateWorkerPay(), 0, '.', ' ') }} ₽
                                             @else
-                                                <span class="text-muted">—</span>
+                                                —
                                             @endif
-                                        </td>
-                                        <td class="text-end">
-                                            <span class="badge bg-primary">{{ number_format($item->quantity, 3) }} м²</span>
                                         </td>
                                     </tr>
                                 @endforeach
                                 </tbody>
                                 <tfoot class="table-light">
                                 <tr>
-                                    <th colspan="5">Итого:</th>
-                                    <th class="text-end">
-                                        <span class="badge bg-primary">{{ number_format($stoneReception->items->sum('quantity'), 3) }} м²</span>
+                                    <th class="fw-bold" style="padding:.3rem .1rem .3rem .4rem">ИТОГО:</th>
+                                    <th class="text-end text-nowrap fw-semibold" style="font-size:.9rem;padding:.3rem .25rem .3rem .1rem">
+                                        {{ number_format($stoneReception->items->sum('quantity'), 3, ',', ' ') }} м²
+                                    </th>
+                                    <th></th>
+                                    <th></th>
+                                    <th class="text-end text-nowrap text-success" style="font-size:.9rem;padding:.3rem .4rem .3rem .25rem">
+                                        {{ number_format($stoneReception->items->sum(fn($i) => $i->calculateWorkerPay()), 0, '.', ' ') }} ₽
                                     </th>
                                 </tr>
                                 @if($stoneReception->raw_quantity_used > 0)
@@ -352,7 +314,7 @@
                                         $coeff = $totalQty / $stoneReception->raw_quantity_used;
                                     @endphp
                                     <tr>
-                                        <th colspan="6" class="text-muted small fw-normal">
+                                        <th colspan="5" class="text-muted fw-normal" style="padding:.3rem .4rem">
                                             Коэф. выхода: {{ number_format($coeff * 100, 1) }}%
                                             (1 м³ → {{ number_format($coeff, 3) }} м²)
                                         </th>
@@ -360,64 +322,6 @@
                                 @endif
                                 </tfoot>
                             </table>
-                        </div>
-
-                        {{-- Мобильный: карточки --}}
-                        <div class="d-md-none" id="itemsViewMobile" style="padding:.35rem .4rem">
-                            @foreach($stoneReception->items as $item)
-                                <div style="border-bottom:1px solid #f0f0f0;padding:.3rem 0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1 me-2">
-                                            @if($item->product)
-                                                <div class="small fw-semibold" style="font-size:.82rem">{{ $item->product->name }}</div>
-                                                @if($item->product->sku)
-                                                    <div class="text-muted" style="font-size:.72rem">{{ $item->product->sku }}</div>
-                                                @endif
-                                            @else
-                                                <div class="text-danger small">Продукт не найден</div>
-                                            @endif
-                                            <div class="d-flex align-items-center gap-1 mt-1">
-                                                @if($item->is_undercut)
-                                                    <span class="badge bg-warning text-dark" style="font-size:.68rem">⚡ 80% подкол</span>
-                                                @endif
-                                                @if($item->is_small_tile)
-                                                    <span class="badge bg-info text-dark" style="font-size:.68rem">плитка < 50мм</span>
-                                                @endif
-                                                @if($item->effective_cost_coeff !== null)
-                                                    <span class="badge bg-light border text-dark" style="font-size:.68rem">
-                                                        коэф: {{ number_format($item->effective_cost_coeff, 1) }}
-                                                    </span>
-                                                @endif
-                                                @if($item->worker_cost_per_m2 !== null)
-                                                    <span class="badge bg-light border text-muted" style="font-size:.68rem">
-                                                        {{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} ₽/м²
-                                                    </span>
-                                                @endif
-                                            </div>
-                                        </div>
-                                        <div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
-                                            <span class="badge bg-primary">{{ number_format($item->quantity, 3) }} м²</span>
-                                            @if($item->worker_cost_per_m2 !== null)
-                                                <span class="small fw-semibold text-nowrap">{{ number_format($item->calculateWorkerPay(), 0, '.', ' ') }} ₽</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                            {{-- Итого мобильный --}}
-                            <div style="padding:.3rem 0" class="d-flex justify-content-between align-items-center">
-                                <span class="small fw-semibold">Итого:</span>
-                                <span class="badge bg-primary">{{ number_format($stoneReception->items->sum('quantity'), 3) }} м²</span>
-                            </div>
-                            @if($stoneReception->raw_quantity_used > 0)
-                                @php
-                                    $totalQty = $stoneReception->items->sum('quantity');
-                                    $coeff = $totalQty / $stoneReception->raw_quantity_used;
-                                @endphp
-                                <div class="text-muted" style="font-size:.72rem">
-                                    Коэф. выхода: 1 м³ → {{ number_format($coeff, 3) }} м²
-                                </div>
-                            @endif
                         </div>
 
                         {{-- Форма редактирования коэффициентов (скрыта по умолчанию) --}}
@@ -538,41 +442,15 @@
                         <span class="small fw-semibold">📋 Журнал изменений</span>
                     </div>
                     @if($stoneReception->receptionLogs->count() > 0)
-                        <div>
+                        <div class="p-2">
                             @foreach($stoneReception->receptionLogs as $log)
-                                <div style="padding:.35rem .5rem;border-bottom:1px solid #f0f0f0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="d-flex align-items-center gap-1">
-                                            @if($log->type === \App\Models\ReceptionLog::TYPE_CREATED)
-                                                <span class="badge bg-success" style="font-size:.7rem">Создание</span>
-                                            @else
-                                                <span class="badge bg-warning text-dark" style="font-size:.7rem">Изменение</span>
-                                            @endif
-                                            <span class="text-muted" style="font-size:.72rem">{{ $log->created_at->format('d.m H:i') }}</span>
-                                        </div>
-                                        @if(abs($log->raw_quantity_delta) > 0.0001)
-                                            <span class="badge {{ $log->raw_quantity_delta >= 0 ? 'bg-info' : 'bg-secondary' }}" style="font-size:.7rem">
-                                                {{ $log->raw_quantity_delta >= 0 ? '+' : '' }}{{ number_format($log->raw_quantity_delta, 3) }} м³
-                                            </span>
-                                        @endif
-                                    </div>
-                                    @if($log->items->count() > 0)
-                                        <div class="mt-1">
-                                            @foreach($log->items as $logItem)
-                                                <div style="font-size:.78rem">
-                                                    {{ $logItem->product->name ?? "Продукт #$logItem->product_id" }}:
-                                                    <span class="{{ $logItem->quantity_delta >= 0 ? 'text-success' : 'text-danger' }} fw-semibold">
-                                                        {{ $logItem->quantity_delta >= 0 ? '+' : '' }}{{ number_format($logItem->quantity_delta, 3) }} м²
-                                                    </span>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                    <div class="text-muted mt-1" style="font-size:.72rem">
-                                        {{ $log->receiver->name ?? '—' }}
-                                        @if($log->cutter) · {{ $log->cutter->name }} @endif
-                                    </div>
-                                </div>
+                                @include('partials.reception-log-card', [
+                                    'log'             => $log,
+                                    'showActions'     => false,
+                                    'showRawDetails'  => true,
+                                    'showStoreBottom' => false,
+                                    'isMaster'        => false,
+                                ])
                             @endforeach
                         </div>
                     @else

@@ -42,50 +42,31 @@ class WorkerDashboardService
             ->orderBy('created_at', 'desc')
             ->get();
 
-        if ($isMaster) {
-            $stoneReceptionIds = $logs->pluck('stone_reception_id')->filter()->unique();
-            $stoneReceptions = StoneReception::with([
-                    'items.product',
-                    'rawMaterialBatch.product',
-                    'cutter',
-                    'store',
-                ])
-                ->whereIn('id', $stoneReceptionIds)
-                ->orderBy('created_at', 'desc')
-                ->get();
+        $stoneReceptionIds = $logs->pluck('stone_reception_id')->filter()->unique();
+        $stoneReceptions = StoneReception::with([
+                'items.product',
+                'rawMaterialBatch.product',
+                $isMaster ? 'cutter' : 'receiver',
+                'store',
+            ])
+            ->whereIn('id', $stoneReceptionIds)
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-            $batchIds = $stoneReceptions->pluck('raw_material_batch_id')->filter()->unique();
-            $rawBatches = RawMaterialBatch::with(['product', 'currentStore'])
-                ->whereIn('id', $batchIds)
-                ->orderByRaw("CASE status WHEN 'in_work' THEN 0 WHEN 'new' THEN 1 ELSE 2 END")
-                ->orderByDesc('updated_at')
-                ->get();
-        } else {
-            $stoneReceptions = StoneReception::with([
-                    'items.product',
-                    'rawMaterialBatch.product',
-                    'receiver',
-                    'store',
-                ])
-                ->where('cutter_id', $workerId)
-                ->whereBetween('created_at', [$dateFrom, $dateTo])
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            $rawBatches = RawMaterialBatch::with(['product', 'currentStore'])
-                ->where(function ($q) use ($workerId, $dateFrom, $dateTo) {
-                    $q->where(function ($q2) use ($workerId) {
+        $batchIds = $stoneReceptions->pluck('raw_material_batch_id')->filter()->unique();
+        $rawBatches = RawMaterialBatch::with(['product', 'currentStore'])
+            ->where(function ($q) use ($workerId, $batchIds, $isMaster) {
+                $q->whereIn('id', $batchIds);
+                if (!$isMaster) {
+                    $q->orWhere(function ($q2) use ($workerId) {
                         $q2->whereIn('status', [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])
                             ->where('current_worker_id', $workerId);
-                    })->orWhereHas('receptions', function ($q2) use ($workerId, $dateFrom, $dateTo) {
-                        $q2->where('cutter_id', $workerId)
-                            ->whereBetween('created_at', [$dateFrom, $dateTo]);
                     });
-                })
-                ->orderByRaw("CASE status WHEN 'in_work' THEN 0 WHEN 'new' THEN 1 ELSE 2 END")
-                ->orderByDesc('updated_at')
-                ->get();
-        }
+                }
+            })
+            ->orderByRaw("CASE status WHEN 'in_work' THEN 0 WHEN 'new' THEN 1 ELSE 2 END")
+            ->orderByDesc('updated_at')
+            ->get();
 
         $summary        = $this->buildProductSummary($logs);
         $totalPay       = $isMaster ? null : $summary->sum('pay');

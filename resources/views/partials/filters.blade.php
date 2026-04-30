@@ -218,8 +218,7 @@
         badge.innerHTML = `<span class="badge bg-primary rounded-pill">${activeFilters}</span>`;
     }
 
-    const userOpened   = localStorage.getItem(STORAGE_KEY) === 'open';
-    const shouldExpand = activeFilters > 0 || userOpened;
+    const shouldExpand = activeFilters > 0;
 
     function applyState(expanded, animate) {
         if (expanded) {
@@ -255,14 +254,7 @@
         dateFrom.value = ''; dateTo.value = ''; form.submit();
     });
 
-    form.querySelectorAll('.product-picker-clear').forEach(btn => {
-        btn.addEventListener('click', () => { form.submit(); });
-    });
-
-    document.addEventListener('product-picker:selected', () => {
-        const pickers = form.querySelectorAll('.product-picker-row input[type="hidden"]');
-        if ([...pickers].some(h => h.value)) form.submit();
-    });
+    document.addEventListener('product-picker:removed', () => { form.submit(); });
 })();
 </script>
 @endpush

@@ -15,7 +15,7 @@ describe('StoneReceptionController logs()', function () {
     test('страница доступна авторизованному', function () {
         $this->actingAs(H::adminUser())
             ->get(route('stone-receptions.logs'))
-            ->assertStatus(200);
+            ->assertRedirect(route('stone-receptions.index', ['view' => 'logs']));
     });
 
     test('недоступна без авторизации', function () {
@@ -43,7 +43,7 @@ describe('StoneReceptionController logs()', function () {
 
         $this->actingAs($user)
             ->get(route('stone-receptions.logs'))
-            ->assertStatus(200);
+            ->assertRedirect(route('stone-receptions.index', ['view' => 'logs']));
     });
 });
 

@@ -21,10 +21,10 @@
                 </a>
                 @if(auth()->user()->isAdmin() || auth()->user()->isMaster())
                     @if($isActive)
-                        <a href="{{ route('raw-batches.adjust-remaining.form', $batch) }}"
-                           class="btn btn-outline-warning d-inline-flex align-items-center justify-content-center"
-                           style="width:22px;height:22px;padding:0;font-size:.65rem" title="Откорректировать остаток">
-                            <i class="bi bi-pencil-square"></i>
+                        <a href="{{ route('raw-batches.adjust.form', $batch) }}"
+                           class="btn btn-outline-success d-inline-flex align-items-center justify-content-center"
+                           style="width:22px;height:22px;padding:0;font-size:.65rem" title="Изменить количество">
+                            <i class="bi bi-plus-slash-minus"></i>
                         </a>
                     @endif
                     @if($isActive && $bRem <= 0)

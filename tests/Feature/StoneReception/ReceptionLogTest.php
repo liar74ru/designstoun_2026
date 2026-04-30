@@ -117,7 +117,7 @@ describe('Страница журнала логов', function () {
     test('страница логов доступна авторизованному', function () {
         $user = H::adminUser();
         $this->actingAs($user)->get(route('stone-receptions.logs'))
-            ->assertStatus(200);
+            ->assertRedirect(route('stone-receptions.index', ['view' => 'logs']));
     });
 
     test('страница логов требует авторизацию', function () {

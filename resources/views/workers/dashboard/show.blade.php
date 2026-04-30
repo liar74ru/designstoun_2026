@@ -287,8 +287,8 @@
                     <div id="view-batches">
                         @forelse($stoneReceptions as $reception)
                             @include('partials.reception-card', [
-                                'reception'     => $reception,
-                                'showEyeButton' => auth()->user()->isAdmin() || $isMaster,
+                                'reception'   => $reception,
+                                'showActions' => auth()->user()->isAdmin() || auth()->user()->isMaster(),
                             ])
                         @empty
                             <div class="text-center py-4 text-muted">
@@ -389,6 +389,7 @@
                     if (btn) btn.addEventListener('click', () => {
                         applyView(key);
                         localStorage.setItem(STORAGE_KEY, key);
+                        btn.blur();
                     });
                 });
             })();

@@ -51,7 +51,7 @@ class SupplierOrderController extends Controller
         $recentOrders    = $this->service->getRecentOrders(20);
 
         $copyFrom = $request->filled('copy_from')
-            ? $this->service->getCopySource((int) $request->copy_from)
+            ? $this->service->getCopySource($request->copy_from)
             : null;
 
         return view('supplier-orders.create', compact(

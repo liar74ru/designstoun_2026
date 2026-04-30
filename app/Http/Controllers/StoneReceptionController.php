@@ -27,6 +27,7 @@ class StoneReceptionController extends Controller
     public function index(Request $request): View
     {
         $receptions = $this->service->getFilteredReceptions($request);
+        $logs       = $this->service->getFilteredLogs($request);
         [
             'filterRawProducts' => $filterRawProducts,
             'filterProducts'    => $filterProducts,
@@ -34,21 +35,15 @@ class StoneReceptionController extends Controller
         ] = $this->service->getFilterData();
 
         return view('stone-receptions.index', compact(
-            'receptions', 'filterRawProducts', 'filterProducts', 'filterCutters'
+            'receptions', 'logs', 'filterRawProducts', 'filterProducts', 'filterCutters'
         ));
     }
 
-    public function logs(Request $request): View
+    public function logs(Request $request): RedirectResponse
     {
-        $logs = $this->service->getFilteredLogs($request);
-        [
-            'filterRawProducts' => $filterRawProducts,
-            'filterProducts'    => $filterProducts,
-            'filterCutters'     => $filterCutters,
-        ] = $this->service->getFilterData();
-
-        return view('stone-receptions.logs', compact(
-            'logs', 'filterRawProducts', 'filterProducts', 'filterCutters'
+        return redirect()->route('stone-receptions.index', array_merge(
+            $request->query(),
+            ['view' => 'logs']
         ));
     }
 

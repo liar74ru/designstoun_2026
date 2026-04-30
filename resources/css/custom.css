@@ -2,9 +2,11 @@
 
 /* Информационные блоки с серой шапкой (используются в show/create/edit) */
 .info-block {
+    background: #fff;
     border: 1px solid #dee2e6;
     border-radius: .35rem;
     margin-bottom: .35rem;
+    box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
 }
 .info-block-header {
     background: #f8f9fa;

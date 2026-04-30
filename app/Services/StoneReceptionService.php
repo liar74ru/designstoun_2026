@@ -128,12 +128,14 @@ class StoneReceptionService
         return QueryBuilder::for(\App\Models\ReceptionLog::class)
             ->allowedFilters([
                 AllowedFilter::exact('cutter_id'),
-                AllowedFilter::callback('raw_material_product_id', function ($query, $value) {
+                AllowedFilter::callback('raw_product_id', function ($query, $value) {
                     $query->whereHas('rawMaterialBatch', fn($q) => $q->where('product_id', $value));
                 }),
                 AllowedFilter::callback('product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q->where('product_id', $value));
                 }),
+                AllowedFilter::callback('status', fn() => null),
+                AllowedFilter::callback('sync_status', fn() => null),
             ])
             ->with(['cutter', 'receiver', 'items.product',
                 'stoneReception.store', 'rawMaterialBatch.product'])
