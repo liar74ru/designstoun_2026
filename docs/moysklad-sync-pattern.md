@@ -25,112 +25,93 @@ $table->timestamp('synced_at')->nullable();                 // Время пос
 
 ---
 
-## Константы
+## Trait `HasMoyskladSync`
+
+Все константы и helper-методы вынесены в трейт `App\Models\Concerns\HasMoyskladSync`. Подключение в модель:
 
 ```php
-const SYNC_STATUS_SYNCED     = 'synced';
-const SYNC_STATUS_NOT_SYNCED = 'not_synced';
-```
+use App\Models\Concerns\HasMoyskladSync;
 
----
-
-## Helper-методы
-
-```php
-public function hasMoySkladProcessing(): bool
+class Packaging extends Model
 {
-    return !empty($this->moysklad_processing_id);
-}
-
-public function hasSyncError(): bool
-{
-    return !empty($this->moysklad_sync_error);
-}
-
-public function isSynced(): bool
-{
-    return $this->moysklad_sync_status === self::SYNC_STATUS_SYNCED;
-}
-
-public function syncStatusLabel(): string
-{
-    return $this->isSynced() ? 'Синхр' : 'Не синхр';
-}
-
-public function syncStatusBadgeClass(): string
-{
-    return $this->isSynced() ? 'bg-success' : 'bg-danger';
+    use HasMoyskladSync;
+    // ...
 }
 ```
 
+Трейт предоставляет:
+
+| Что | Назначение |
+|---|---|
+| `SYNC_STATUS_SYNCED` / `SYNC_STATUS_NOT_SYNCED` | Константы статусов |
+| `hasMoySkladProcessing(): bool` | Есть ли UUID техоперации |
+| `hasSyncError(): bool` | Есть ли текст ошибки |
+| `isSynced(): bool` | `moysklad_sync_status === SYNCED` |
+| `syncStatusLabel(): string` | «Синхр» / «Не синхр» |
+| `syncStatusBadgeClass(): string` | `bg-success` / `bg-danger` |
+| `markSynced(string $processingId, ?string $processingName = null)` | Поставить `synced`, очистить ошибку |
+| `markSyncError(string $error)` | Поставить `not_synced`, записать ошибку |
+
+Реализация: [app/Models/Concerns/HasMoyskladSync.php](../app/Models/Concerns/HasMoyskladSync.php).
+
 ---
 
-## Методы изменения sync-состояния
+## Паттерн синхронизации (сервисный уровень)
+
+Логика синхронизации вынесена в `StoneReceptionSyncService::syncReception()`. Сервис приёмки вызывает её после транзакции:
 
 ```php
-public function markSynced(string $processingId, ?string $processingName = null): void
-{
-    $this->update([
-        'moysklad_processing_id'   => $processingId,
-        'moysklad_processing_name' => $processingName ?? $this->moysklad_processing_name,
-        'moysklad_sync_status'     => self::SYNC_STATUS_SYNCED,
-        'moysklad_sync_error'      => null,
-        'synced_at'                => now(),
-    ]);
-}
-
-public function markSyncError(string $error): void
-{
-    $this->update([
-        'moysklad_sync_status' => self::SYNC_STATUS_NOT_SYNCED,
-        'moysklad_sync_error'  => $error,
-        'synced_at'            => now(),
-    ]);
-}
+// StoneReceptionService::create() / update()
+$this->syncService->syncReception($reception, $customName);
 ```
 
----
-
-## Паттерн контроллера
+Сам `syncReception` выглядит так:
 
 ```php
-private function sync*Processing(Model $entity): void
+public function syncReception(StoneReception $reception, ?string $customName = null): void
 {
-    $service = app(MoySkladProcessingService::class);
+    $batch = $reception->rawMaterialBatch;
+    if (!$batch) {
+        return;
+    }
+
     try {
-        if (!$entity->hasMoySkladProcessing()) {
-            // Первая синхронизация — создаём техоперацию
-            $result = $service->createProcessingForReception($entity);
+        $reception->loadMissing('items.product', 'rawMaterialBatch.product');
+        $description = $this->buildReceptionDescription($reception, $batch);
+
+        if (!$reception->hasMoySkladProcessing()) {
+            $result = $this->createProcessingForReception($reception, $customName, $description ?: null);
             if ($result['success']) {
-                $entity->markSynced($result['processing_id'], $result['processing_name']);
+                $reception->markSynced($result['processing_id'], $result['processing_name']);
             } else {
-                $entity->markSyncError($result['message']);
-                Log::warning('sync: не удалось создать техоперацию', [...]);
+                $reception->markSyncError($result['message']);
             }
         } else {
-            // Повторная синхронизация — обновляем техоперацию
-            $result = $service->updateProcessingProducts(
-                $entity->moysklad_processing_id,
-                $entity->items,
-                $entity->store_id ?? '',
-                (float) $entity->raw_quantity_used,
-                $entity->rawMaterialBatch->product->moysklad_id ?? ''
+            $result = $this->updateProcessingProducts(
+                $reception->moysklad_processing_id,
+                $reception->items,
+                $reception->store_id ?? '',
+                (float) $reception->raw_quantity_used,
+                $batch->product->moysklad_id ?? '',
+                $description ?: null
             );
             if ($result['success']) {
-                $entity->markSynced($entity->moysklad_processing_id);
+                $reception->markSynced($reception->moysklad_processing_id);
             } else {
-                $entity->markSyncError($result['message']);
-                Log::warning('sync: не удалось обновить техоперацию', [...]);
+                $reception->markSyncError($result['message']);
             }
         }
     } catch (\Exception $e) {
-        Log::error('sync: исключение', ['error' => $e->getMessage()]);
-        $entity->markSyncError('Ошибка: ' . $e->getMessage());
+        $reception->markSyncError('Ошибка: ' . $e->getMessage());
     }
 }
 ```
 
 Вызывается **вне транзакции**, не блокирует основное действие.
+
+### description техоперации
+
+`buildReceptionDescription()` формирует поле `description` из логов приёмки: дата, получатель, дельты по товарам (со знаком + / −), пометка `(подкол)`. Передаётся при создании и каждом обновлении техоперации.
 
 ---
 
@@ -139,79 +120,89 @@ private function sync*Processing(Model $entity): void
 Финальный статус (например, `completed`) ставится **локально всегда**, независимо от результата синхронизации. Если синхронизация завершения с МойСклад не удалась — `sync_status = 'not_synced'` с сохранением ошибки. Пользователь видит предупреждение и может повторить вручную.
 
 ```php
-public function markCompleted(Model $entity)
-{
-    $entity->markAsCompleted(); // Бизнес-статус ставим локально всегда
+// StoneReceptionService::markCompleted()
+DB::transaction(function () use ($reception) {
+    $reception->markAsCompleted();
+    // обновление статуса партии...
+});
 
-    if ($entity->hasMoySkladProcessing()) {
-        $result = app(MoySkladProcessingService::class)
-            ->completeProcessing($entity->moysklad_processing_id);
+$reception->refresh();
 
-        if ($result['success']) {
-            $entity->markSynced($entity->moysklad_processing_id);
-            return back()->with('success', 'Завершено.');
-        } else {
-            $entity->markSyncError($result['message']);
-            return back()->with('warning',
-                'Завершено локально, но ошибка синхронизации: ' . $result['message']);
-        }
+if ($reception->hasMoySkladProcessing()) {
+    $result = $this->syncService->completeProcessing($reception->moysklad_processing_id);
+
+    if ($result['success']) {
+        $reception->markSynced($reception->moysklad_processing_id);
+        return ['success' => true, 'message' => 'Приёмка завершена.'];
     }
 
-    return back()->with('success', 'Завершено.');
+    $reception->markSyncError($result['message']);
+    return [
+        'success' => false,
+        'message' => 'Приёмка завершена локально, но ошибка синхронизации с МойСклад: ' . $result['message'],
+    ];
 }
+
+return ['success' => true, 'message' => 'Приёмка завершена.'];
 ```
 
 ---
 
-## UI-паттерн блока МойСклад в `show.blade.php`
+## Сброс статуса (reactivate)
+
+`StoneReceptionService::resetStatus()` возвращает приёмку в активный статус:
+1. Локально очищает все sync-поля (`moysklad_processing_id`, `moysklad_sync_status` и т.д.) и ставит `status = active`
+2. Вызывает `$this->syncService->reactivateProcessing($processingId)` — переводит техоперацию в МойСклад обратно в статус «В работе» (берётся из `Setting::get('MOYSKLAD_IN_WORK_STATE')`)
+
+Локальный сброс выполняется в транзакции и происходит **всегда**; синхронизация — после транзакции. Ошибка синхронизации возвращается как строка (не исключение).
+
+---
+
+## UI-блок МойСклад: компонент `<x-moysklad-sync-status>`
+
+Реализация: [resources/views/components/moysklad-sync-status.blade.php](../resources/views/components/moysklad-sync-status.blade.php).
+
+Минимальный вариант:
 
 ```blade
-<div class="info-block">
-    <div class="info-block-header d-flex justify-content-between align-items-center">
-        <span class="small fw-semibold text-muted">
-            <i class="bi bi-cloud me-1"></i>МойСклад
-        </span>
-        @if($entity->moysklad_sync_status)
-            <span class="badge {{ $entity->syncStatusBadgeClass() }} small">
-                {{ $entity->syncStatusLabel() }}
-            </span>
-        @endif
-    </div>
-    <div class="info-block-body">
-        @if($entity->hasSyncError())
-            <div class="small text-warning-emphasis">
-                <i class="bi bi-exclamation-triangle me-1"></i>
-                <strong>Ошибка:</strong> {{ $entity->moysklad_sync_error }}
-            </div>
-        @elseif($entity->isSynced())
-            <div class="small text-success">
-                <i class="bi bi-check-circle me-1"></i> Синхронизировано
-                @if($entity->moysklad_processing_name)
-                    · <span class="text-muted">{{ $entity->moysklad_processing_name }}</span>
-                @endif
-            </div>
-            @if(auth()->user()->is_admin)
-                <div class="text-muted mt-1" style="font-size:.72rem;word-break:break-all">
-                    <i class="bi bi-fingerprint me-1"></i>
-                    <code style="font-size:.7rem">{{ $entity->moysklad_processing_id }}</code>
-                </div>
-            @endif
-        @else
-            <div class="small text-muted">
-                <i class="bi bi-cloud-slash me-1"></i>Техоперация не создана
-            </div>
-        @endif
-        @if($entity->synced_at)
-            <div class="text-muted mt-2" style="font-size:.72rem">
-                <i class="bi bi-clock-history me-1"></i>
-                Последняя синхр.: {{ $entity->synced_at->format('d.m.Y H:i') }}
-            </div>
-        @endif
-    </div>
-</div>
+<x-moysklad-sync-status
+    :model="$entity"
+    :sync-route="route('entity.sync', $entity)" />
 ```
 
-**Логика статус-бейджа в шапке:** показывается только если `moysklad_sync_status` установлен (не null). Если синхронизации ещё не было — бейджа нет.
+Атрибуты:
+
+| Атрибут | По умолчанию | Назначение |
+|---|---|---|
+| `model` | — | Модель, использующая `HasMoyskladSync` |
+| `sync-route` | — | URL для POST-формы ручной синхронизации |
+| `wrapper` | `card` | `card` (Bootstrap card) или `info-block` (для левых колонок с info-block-сеткой) |
+| `show-button` | `true` | Показывать ли форму ретрая (например, скрыть для архивных партий) |
+| `empty-text` | `Техоперация не создана` | Текст в empty-состоянии |
+| `create-text` | `Создать техоперацию` | Текст кнопки если ещё нет UUID |
+| `sync-text` | `Синхронизировать с МойСклад` | Текст кнопки если UUID уже есть |
+
+Логика статус-бейджа: показывается только если `moysklad_sync_status` установлен (не null). Если синхронизации ещё не было — бейджа нет.
+
+---
+
+## Trait `HandlesProcessingSync` для sync-сервисов техопераций
+
+Сервисы, работающие с техоперациями МойСклад (`PackagingSyncService`, `StoneReceptionSyncService`), используют общий трейт `App\Services\Moysklad\Concerns\HandlesProcessingSync`. Он наследуется поверх `MoySkladBaseService` и предоставляет:
+
+| Метод | Назначение |
+|---|---|
+| `calcProcessingSum(float $totalRubles, float $totalQty): int` | processingSum в копейках за единицу |
+| `getProcessingStateHref(string $name): ?string` | href статуса техоперации, с кешем на запрос |
+| `extractApiError(?array $body): string` | Текст ошибки из `errors[0].error` / `.title` |
+| `fetchExistingPositionIds(string $processingId, string $section = 'products'): array` | Map `assortment_uuid → position_id` для секции `products` или `materials` |
+| `updateProcessingState(string $processingId, string $stateName, string $context): array` | Перевод техоперации в указанный статус |
+| `completeProcessing(string $processingId): array` | Перевод в `MOYSKLAD_DONE_STATE` |
+| `reactivateProcessing(string $processingId): array` | Возврат в `MOYSKLAD_IN_WORK_STATE` |
+
+Возврат всех методов: `['success' => bool, 'code' => string, 'message' => string]`.
+
+Реализация: [app/Services/Moysklad/Concerns/HandlesProcessingSync.php](../app/Services/Moysklad/Concerns/HandlesProcessingSync.php).
 
 ---
 
@@ -220,3 +211,6 @@ public function markCompleted(Model $entity)
 | Модель | Статус |
 |---|---|
 | `StoneReception` | Реализован |
+| `Packaging` | Реализован |
+| `RawMaterialBatch` | Реализован (синхронизация через перемещения, не техоперацию; trait моделей и UI-компонент общие, серверный trait `HandlesProcessingSync` неприменим) |
+| `SupplierOrder` | Использует свой паттерн (заказ + приёмка через `MoySkladPurchaseOrderService` + `MoySkladSupplyService`); общий trait/компонент **не применяется** |

@@ -238,6 +238,28 @@
 
                             <x-admin-date-field />
 
+                            @php
+                                $canIgnoreStock = auth()->user()?->isAdmin() || auth()->user()?->isMaster();
+                            @endphp
+                            @if($canIgnoreStock)
+                                <div class="mb-3 mx-2 p-3 border border-warning rounded bg-warning bg-opacity-10">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="ignore_stock_check" value="1" id="ignoreStockCheck"
+                                               {{ old('ignore_stock_check') ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-semibold text-warning-emphasis" for="ignoreStockCheck">
+                                            <i class="bi bi-exclamation-triangle"></i> Игнорировать остаток на складе
+                                            <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">
+                                                Только для админа и мастера
+                                            </span>
+                                        </label>
+                                        <div class="form-text">
+                                            Создать партию даже если остатка на складе-источнике недостаточно. Остаток уйдёт в минус.
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
                             <input type="hidden" name="and_reception" id="andReceptionInput" value="">
                             <div class="p-2 d-flex gap-2">
                                 <button type="submit" class="btn btn-primary">

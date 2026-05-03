@@ -69,6 +69,16 @@
                                 </a>
                             @endif
 
+                            {{-- Упаковка: admin + master --}}
+                            @if($user->isMaster() || $user->isAdmin())
+                                <a href="{{ route('packagings.index') }}"
+                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('packagings.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                   title="Упаковка">
+                                    <i class="bi bi-box-seam"></i>
+                                    <span>Упак.</span>
+                                </a>
+                            @endif
+
                             {{-- Сырьё (партии): admin + master --}}
                             @if($user->isMaster() || $user->isAdmin())
                                 <a href="{{ route('raw-batches.index') }}"

@@ -3,6 +3,7 @@
 namespace App\Services\Moysklad;
 
 use App\Models\Setting;
+use App\Services\Moysklad\Concerns\HandlesProcessingSync;
 use App\Support\DocumentNaming;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -15,8 +16,9 @@ use App\Models\Worker;
 
 class StoneReceptionSyncService extends MoySkladBaseService
 {
+    use HandlesProcessingSync;
+
     private float $processingSum;
-    private array $processingStatesCache = [];
 
     public function __construct()
     {
@@ -27,7 +29,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
     public function manualCostPerUnit(): float
     {
         $keys = [
-            'BLADE_WEAR', 'RECEPTION_COST', 'PACKAGING_COST', 'WASTE_REMOVAL',
+            'BLADE_WEAR', 'RECEPTION_COST', 'WASTE_REMOVAL',
             'ELECTRICITY', 'PPE_COST', 'FORKLIFT_COST', 'MACHINE_COST',
             'RENT_COST', 'OTHER_COSTS',
         ];
@@ -35,41 +37,6 @@ class StoneReceptionSyncService extends MoySkladBaseService
             fn ($key) => (float) \App\Models\Setting::get($key, 0),
             $keys
         ));
-    }
-
-    /**
-     * processingSum для МойСклад — стоимость за единицу объёма в копейках.
-     * МойСклад хранит и умножает это значение на quantity самостоятельно.
-     *
-     * @param float $totalRubles  Итоговая стоимость производства в рублях (зарплата + накладные)
-     * @param float $totalQty     Суммарное количество продукции
-     */
-    private function calcProcessingSum(float $totalRubles, float $totalQty): int
-    {
-        if ($totalQty <= 0) {
-            return 0;
-        }
-        return (int) round($totalRubles * 100 / $totalQty);
-    }
-
-    /**
-     * Найти href статуса техоперации по его имени.
-     * Загружает список статусов из /entity/processing/metadata один раз за запрос.
-     */
-    private function getProcessingStateHref(string $name): ?string
-    {
-        if (empty($this->processingStatesCache)) {
-            $data = $this->get('/entity/processing/metadata');
-            if ($data) {
-                foreach ($data['states'] ?? [] as $state) {
-                    $this->processingStatesCache[$state['name']] = $state['meta']['href'];
-                }
-            } else {
-                Log::warning('getProcessingStateHref: не удалось загрузить метаданные техопераций');
-            }
-        }
-
-        return $this->processingStatesCache[$name] ?? null;
     }
 
     /**
@@ -262,17 +229,17 @@ class StoneReceptionSyncService extends MoySkladBaseService
             $response = $this->post('/entity/processing', $processingData);
 
             if (!$response->successful()) {
-                $errors   = $response->json()['errors'] ?? [];
-                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
+                $body   = $response->json();
+                $errors = $body['errors'] ?? [];
 
                 Log::error('Ошибка API МойСклад', [
                     'status'       => $response->status(),
-                    'response'     => $response->json(),
+                    'response'     => $body,
                     'request_data' => $processingData,
                 ]);
 
                 $result['code']    = DocumentNaming::isDuplicateName($errors) ? 'duplicate_name' : 'api_error';
-                $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
+                $result['message'] = 'Ошибка МойСклад: ' . $this->extractApiError($body);
                 return $result;
             }
 
@@ -418,11 +385,13 @@ class StoneReceptionSyncService extends MoySkladBaseService
 
             $reception->loadMissing('items.product');
             $workerSalaryTotal = 0;
+            $masterSalaryTotal = 0;
             foreach ($reception->items as $item) {
                 $workerSalaryTotal += $item->effectiveProdCost() * (float) $item->quantity;
+                $masterSalaryTotal += (float) ($item->master_cost_per_m2 ?? 0) * (float) $item->quantity;
             }
             $totalProcessingSum = $this->calcProcessingSum(
-                $workerSalaryTotal + $this->processingSum * $totalQuantity,
+                $workerSalaryTotal + $masterSalaryTotal + $this->processingSum * $totalQuantity,
                 $totalQuantity
             );
 
@@ -471,10 +440,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
             }
 
             if (!$response->successful()) {
-                $errors   = $response->json()['errors'] ?? [];
-                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
                 $result['code']    = 'api_error';
-                $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
+                $result['message'] = 'Ошибка МойСклад: ' . $this->extractApiError($response->json());
                 Log::error('createProcessingForBatch: ошибка API', [
                     'status'   => $response->status(),
                     'response' => $response->json(),
@@ -506,33 +473,6 @@ class StoneReceptionSyncService extends MoySkladBaseService
             ]);
             return $result;
         }
-    }
-
-    /**
-     * Получить id существующих позиций продуктов техоперации из МойСклад.
-     * Возвращает map: moysklad_product_uuid → position_id.
-     */
-    private function fetchExistingProductPositionIds(string $processingId): array
-    {
-        $data = $this->get('/entity/processing/' . $processingId, [
-            'expand' => 'products.assortment',
-            'limit'  => 100,
-        ]);
-
-        if (!$data) {
-            return [];
-        }
-
-        $positions = $data['products']['rows'] ?? [];
-        $map = [];
-        foreach ($positions as $pos) {
-            $assortmentHref = $pos['assortment']['meta']['href'] ?? '';
-            $productId = basename(parse_url($assortmentHref, PHP_URL_PATH));
-            if ($productId && isset($pos['id'])) {
-                $map[$productId] = $pos['id'];
-            }
-        }
-        return $map;
     }
 
     /**
@@ -597,14 +537,16 @@ class StoneReceptionSyncService extends MoySkladBaseService
             }
 
             $workerSalaryTotal = 0;
+            $masterSalaryTotal = 0;
             foreach ($allItems as $item) {
                 if (!$item->product || !$item->product->moysklad_id) {
                     continue;
                 }
                 $workerSalaryTotal += $item->effectiveProdCost() * (float) $item->quantity;
+                $masterSalaryTotal += (float) ($item->master_cost_per_m2 ?? 0) * (float) $item->quantity;
             }
 
-            $existingPositionIds = $this->fetchExistingProductPositionIds($processingId);
+            $existingPositionIds = $this->fetchExistingPositionIds($processingId, 'products');
 
             $products = [];
             foreach ($productsGrouped as $moyskladId => $product) {
@@ -619,7 +561,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 'productsStore'  => ['meta' => $storeMeta],
                 'materialsStore' => ['meta' => $storeMeta],
                 'processingSum'  => $this->calcProcessingSum(
-                    $workerSalaryTotal + $totalQuantity * $this->processingSum,
+                    $workerSalaryTotal + $masterSalaryTotal + $totalQuantity * $this->processingSum,
                     $totalQuantity
                 ),
                 'products'  => $products,
@@ -643,10 +585,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
             $response = $this->put('/entity/processing/' . $processingId, $payload);
 
             if (!$response->successful()) {
-                $errors   = $response->json()['errors'] ?? [];
-                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
                 $result['code']    = 'api_error';
-                $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
+                $result['message'] = 'Ошибка МойСклад: ' . $this->extractApiError($response->json());
                 Log::error('updateProcessingProducts: ошибка API', [
                     'processing_id' => $processingId,
                     'status'        => $response->status(),
@@ -664,138 +604,6 @@ class StoneReceptionSyncService extends MoySkladBaseService
             $result['code']    = 'exception';
             $result['message'] = 'Ошибка: ' . $e->getMessage();
             Log::error('updateProcessingProducts: исключение', [
-                'processing_id' => $processingId,
-                'error'         => $e->getMessage(),
-            ]);
-            return $result;
-        }
-    }
-
-    /**
-     * Перевести техоперацию в завершённый статус.
-     *
-     * @param  string  $processingId  UUID техоперации в МойСклад
-     * @return array ['success', 'code', 'message']
-     */
-    public function completeProcessing(string $processingId): array
-    {
-        $result = ['success' => false, 'code' => '', 'message' => ''];
-
-        try {
-            if (!$this->hasCredentials()) {
-                throw new \Exception('MoySklad токен не установлен');
-            }
-
-            $stateName = Setting::get('MOYSKLAD_DONE_STATE', '');
-            if (empty($stateName)) {
-                throw new \Exception('Не задано имя завершающего статуса (MOYSKLAD_DONE_STATE)');
-            }
-
-            $stateMetaHref = $this->getProcessingStateHref($stateName);
-            if (empty($stateMetaHref)) {
-                throw new \Exception("Статус «{$stateName}» не найден в МойСклад");
-            }
-
-            $payload = [
-                'state' => [
-                    'meta' => [
-                        'href'      => $stateMetaHref,
-                        'type'      => 'state',
-                        'mediaType' => 'application/json',
-                    ],
-                ],
-            ];
-
-            $response = $this->put('/entity/processing/' . $processingId, $payload);
-
-            if (!$response->successful()) {
-                $errors   = $response->json()['errors'] ?? [];
-                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
-                $result['code']    = 'api_error';
-                $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
-                Log::error('completeProcessing: ошибка API', [
-                    'processing_id' => $processingId,
-                    'status'        => $response->status(),
-                    'response'      => $response->json(),
-                ]);
-                return $result;
-            }
-
-            $result['success'] = true;
-            $result['message'] = 'Статус техоперации обновлён';
-            Log::info('completeProcessing: успешно', ['processing_id' => $processingId]);
-            return $result;
-
-        } catch (\Exception $e) {
-            $result['code']    = 'exception';
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
-            Log::error('completeProcessing: исключение', [
-                'processing_id' => $processingId,
-                'error'         => $e->getMessage(),
-            ]);
-            return $result;
-        }
-    }
-
-    /**
-     * Вернуть техоперацию в статус «В работе».
-     *
-     * @param  string  $processingId  UUID техоперации в МойСклад
-     * @return array ['success', 'code', 'message']
-     */
-    public function reactivateProcessing(string $processingId): array
-    {
-        $result = ['success' => false, 'code' => '', 'message' => ''];
-
-        try {
-            if (!$this->hasCredentials()) {
-                throw new \Exception('MoySklad токен не установлен');
-            }
-
-            $stateName = Setting::get('MOYSKLAD_IN_WORK_STATE', '');
-            if (empty($stateName)) {
-                throw new \Exception('Не задано имя статуса «В работе» (MOYSKLAD_IN_WORK_STATE)');
-            }
-
-            $stateMetaHref = $this->getProcessingStateHref($stateName);
-            if (empty($stateMetaHref)) {
-                throw new \Exception("Статус «{$stateName}» не найден в МойСклад");
-            }
-
-            $payload = [
-                'state' => [
-                    'meta' => [
-                        'href'      => $stateMetaHref,
-                        'type'      => 'state',
-                        'mediaType' => 'application/json',
-                    ],
-                ],
-            ];
-
-            $response = $this->put('/entity/processing/' . $processingId, $payload);
-
-            if (!$response->successful()) {
-                $errors   = $response->json()['errors'] ?? [];
-                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
-                $result['code']    = 'api_error';
-                $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
-                Log::error('reactivateProcessing: ошибка API', [
-                    'processing_id' => $processingId,
-                    'status'        => $response->status(),
-                    'response'      => $response->json(),
-                ]);
-                return $result;
-            }
-
-            $result['success'] = true;
-            $result['message'] = 'Статус техоперации возвращён в «В работе»';
-            Log::info('reactivateProcessing: успешно', ['processing_id' => $processingId]);
-            return $result;
-
-        } catch (\Exception $e) {
-            $result['code']    = 'exception';
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
-            Log::error('reactivateProcessing: исключение', [
                 'processing_id' => $processingId,
                 'error'         => $e->getMessage(),
             ]);

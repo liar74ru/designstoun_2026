@@ -264,7 +264,7 @@ class RawMaterialBatchSyncService
     /**
      * Синхронизирует/пересинхронизирует основное перемещение партии с МойСклад.
      * Используется для ретрая из контроллера.
-     * Возвращает ['success' => bool, 'message' => string].
+     * Возвращает ['success' => bool, 'code' => string, 'message' => string].
      */
     public function syncBatchMove(RawMaterialBatch $batch): array
     {
@@ -272,7 +272,7 @@ class RawMaterialBatchSyncService
         if (!$product?->moysklad_id) {
             $err = 'Товар не синхронизирован с МойСклад';
             $batch->markSyncError($err);
-            return ['success' => false, 'message' => $err];
+            return ['success' => false, 'code' => 'not_synced', 'message' => $err];
         }
 
         $movement = $batch->movements()
@@ -283,7 +283,7 @@ class RawMaterialBatchSyncService
         if (!$movement) {
             $err = 'Нет перемещения для синхронизации';
             $batch->markSyncError($err);
-            return ['success' => false, 'message' => $err];
+            return ['success' => false, 'code' => 'not_synced', 'message' => $err];
         }
 
         try {
@@ -329,11 +329,15 @@ class RawMaterialBatchSyncService
                     'batch_id' => $batch->id,
                     'move_id'  => $moveId,
                 ]);
-                return ['success' => true, 'message' => 'Синхронизировано'];
+                return ['success' => true, 'code' => 'ok', 'message' => 'Синхронизировано'];
             }
 
             $batch->markSyncError($result['message']);
-            return ['success' => false, 'message' => $result['message']];
+            return [
+                'success' => false,
+                'code'    => $result['code'] ?? 'api_error',
+                'message' => $result['message'],
+            ];
 
         } catch (\Exception $e) {
             $batch->markSyncError($e->getMessage());
@@ -341,7 +345,7 @@ class RawMaterialBatchSyncService
                 'error'    => $e->getMessage(),
                 'batch_id' => $batch->id,
             ]);
-            return ['success' => false, 'message' => $e->getMessage()];
+            return ['success' => false, 'code' => 'exception', 'message' => $e->getMessage()];
         }
     }
 

@@ -9,10 +9,10 @@ use App\Services\Moysklad\StoneReceptionSyncService;
 
 describe('StoneReceptionSyncService::manualCostPerUnit()', function () {
 
-    test('суммирует все накладные расходы', function () {
+    test('суммирует все накладные расходы (без PACKAGING_COST — он учитывается в техоперации упаковки)', function () {
         Setting::set('BLADE_WEAR', 100);
         Setting::set('RECEPTION_COST', 50);
-        Setting::set('PACKAGING_COST', 30);
+        Setting::set('PACKAGING_COST', 30); // не входит в формулу приёмки
         Setting::set('WASTE_REMOVAL', 20);
         Setting::set('ELECTRICITY', 80);
         Setting::set('PPE_COST', 40);
@@ -24,7 +24,8 @@ describe('StoneReceptionSyncService::manualCostPerUnit()', function () {
         $service = new StoneReceptionSyncService();
         $result = $service->manualCostPerUnit();
 
-        expect($result)->toBe(550.0);
+        // 100 + 50 + 20 + 80 + 40 + 60 + 70 + 90 + 10 = 520 (без PACKAGING_COST 30)
+        expect($result)->toBe(520.0);
     });
 
     test('возвращает 0 когда ничего не задано', function () {

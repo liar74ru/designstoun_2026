@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasMoyskladSync;
 use Illuminate\Database\Eloquent\Model;
 
 class RawMaterialBatch extends Model
 {
+    use HasMoyskladSync;
+
     // Статусы
     const STATUS_NEW       = 'new';       // Создана, без действий
     const STATUS_IN_WORK   = 'in_work';   // В работе / Не уточнена (техоперация создана)
@@ -13,10 +16,6 @@ class RawMaterialBatch extends Model
     const STATUS_USED      = 'used';
     const STATUS_RETURNED  = 'returned';
     const STATUS_ARCHIVED  = 'archived';
-
-    // Статусы синхронизации с МойСклад
-    const SYNC_STATUS_SYNCED     = 'synced';
-    const SYNC_STATUS_NOT_SYNCED = 'not_synced';
 
     protected $fillable = [
         'product_id',
@@ -154,53 +153,6 @@ class RawMaterialBatch extends Model
     {
         return in_array($this->status, [self::STATUS_IN_WORK, self::STATUS_CONFIRMED])
             && (float) $this->remaining_quantity <= 0;
-    }
-
-    // --- Синхронизация с МойСклад (перемещения) ---
-
-    public function hasMoySkladProcessing(): bool
-    {
-        return !empty($this->moysklad_processing_id);
-    }
-
-    public function isSynced(): bool
-    {
-        return $this->moysklad_sync_status === self::SYNC_STATUS_SYNCED;
-    }
-
-    public function hasSyncError(): bool
-    {
-        return !empty($this->moysklad_sync_error);
-    }
-
-    public function syncStatusLabel(): string
-    {
-        return $this->isSynced() ? 'Синхр' : 'Не синхр';
-    }
-
-    public function syncStatusBadgeClass(): string
-    {
-        return $this->isSynced() ? 'bg-success' : 'bg-danger';
-    }
-
-    public function markSynced(string $processingId, ?string $processingName = null): void
-    {
-        $this->update([
-            'moysklad_processing_id'   => $processingId,
-            'moysklad_processing_name' => $processingName ?? $this->moysklad_processing_name,
-            'moysklad_sync_status'     => self::SYNC_STATUS_SYNCED,
-            'moysklad_sync_error'      => null,
-            'synced_at'                => now(),
-        ]);
-    }
-
-    public function markSyncError(string $error): void
-    {
-        $this->update([
-            'moysklad_sync_status' => self::SYNC_STATUS_NOT_SYNCED,
-            'moysklad_sync_error'  => $error,
-            'synced_at'            => now(),
-        ]);
     }
 
     /**

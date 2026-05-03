@@ -77,13 +77,14 @@ class RawMaterialBatchController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'product_id'       => 'required|exists:products,id',
-            'quantity'         => 'required|numeric|min:0.001',
-            'worker_id'        => 'required|exists:workers,id',
-            'from_store_id'    => 'required|exists:stores,id',
-            'to_store_id'      => 'required|exists:stores,id',
-            'batch_number'     => 'nullable|string|max:255',
-            'manual_created_at' => 'nullable|date',
+            'product_id'         => 'required|exists:products,id',
+            'quantity'           => 'required|numeric|min:0.001',
+            'worker_id'          => 'required|exists:workers,id',
+            'from_store_id'      => 'required|exists:stores,id',
+            'to_store_id'        => 'required|exists:stores,id',
+            'batch_number'       => 'nullable|string|max:255',
+            'manual_created_at'  => 'nullable|date',
+            'ignore_stock_check' => 'nullable|boolean',
         ]);
 
         if ($data['from_store_id'] === $data['to_store_id']) {
@@ -92,14 +93,20 @@ class RawMaterialBatchController extends Controller
                 ->withInput();
         }
 
-        $sourceStock = ProductStock::where('product_id', $data['product_id'])
-            ->where('store_id', $data['from_store_id'])
-            ->first();
+        $user = auth()->user();
+        $canIgnoreStock = $user && ($user->isAdmin() || $user->isMaster());
+        $ignoreStockCheck = $request->boolean('ignore_stock_check') && $canIgnoreStock;
 
-        if (!$sourceStock || $sourceStock->quantity < $data['quantity']) {
-            return back()
-                ->withErrors(['quantity' => 'Недостаточно сырья на складе-источнике.'])
-                ->withInput();
+        if (!$ignoreStockCheck) {
+            $sourceStock = ProductStock::where('product_id', $data['product_id'])
+                ->where('store_id', $data['from_store_id'])
+                ->first();
+
+            if (!$sourceStock || $sourceStock->quantity < $data['quantity']) {
+                return back()
+                    ->withErrors(['quantity' => 'Недостаточно сырья на складе-источнике.'])
+                    ->withInput();
+            }
         }
 
         ['batch' => $batch, 'movement' => $movement] = $this->service->create(
@@ -250,59 +257,6 @@ class RawMaterialBatchController extends Controller
 
         return redirect()->route('raw-batches.show', $batch)
             ->with('success', "Количество обновлено: {$action}. Новый остаток: " . number_format($result['newRemaining'], 3) . ' м³');
-    }
-
-    public function adjustRemainingForm(RawMaterialBatch $batch): View|RedirectResponse
-    {
-        if ($batch->status === 'archived') {
-            return redirect()->route('raw-batches.show', $batch)
-                ->with('error', 'Архивная партия недоступна для редактирования.');
-        }
-
-        $backUrl = back_url(route('raw-batches.index'));
-
-        return view('raw-batches.adjust-remaining', compact('batch', 'backUrl'));
-    }
-
-    public function adjustRemaining(Request $request, RawMaterialBatch $batch): RedirectResponse
-    {
-        if ($batch->status === 'archived') {
-            return back()->with('error', 'Архивная партия недоступна для редактирования.');
-        }
-
-        $data = $request->validate([
-            'delta' => 'required|numeric|not_in:0',
-            'notes' => 'nullable|string|max:500',
-        ], [
-            'delta.required' => 'Укажите величину изменения',
-            'delta.not_in'   => 'Изменение не может быть равно нулю',
-        ]);
-
-        $delta        = (float) $data['delta'];
-        $newRemaining = (float) $batch->remaining_quantity + $delta;
-        $initial      = (float) $batch->initial_quantity;
-
-        if ($newRemaining < 0) {
-            return back()
-                ->withErrors(['delta' => 'Нельзя убрать больше чем есть в партии (остаток: ' . number_format($batch->remaining_quantity, 3) . ' м³)'])
-                ->withInput();
-        }
-
-        if ($newRemaining > $initial) {
-            return back()
-                ->withErrors(['delta' => 'Остаток не может превышать начальное количество партии (' . number_format($initial, 3) . ' м³)'])
-                ->withInput();
-        }
-
-        $this->service->adjustRemaining($batch, $newRemaining);
-
-        $backUrl = $request->input('back_url', route('raw-batches.show', $batch));
-        $action  = $delta > 0
-            ? 'добавлено ' . number_format($delta, 3) . ' м³'
-            : 'убрано ' . number_format(abs($delta), 3) . ' м³';
-
-        return redirect($backUrl)
-            ->with('success', "Остаток скорректирован: {$action}. Новый остаток: " . number_format($newRemaining, 3) . ' м³');
     }
 
     public function markAsUsed(RawMaterialBatch $batch): JsonResponse|RedirectResponse

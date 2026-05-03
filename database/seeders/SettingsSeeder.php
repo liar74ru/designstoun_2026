@@ -29,10 +29,16 @@ class SettingsSeeder extends Seeder
                 'description' => 'Стоимость приёмки продукции.',
             ],
             [
+                'key'         => 'PACKAGING_PROD_COST',
+                'value'       => '0',
+                'label'       => 'Базовая ставка упаковщика за продукт, ₽/м²',
+                'description' => 'Умножается на коэффициент prod_cost_coeff упаковываемого продукта (SKU 04-XX). По умолчанию 0.',
+            ],
+            [
                 'key'         => 'PACKAGING_COST',
                 'value'       => '30',
-                'label'       => 'Упаковка, ₽/м²',
-                'description' => null,
+                'label'       => 'Базовая ставка упаковщика за тару, ₽/м²',
+                'description' => 'Умножается на коэффициент prod_cost_coeff упаковочной тары (SKU 07-03-XX).',
             ],
             [
                 'key'         => 'WASTE_REMOVAL',

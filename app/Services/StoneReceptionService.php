@@ -11,6 +11,7 @@ use App\Models\Store;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
 use App\Models\Worker;
+use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Traits\HandlesBatchStock;
 use App\Traits\ManagesStock;
@@ -29,6 +30,8 @@ class StoneReceptionService
 
     public function __construct(
         private StoneReceptionSyncService $syncService,
+        private RawMaterialBatchService $batchService,
+        private RawMaterialBatchSyncService $batchSyncService,
     ) {}
 
     public function getFormOptions(?StoneReception $reception = null, ?int $cutterId = null): array
@@ -154,6 +157,27 @@ class StoneReceptionService
         $existingActive = $batch->getActiveReception();
         if ($existingActive) {
             $existingActive->markAsCompleted();
+        }
+
+        // Если у партии уже есть завершённые/обработанные приёмки и остаётся сырьё —
+        // разделяем партию: родитель сжимается до фактически использованного объёма,
+        // дочерняя получает остаток и принимает новую приёмку.
+        $hasCompletedReceptions = $batch->receptions()
+            ->whereIn('status', [
+                StoneReception::STATUS_COMPLETED,
+                StoneReception::STATUS_PROCESSED,
+                StoneReception::STATUS_ERROR,
+            ])
+            ->exists();
+
+        if ($hasCompletedReceptions && (float) $batch->remaining_quantity > 0) {
+            $split = $this->batchService->split($batch);
+            $data['raw_material_batch_id'] = $split['newBatch']->id;
+
+            $this->batchSyncService->syncCreated($split['newBatch'], $split['newMovement']);
+            $this->batchSyncService->updateParentMove($batch, (float) $batch->fresh()->initial_quantity);
+
+            $batch = $split['newBatch'];
         }
 
         $batchSnapshotBefore = (float) $batch->remaining_quantity;
@@ -348,6 +372,8 @@ class StoneReceptionService
             }
         }
 
+        $processingId = $reception->moysklad_processing_id;
+
         DB::transaction(function () use ($reception) {
             $reception->update([
                 'status'                   => StoneReception::STATUS_ACTIVE,
@@ -363,6 +389,13 @@ class StoneReceptionService
                 $batch->update(['status' => RawMaterialBatch::STATUS_IN_WORK]);
             }
         });
+
+        if ($processingId) {
+            $result = $this->syncService->reactivateProcessing($processingId);
+            if (!$result['success']) {
+                return 'Статус сброшен локально, но ошибка синхронизации с МойСклад: ' . $result['message'];
+            }
+        }
 
         return true;
     }
@@ -550,7 +583,7 @@ class StoneReceptionService
             return;
         }
 
-        $keys = ['BLADE_WEAR', 'RECEPTION_COST', 'PACKAGING_COST', 'WASTE_REMOVAL',
+        $keys = ['BLADE_WEAR', 'RECEPTION_COST', 'WASTE_REMOVAL',
                  'ELECTRICITY', 'PPE_COST', 'FORKLIFT_COST', 'MACHINE_COST', 'RENT_COST', 'OTHER_COSTS'];
         $processingSum = (float) array_sum(array_map(
             fn($key) => (float) Setting::get($key, 0), $keys

@@ -21,6 +21,22 @@ class MasterOnly
 {
     /** Маршруты, доступные мастеру (по имени маршрута) */
     private const ALLOWED_ROUTES = [
+        // Упаковка
+        'packagings.index',
+        'packagings.create',
+        'packagings.store',
+        'packagings.show',
+        'packagings.edit',
+        'packagings.update',
+        'packagings.destroy',
+        'packagings.copy',
+        'packagings.reset-status',
+        'packagings.mark-completed',
+        'packagings.sync',
+        'packagings.update-item-coeff',
+        'packagings.refresh-item-coeffs',
+        'api.worker.default-production-store',
+
         // Приёмка камня
         'stone-receptions.index',
         'stone-receptions.create',
@@ -53,8 +69,6 @@ class MasterOnly
         'raw-batches.return',
         'raw-batches.adjust.form',
         'raw-batches.adjust',
-        'raw-batches.adjust-remaining.form',
-        'raw-batches.adjust-remaining',
         'raw-batches.archive',
         'raw-batches.mark-used',
         'raw-batches.mark-in-work',

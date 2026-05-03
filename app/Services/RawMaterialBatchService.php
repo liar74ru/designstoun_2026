@@ -266,14 +266,6 @@ class RawMaterialBatchService
     }
 
     /**
-     * Скорректировать только remaining_quantity (без изменения stocks и МойСклад).
-     */
-    public function adjustRemaining(RawMaterialBatch $batch, float $newRemaining): void
-    {
-        $batch->update(['remaining_quantity' => $newRemaining]);
-    }
-
-    /**
      * Перевести партию в статус «Израсходована», каскадом завершить активные приёмки.
      */
     public function markAsUsed(RawMaterialBatch $batch): void
@@ -320,6 +312,46 @@ class RawMaterialBatchService
             }
             $batch->movements()->delete();
             $batch->delete();
+        });
+    }
+
+    /**
+     * Разделить партию на родительскую (с фактически использованным объёмом) и дочернюю
+     * (с остатком). Используется при создании новой приёмки на партии, где уже есть
+     * завершённые приёмки.
+     *
+     * Реализован как тонкая обёртка над transfer() с тем же работником и пост-обработкой
+     * статуса родителя и батч-номера дочерней.
+     *
+     * @return array{newBatch: RawMaterialBatch, newMovement: RawMaterialMovement}
+     */
+    public function split(RawMaterialBatch $batch): array
+    {
+        $qty = (float) $batch->remaining_quantity;
+
+        if ($qty <= 0) {
+            throw new \RuntimeException('Партия не имеет остатка для разделения');
+        }
+
+        $workerId = $batch->current_worker_id;
+        if (!$workerId) {
+            throw new \RuntimeException('У партии не назначен работник для split');
+        }
+
+        return DB::transaction(function () use ($batch, $qty, $workerId) {
+            $result = $this->transfer($batch, [
+                'quantity'     => $qty,
+                'to_worker_id' => $workerId,
+            ]);
+
+            $batch->update(['status' => RawMaterialBatch::STATUS_USED]);
+
+            $result['newBatch']->update([
+                'batch_number' => ($batch->batch_number ?? $batch->id) . '/' . $batch->id,
+                'notes'        => 'Выделена из партии №' . ($batch->batch_number ?? $batch->id),
+            ]);
+
+            return $result;
         });
     }
 
