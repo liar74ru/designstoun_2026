@@ -79,7 +79,33 @@
                                 </div>
                             </div>
 
-                            {{-- Блок 2: Партия сырья --}}
+                            {{-- Блок 2: Склад приёмки --}}
+                            <div class="info-block">
+                                <div class="info-block-header">
+                                    <span class="small fw-semibold text-muted">
+                                        Склад приёмки <span class="text-danger">*</span>
+                                    </span>
+                                </div>
+                                <div class="info-block-body">
+                                    <select name="store_id"
+                                            class="form-select form-select-sm @error('store_id') is-invalid @enderror"
+                                            style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
+                                            required>
+                                        <option value="">— Выберите склад —</option>
+                                        @foreach($stores as $store)
+                                            <option value="{{ $store->id }}"
+                                                {{ old('store_id', $defaultStore?->id) == $store->id ? 'selected' : '' }}>
+                                                {{ $store->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('store_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            {{-- Блок 3: Партия сырья --}}
                             <div class="info-block">
                                 <div class="info-block-header">
                                     <span class="small fw-semibold text-muted">Партия сырья</span>
@@ -149,10 +175,7 @@
                                 </div>
                             </div>
 
-                            {{-- Склад (скрытый) --}}
-                            <input type="hidden" name="store_id" value="{{ $defaultStore?->id }}">
-
-                            {{-- Блок 3: Продукция --}}
+                            {{-- Блок 4: Продукция --}}
                             <div class="info-block">
                                 <div class="info-block-header d-flex justify-content-between align-items-center">
                                     <span class="small fw-semibold text-muted">Продукция <span class="text-danger">*</span></span>
@@ -173,7 +196,7 @@
                                 </div>
                             </div>
 
-                            {{-- Блок 4: Примечание --}}
+                            {{-- Блок 5: Примечание --}}
                             <div class="info-block">
                                 <div class="info-block-header">
                                     <span class="small fw-semibold text-muted">Примечание</span>
@@ -184,7 +207,7 @@
                                 </div>
                             </div>
 
-                            {{-- Блок 5: Техоперация МойСклад --}}
+                            {{-- Блок 6: Техоперация МойСклад --}}
                             <div class="info-block">
                                 <div class="info-block-header d-flex justify-content-between align-items-center"
                                      id="processingToggle" style="cursor:pointer" role="button">
@@ -636,10 +659,18 @@
             updateRemainingIndicator();
 
             // ── Карта остатков продуктов (для бейджей в пикере) ─────────────────────
-            const storeHidden = document.querySelector('input[name="store_id"]');
+            const storeHidden = document.querySelector('[name="store_id"]');
             fetch('/api/products/stocks', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(r => r.json())
                 .then(data => { window.ProductPickerStockMap = data; });
+
+            // При смене склада — обновляем sourceStoreId на всех существующих строках продуктов
+            storeHidden?.addEventListener('change', function () {
+                container.querySelectorAll('.product-picker-row').forEach(row => {
+                    if (this.value) row.dataset.sourceStoreId = this.value;
+                    else delete row.dataset.sourceStoreId;
+                });
+            });
 
             // ── Данные продуктов (коэффициенты) ─────────────────────────────────────
             const productCoeffCache = {};
@@ -841,102 +872,15 @@
 
     {{-- Шаблон строки продукта --}}
     <template id="pickerRowTemplate">
-        <div class="product-picker-row" data-tpl-index="__IDX__"
-             style="padding:.35rem 0;border-bottom:1px solid #f0f0f0">
-
-            {{-- Строка 1: поиск + кнопка дерева + удалить --}}
-            <div class="d-flex gap-1 align-items-start mb-1">
-                <div class="flex-grow-1 position-relative">
-                    <div class="input-group input-group-sm">
-                        <input type="text"
-                               id="search___IDX__"
-                               data-tpl-index="__IDX__"
-                               class="form-control product-picker-search"
-                               placeholder="Название продукта..."
-                               autocomplete="off"
-                               data-hidden-id="pid___IDX__"
-                               required>
-                        <button type="button"
-                                class="btn btn-outline-secondary product-picker-tree-btn"
-                                data-modal="modal___IDX__"
-                                data-hidden-id="pid___IDX__"
-                                data-search-id="search___IDX__"
-                                data-tpl-index="__IDX__"
-                                title="Выбрать из каталога">
-                            <i class="bi bi-diagram-3"></i>
-                        </button>
-                    </div>
-                    <div class="product-picker-dropdown list-group shadow-sm"
-                         id="drop___IDX__"
-                         style="display:none;position:absolute;z-index:1000;width:100%;max-height:280px;overflow-y:auto">
-                    </div>
-                </div>
-                <button type="button"
-                        class="btn btn-sm btn-outline-danger product-picker-remove flex-shrink-0"
-                        style="height:31px"
-                        title="Удалить">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-
-            {{-- Строка 2: количество + подкол + коэфф --}}
-            <div class="d-flex gap-2 align-items-center">
-                <div class="input-group input-group-sm" style="width:130px;flex-shrink:0">
-                    <span class="input-group-text" style="font-size:.75rem">м²</span>
-                    <input type="number"
-                           id="qty___IDX__"
-                           name="products[__IDX__][quantity]"
-                           class="form-control product-picker-qty"
-                           placeholder="0.000"
-                           step="0.001" min="0.001"
-                           data-tpl-index="__IDX__"
-                           required>
-                </div>
-
-                <div class="form-check mb-0 flex-shrink-0">
-                    <input class="form-check-input undercut-checkbox"
-                           type="checkbox"
-                           id="undercut___IDX__"
-                           name="products[__IDX__][is_undercut]"
-                           value="1"
-                           data-tpl-index="__IDX__">
-                    <label class="form-check-label small text-warning-emphasis fw-semibold"
-                           for="undercut___IDX__"
-                           title="Снижает коэффициент на 1.5">
-                        80% подкол
-                    </label>
-                </div>
-
-                <span class="text-muted small text-nowrap">
-                    коэф: <span class="coeff-display fw-semibold text-dark"
-                                data-base-coeff=""
-                                data-tpl-index="__IDX__">—</span>
-                </span>
-
-                <input type="hidden"
-                       id="pid___IDX__"
-                       name="products[__IDX__][product_id]"
-                       data-tpl-index="__IDX__">
-            </div>
-
-            {{-- Модальное окно дерева --}}
-            <div class="modal fade" id="modal___IDX__" tabindex="-1" data-tpl-index="__IDX__">
-                <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Выбрать из каталога</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                            <input type="text"
-                                   class="form-control mb-3 tree-search-input"
-                                   placeholder="Поиск по каталогу...">
-                            <div class="product-tree-container"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        @include('partials.product-picker-row', [
+            'index'        => '__IDX__',
+            'placeholder'  => 'Название продукта...',
+            'unit'         => 'м²',
+            'qtyMode'      => 'simple',
+            'showUndercut' => true,
+            'showCoeff'    => true,
+            'showRemove'   => true,
+        ])
     </template>
 
     @vite(['resources/js/product-picker.js'])

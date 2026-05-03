@@ -392,80 +392,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {{-- Шаблон строки сырья --}}
 <template id="rawPickerRowTemplate">
-    <div class="product-picker-row" data-tpl-index="__IDX__"
-         style="padding:.35rem 0;border-bottom:1px solid #f0f0f0">
-
-        {{-- Строка 1: поиск + кнопка дерева + удалить --}}
-        <div class="d-flex gap-1 align-items-start mb-1">
-            <div class="flex-grow-1 position-relative">
-                <div class="input-group input-group-sm">
-                    <input type="text"
-                           id="search___IDX__"
-                           data-tpl-index="__IDX__"
-                           class="form-control product-picker-search"
-                           placeholder="Название сырья..."
-                           autocomplete="off"
-                           data-hidden-id="pid___IDX__"
-                           required>
-                    <button type="button"
-                            class="btn btn-outline-secondary product-picker-tree-btn"
-                            data-modal="rawmodal___IDX__"
-                            data-hidden-id="pid___IDX__"
-                            data-search-id="search___IDX__"
-                            data-tpl-index="__IDX__"
-                            title="Выбрать из каталога">
-                        <i class="bi bi-diagram-3"></i>
-                    </button>
-                </div>
-                <div class="product-picker-dropdown list-group shadow-sm"
-                     id="drop___IDX__"
-                     style="display:none;position:absolute;z-index:1000;width:100%;max-height:280px;overflow-y:auto">
-                </div>
-            </div>
-            <button type="button"
-                    class="btn btn-sm btn-outline-danger product-picker-remove flex-shrink-0"
-                    style="height:31px"
-                    title="Удалить">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
-
-        {{-- Строка 2: количество --}}
-        <div class="d-flex gap-2 align-items-center">
-            <div class="input-group input-group-sm" style="width:150px;flex-shrink:0">
-                <span class="input-group-text" style="font-size:.75rem">м³</span>
-                <input type="number"
-                       id="qty___IDX__"
-                       name="products[__IDX__][quantity]"
-                       class="form-control product-picker-qty"
-                       placeholder="0.000"
-                       step="0.001" min="0.001"
-                       data-tpl-index="__IDX__"
-                       required>
-            </div>
-            <input type="hidden"
-                   id="pid___IDX__"
-                   name="products[__IDX__][product_id]"
-                   data-tpl-index="__IDX__">
-        </div>
-
-        {{-- Модальное окно дерева --}}
-        <div class="modal fade" id="rawmodal___IDX__" tabindex="-1" data-tpl-index="__IDX__">
-            <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Выбрать из каталога</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                        <input type="text" class="form-control mb-3 tree-search-input"
-                               placeholder="Поиск по каталогу...">
-                        <div class="product-tree-container"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('partials.product-picker-row', [
+        'index'       => '__IDX__',
+        'placeholder' => 'Название сырья...',
+        'unit'        => 'м³',
+        'qtyWidth'    => '150px',
+        'qtyMode'     => 'simple',
+        'showRemove'  => true,
+    ])
 </template>
 
 @vite(['resources/js/product-picker.js'])

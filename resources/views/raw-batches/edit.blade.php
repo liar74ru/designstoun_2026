@@ -59,53 +59,16 @@
                             <label class="form-check-label small text-muted" for="allCatalogCheck">весь каталог</label>
                         </div>
                     </div>
-                    <div class="product-picker-row" data-sku-prefix="01-" data-tpl-index="0">
-                        <div class="flex-grow-1 position-relative">
-                            <div class="input-group">
-                                <input type="text"
-                                       id="search_0"
-                                       class="form-control product-picker-search"
-                                       placeholder="Начните вводить название сырья..."
-                                       autocomplete="off"
-                                       data-hidden-id="pid_0"
-                                       value="{{ old('product_name', $batch->product->name ?? '') }}"
-                                       required>
-                                <button type="button"
-                                        class="btn btn-outline-secondary product-picker-tree-btn"
-                                        data-modal="modal_0"
-                                        data-hidden-id="pid_0"
-                                        data-search-id="search_0"
-                                        title="Выбрать из каталога">
-                                    <i class="bi bi-diagram-3"></i>
-                                </button>
-                            </div>
-                            <div class="product-picker-dropdown list-group shadow-sm"
-                                 id="drop_0"
-                                 style="display:none;position:absolute;z-index:1000;width:100%;max-height:280px;overflow-y:auto">
-                            </div>
-                        </div>
-                        <input type="hidden"
-                               id="pid_0"
-                               name="product_id"
-                               value="{{ old('product_id', $batch->product_id) }}"
-                               required>
-
-                        <div class="modal fade" id="modal_0" tabindex="-1">
-                            <div class="modal-dialog modal-lg">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Выбрать из каталога</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                                        <input type="text" class="form-control mb-3 tree-search-input"
-                                               placeholder="Поиск по каталогу...">
-                                        <div class="product-tree-container"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    @include('partials.product-picker', [
+                        'id'          => 'raw_product',
+                        'name'        => 'product_id',
+                        'value'       => old('product_id', $batch->product_id),
+                        'label'       => old('product_name', $batch->product->name ?? ''),
+                        'placeholder' => 'Начните вводить название сырья...',
+                        'skuPrefix'   => '01-',
+                        'showTree'    => true,
+                        'required'    => true,
+                    ])
                     @error('product_id')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                     @enderror

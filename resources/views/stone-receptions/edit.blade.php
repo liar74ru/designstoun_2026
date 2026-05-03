@@ -111,21 +111,15 @@
                                 </div>
                                 <div id="storeBody" style="display:none">
                                     <div style="padding:.25rem .4rem .35rem">
-                                        @if(env('DEFAULT_STORE_ID'))
-                                            <input type="text" class="form-control form-control-sm" style="font-size:.8rem"
-                                                   value="{{ $defaultStore->name ?? 'Склад по умолчанию' }}" readonly>
-                                            <input type="hidden" name="store_id" value="{{ $defaultStore->id }}">
-                                        @else
-                                            <select name="store_id" class="form-select form-select-sm @error('store_id') is-invalid @enderror" required>
-                                                <option value="">— Выберите склад —</option>
-                                                @foreach($stores as $store)
-                                                    <option value="{{ $store->id }}" {{ old('store_id', $stoneReception->store_id) == $store->id ? 'selected' : '' }}>
-                                                        {{ $store->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                            @error('store_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                        @endif
+                                        <select name="store_id" class="form-select form-select-sm @error('store_id') is-invalid @enderror" required>
+                                            <option value="">— Выберите склад —</option>
+                                            @foreach($stores as $store)
+                                                <option value="{{ $store->id }}" {{ old('store_id', $stoneReception->store_id ?: $defaultStore?->id) == $store->id ? 'selected' : '' }}>
+                                                    {{ $store->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @error('store_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                     </div>
                                 </div>
                             </div>
@@ -597,8 +591,8 @@
                 const tpl   = document.getElementById('editPickerRowTemplate');
                 const clone = tpl.content.cloneNode(true);
 
-                clone.querySelectorAll('[data-tpl-idx]').forEach(el => {
-                    ['id','name','data-hidden-id','data-search-id','data-modal'].forEach(attr => {
+                clone.querySelectorAll('[data-tpl-index]').forEach(el => {
+                    ['id','name','for','data-hidden-id','data-search-id','data-modal'].forEach(attr => {
                         if (el.hasAttribute(attr))
                             el.setAttribute(attr, el.getAttribute(attr).replace(/__IDX__/g, idx));
                     });
@@ -616,11 +610,6 @@
                     resultSpan.textContent = val > 0 ? val.toFixed(3) : '—';
                     resultSpan.classList.toggle('text-muted', val <= 0);
                     qtyOut.value = val > 0 ? val : 0;
-                    updateTotal();
-                });
-
-                row.querySelector('.js-remove-new').addEventListener('click', function () {
-                    row.remove();
                     updateTotal();
                 });
 
@@ -762,6 +751,7 @@
             }
 
             updateTotal();
+            document.addEventListener('product-picker:removed', updateTotal);
 
             // ── Валидация ────────────────────────────────────────────────────────────
             document.getElementById('receptionForm').addEventListener('submit', function (e) {
@@ -790,86 +780,16 @@
 
 {{-- Шаблон новых продуктов --}}
 <template id="editPickerRowTemplate">
-    <div class="new-product-row mb-2 p-2 rounded border border-secondary border-opacity-25">
-
-        {{-- Строка 1: поиск + удалить --}}
-        <div class="d-flex gap-1 align-items-start mb-1">
-            <div class="flex-grow-1 position-relative">
-                <div class="input-group input-group-sm">
-                    <input type="text"
-                           id="edit_search___IDX__"
-                           data-tpl-idx="1"
-                           class="form-control product-picker-search"
-                           placeholder="Название продукта..."
-                           autocomplete="off"
-                           data-hidden-id="edit_pid___IDX__">
-                    <button type="button"
-                            class="btn btn-outline-secondary product-picker-tree-btn"
-                            data-modal="edit_modal___IDX__"
-                            data-hidden-id="edit_pid___IDX__"
-                            data-search-id="edit_search___IDX__"
-                            data-tpl-idx="1"
-                            title="Выбрать из каталога">
-                        <i class="bi bi-diagram-3"></i>
-                    </button>
-                </div>
-                <div class="product-picker-dropdown list-group shadow-sm"
-                     style="display:none;position:absolute;z-index:1000;width:100%;max-height:280px;overflow-y:auto">
-                </div>
-            </div>
-            <button type="button"
-                    class="btn btn-sm btn-outline-danger js-remove-new flex-shrink-0"
-                    style="height:31px" title="Удалить">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
-
-        {{-- Строка 2: количество + подкол + коэф --}}
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <div class="d-flex align-items-center gap-1 text-muted small">
-                <span>0</span><span>+</span>
-                <input type="number"
-                       class="form-control form-control-sm js-new-delta"
-                       style="width:90px"
-                       step="0.001" min="0.001"
-                       placeholder="0.000">
-                <span>=</span>
-                <span class="js-new-result fw-semibold text-muted">—</span>
-                <span>м²</span>
-            </div>
-
-            <div class="form-check mb-0 flex-shrink-0">
-                <input class="form-check-input js-new-undercut"
-                       type="checkbox"
-                       id="edit_undercut___IDX__"
-                       name="products[__IDX__][is_undercut]"
-                       value="1"
-                       data-tpl-idx="1">
-                <label class="form-check-label small text-warning-emphasis fw-semibold"
-                       for="edit_undercut___IDX__">80% подкол</label>
-            </div>
-
-            <span class="text-muted small text-nowrap">
-                коэф: <span class="js-new-coeff-display fw-semibold text-dark" data-base-coeff="">—</span>
-            </span>
-        </div>
-
-        <input type="hidden" id="edit_pid___IDX__" name="products[__IDX__][product_id]" data-tpl-idx="1">
-        <input type="hidden" name="products[__IDX__][quantity]" class="js-new-qty-out" value="0" data-tpl-idx="1">
-
-        <div class="modal fade" id="edit_modal___IDX__" tabindex="-1" data-tpl-idx="1">
-            <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Выбрать из каталога</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                        <input type="text" class="form-control mb-3 tree-search-input" placeholder="Поиск по каталогу...">
-                        <div class="product-tree-container"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('partials.product-picker-row', [
+        'index'         => '__IDX__',
+        'placeholder'   => 'Название продукта...',
+        'unit'          => 'м²',
+        'qtyMode'       => 'delta',
+        'showUndercut'  => true,
+        'showCoeff'     => true,
+        'showRemove'    => true,
+        'undercutClass' => 'js-new-undercut',
+        'coeffClass'    => 'js-new-coeff-display',
+        'extraRowClass' => 'new-product-row',
+    ])
 </template>

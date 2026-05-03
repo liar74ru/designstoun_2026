@@ -161,30 +161,14 @@
 
 {{-- Шаблон строки продукта --}}
 <template id="pickerRowTemplate">
-    <div class="product-picker-row d-flex gap-2 align-items-start mb-2 p-2 rounded border" style="border-radius:.4rem!important">
-        <div class="flex-grow-1 position-relative">
-            <div class="input-group input-group-sm">
-                <input type="text" class="form-control product-picker-search" style="border-radius:.4rem"
-                       placeholder="Введите название..." autocomplete="off"
-                       data-hidden-id="hidden___IDX__">
-                <button type="button" class="btn btn-outline-secondary product-picker-tree-btn"
-                        data-modal="modal___IDX__" data-hidden-id="hidden___IDX__" data-search-id="search___IDX__">
-                    <i class="bi bi-diagram-3"></i>
-                </button>
-            </div>
-            <div class="product-picker-dropdown list-group shadow-sm"
-                 style="display:none;position:absolute;z-index:1050;width:100%;max-height:280px;overflow-y:auto"></div>
-        </div>
-        <input type="hidden" id="hidden___IDX__" name="products[__IDX__][product_id]" required>
-        <div style="width:120px">
-            <input type="number" name="products[__IDX__][quantity]" step="0.001" min="0.001" required
-                   class="form-control form-control-sm product-picker-qty" style="border-radius:.4rem"
-                   placeholder="м²">
-        </div>
-        <button type="button" class="btn btn-sm btn-outline-danger product-picker-remove">
-            <i class="bi bi-x-lg"></i>
-        </button>
-    </div>
+    @include('partials.product-picker-row', [
+        'index'       => '__IDX__',
+        'placeholder' => 'Введите название...',
+        'unit'        => 'м²',
+        'qtyWidth'    => '120px',
+        'qtyMode'     => 'simple',
+        'showRemove'  => true,
+    ])
 </template>
 
 @endsection

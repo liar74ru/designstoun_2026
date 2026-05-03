@@ -1,5 +1,5 @@
 {{--
-    Универсальный элемент выбора продукта.
+    Универсальный одиночный элемент выбора продукта.
     Параметры:
       $id          — string: уникальный префикс ID (обязателен)
       $name        — string: name атрибут hidden input, напр. 'filter[product_id]'
@@ -27,11 +27,10 @@
      @if($skuPrefix) data-sku-prefix="{{ $skuPrefix }}" @endif
      @if($allowedIds !== null) data-allowed-ids="{{ json_encode(array_values($allowedIds)) }}" @endif>
     <div class="flex-grow-1 position-relative">
-        <div class="input-group">
+        <div class="input-group input-group-sm">
             <input type="text"
                    id="{{ $id }}_search"
                    class="form-control product-picker-search"
-                   style="border-radius:.4rem"
                    placeholder="{{ $placeholder }}"
                    autocomplete="off"
                    data-hidden-id="{{ $id }}_hidden"
@@ -55,7 +54,7 @@
             @endif
         </div>
         <div class="product-picker-dropdown list-group shadow-sm"
-             style="display:none;position:absolute;z-index:1050;width:100%;max-height:280px;overflow-y:auto">
+             style="display:none;position:absolute;z-index:1000;width:100%;max-height:280px;overflow-y:auto">
         </div>
     </div>
     <input type="hidden"

@@ -5,9 +5,13 @@
 @section('content')
     @php
         $fromStoreDefault = old('from_store_id', request('copy_from_store'))
-            ?: ($stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false)?->id ?? '');
+            ?: (($defaultFromStore ?? null)?->id
+                ?? $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false)?->id
+                ?? '');
         $toStoreDefault = old('to_store_id', request('copy_to_store'))
-            ?: ($stores->first(fn($s) => mb_stripos($s->name, 'цех') !== false)?->id ?? '');
+            ?: (($defaultToStore ?? null)?->id
+                ?? $stores->first(fn($s) => mb_stripos($s->name, 'цех') !== false)?->id
+                ?? '');
     @endphp
     <div class="container py-3 py-md-4">
 
@@ -78,54 +82,16 @@
                                     </div>
                                 </div>
                                 <div class="info-block-body">
-                                    <div class="product-picker-row" data-sku-prefix="01-" data-tpl-index="0">
-                                        <div class="flex-grow-1 position-relative">
-                                            <div class="input-group">
-                                                <input type="text"
-                                                       id="search_0"
-                                                       class="form-control product-picker-search"
-                                                       placeholder="Начните вводить название сырья..."
-                                                       autocomplete="off"
-                                                       data-hidden-id="pid_0"
-                                                       value="{{ old('product_name', $copyProductName ?? '') }}"
-                                                       required>
-                                                <button type="button"
-                                                        class="btn btn-outline-secondary product-picker-tree-btn"
-                                                        data-modal="modal_0"
-                                                        data-hidden-id="pid_0"
-                                                        data-search-id="search_0"
-                                                        title="Выбрать из каталога">
-                                                    <i class="bi bi-diagram-3"></i>
-                                                </button>
-                                            </div>
-                                            <div class="product-picker-dropdown list-group shadow-sm"
-                                                 id="drop_0"
-                                                 style="display:none;position:absolute;z-index:1000;width:100%;max-height:280px;overflow-y:auto">
-                                            </div>
-                                        </div>
-                                        <input type="hidden"
-                                               id="pid_0"
-                                               name="product_id"
-                                               value="{{ old('product_id', request('copy_product')) }}"
-                                               required>
-
-                                        {{-- Модальное окно дерева --}}
-                                        <div class="modal fade" id="modal_0" tabindex="-1">
-                                            <div class="modal-dialog modal-lg">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title">Выбрать из каталога</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                                                        <input type="text" class="form-control mb-3 tree-search-input"
-                                                               placeholder="Поиск по каталогу...">
-                                                        <div class="product-tree-container"></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    @include('partials.product-picker', [
+                                        'id'          => 'raw_product',
+                                        'name'        => 'product_id',
+                                        'value'       => old('product_id', request('copy_product')),
+                                        'label'       => old('product_name', $copyProductName ?? ''),
+                                        'placeholder' => 'Начните вводить название сырья...',
+                                        'skuPrefix'   => '01-',
+                                        'showTree'    => true,
+                                        'required'    => true,
+                                    ])
                                     @error('product_id')
                                         <div class="text-danger small mt-1">{{ $message }}</div>
                                     @enderror
@@ -496,8 +462,8 @@
                     }
 
                     // Продукт
-                    const pidInput    = document.getElementById('pid_0');
-                    const searchInput = document.getElementById('search_0');
+                    const pidInput    = row.querySelector('input[type="hidden"][name="product_id"]');
+                    const searchInput = row.querySelector('.product-picker-search');
                     if (pidInput)    pidInput.value    = data.product_id;
                     if (searchInput) searchInput.value = data.product_name;
 
