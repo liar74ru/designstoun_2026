@@ -26,6 +26,7 @@ class StoneReception extends Model
         'receiver_id',
         'cutter_id',
         'store_id',
+        'department_id',
         'raw_material_batch_id',
         'raw_quantity_used',
         'notes',
@@ -68,6 +69,11 @@ class StoneReception extends Model
     public function store()
     {
         return $this->belongsTo(Store::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
     }
 
     /**

@@ -32,6 +32,15 @@
 
     @include('partials.alerts')
 
+    @include('partials.filters', [
+        'filterCutters'      => null,
+        'filterRawProducts'  => null,
+        'filterProducts'     => null,
+        'showStatus'         => false,
+        'filterDepartments'  => $filterDepartments,
+        'departmentDefaults' => $departmentDefaults,
+    ])
+
     @if($orders->count() > 0)
 
         {{-- Десктоп --}}
@@ -45,6 +54,7 @@
                             <th>Склад</th>
                             <th>Позиции</th>
                             <th>Приёмщик</th>
+                            <th>Отдел</th>
                             <th>Статус</th>
                             <th>Дата</th>
                             <th>Действия</th>
@@ -65,6 +75,7 @@
                                 @endforeach
                             </td>
                             <td class="small">{{ $order->receiver?->name ?? '—' }}</td>
+                            <td class="small text-muted">{{ $order->department?->name ?? '—' }}</td>
                             <td>
                                 <span class="badge {{ $order->statusBadgeClass() }}">{{ $order->statusLabel() }}</span>
                                 @if($order->sync_error)

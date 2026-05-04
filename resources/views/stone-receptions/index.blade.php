@@ -34,16 +34,18 @@
 
         {{-- ═══════════════════════ ФИЛЬТРЫ ═══════════════════════ --}}
         @include('partials.filters', [
-            'filterCutters'     => $filterCutters,
-            'cutterParam'       => 'cutter_id',
-            'filterRawProducts' => $filterRawProducts,
-            'rawProductParam'   => 'raw_product_id',
-            'filterProducts'    => $filterProducts,
-            'showStatus'        => 'multi',
-            'statusOptions'     => ['active' => 'Активна', 'completed' => 'Завершена', 'error' => 'Ошибка'],
-            'statusDefaults'    => ['active', 'error'],
-            'showSyncStatus'    => true,
-            'syncStatusOptions' => ['synced' => 'Синхронизирована', 'not_synced' => 'Не синхр.'],
+            'filterCutters'      => $filterCutters,
+            'cutterParam'        => 'cutter_id',
+            'filterRawProducts'  => $filterRawProducts,
+            'rawProductParam'    => 'raw_product_id',
+            'filterProducts'     => $filterProducts,
+            'showStatus'         => 'multi',
+            'statusOptions'      => ['active' => 'Активна', 'completed' => 'Завершена', 'error' => 'Ошибка'],
+            'statusDefaults'     => ['active', 'error'],
+            'showSyncStatus'     => true,
+            'syncStatusOptions'  => ['synced' => 'Синхронизирована', 'not_synced' => 'Не синхр.'],
+            'filterDepartments'  => $filterDepartments,
+            'departmentDefaults' => $departmentDefaults,
         ])
 
         {{-- ═══════════════════════ ПО ПАРТИЯМ ═══════════════════════ --}}
@@ -70,6 +72,7 @@
                                     <th>Приёмщик</th>
                                     <th>Пильщик</th>
                                     <th>Склад</th>
+                                    <th>Отдел</th>
                                     <th>Статус</th>
                                     <th class="text-end">Действия</th>
                                 </tr>
@@ -111,6 +114,7 @@
                                         <td>{{ $reception->receiver->name ?? '—' }}</td>
                                         <td>{{ $reception->cutter->name ?? '—' }}</td>
                                         <td>{{ $reception->store->name ?? '—' }}</td>
+                                        <td class="small text-muted">{{ $reception->department?->name ?? '—' }}</td>
                                         <td>
                                             @if($reception->status == 'active')
                                                 <span class="badge bg-success">Активна</span>

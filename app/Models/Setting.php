@@ -60,6 +60,26 @@ class Setting extends Model
     }
 
     /**
+     * Получить склад готовой продукции отдела из уже загруженной коллекции складов.
+     */
+    public static function deptProductStore(Department $dept, Collection $stores): ?Store
+    {
+        return $dept->default_product_store_id
+            ? $stores->firstWhere('id', $dept->default_product_store_id)
+            : null;
+    }
+
+    /**
+     * Получить склад производства/цеха отдела из уже загруженной коллекции складов.
+     */
+    public static function deptProductionStore(Department $dept, Collection $stores): ?Store
+    {
+        return $dept->default_production_store_id
+            ? $stores->firstWhere('id', $dept->default_production_store_id)
+            : null;
+    }
+
+    /**
      * Обновить три склада по умолчанию для отдела.
      */
     public static function setDeptStores(

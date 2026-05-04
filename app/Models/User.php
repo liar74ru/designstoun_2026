@@ -64,4 +64,27 @@ class User extends Authenticatable
     {
         return $this->worker?->hasPosition('Пильщик') || $this->worker?->hasPosition('Галтовщик') ?? false;
     }
+
+    /**
+     * Идентификаторы отделов, чьи записи доступны пользователю на index-страницах.
+     *
+     * - null  — без ограничения (админ + любые роли, кроме мастера)
+     * - []    — мастер без отдела: ничего не видит
+     * - [...] — конкретные id отделов (мастер с заданным department_id)
+     *
+     * @return int[]|null
+     */
+    public function accessibleDepartmentIds(): ?array
+    {
+        if ($this->isAdmin()) {
+            return null;
+        }
+
+        if ($this->isMaster()) {
+            $deptId = $this->worker?->department_id;
+            return $deptId ? [(int) $deptId] : [];
+        }
+
+        return null;
+    }
 }

@@ -87,6 +87,24 @@
                             @endforeach
                         </div>
                     </div>
+
+                    @if($filterDepartments->isNotEmpty())
+                        @php $selectedDepartments = (array) request('filter.department_id', $departmentDefaults); @endphp
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label class="form-label small text-muted mb-1">Отдел</label>
+                            <div class="d-flex flex-wrap gap-2 mt-1 px-2 py-2 rounded" style="background:#f5f0ff;border:1px solid #e0d4ff">
+                                @foreach($filterDepartments as $dept)
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="filter[department_id][]" value="{{ $dept->id }}"
+                                               id="dept_{{ $dept->id }}"
+                                            {{ in_array($dept->id, $selectedDepartments) ? 'checked' : '' }}>
+                                        <label class="form-check-label small" for="dept_{{ $dept->id }}">{{ $dept->name }}</label>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="d-flex gap-2 mt-2">
@@ -121,6 +139,7 @@
                                 <th>Тара</th>
                                 <th>Шт</th>
                                 <th>Упаковщик</th>
+                                <th>Отдел</th>
                                 <th>Склад</th>
                                 <th>Статус</th>
                                 <th class="text-end">Действия</th>
@@ -151,6 +170,7 @@
                                 </td>
                                 <td><span class="badge bg-warning text-dark">{{ number_format($packaging->package_quantity, 0) }}</span></td>
                                 <td>{{ $packaging->packer->name ?? '—' }}</td>
+                                <td class="small text-muted">{{ $packaging->department?->name ?? '—' }}</td>
                                 <td>{{ $packaging->store->name ?? '—' }}</td>
                                 <td>
                                     @if($packaging->status === 'active')
@@ -287,6 +307,7 @@
     const hasActive = params.get('filter[packer_id]') || params.get('filter[package_product_id]')
         || params.getAll('filter[status][]').length > 0
         || params.getAll('filter[sync_status][]').length > 0
+        || params.getAll('filter[department_id][]').length > 0
         || params.get('date_from') || params.get('date_to');
 
     function applyState(expanded) {

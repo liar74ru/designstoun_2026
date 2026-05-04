@@ -381,33 +381,6 @@ describe('ProductController syncFromMoySklad()', function () {
             ->assertSessionHas('success', 'Синхронизировано товаров: 20');
     });
 
-    test('обрабатывает исключение при синхронизации групп - редирект с ошибкой', function () {
-        $mock = Mockery::mock(MoySkladService::class);
-        $mock->shouldReceive('hasCredentials')
-            ->once()
-            ->andReturn(true);
-
-        // Мокируем вызов syncGroups, который выбрасывает исключение
-        $mock->shouldReceive('syncGroups')
-            ->once()
-            ->andThrow(new \Exception('Network error'));
-
-        // syncProducts не должен вызываться, т.к. метод упадет раньше
-        $mock->shouldReceive('syncProducts')
-            ->never();
-
-        app()->instance(MoySkladService::class, $mock);
-
-        // Вместо того чтобы тестировать исключение, тестируем что метод обрабатывает его
-        // и возвращает редирект с ошибкой
-        $this->actingAs(adminUser())
-            ->get(route('products.sync'))
-            ->assertStatus(302) // или 500, зависит от вашей реализации
-            ->assertRedirect();
-        // Примечание: если ваш контроллер не обрабатывает исключения,
-        // этот тест нужно будет пропустить или добавить try-catch в контроллер
-    })->skip('Этот тест требует обработки исключений в контроллере');
-
     test('недоступен без авторизации', function () {
         $this->get(route('products.sync'))
             ->assertRedirect('/login');

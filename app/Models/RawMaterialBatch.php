@@ -24,6 +24,7 @@ class RawMaterialBatch extends Model
         'status',
         'current_store_id',
         'current_worker_id',
+        'department_id',
         'batch_number',
         'notes',
         'processing_sum',
@@ -56,6 +57,11 @@ class RawMaterialBatch extends Model
     public function currentWorker()
     {
         return $this->belongsTo(Worker::class, 'current_worker_id');
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function movements()

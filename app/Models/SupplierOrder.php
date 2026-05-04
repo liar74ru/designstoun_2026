@@ -29,6 +29,7 @@ class SupplierOrder extends Model
         'store_id',
         'counterparty_id',
         'receiver_id',
+        'department_id',
         'status',
         'note',
         'sync_error',
@@ -47,6 +48,11 @@ class SupplierOrder extends Model
     public function receiver(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'receiver_id');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function items(): HasMany

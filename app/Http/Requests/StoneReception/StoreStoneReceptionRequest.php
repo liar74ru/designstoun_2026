@@ -17,6 +17,7 @@ class StoreStoneReceptionRequest extends FormRequest
             'receiver_id'            => 'required|exists:workers,id',
             'cutter_id'              => 'nullable|exists:workers,id',
             'store_id'               => 'required|exists:stores,id',
+            'department_id'          => 'nullable|exists:departments,id',
             'raw_material_batch_id'  => 'required|exists:raw_material_batches,id',
             'raw_quantity_used'      => 'required|numeric|min:0.001',
             'notes'                  => 'nullable|string',

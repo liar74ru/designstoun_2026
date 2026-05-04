@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Department;
 use App\Models\Packaging;
 use App\Models\PackagingItem;
 use App\Models\PackagingLog;
@@ -57,7 +58,7 @@ class PackagingService
         return $data;
     }
 
-    public function getFilterData(): array
+    public function getFilterData(?Request $request = null): array
     {
         $filterProducts = Product::whereIn('id',
             PackagingItem::distinct()->pluck('product_id')
@@ -71,11 +72,19 @@ class PackagingService
             Packaging::distinct()->pluck('package_product_id')
         )->orderBy('name')->get();
 
-        return compact('filterProducts', 'filterPackers', 'filterPackageProducts');
+        $filterDepartments  = Department::orderBy('name')->get();
+        $departmentDefaults = $request?->user()?->accessibleDepartmentIds() ?? [];
+
+        return compact(
+            'filterProducts', 'filterPackers', 'filterPackageProducts',
+            'filterDepartments', 'departmentDefaults'
+        );
     }
 
     public function getFilteredPackagings(Request $request): LengthAwarePaginator
     {
+        $accessible = $request->user()?->accessibleDepartmentIds();
+
         return QueryBuilder::for(Packaging::class)
             ->allowedFilters([
                 AllowedFilter::callback('status', function ($query, $value) {
@@ -87,10 +96,13 @@ class PackagingService
                 AllowedFilter::callback('product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q->where('product_id', $value));
                 }),
+                AllowedFilter::callback('department_id', function ($query, $value) {
+                    $query->whereIn('packagings.department_id', (array) $value);
+                }),
                 AllowedFilter::exact('packer_id'),
                 AllowedFilter::exact('package_product_id'),
             ])
-            ->with(['packer', 'receiver', 'store', 'items.product', 'packageProduct'])
+            ->with(['packer', 'receiver', 'store', 'items.product', 'packageProduct', 'department'])
             ->when($request->filled('date_from'), fn($q) =>
                 $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->filled('date_to'), fn($q) =>
@@ -98,6 +110,10 @@ class PackagingService
             ->when(
                 !array_key_exists('status', $request->input('filter', [])),
                 fn($q) => $q->whereIn('status', ['active', 'error'])
+            )
+            ->when(
+                $accessible !== null && !array_key_exists('department_id', $request->input('filter', [])),
+                fn($q) => $q->whereIn('packagings.department_id', $accessible ?: [-1])
             )
             ->orderBy('created_at', 'desc')
             ->paginate(20)
@@ -340,9 +356,13 @@ class PackagingService
 
     private function preparePackagingData(array $data, bool $forCreate = true, ?float $packageQuantityOverride = null): array
     {
+        $departmentId = $data['department_id']
+            ?? Worker::find($data['packer_id'] ?? null)?->department_id;
+
         $prepared = [
             'packer_id'          => $data['packer_id'],
             'store_id'           => $data['store_id'],
+            'department_id'      => $departmentId,
             'package_product_id' => $data['package_product_id'],
             'notes'              => $data['notes'] ?? null,
         ];

@@ -22,13 +22,9 @@ class SupplierOrderController extends Controller
         private SupplierOrderSyncService $syncService,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        $orders = SupplierOrder::with(['counterparty', 'store', 'receiver', 'items.product'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
-
-        return view('supplier-orders.index', compact('orders'));
+        return view('supplier-orders.index', $this->service->getIndexData($request));
     }
 
     public function show(SupplierOrder $supplierOrder): View

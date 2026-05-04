@@ -33,10 +33,13 @@ class PackagingController extends Controller
             'filterProducts'        => $filterProducts,
             'filterPackers'         => $filterPackers,
             'filterPackageProducts' => $filterPackageProducts,
-        ] = $this->service->getFilterData();
+            'filterDepartments'     => $filterDepartments,
+            'departmentDefaults'    => $departmentDefaults,
+        ] = $this->service->getFilterData($request);
 
         return view('packagings.index', compact(
-            'packagings', 'filterProducts', 'filterPackers', 'filterPackageProducts'
+            'packagings', 'filterProducts', 'filterPackers', 'filterPackageProducts',
+            'filterDepartments', 'departmentDefaults'
         ));
     }
 

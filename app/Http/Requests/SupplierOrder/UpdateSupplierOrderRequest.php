@@ -17,6 +17,7 @@ class UpdateSupplierOrderRequest extends FormRequest
             'store_id'              => 'required|exists:stores,id',
             'counterparty_id'       => 'required|exists:counterparties,id',
             'receiver_id'           => 'nullable|exists:workers,id',
+            'department_id'         => 'nullable|exists:departments,id',
             'number'                => 'required|string|max:100',
             'note'                  => 'nullable|string|max:1000',
             'manual_created_at'     => 'nullable|date',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
+use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Services\Moysklad\MoySkladMoveService;
@@ -52,7 +53,18 @@ class RawMaterialBatchController extends Controller
             $copyProductName = \App\Models\Product::find($copyProductId)?->name;
         }
 
-        return view('raw-batches.create', array_merge($formOptions, compact('copyProductName')));
+        $department       = auth()->user()?->worker?->department;
+        $defaultFromStore = $department && $department->default_raw_store_id
+            ? Setting::deptRawStore($department, $formOptions['stores'])
+            : null;
+        $defaultToStore   = $department && $department->default_production_store_id
+            ? Setting::deptProductionStore($department, $formOptions['stores'])
+            : null;
+
+        return view('raw-batches.create', array_merge(
+            $formOptions,
+            compact('copyProductName', 'defaultFromStore', 'defaultToStore')
+        ));
     }
 
     public function nextBatchNumber(Worker $worker): JsonResponse
@@ -82,6 +94,7 @@ class RawMaterialBatchController extends Controller
             'worker_id'          => 'required|exists:workers,id',
             'from_store_id'      => 'required|exists:stores,id',
             'to_store_id'        => 'required|exists:stores,id',
+            'department_id'      => 'nullable|exists:departments,id',
             'batch_number'       => 'nullable|string|max:255',
             'manual_created_at'  => 'nullable|date',
             'ignore_stock_check' => 'nullable|boolean',

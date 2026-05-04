@@ -26,13 +26,15 @@
     @include('partials.alerts')
 
     @include('partials.filters', [
-        'filterCutters'     => $filterCutters,
-        'cutterParam'       => 'current_worker_id',
-        'filterRawProducts' => $filterRawProducts,
-        'rawProductParam'   => 'product_id',
-        'filterProducts'    => null,
-        'showStatus'        => 'single',
-        'statusOptions'     => $statuses,
+        'filterCutters'      => $filterCutters,
+        'cutterParam'        => 'current_worker_id',
+        'filterRawProducts'  => $filterRawProducts,
+        'rawProductParam'    => 'product_id',
+        'filterProducts'     => null,
+        'showStatus'         => 'single',
+        'statusOptions'      => $statuses,
+        'filterDepartments'  => $filterDepartments,
+        'departmentDefaults' => $departmentDefaults,
     ])
 
     @if($batches->count() > 0)
@@ -49,6 +51,7 @@
                             <th>Статус</th>
                             <th>Текущий склад</th>
                             <th>Пильщик</th>
+                            <th>Отдел</th>
                             <th>Дата создания</th>
                             <th>Действия</th>
                         </tr>
@@ -78,6 +81,7 @@
                             </td>
                             <td>{{ $batch->currentStore->name ?? '—' }}</td>
                             <td>{{ $batch->currentWorker->name ?? '—' }}</td>
+                            <td class="small text-muted">{{ $batch->department?->name ?? '—' }}</td>
                             <td>{{ $batch->created_at->format('d.m.Y H:i') }}</td>
                             <td>
                                 <div class="d-flex gap-1 flex-wrap">

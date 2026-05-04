@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Department;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
@@ -22,8 +23,10 @@ class RawMaterialBatchService
 
     public function getIndexData(Request $request): array
     {
+        $accessible = $request->user()?->accessibleDepartmentIds();
+
         $baseQuery = RawMaterialBatch::with([
-            'product', 'currentStore', 'currentWorker',
+            'product', 'currentStore', 'currentWorker', 'department',
             'latestMovement.fromStore', 'latestMovement.toStore',
         ]);
 
@@ -33,6 +36,8 @@ class RawMaterialBatchService
                 AllowedFilter::exact('current_worker_id'),
                 AllowedFilter::exact('product_id'),
                 AllowedFilter::partial('batch_number'),
+                AllowedFilter::callback('department_id', fn($q, $v) =>
+                    $q->whereIn('raw_material_batches.department_id', (array) $v)),
             ])
             ->defaultSort('-created_at')
             ->allowedSorts(['batch_number', 'created_at', 'quantity']);
@@ -44,12 +49,18 @@ class RawMaterialBatchService
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        if ($accessible !== null && !array_key_exists('department_id', $request->input('filter', []))) {
+            $query->whereIn('raw_material_batches.department_id', $accessible ?: [-1]);
+        }
+
         $batches = $query->paginate(15)->withQueryString();
 
         $filterCutters     = Worker::orderBy('name')->get();
         $filterRawProducts = Product::whereIn('id',
             RawMaterialBatch::distinct()->pluck('product_id')
         )->orderBy('name')->get();
+        $filterDepartments  = Department::orderBy('name')->get();
+        $departmentDefaults = $accessible ?? [];
 
         $statuses = [
             'new'      => 'Новые',
@@ -59,7 +70,10 @@ class RawMaterialBatchService
             'archived' => 'Архив',
         ];
 
-        return compact('batches', 'filterCutters', 'filterRawProducts', 'statuses');
+        return compact(
+            'batches', 'filterCutters', 'filterRawProducts',
+            'filterDepartments', 'departmentDefaults', 'statuses'
+        );
     }
 
     public function getCreateFormOptions(): array
@@ -96,13 +110,17 @@ class RawMaterialBatchService
         $batch    = null;
         $movement = null;
 
-        DB::transaction(function () use ($data, $createdAt, $movedBy, &$batch, &$movement) {
+        $departmentId = $data['department_id']
+            ?? Worker::find($data['worker_id'] ?? null)?->department_id;
+
+        DB::transaction(function () use ($data, $createdAt, $movedBy, $departmentId, &$batch, &$movement) {
             $batch = RawMaterialBatch::create([
                 'product_id'         => $data['product_id'],
                 'initial_quantity'   => $data['quantity'],
                 'remaining_quantity' => $data['quantity'],
                 'current_store_id'   => $data['to_store_id'],
                 'current_worker_id'  => $data['worker_id'],
+                'department_id'      => $departmentId,
                 'batch_number'       => $data['batch_number'] ?? null,
                 'status'             => RawMaterialBatch::STATUS_NEW,
                 'created_at'         => $createdAt,
@@ -388,6 +406,7 @@ class RawMaterialBatchService
                 'remaining_quantity' => $qty,
                 'current_store_id'   => $toStoreId,
                 'current_worker_id'  => $data['to_worker_id'],
+                'department_id'      => $targetWorker->department_id,
                 'batch_number'       => ($batch->batch_number ?? $batch->id) . '-' . $targetWorker->name,
                 'status'             => RawMaterialBatch::STATUS_NEW,
                 'notes'              => 'Передана от партии №' . ($batch->batch_number ?? $batch->id),
@@ -435,6 +454,7 @@ class RawMaterialBatchService
                 'remaining_quantity' => $qty,
                 'current_store_id'   => $data['to_store_id'],
                 'current_worker_id'  => null,
+                'department_id'      => $batch->department_id,
                 'status'             => RawMaterialBatch::STATUS_RETURNED,
                 'notes'              => 'Создана от партии №' . ($batch->batch_number ?? $batch->id),
             ]);

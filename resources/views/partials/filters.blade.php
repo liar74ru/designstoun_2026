@@ -8,18 +8,29 @@
       $filterProducts     — Collection|null  (null = скрыть product-picker)
       $showStatus         — false | 'multi' | 'single'
       $statusOptions      — array [ value => label ] (для multi и single)
+      $filterDepartments  — Collection|null  (null = скрыть multi-select отделов)
+      $departmentDefaults — array (id отделов выбранных по умолчанию у мастера)
 --}}
 @php
-    $cutterParam       = $cutterParam       ?? 'cutter_id';
-    $statusOptions     = $statusOptions     ?? [];
-    $statusDefaults    = $statusDefaults    ?? [];
-    $showSyncStatus    = $showSyncStatus    ?? false;
-    $syncStatusOptions = $syncStatusOptions ?? [];
+    $cutterParam        = $cutterParam        ?? 'cutter_id';
+    $rawProductParam    = $rawProductParam    ?? 'product_id';
+    $filterCutters      = $filterCutters      ?? null;
+    $filterRawProducts  = $filterRawProducts  ?? null;
+    $filterProducts     = $filterProducts     ?? null;
+    $showStatus         = $showStatus         ?? false;
+    $statusOptions      = $statusOptions      ?? [];
+    $statusDefaults     = $statusDefaults     ?? [];
+    $showSyncStatus     = $showSyncStatus     ?? false;
+    $syncStatusOptions  = $syncStatusOptions  ?? [];
+    $filterDepartments  = $filterDepartments  ?? null;
+    $departmentDefaults = $departmentDefaults ?? [];
+    $selectedDepartments = (array) request('filter.department_id', $departmentDefaults);
     $filterCount   = ($filterCutters    ? 1 : 0)
                    + ($filterRawProducts ? 1 : 0)
                    + ($filterProducts    ? 1 : 0)
                    + ($showStatus !== false ? 1 : 0)
-                   + (!empty($showSyncStatus) ? 1 : 0);
+                   + (!empty($showSyncStatus) ? 1 : 0)
+                   + ($filterDepartments ? 1 : 0);
     $colClass      = $filterCount >= 4 ? 'col-lg-3' : ($filterCount === 3 ? 'col-lg-4' : 'col-lg-6');
     $rawValue      = request()->input("filter.$rawProductParam", '');
     $rawLabel      = $filterRawProducts ? ($filterRawProducts->firstWhere('id', $rawValue)?->name ?? '') : '';
@@ -175,6 +186,24 @@
                 </div>
                 @endif
 
+                {{-- Отдел: чекбоксы (multi) --}}
+                @if($filterDepartments)
+                <div class="col-12 col-sm-6 {{ $colClass }}">
+                    <label class="form-label small text-muted mb-1">Отдел</label>
+                    <div class="d-flex flex-wrap gap-2 mt-1 px-2 py-2 rounded" style="background:#f5f0ff;border:1px solid #e0d4ff">
+                        @foreach($filterDepartments as $dept)
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox"
+                                       name="filter[department_id][]" value="{{ $dept->id }}"
+                                       id="dept_{{ $dept->id }}"
+                                    {{ in_array($dept->id, $selectedDepartments) ? 'checked' : '' }}>
+                                <label class="form-check-label small" for="dept_{{ $dept->id }}">{{ $dept->name }}</label>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
             </div>
 
             <div class="d-flex gap-2 mt-2">
@@ -212,7 +241,8 @@
     const activeFilters = filterKeys.filter(k => params.get(k) && params.get(k) !== '').length
         @if($showStatus === 'multi') + params.getAll('filter[status][]').length @endif
         @if($showStatus === 'single') + (params.get('filter[status]') && params.get('filter[status]') !== '' ? 1 : 0) @endif
-        @if(!empty($showSyncStatus)) + params.getAll('filter[sync_status][]').length @endif;
+        @if(!empty($showSyncStatus)) + params.getAll('filter[sync_status][]').length @endif
+        @if($filterDepartments) + params.getAll('filter[department_id][]').length @endif;
 
     if (badge && activeFilters > 0) {
         badge.innerHTML = `<span class="badge bg-primary rounded-pill">${activeFilters}</span>`;

@@ -20,6 +20,7 @@ class Packaging extends Model
         'packer_id',
         'receiver_id',
         'store_id',
+        'department_id',
         'package_product_id',
         'package_quantity',
         'notes',
@@ -53,6 +54,11 @@ class Packaging extends Model
     public function store()
     {
         return $this->belongsTo(Store::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function packageProduct()

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoneReception\StoreStoneReceptionRequest;
 use App\Http\Requests\StoneReception\UpdateStoneReceptionRequest;
 use App\Models\RawMaterialBatch;
+use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\Worker;
 use App\Services\Moysklad\StoneReceptionSyncService;
@@ -32,10 +33,15 @@ class StoneReceptionController extends Controller
             'filterRawProducts' => $filterRawProducts,
             'filterProducts'    => $filterProducts,
             'filterCutters'     => $filterCutters,
+            'filterDepartments' => $filterDepartments,
         ] = $this->service->getFilterData();
 
+        $departmentDefaults = $request->user()?->accessibleDepartmentIds() ?? [];
+
         return view('stone-receptions.index', compact(
-            'receptions', 'logs', 'filterRawProducts', 'filterProducts', 'filterCutters'
+            'receptions', 'logs',
+            'filterRawProducts', 'filterProducts', 'filterCutters',
+            'filterDepartments', 'departmentDefaults'
         ));
     }
 
@@ -57,6 +63,11 @@ class StoneReceptionController extends Controller
         $data['filteredBatches'] = $cutterId ? $this->service->getActiveBatchesForWorker(Worker::find($cutterId)) : collect();
         $data['selectedCutterId'] = $cutterId;
         $data['selectedBatchId']  = $batchId;
+
+        $department = auth()->user()?->worker?->department;
+        if ($department && $department->default_product_store_id) {
+            $data['defaultStore'] = Setting::deptProductStore($department, $data['stores']);
+        }
 
         $copyItems = [];
         if ($copyFromId = $request->input('copy_from')) {
@@ -139,6 +150,11 @@ class StoneReceptionController extends Controller
 
         $rawProductId        = $stoneReception->rawMaterialBatch?->product_id;
         $data['lastReceptions'] = $this->service->getLastReceptions(15, $rawProductId);
+
+        $department = auth()->user()?->worker?->department;
+        if ($department && $department->default_product_store_id) {
+            $data['defaultStore'] = Setting::deptProductStore($department, $data['stores']);
+        }
 
         return view('stone-receptions.edit', $data);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Department;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
@@ -78,7 +79,9 @@ class StoneReceptionService
                 ->distinct()->pluck('cutter_id')
         )->orderBy('name')->get();
 
-        return compact('filterRawProducts', 'filterProducts', 'filterCutters');
+        $filterDepartments = Department::orderBy('name')->get();
+
+        return compact('filterRawProducts', 'filterProducts', 'filterCutters', 'filterDepartments');
     }
 
     public function getLastReceptions(int $perPage = 15, ?int $rawMaterialProductId = null): LengthAwarePaginator
@@ -95,6 +98,8 @@ class StoneReceptionService
 
     public function getFilteredReceptions(Request $request): LengthAwarePaginator
     {
+        $accessible = $request->user()?->accessibleDepartmentIds();
+
         return QueryBuilder::for(StoneReception::class)
             ->allowedFilters([
                 AllowedFilter::callback('status', function ($query, $value) {
@@ -110,9 +115,12 @@ class StoneReceptionService
                 AllowedFilter::callback('product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q->where('product_id', $value));
                 }),
+                AllowedFilter::callback('department_id', function ($query, $value) {
+                    $query->whereIn('stone_receptions.department_id', (array) $value);
+                }),
                 AllowedFilter::exact('cutter_id'),
             ])
-            ->with(['receiver', 'cutter', 'store', 'items.product', 'rawMaterialBatch.product'])
+            ->with(['receiver', 'cutter', 'store', 'items.product', 'rawMaterialBatch.product', 'department'])
             ->when($request->filled('date_from'), fn($q) =>
                 $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->filled('date_to'), fn($q) =>
@@ -121,6 +129,10 @@ class StoneReceptionService
                 !array_key_exists('status', $request->input('filter', [])),
                 fn($q) => $q->whereIn('status', ['active', 'error'])
             )
+            ->when(
+                $accessible !== null && !array_key_exists('department_id', $request->input('filter', [])),
+                fn($q) => $q->whereIn('stone_receptions.department_id', $accessible ?: [-1])
+            )
             ->orderBy('created_at', 'desc')
             ->paginate(20)
             ->withQueryString();
@@ -128,6 +140,8 @@ class StoneReceptionService
 
     public function getFilteredLogs(Request $request): LengthAwarePaginator
     {
+        $accessible = $request->user()?->accessibleDepartmentIds();
+
         return QueryBuilder::for(\App\Models\ReceptionLog::class)
             ->allowedFilters([
                 AllowedFilter::exact('cutter_id'),
@@ -137,15 +151,25 @@ class StoneReceptionService
                 AllowedFilter::callback('product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q->where('product_id', $value));
                 }),
+                AllowedFilter::callback('department_id', function ($query, $value) {
+                    $ids = (array) $value;
+                    $query->whereHas('stoneReception', fn($q) => $q->whereIn('department_id', $ids));
+                }),
                 AllowedFilter::callback('status', fn() => null),
                 AllowedFilter::callback('sync_status', fn() => null),
             ])
             ->with(['cutter', 'receiver', 'items.product',
-                'stoneReception.store', 'rawMaterialBatch.product'])
+                'stoneReception.store', 'stoneReception.department', 'rawMaterialBatch.product'])
             ->when($request->filled('date_from'), fn($q) =>
                 $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->filled('date_to'), fn($q) =>
                 $q->whereDate('created_at', '<=', $request->date_to))
+            ->when(
+                $accessible !== null && !array_key_exists('department_id', $request->input('filter', [])),
+                fn($q) => $q->whereHas('stoneReception', fn($sq) =>
+                    $sq->whereIn('department_id', $accessible ?: [-1])
+                )
+            )
             ->orderBy('created_at', 'desc')
             ->paginate(20)
             ->withQueryString();
@@ -491,9 +515,13 @@ class StoneReceptionService
 
     private function prepareReceptionData(array $data, bool $forCreate = true): array
     {
+        $departmentId = $data['department_id']
+            ?? Worker::find($data['cutter_id'] ?? $data['receiver_id'] ?? null)?->department_id;
+
         $prepared = [
             'cutter_id'             => $data['cutter_id'] ?? null,
             'store_id'              => $data['store_id'],
+            'department_id'         => $departmentId,
             'raw_material_batch_id' => $data['raw_material_batch_id'],
             'raw_quantity_used'     => $data['raw_quantity_used'],
             'notes'                 => $data['notes'] ?? null,

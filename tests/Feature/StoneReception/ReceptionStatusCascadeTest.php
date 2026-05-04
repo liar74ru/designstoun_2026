@@ -271,16 +271,6 @@ test('getBatchesJson не возвращает партию в статусе us
 
 // ─── AJAX: getActiveReceptionByBatchJson ─────────────────────────────────────
 
-test('api/batches/{batch}/active-reception возвращает null если нет активной', function () {
-    $user  = makeCascadeAdmin();
-    $batch = makeCascadeBatch('in_work', 3.0);
-
-    $this->actingAs($user)
-        ->getJson(route('api.batch.active-reception', $batch))
-        ->assertOk()
-        ->assertExactJson(['data' => null]); // Laravel обернёт null по-разному, проверим статус
-})->skip('null response format depends on Laravel version — adjust assertion if needed');
-
 test('api/batches/{batch}/active-reception возвращает данные приёмки', function () {
     $user  = makeCascadeAdmin();
     $batch = makeCascadeBatch('in_work', 3.0);
