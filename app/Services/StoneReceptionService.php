@@ -84,13 +84,19 @@ class StoneReceptionService
         return compact('filterRawProducts', 'filterProducts', 'filterCutters', 'filterDepartments');
     }
 
-    public function getLastReceptions(int $perPage = 15, ?int $rawMaterialProductId = null): LengthAwarePaginator
+    public function getLastReceptions(int $perPage = 15, ?int $rawMaterialProductId = null, ?Request $request = null): LengthAwarePaginator
     {
+        $accessible = $request?->user()?->accessibleDepartmentIds();
+
         $query = StoneReception::with(['receiver', 'cutter', 'store', 'items.product', 'rawMaterialBatch.product'])
             ->orderBy('created_at', 'desc');
 
         if ($rawMaterialProductId) {
             $query->whereHas('rawMaterialBatch', fn($q) => $q->where('product_id', $rawMaterialProductId));
+        }
+
+        if ($accessible !== null) {
+            $query->whereIn('stone_receptions.department_id', $accessible ?: [-1]);
         }
 
         return $query->paginate($perPage);

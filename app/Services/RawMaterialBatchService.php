@@ -76,8 +76,10 @@ class RawMaterialBatchService
         );
     }
 
-    public function getCreateFormOptions(): array
+    public function getCreateFormOptions(Request $request): array
     {
+        $accessible = $request->user()?->accessibleDepartmentIds();
+
         $products = Product::orderBy('name')->get();
         $stores   = Store::orderBy('name')->get();
         $workers  = Worker::orderBy('name')->get();
@@ -87,6 +89,8 @@ class RawMaterialBatchService
             'currentWorker',
             'movements' => fn($q) => $q->where('movement_type', 'create')->oldest(),
         ])
+            ->when($accessible !== null,
+                fn($q) => $q->whereIn('department_id', $accessible ?: [-1]))
             ->orderBy('created_at', 'desc')
             ->limit(20)
             ->get();

@@ -60,9 +60,13 @@ class SupplierOrderService
         return compact('stores', 'counterparties', 'receivers');
     }
 
-    public function getRecentOrders(int $limit = 20): Collection
+    public function getRecentOrders(int $limit = 20, ?Request $request = null): Collection
     {
+        $accessible = $request?->user()?->accessibleDepartmentIds();
+
         return SupplierOrder::with(['counterparty', 'store', 'items.product'])
+            ->when($accessible !== null,
+                fn($q) => $q->whereIn('department_id', $accessible ?: [-1]))
             ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->get();

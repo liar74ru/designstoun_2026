@@ -46,7 +46,7 @@ class RawMaterialBatchController extends Controller
 
     public function create(Request $request): View
     {
-        $formOptions     = $this->service->getCreateFormOptions();
+        $formOptions     = $this->service->getCreateFormOptions($request);
         $copyProductName = null;
 
         if ($copyProductId = $request->input('copy_product')) {

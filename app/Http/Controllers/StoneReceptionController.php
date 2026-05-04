@@ -59,7 +59,7 @@ class StoneReceptionController extends Controller
         $batchId  = $request->input('raw_material_batch_id');
 
         $data                    = $this->service->getFormOptions(null, $cutterId ? (int) $cutterId : null);
-        $data['lastReceptions']  = $this->service->getLastReceptions();
+        $data['lastReceptions']  = $this->service->getLastReceptions(15, null, $request);
         $data['filteredBatches'] = $cutterId ? $this->service->getActiveBatchesForWorker(Worker::find($cutterId)) : collect();
         $data['selectedCutterId'] = $cutterId;
         $data['selectedBatchId']  = $batchId;
@@ -144,12 +144,12 @@ class StoneReceptionController extends Controller
         return view('stone-receptions.show', compact('stoneReception', 'backUrl'));
     }
 
-    public function edit(StoneReception $stoneReception): View
+    public function edit(Request $request, StoneReception $stoneReception): View
     {
         $data = $this->service->getFormOptions($stoneReception);
 
         $rawProductId        = $stoneReception->rawMaterialBatch?->product_id;
-        $data['lastReceptions'] = $this->service->getLastReceptions(15, $rawProductId);
+        $data['lastReceptions'] = $this->service->getLastReceptions(15, $rawProductId, $request);
 
         $department = auth()->user()?->worker?->department;
         if ($department && $department->default_product_store_id) {

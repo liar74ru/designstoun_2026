@@ -44,7 +44,7 @@ class SupplierOrderController extends Controller
             ? Setting::deptRawStore($department, $stores)
             : $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false);
         $defaultReceiver = $receivers->firstWhere('id', $currentWorker?->id);
-        $recentOrders    = $this->service->getRecentOrders(20);
+        $recentOrders    = $this->service->getRecentOrders(20, $request);
 
         $copyFrom = $request->filled('copy_from')
             ? $this->service->getCopySource($request->copy_from)
