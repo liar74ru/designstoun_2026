@@ -12,6 +12,7 @@
             ?: (($defaultToStore ?? null)?->id
                 ?? $stores->first(fn($s) => mb_stripos($s->name, 'цех') !== false)?->id
                 ?? '');
+        $userDeptId = auth()->user()?->worker?->department_id;
     @endphp
     <div class="container py-3 py-md-4">
 
@@ -50,15 +51,24 @@
                                     <span class="small fw-semibold text-muted">
                                         Закрепить за пильщиком <span class="text-danger">*</span>
                                     </span>
+                                    @if($userDeptId)
+                                        <div class="form-check form-check-inline mb-0">
+                                            <input class="form-check-input" type="checkbox" id="allWorkersWorker">
+                                            <label class="form-check-label small text-muted" for="allWorkersWorker">все работники</label>
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="info-block-body">
                                     <select name="worker_id"
                                             id="workerSelect"
-                                            class="form-select @error('worker_id') is-invalid @enderror"
+                                            class="form-select worker-picker @error('worker_id') is-invalid @enderror"
+                                            data-user-dept-id="{{ $userDeptId }}"
+                                            data-toggle-id="allWorkersWorker"
                                             required>
                                         <option value="">— Выберите пильщика —</option>
                                         @foreach($workers as $worker)
                                             <option value="{{ $worker->id }}"
+                                                data-department-id="{{ $worker->department_id }}"
                                                 {{ old('worker_id', request('copy_worker')) == $worker->id ? 'selected' : '' }}>
                                                 {{ $worker->name }}
                                             </option>
@@ -489,5 +499,5 @@
             });
         });
     </script>
-    @vite(['resources/js/product-picker.js'])
+    @vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
 @endpush

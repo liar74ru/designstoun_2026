@@ -3,6 +3,7 @@
 @section('title', 'Редактирование приёмки #{{ $stoneReception->id }}')
 
 @section('content')
+    @php $userDeptId = auth()->user()?->worker?->department_id; @endphp
     <div class="container py-3 py-md-4">
 
         <x-page-header
@@ -42,14 +43,26 @@
                                     <div style="padding:.25rem .4rem .35rem">
                                         <div class="row g-1 mb-1">
                                             <div class="col-6">
-                                                <label class="form-label small text-muted mb-0" style="font-size:.7rem">Приёмщик</label>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <label class="form-label small text-muted mb-0" style="font-size:.7rem">Приёмщик</label>
+                                                    @if(auth()->user()->isAdmin() && $userDeptId)
+                                                        <div class="form-check form-check-inline mb-0">
+                                                            <input class="form-check-input" type="checkbox" id="allWorkersReceiverEdit">
+                                                            <label class="form-check-label small text-muted" for="allWorkersReceiverEdit" style="font-size:.7rem">все</label>
+                                                        </div>
+                                                    @endif
+                                                </div>
                                                 @if(auth()->user()->isAdmin())
                                                     <select name="receiver_id"
-                                                            class="form-select form-select-sm @error('receiver_id') is-invalid @enderror"
-                                                            style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem" required>
+                                                            class="form-select form-select-sm worker-picker @error('receiver_id') is-invalid @enderror"
+                                                            style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
+                                                            data-user-dept-id="{{ $userDeptId }}"
+                                                            data-toggle-id="allWorkersReceiverEdit"
+                                                            required>
                                                         <option value="">— приёмщик —</option>
                                                         @foreach($masterWorkers as $worker)
                                                             <option value="{{ $worker->id }}"
+                                                                data-department-id="{{ $worker->department_id }}"
                                                                 {{ old('receiver_id', $stoneReception->receiver_id) == $worker->id ? 'selected' : '' }}>
                                                                 {{ $worker->name }}
                                                             </option>
@@ -396,7 +409,7 @@
 @endsection
 
 @push('scripts')
-    @vite(['resources/js/product-picker.js'])
+    @vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 

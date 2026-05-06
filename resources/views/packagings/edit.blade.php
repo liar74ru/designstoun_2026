@@ -2,6 +2,7 @@
 @section('title', 'Упаковка #' . $packaging->id)
 
 @section('content')
+@php $userDeptId = auth()->user()?->worker?->department_id; @endphp
 <div class="container py-3 py-md-4" style="max-width:980px">
 
     <x-page-header title="Упаковка #{{ $packaging->id }}" :back-url="route('packagings.index')" mobileTitle="Упаковка" />
@@ -27,11 +28,26 @@
                         <input type="hidden" name="packer_id" value="{{ $packaging->packer_id }}">
                     </div>
                     <div class="col-12 col-sm-6">
-                        <label class="form-label small fw-semibold mb-1">Приёмщик</label>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="form-label small fw-semibold mb-1">Приёмщик</label>
+                            @if(auth()->user()->isAdmin() && $userDeptId)
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="checkbox" id="allWorkersReceiverPackEdit">
+                                    <label class="form-check-label small text-muted" for="allWorkersReceiverPackEdit">все</label>
+                                </div>
+                            @endif
+                        </div>
                         @if(auth()->user()->isAdmin())
-                            <select name="receiver_id" class="form-select form-select-sm" style="border-radius:.4rem" required>
+                            <select name="receiver_id"
+                                    class="form-select form-select-sm worker-picker"
+                                    style="border-radius:.4rem"
+                                    data-user-dept-id="{{ $userDeptId }}"
+                                    data-toggle-id="allWorkersReceiverPackEdit"
+                                    required>
                                 @foreach($masterWorkers as $worker)
-                                    <option value="{{ $worker->id }}" {{ old('receiver_id', $packaging->receiver_id) == $worker->id ? 'selected' : '' }}>
+                                    <option value="{{ $worker->id }}"
+                                        data-department-id="{{ $worker->department_id }}"
+                                        {{ old('receiver_id', $packaging->receiver_id) == $worker->id ? 'selected' : '' }}>
                                         {{ $worker->name }}
                                     </option>
                                 @endforeach
@@ -159,7 +175,7 @@
 @endsection
 
 @push('scripts')
-@vite(['resources/js/product-picker.js'])
+@vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
 <script>
 (function () {
     // Тоггл блока «Участники и склад»

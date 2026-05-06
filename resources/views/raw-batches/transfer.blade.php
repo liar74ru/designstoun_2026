@@ -3,6 +3,7 @@
 @section('title', 'Передача партии')
 
 @section('content')
+@php $userDeptId = auth()->user()?->worker?->department_id; @endphp
 <div class="container py-3">
 
     <x-page-header
@@ -47,11 +48,25 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Новый пильщик <span class="text-danger">*</span></label>
-                            <select name="to_worker_id" class="form-select @error('to_worker_id') is-invalid @enderror" required>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0">Новый пильщик <span class="text-danger">*</span></label>
+                                @if($userDeptId)
+                                    <div class="form-check form-check-inline mb-0">
+                                        <input class="form-check-input" type="checkbox" id="allWorkersToWorker">
+                                        <label class="form-check-label small text-muted" for="allWorkersToWorker">все работники</label>
+                                    </div>
+                                @endif
+                            </div>
+                            <select name="to_worker_id"
+                                    class="form-select worker-picker @error('to_worker_id') is-invalid @enderror"
+                                    data-user-dept-id="{{ $userDeptId }}"
+                                    data-toggle-id="allWorkersToWorker"
+                                    required>
                                 <option value="">— Выберите пильщика —</option>
                                 @foreach($workers as $worker)
-                                    <option value="{{ $worker->id }}" {{ old('to_worker_id') == $worker->id ? 'selected' : '' }}>
+                                    <option value="{{ $worker->id }}"
+                                        data-department-id="{{ $worker->department_id }}"
+                                        {{ old('to_worker_id') == $worker->id ? 'selected' : '' }}>
                                         {{ $worker->name }}
                                     </option>
                                 @endforeach
@@ -72,3 +87,7 @@
 
 </div>
 @endsection
+
+@push('scripts')
+    @vite(['resources/js/worker-picker.js'])
+@endpush

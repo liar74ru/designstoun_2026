@@ -3,6 +3,7 @@
 @section('title', 'Новая приёмка')
 
 @section('content')
+    @php $userDeptId = auth()->user()?->worker?->department_id; @endphp
     <div class="container py-3 py-md-4">
 
         <x-page-header
@@ -32,8 +33,14 @@
 
                             {{-- Блок 1: Участники --}}
                             <div class="info-block">
-                                <div class="info-block-header">
+                                <div class="info-block-header d-flex justify-content-between align-items-center">
                                     <span class="small fw-semibold text-muted">Участники</span>
+                                    @if($userDeptId)
+                                        <div class="form-check form-check-inline mb-0">
+                                            <input class="form-check-input" type="checkbox" id="allWorkersParticipants">
+                                            <label class="form-check-label small text-muted" for="allWorkersParticipants">все работники</label>
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="info-block-body">
                                     <div class="row g-2">
@@ -42,11 +49,14 @@
                                                 Пильщик <span class="text-danger">*</span>
                                             </label>
                                             <select name="cutter_id" id="cutterSelect"
-                                                    class="form-select form-select-sm @error('cutter_id') is-invalid @enderror"
-                                                    style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem">
+                                                    class="form-select form-select-sm worker-picker @error('cutter_id') is-invalid @enderror"
+                                                    style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
+                                                    data-user-dept-id="{{ $userDeptId }}"
+                                                    data-toggle-id="allWorkersParticipants">
                                                 <option value="">— пильщик —</option>
                                                 @foreach($workers as $worker)
                                                     <option value="{{ $worker->id }}"
+                                                        data-department-id="{{ $worker->department_id }}"
                                                         {{ old('cutter_id', request('cutter_id')) == $worker->id ? 'selected' : '' }}>
                                                         {{ $worker->name }}
                                                     </option>
@@ -61,11 +71,14 @@
                                                 Приёмщик <span class="text-danger">*</span>
                                             </label>
                                             <select name="receiver_id"
-                                                    class="form-select form-select-sm @error('receiver_id') is-invalid @enderror" required
-                                                    style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem">
+                                                    class="form-select form-select-sm worker-picker @error('receiver_id') is-invalid @enderror" required
+                                                    style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
+                                                    data-user-dept-id="{{ $userDeptId }}"
+                                                    data-toggle-id="allWorkersParticipants">
                                                 <option value="">— приёмщик —</option>
                                                 @foreach($masterWorkers as $worker)
                                                     <option value="{{ $worker->id }}"
+                                                        data-department-id="{{ $worker->department_id }}"
                                                         {{ old('receiver_id', auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
                                                         {{ $worker->name }}
                                                     </option>
@@ -883,5 +896,5 @@
         ])
     </template>
 
-    @vite(['resources/js/product-picker.js'])
+    @vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
 @endpush

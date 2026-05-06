@@ -13,6 +13,7 @@ export default defineConfig({
                 'resources/js/product-picker.js',
                 'resources/js/product-search.js',
                 'resources/js/tree-view.js',
+                'resources/js/worker-picker.js',
             ],
             refresh: true,
         }),

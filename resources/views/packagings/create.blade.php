@@ -2,6 +2,7 @@
 @section('title', 'Новая упаковка')
 
 @section('content')
+@php $userDeptId = auth()->user()?->worker?->department_id; @endphp
 <div class="container py-3 py-md-4" style="max-width:980px">
 
     <x-page-header title="Новая упаковка" :back-url="route('packagings.index')" mobileTitle="Упаковка" />
@@ -17,15 +18,29 @@
                 {{-- Блок: Участники --}}
                 <div class="card shadow-sm mb-3">
                     <div class="card-body">
+                        @if($userDeptId)
+                            <div class="d-flex justify-content-end mb-1">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="checkbox" id="allWorkersParticipantsPack">
+                                    <label class="form-check-label small text-muted" for="allWorkersParticipantsPack">все работники</label>
+                                </div>
+                            </div>
+                        @endif
                         <div class="row g-2">
                             <div class="col-12 col-sm-6">
                                 <label for="packerSelect" class="form-label small fw-semibold mb-1">Упаковщик <span class="text-danger">*</span></label>
-                                <select name="packer_id" id="packerSelect" class="form-select form-select-sm" style="border-radius:.4rem" required>
+                                <select name="packer_id" id="packerSelect"
+                                        class="form-select form-select-sm worker-picker"
+                                        style="border-radius:.4rem"
+                                        data-user-dept-id="{{ $userDeptId }}"
+                                        data-toggle-id="allWorkersParticipantsPack"
+                                        required>
                                     <option value="">— упаковщик —</option>
                                     @foreach($packers as $worker)
                                         <option value="{{ $worker->id }}"
                                             data-store-id="{{ optional($worker->department?->defaultProductionStore)->id }}"
                                             data-store-name="{{ optional($worker->department?->defaultProductionStore)->name }}"
+                                            data-department-id="{{ $worker->department_id }}"
                                             {{ old('packer_id', $selectedPackerId ?? '') == $worker->id ? 'selected' : '' }}>
                                             {{ $worker->name }}
                                         </option>
@@ -34,9 +49,15 @@
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small fw-semibold mb-1">Приёмщик <span class="text-danger">*</span></label>
-                                <select name="receiver_id" class="form-select form-select-sm" style="border-radius:.4rem" required>
+                                <select name="receiver_id"
+                                        class="form-select form-select-sm worker-picker"
+                                        style="border-radius:.4rem"
+                                        data-user-dept-id="{{ $userDeptId }}"
+                                        data-toggle-id="allWorkersParticipantsPack"
+                                        required>
                                     @foreach($masterWorkers as $worker)
                                         <option value="{{ $worker->id }}"
+                                            data-department-id="{{ $worker->department_id }}"
                                             {{ old('receiver_id', auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
                                             {{ $worker->name }}
                                         </option>
@@ -174,7 +195,7 @@
 @endsection
 
 @push('scripts')
-@vite(['resources/js/product-picker.js'])
+@vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
 <script>
 (function () {
     const container   = document.getElementById('productsContainer');
