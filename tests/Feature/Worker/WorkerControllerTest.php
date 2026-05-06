@@ -9,7 +9,7 @@ function makeWorker(array $attrs = []): Worker
 {
     return Worker::create(array_merge([
         'name'      => 'Тестов Тест',
-        'positions' => ['Пильщик'],
+        'positions' => ['Работник'],
         'phone'     => null,
         'email'     => null,
     ], $attrs));
@@ -75,7 +75,7 @@ describe('WorkerController store()', function () {
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
                 'name'      => 'Новиков Иван',
-                'positions' => ['Пильщик'],
+                'positions' => ['Работник'],
             ])
             ->assertRedirect(route('workers.index'))
             ->assertSessionHas('success');
@@ -99,7 +99,7 @@ describe('WorkerController store()', function () {
 
     test('отклоняет без имени', function () {
         $this->actingAs(H::adminUser())
-            ->post(route('workers.store'), ['positions' => ['Пильщик']])
+            ->post(route('workers.store'), ['positions' => ['Работник']])
             ->assertSessionHasErrors('name');
     });
 
@@ -118,7 +118,7 @@ describe('WorkerController store()', function () {
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
                 'name'      => 'Другой Работник',
-                'positions' => ['Пильщик'],
+                'positions' => ['Работник'],
                 'email'     => 'dup@test.com',
             ])
             ->assertSessionHasErrors('email');
@@ -180,7 +180,7 @@ describe('WorkerController update()', function () {
         $this->actingAs(H::adminUser())
             ->put(route('workers.update', $worker), [
                 'name'      => 'Синхронов Синх',
-                'positions' => ['Пильщик'],
+                'positions' => ['Работник'],
                 'phone'     => '999',
             ])
             ->assertRedirect(route('workers.index'));
@@ -192,7 +192,7 @@ describe('WorkerController update()', function () {
         $worker = makeWorker();
 
         $this->actingAs(H::adminUser())
-            ->put(route('workers.update', $worker), ['positions' => ['Пильщик']])
+            ->put(route('workers.update', $worker), ['positions' => ['Работник']])
             ->assertSessionHasErrors('name');
     });
 

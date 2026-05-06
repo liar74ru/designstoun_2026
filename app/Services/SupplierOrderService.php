@@ -52,7 +52,7 @@ class SupplierOrderService
         $stores = Store::where('archived', false)->orderBy('name')->get();
         $counterparties = Counterparty::orderBy('name')->get();
         $receivers = Worker::where(function ($q) {
-            foreach (['Директор', 'Администратор', 'Мастер', 'Кладовщик'] as $pos) {
+            foreach (['Администратор', 'Мастер'] as $pos) {
                 $q->orWhereJsonContains('positions', $pos);
             }
         })->orderBy('name')->get();

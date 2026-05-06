@@ -1,0 +1,83 @@
+<?php
+
+return [
+    'master-dashboard' => [
+        'label'         => 'Дашборд',
+        'icon'          => 'bi-bar-chart-line',
+        'route'         => 'master.dashboard',
+        'route_pattern' => 'master.dashboard',
+        'roles'         => ['master'],
+    ],
+    'worker-dashboard' => [
+        'label'          => 'Выраб.',
+        'icon'           => 'bi-bar-chart-line',
+        'route'          => 'worker.dashboard',
+        'route_pattern'  => 'worker.dashboard',
+        'roles'          => ['worker'],
+        'always_visible' => true,
+    ],
+    'home' => [
+        'label'         => 'Домой',
+        'icon'          => 'bi-house-door-fill',
+        'route'         => null,
+        'url'           => '/',
+        'route_pattern' => null,
+        'roles'         => ['admin'],
+    ],
+    'stone-receptions' => [
+        'label'         => 'Приём',
+        'icon'          => 'bi-journal-text',
+        'route'         => 'stone-receptions.logs',
+        'route_pattern' => 'stone-receptions.*',
+        'roles'         => ['master', 'admin'],
+    ],
+    'packagings' => [
+        'label'         => 'Упак.',
+        'icon'          => 'bi-box-seam',
+        'route'         => 'packagings.index',
+        'route_pattern' => 'packagings.*',
+        'roles'         => ['master', 'admin'],
+    ],
+    'raw-batches' => [
+        'label'         => 'Сырьё',
+        'icon'          => 'bi-arrow-left-right',
+        'route'         => 'raw-batches.index',
+        'route_pattern' => 'raw-batches.*',
+        'roles'         => ['master', 'admin'],
+    ],
+    'supplier-orders' => [
+        'label'         => 'Приход',
+        'icon'          => 'bi-plus-circle',
+        'route'         => 'supplier-orders.index',
+        'route_pattern' => 'supplier-orders.*',
+        'roles'         => ['master', 'admin'],
+    ],
+    'products' => [
+        'label'         => 'Товары',
+        'icon'          => 'bi-box-seam',
+        'route'         => 'products.index',
+        'route_pattern' => 'products.*',
+        'roles'         => ['admin'],
+    ],
+    'workers' => [
+        'label'         => 'Раб-ки',
+        'icon'          => 'bi-people',
+        'route'         => 'workers.index',
+        'route_pattern' => 'workers.*',
+        'roles'         => ['master', 'admin'],
+    ],
+    'orders' => [
+        'label'         => 'Заказы',
+        'icon'          => 'bi-bag',
+        'route'         => 'orders.index',
+        'route_pattern' => 'orders.*',
+        'roles'         => ['admin'],
+    ],
+    'admin-settings' => [
+        'label'         => 'Настройки',
+        'icon'          => 'bi-gear',
+        'route'         => 'admin.settings.index',
+        'route_pattern' => 'admin.settings.*',
+        'roles'         => ['admin'],
+    ],
+];

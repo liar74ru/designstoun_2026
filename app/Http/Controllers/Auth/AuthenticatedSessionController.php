@@ -38,7 +38,7 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('stone-receptions.logs');
         }
 
-        // Пильщики, Галтовщики и другие рабочие — на их дашборд
+        // Работники — на их дашборд
         if ($user->isWorker()) {
             return redirect()->route('worker.dashboard');
         }

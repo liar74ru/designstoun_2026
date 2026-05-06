@@ -46,7 +46,7 @@
                                     <div class="row g-2">
                                         <div class="col-6">
                                             <label class="form-label small fw-semibold mb-1">
-                                                Пильщик <span class="text-danger">*</span>
+                                                Работник <span class="text-danger">*</span>
                                             </label>
                                             <select name="cutter_id" id="cutterSelect"
                                                     class="form-select form-select-sm worker-picker @error('cutter_id') is-invalid @enderror"

@@ -102,7 +102,50 @@
         </div>
     </div>
 
-    {{-- 2. Список сотрудников --}}
+    {{-- 2. Операции в шапке --}}
+    <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold py-2">Операции в шапке</div>
+        <div class="card-body p-3">
+            <form method="POST" action="{{ route('admin.departments.operations.update', $department) }}">
+                @csrf
+                @method('PATCH')
+
+                <ul class="list-group list-group-flush">
+                    @foreach($operations as $key => $op)
+                        @php $always = $op['always_visible'] ?? false; @endphp
+                        <li class="list-group-item d-flex align-items-center px-0 py-2">
+                            <i class="bi {{ $op['icon'] }} me-2 fs-5"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold small">{{ $op['label'] }}</div>
+                                <div class="text-muted" style="font-size:.75rem">
+                                    {{ implode(', ', $op['roles']) }}
+                                    @if($always)
+                                        <span class="badge bg-secondary ms-1">всегда видна</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="form-check form-switch ms-2 mb-0">
+                                <input type="hidden" name="operations[{{ $key }}]" value="0">
+                                <input class="form-check-input" type="checkbox"
+                                       name="operations[{{ $key }}]" value="1"
+                                       id="op_{{ $key }}"
+                                       {{ ($always || in_array($key, $enabledOperationKeys, true)) ? 'checked' : '' }}
+                                       {{ $always ? 'disabled' : '' }}>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+
+                <div class="mt-3 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg"></i> Сохранить операции
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- 3. Список сотрудников --}}
     <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold py-2">
             Сотрудники ({{ $workers->count() }})
@@ -156,7 +199,7 @@
         </div>
     </div>
 
-    {{-- 3. Склады по умолчанию --}}
+    {{-- 4. Склады по умолчанию --}}
     <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold py-2">Склады по умолчанию</div>
         <div class="card-body">

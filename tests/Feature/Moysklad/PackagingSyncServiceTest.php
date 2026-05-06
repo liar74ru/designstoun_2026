@@ -17,7 +17,7 @@ beforeEach(function () {
     Setting::set('PACKAGING_PROD_COST', 100);
     Setting::set('PACKAGING_COST', 30);
 
-    $this->packer   = Worker::create(['name' => 'Упаковщик', 'positions' => ['Упаковщик']]);
+    $this->packer   = Worker::create(['name' => 'Упаковщик', 'positions' => ['Мастер']]);
     $this->receiver = Worker::create(['name' => 'Мастер',    'positions' => ['Мастер']]);
     $this->store    = Store::factory()->create();
 

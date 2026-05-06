@@ -83,24 +83,22 @@ class WorkerService
     {
         if (DB::getDriverName() === 'pgsql') {
             return "CASE
-                WHEN positions::jsonb @> '[\"Директор\"]'::jsonb     THEN 1
-                WHEN positions::jsonb @> '[\"Мастер\"]'::jsonb       THEN 2
-                WHEN positions::jsonb @> '[\"Приёмщик\"]'::jsonb     THEN 3
-                WHEN positions::jsonb @> '[\"Пильщик\"]'::jsonb      THEN 4
-                WHEN positions::jsonb @> '[\"Галтовщик\"]'::jsonb    THEN 5
-                WHEN positions::jsonb @> '[\"Разнорабочий\"]'::jsonb THEN 6
-                ELSE 7
+                WHEN positions::jsonb @> '[\"Администратор\"]'::jsonb    THEN 1
+                WHEN positions::jsonb @> '[\"Мастер\"]'::jsonb           THEN 2
+                WHEN positions::jsonb @> '[\"Помощник мастера\"]'::jsonb THEN 3
+                WHEN positions::jsonb @> '[\"Работник\"]'::jsonb         THEN 4
+                WHEN positions::jsonb @> '[\"Разнорабочий\"]'::jsonb     THEN 5
+                ELSE 6
               END";
         }
 
         return "CASE
-            WHEN positions LIKE '%\"Директор\"%'     THEN 1
-            WHEN positions LIKE '%\"Мастер\"%'       THEN 2
-            WHEN positions LIKE '%\"Приёмщик\"%'     THEN 3
-            WHEN positions LIKE '%\"Пильщик\"%'      THEN 4
-            WHEN positions LIKE '%\"Галтовщик\"%'    THEN 5
-            WHEN positions LIKE '%\"Разнорабочий\"%' THEN 6
-            ELSE 7
+            WHEN positions LIKE '%\"Администратор\"%'    THEN 1
+            WHEN positions LIKE '%\"Мастер\"%'           THEN 2
+            WHEN positions LIKE '%\"Помощник мастера\"%' THEN 3
+            WHEN positions LIKE '%\"Работник\"%'         THEN 4
+            WHEN positions LIKE '%\"Разнорабочий\"%'     THEN 5
+            ELSE 6
           END";
     }
 }

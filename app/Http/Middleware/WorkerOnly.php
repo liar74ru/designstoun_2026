@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Ограничивает доступ для рабочих специальностей (Пильщик, Галтовщик и т.д.).
+ * Ограничивает доступ для роли «Работник».
  * Рабочий может посещать только:
  *   - свой дашборд (/my-work)
  *   - страницу смены пароля (/workers/{id}/edit-user)

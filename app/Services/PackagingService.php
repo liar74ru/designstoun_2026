@@ -29,13 +29,13 @@ class PackagingService
     public function getFormOptions(?Packaging $packaging = null): array
     {
         $packers = Worker::where(function ($q) {
-            foreach (['Упаковщик', 'Мастер', 'Директор', 'Администратор'] as $pos) {
+            foreach (['Мастер', 'Администратор'] as $pos) {
                 $q->orWhereJsonContains('positions', $pos);
             }
         })->orderBy('name')->get();
 
         $masterWorkers = Worker::where(function ($q) {
-            foreach (['Мастер', 'Директор', 'Администратор'] as $pos) {
+            foreach (['Мастер', 'Администратор'] as $pos) {
                 $q->orWhereJsonContains('positions', $pos);
             }
         })->orderBy('name')->get();

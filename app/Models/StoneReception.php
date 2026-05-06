@@ -56,7 +56,7 @@ class StoneReception extends Model
     }
 
     /**
-     * Пильщик
+     * Работник
      */
     public function cutter()
     {

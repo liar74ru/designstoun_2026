@@ -45,11 +45,11 @@
                                 </div>
                             @endif
 
-                            {{-- Пильщик --}}
+                            {{-- Работник --}}
                             <div class="info-block">
                                 <div class="info-block-header d-flex justify-content-between align-items-center">
                                     <span class="small fw-semibold text-muted">
-                                        Закрепить за пильщиком <span class="text-danger">*</span>
+                                        Закрепить за работником <span class="text-danger">*</span>
                                     </span>
                                     @if($userDeptId)
                                         <div class="form-check form-check-inline mb-0">
@@ -465,7 +465,7 @@
                     const data = JSON.parse(btn.dataset.batch || '{}');
                     if (!data.product_id) return;
 
-                    // Пильщик — только если ещё не выбран
+                    // Работник — только если ещё не выбран
                     if (data.worker_id && workerSelect && !workerSelect.value) {
                         workerSelect.value = data.worker_id;
                         fetchBatchNumber(data.worker_id);

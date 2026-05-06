@@ -14,7 +14,7 @@ function makePackagingInDept(?Department $dept, string $tag): Packaging
     $store    = H::store('Склад ' . $tag);
     $packer   = Worker::create([
         'name'      => 'Упаковщик ' . $tag,
-        'positions' => ['Упаковщик'],
+        'positions' => ['Мастер'],
     ]);
     $receiver = Worker::create([
         'name'      => 'Приёмщик ' . $tag,

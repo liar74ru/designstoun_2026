@@ -76,7 +76,7 @@
                                                 @endif
                                             </div>
                                             <div class="col-6">
-                                                <label class="form-label small text-muted mb-0" style="font-size:.7rem">Пильщик</label>
+                                                <label class="form-label small text-muted mb-0" style="font-size:.7rem">Работник</label>
                                                 <input type="text" class="form-control form-control-sm bg-light"
                                                        style="font-size:.8rem" value="{{ $stoneReception->cutter->name ?? '— Не указан —' }}" readonly>
                                                 <input type="hidden" name="cutter_id" value="{{ $stoneReception->cutter_id }}">

@@ -88,12 +88,12 @@
             {{-- Фильтры --}}
             <div class="row g-2">
 
-                {{-- Пильщик --}}
+                {{-- Работник --}}
                 @if($filterCutters)
                 <div class="col-12 col-sm-6 {{ $colClass }}">
-                    <label class="form-label small text-muted mb-1">Пильщик</label>
+                    <label class="form-label small text-muted mb-1">Работник</label>
                     <select name="filter[{{ $cutterParam }}]" class="form-select" style="border-radius:.4rem">
-                        <option value="">Все пильщики</option>
+                        <option value="">Все работники</option>
                         @foreach($filterCutters as $cutter)
                             <option value="{{ $cutter->id }}"
                                 {{ request("filter.$cutterParam") == $cutter->id ? 'selected' : '' }}>

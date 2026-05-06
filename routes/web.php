@@ -135,6 +135,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/settings',  [AdminSettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
+        Route::patch('/departments/{department}/operations', [DepartmentController::class, 'updateOperations'])->name('departments.operations.update');
         Route::resource('departments', DepartmentController::class)->only(['create', 'store', 'show', 'update', 'destroy']);
     });
 });

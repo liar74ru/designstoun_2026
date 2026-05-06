@@ -58,7 +58,7 @@ test('страница дашборда мастера показывает им
 
 test('страница дашборда мастера показывает приёмки за период', function () {
     $master = Worker::create(['name' => 'Мастер Приёмок', 'positions' => ['Мастер']]);
-    $cutter = Worker::create(['name' => 'Пильщик Приёмок', 'positions' => ['Пильщик']]);
+    $cutter = Worker::create(['name' => 'Пильщик Приёмок', 'positions' => ['Работник']]);
     $store = Store::factory()->create();
     $product = Product::factory()->create();
     $user = User::factory()->create(['worker_id' => $master->id, 'is_admin' => false]);
@@ -82,7 +82,7 @@ test('страница дашборда мастера показывает пр
 
 test('страница дашборда мастера фильтрует приёмки по датам', function () {
     $master = Worker::create(['name' => 'Мастер Фильтр', 'positions' => ['Мастер']]);
-    $cutter = Worker::create(['name' => 'Пильщик Фильтр', 'positions' => ['Пильщик']]);
+    $cutter = Worker::create(['name' => 'Пильщик Фильтр', 'positions' => ['Работник']]);
     $store = Store::factory()->create();
     $user = User::factory()->create(['worker_id' => $master->id, 'is_admin' => false]);
 

@@ -36,7 +36,7 @@ describe('GET /admin/settings', function () {
     });
 
     test('пильщик получает редирект (WorkerOnly middleware)', function () {
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $user   = User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
 
         $this->actingAs($user)
@@ -82,7 +82,7 @@ describe('POST /admin/settings', function () {
     });
 
     test('пильщик получает редирект (WorkerOnly middleware)', function () {
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $user   = User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
 
         $this->actingAs($user)

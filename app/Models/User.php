@@ -50,11 +50,6 @@ class User extends Authenticatable
         return $this->is_admin;
     }
 
-    public function isCutter(): bool
-    {
-        return $this->worker?->hasPosition('Пильщик') ?? false;
-    }
-
     public function isMaster(): bool
     {
         return $this->worker?->hasPosition('Мастер') ?? false;
@@ -62,7 +57,7 @@ class User extends Authenticatable
 
     public function isWorker(): bool
     {
-        return $this->worker?->hasPosition('Пильщик') || $this->worker?->hasPosition('Галтовщик') ?? false;
+        return $this->worker?->hasPosition('Работник') ?? false;
     }
 
     /**

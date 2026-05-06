@@ -36,7 +36,7 @@ describe('StoneReceptionService::getFilterData()', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $product = Product::factory()->create(['name' => 'Плитка']);
         $store = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -46,7 +46,7 @@ describe('StoneReceptionService::getFilterData()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
         StoneReception::create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $worker->id,
@@ -78,7 +78,7 @@ describe('StoneReceptionService::create()', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $product = Product::factory()->create(['name' => 'Плитка']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -88,7 +88,7 @@ describe('StoneReceptionService::create()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
 
         $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
         $mockSync->shouldReceive('syncReception')->andReturn(null);
@@ -113,7 +113,7 @@ describe('StoneReceptionService::create()', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $product = Product::factory()->create(['name' => 'Плитка']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -123,7 +123,7 @@ describe('StoneReceptionService::create()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
 
         $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
         $mockSync->shouldReceive('syncReception')->andReturn(null);
@@ -151,7 +151,7 @@ describe('StoneReceptionService::create()', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $product = Product::factory()->create(['name' => 'Плитка']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -161,7 +161,7 @@ describe('StoneReceptionService::create()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
         $oldReception = StoneReception::create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -212,7 +212,7 @@ describe('StoneReceptionService::update()', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $product = Product::factory()->create(['name' => 'Плитка']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -222,7 +222,7 @@ describe('StoneReceptionService::update()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
         $reception = StoneReception::create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -261,7 +261,7 @@ describe('StoneReceptionService::update()', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $product = Product::factory()->create(['name' => 'Плитка']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -271,7 +271,7 @@ describe('StoneReceptionService::update()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
         $reception = StoneReception::create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -316,7 +316,7 @@ describe('StoneReceptionService::delete()', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $product = Product::factory()->create(['name' => 'Плитка']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -326,7 +326,7 @@ describe('StoneReceptionService::delete()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
         $reception = StoneReception::create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -355,7 +355,7 @@ describe('StoneReceptionService::closeBatch()', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $product = Product::factory()->create(['name' => 'Плитка']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -365,7 +365,7 @@ describe('StoneReceptionService::closeBatch()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
         $reception = StoneReception::create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -392,7 +392,7 @@ describe('StoneReceptionService::closeBatch()', function () {
     test('не закрывает если партия не в работе', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -420,7 +420,7 @@ describe('StoneReceptionService::markCompleted()', function () {
     test('завершает приёмку', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -430,7 +430,7 @@ describe('StoneReceptionService::markCompleted()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
         $reception = StoneReception::create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -461,7 +461,7 @@ describe('StoneReceptionService::resetStatus()', function () {
     test('сбрасывает статус на active', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -471,7 +471,7 @@ describe('StoneReceptionService::resetStatus()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
         $reception = StoneReception::create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -494,7 +494,7 @@ describe('StoneReceptionService::resetStatus()', function () {
     test('не сбрасывает если есть более новая приёмка', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Пильщик']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
@@ -504,7 +504,7 @@ describe('StoneReceptionService::resetStatus()', function () {
             'status' => RawMaterialBatch::STATUS_IN_WORK,
         ]);
 
-        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Приёмщик']]);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'positions' => ['Мастер']]);
         $oldReception = StoneReception::create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,

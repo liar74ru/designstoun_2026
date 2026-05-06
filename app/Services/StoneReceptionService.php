@@ -39,7 +39,7 @@ class StoneReceptionService
     {
         $data = [
             'masterWorkers' => Worker::where(function ($q) {
-                foreach (['Мастер', 'Директор', 'Администратор'] as $pos) {
+                foreach (['Мастер', 'Администратор'] as $pos) {
                     $q->orWhereJsonContains('positions', $pos);
                 }
             })->orderBy('name')->get(),

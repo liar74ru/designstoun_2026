@@ -49,12 +49,11 @@
                     <tbody>
                     @php
                         $positionColors = [
-                            'Директор'     => '#212529',
-                            'Мастер'       => '#e6a817',
-                            'Пильщик'      => '#0d6efd',
-                            'Галтовщик'    => '#0dcaf0',
-                            'Приёмщик'     => '#198754',
-                            'Разнорабочий' => '#6c757d',
+                            'Администратор'    => '#212529',
+                            'Мастер'           => '#e6a817',
+                            'Помощник мастера' => '#fd7e14',
+                            'Работник'         => '#0d6efd',
+                            'Разнорабочий'     => '#6c757d',
                         ];
                     @endphp
                     @foreach($workers as $worker)
@@ -67,7 +66,7 @@
                                     @forelse($worker->positions ?? [] as $pos)
                                         @php $posColor = $positionColors[$pos] ?? '#dee2e6'; @endphp
                                         <span class="badge small"
-                                              style="background:{{ $posColor }};color:{{ in_array($pos, ['Мастер','Галтовщик']) ? '#212529' : '#fff' }}">
+                                              style="background:{{ $posColor }};color:{{ in_array($pos, ['Мастер']) ? '#212529' : '#fff' }}">
                                             {{ $pos }}
                                         </span>
                                     @empty
@@ -116,7 +115,7 @@
                             </td>
                             <td>
                                 <div class="d-flex gap-1 justify-content-center">
-                                    @if($worker->hasPosition('Пильщик'))
+                                    @if($worker->hasPosition('Работник'))
                                         <a href="{{ route('worker.dashboard.by-id', $worker->id) }}"
                                            class="btn btn-sm btn-outline-success" title="Выработка">
                                             <i class="bi bi-bar-chart"></i>
@@ -169,7 +168,7 @@
                             @forelse($worker->positions ?? [] as $pos)
                                 @php $badgeColor = $positionColors[$pos] ?? '#dee2e6'; @endphp
                                 <span class="badge small"
-                                      style="background:{{ $badgeColor }};color:{{ in_array($pos, ['Мастер','Галтовщик']) ? '#212529' : '#fff' }}">
+                                      style="background:{{ $badgeColor }};color:{{ in_array($pos, ['Мастер']) ? '#212529' : '#fff' }}">
                                     {{ $pos }}
                                 </span>
                             @empty
@@ -219,7 +218,7 @@
 
                         {{-- Правая часть: кнопки в столбик --}}
                         <div class="d-flex flex-column gap-1 flex-shrink-0" style="min-width:90px">
-                            @if($worker->hasPosition('Пильщик'))
+                            @if($worker->hasPosition('Работник'))
                                 <a href="{{ route('worker.dashboard.by-id', $worker->id) }}"
                                    class="btn btn-sm btn-outline-success w-100">
                                     <i class="bi bi-bar-chart"></i> Выработка

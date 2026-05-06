@@ -55,7 +55,7 @@
                             <div class="info-block-body">
                                 <div class="row g-1">
                                     <div class="col-6">
-                                        <div class="text-muted" style="font-size:.72rem">Пильщик</div>
+                                        <div class="text-muted" style="font-size:.72rem">Работник</div>
                                         <div class="small fw-semibold">{{ $stoneReception->cutter->name ?? '—' }}</div>
                                     </div>
                                     <div class="col-6">

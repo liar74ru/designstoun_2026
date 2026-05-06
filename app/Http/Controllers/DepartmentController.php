@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Models\DepartmentOperationSetting;
 use App\Models\Store;
 use App\Models\Worker;
 use Illuminate\Http\Request;
@@ -37,11 +38,41 @@ class DepartmentController extends Controller
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        $workers    = $department->activeWorkers()->get();
-        $stores     = Store::where('archived', false)->orderBy('name')->get();
-        $allWorkers = Worker::orderBy('name')->get();
+        $workers              = $department->activeWorkers()->get();
+        $stores               = Store::where('archived', false)->orderBy('name')->get();
+        $allWorkers           = Worker::orderBy('name')->get();
+        $operations           = config('department_operations');
+        $enabledOperationKeys = $department->enabledOperationKeys();
 
-        return view('admin.departments.show', compact('department', 'workers', 'stores', 'allWorkers'));
+        return view('admin.departments.show', compact(
+            'department', 'workers', 'stores', 'allWorkers', 'operations', 'enabledOperationKeys'
+        ));
+    }
+
+    public function updateOperations(Request $request, Department $department)
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $request->validate([
+            'operations'   => ['array'],
+            'operations.*' => ['boolean'],
+        ]);
+
+        $payload = $request->input('operations', []);
+        $allowed = array_keys(config('department_operations'));
+
+        foreach ($allowed as $key) {
+            DepartmentOperationSetting::updateOrCreate(
+                ['department_id' => $department->id, 'operation_key' => $key],
+                ['enabled' => (bool) ($payload[$key] ?? false)],
+            );
+        }
+
+        $department->forgetOperationsCache();
+
+        return redirect()
+            ->route('admin.departments.show', $department)
+            ->with('success', 'Операции обновлены.');
     }
 
     public function update(Request $request, Department $department)

@@ -27,117 +27,41 @@
                     </a>
 
                     @auth
-                        @php $user = auth()->user(); @endphp
+                        @php
+                            $user = auth()->user();
+                            $isAdmin  = $user->isAdmin();
+                            $isMaster = $user->isMaster();
+                            $isWorker = $user->isWorker() || ($user->worker_id && !$isAdmin && !$isMaster);
+                        @endphp
 
-                        {{-- Выработка: работники + не-мастера с привязанным worker --}}
-                        @if($user->isWorker() || ($user->worker_id && !$user->isAdmin() && !$user->isMaster()))
-                            <a href="{{ route('worker.dashboard') }}"
-                               class="btn btn-sm nav-icon-btn {{ request()->routeIs('worker.dashboard') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                               title="Моя выработка">
-                                <i class="bi bi-bar-chart-line"></i>
-                                <span>Выраб.</span>
+                        @foreach(($operationsRegistry ?? []) as $key => $op)
+                            @php
+                                $roles = $op['roles'] ?? [];
+                                $alwaysVisible  = (bool) ($op['always_visible'] ?? false);
+                                $enabledForDept = in_array($key, $enabledOperationKeys ?? [], true);
+
+                                if ($isAdmin) {
+                                    $visible = true;
+                                } else {
+                                    $roleMatch =
+                                        ($isMaster && in_array('master', $roles, true)) ||
+                                        ($isWorker && in_array('worker', $roles, true));
+                                    $visible = $roleMatch && ($alwaysVisible || $enabledForDept);
+                                }
+                                if (! $visible) { continue; }
+
+                                $href = !empty($op['route']) ? route($op['route']) : url($op['url'] ?? '/');
+                                $isActive = !empty($op['route_pattern'])
+                                    ? request()->routeIs($op['route_pattern'])
+                                    : (($op['url'] ?? null) === '/' && request()->is('/'));
+                            @endphp
+                            <a href="{{ $href }}"
+                               class="btn btn-sm nav-icon-btn {{ $isActive ? 'btn-primary' : 'btn-outline-secondary' }}"
+                               title="{{ $op['label'] }}">
+                                <i class="bi {{ $op['icon'] }}"></i>
+                                <span>{{ $op['label'] }}</span>
                             </a>
-                        @endif
-
-                            {{-- Дашборд мастера --}}
-                            @if($user->isMaster())
-                                <a href="{{ route('master.dashboard') }}"
-                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('master.dashboard') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                                   title="Дашборд мастера">
-                                    <i class="bi bi-bar-chart-line"></i>
-                                    <span>Дашборд</span>
-                                </a>
-                            @endif
-
-                            {{-- Домой: только admin --}}
-                            @if($user->isAdmin())
-                                <a href="{{ url('/') }}"
-                                   class="btn btn-sm nav-icon-btn {{ request()->is('/') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                                   title="Главная">
-                                    <i class="bi bi-house-door-fill"></i>
-                                    <span>Домой</span>
-                                </a>
-                            @endif
-
-                            {{-- Приёмка: admin + master --}}
-                            @if($user->isMaster() || $user->isAdmin())
-                                <a href="{{ route('stone-receptions.logs') }}"
-                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('stone-receptions.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                                   title="Приёмка">
-                                    <i class="bi bi-journal-text"></i>
-                                    <span>Приём</span>
-                                </a>
-                            @endif
-
-                            {{-- Упаковка: admin + master --}}
-                            @if($user->isMaster() || $user->isAdmin())
-                                <a href="{{ route('packagings.index') }}"
-                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('packagings.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                                   title="Упаковка">
-                                    <i class="bi bi-box-seam"></i>
-                                    <span>Упак.</span>
-                                </a>
-                            @endif
-
-                            {{-- Сырьё (партии): admin + master --}}
-                            @if($user->isMaster() || $user->isAdmin())
-                                <a href="{{ route('raw-batches.index') }}"
-                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('raw-batches.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                                   title="Сырьё">
-                                    <i class="bi bi-arrow-left-right"></i>
-                                    <span>Сырьё</span>
-                                </a>
-                            @endif
-
-                            {{-- Поступление сырья: admin + master --}}
-                            @if($user->isMaster() || $user->isAdmin())
-                                <a href="{{ route('supplier-orders.index') }}"
-                               class="btn btn-sm nav-icon-btn {{ request()->routeIs('supplier-orders.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                               title="Поступление">
-                                <i class="bi bi-plus-circle"></i>
-                                <span>Приход</span>
-                            </a>
-                            @endif
-
-                            {{-- Товары: только admin --}}
-                            @if($user->isAdmin())
-                                <a href="{{ route('products.index') }}"
-                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('products.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                                   title="Товары">
-                                    <i class="bi bi-box-seam"></i>
-                                    <span>Товары</span>
-                                </a>
-                            @endif
-
-                            {{-- Работники: admin + master --}}
-                            @if($user->isMaster() || $user->isAdmin())
-                            <a href="{{ route('workers.index') }}"
-                               class="btn btn-sm nav-icon-btn {{ request()->routeIs('workers.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                               title="Работники">
-                                <i class="bi bi-people"></i>
-                                <span>Раб-ки</span>
-                            </a>
-                           @endif
-
-                            {{-- Заказы: только admin --}}
-                            @if($user->isAdmin())
-                                <a href="{{ route('orders.index') }}"
-                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('orders.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                                   title="Заказы">
-                                    <i class="bi bi-bag"></i>
-                                    <span>Заказы</span>
-                                </a>
-                            @endif
-
-                            {{-- Настройки: только admin --}}
-                            @if($user->isAdmin())
-                                <a href="{{ route('admin.settings.index') }}"
-                                   class="btn btn-sm nav-icon-btn {{ request()->routeIs('admin.settings.*') ? 'btn-primary' : 'btn-outline-secondary' }}"
-                                   title="Настройки">
-                                    <i class="bi bi-gear"></i>
-                                    <span>Настройки</span>
-                                </a>
-                            @endif
+                        @endforeach
                     @endauth
                 </div>
 

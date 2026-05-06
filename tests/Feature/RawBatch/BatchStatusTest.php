@@ -13,7 +13,7 @@ function makeBatch(string $status = 'in_work', float $remaining = 5.0): RawMater
 {
     $product = Product::factory()->create();
     $store   = Store::factory()->create();
-    $worker  = Worker::create(['name' => 'Тест Тестов', 'positions' => ['Пильщик']]);
+    $worker  = Worker::create(['name' => 'Тест Тестов', 'positions' => ['Работник']]);
 
     return RawMaterialBatch::create([
         'product_id'         => $product->id,
@@ -27,7 +27,7 @@ function makeBatch(string $status = 'in_work', float $remaining = 5.0): RawMater
 
 function makeAdminUser(): User
 {
-    $worker = Worker::create(['name' => 'Админ', 'positions' => ['Директор']]);
+    $worker = Worker::create(['name' => 'Админ', 'positions' => ['Администратор']]);
     return User::factory()->create(['worker_id' => $worker->id, 'is_admin' => true]);
 }
 

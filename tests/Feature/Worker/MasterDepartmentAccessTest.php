@@ -31,7 +31,7 @@ function makeCutterInDept(Department $dept): Worker
 {
     return Worker::create([
         'name'          => 'Пильщик Тестов',
-        'positions'     => ['Пильщик'],
+        'positions' => ['Работник'],
         'department_id' => $dept->id,
     ]);
 }
@@ -48,12 +48,12 @@ test('мастер с отделом видит только работнико�
 
     $cutter1 = Worker::create([
         'name'          => 'Пильщик Свой',
-        'positions'     => ['Пильщик'],
+        'positions' => ['Работник'],
         'department_id' => $dept1->id,
     ]);
     $cutter2 = Worker::create([
         'name'          => 'Пильщик Чужой',
-        'positions'     => ['Пильщик'],
+        'positions' => ['Работник'],
         'department_id' => $dept2->id,
     ]);
 
@@ -78,9 +78,9 @@ test('мастер без отдела видит всех работников 
     $worker = Worker::create(['name' => 'Мастер Без Отдела', 'positions' => ['Мастер']]);
     $master = User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
 
-    $cutter = Worker::create(['name' => 'Пильщик Любой', 'positions' => ['Пильщик']]);
+    $cutter = Worker::create(['name' => 'Пильщик Любой', 'positions' => ['Работник']]);
 
-    $adminWorker = Worker::create(['name' => 'Директор Главный', 'positions' => ['Директор']]);
+    $adminWorker = Worker::create(['name' => 'Директор Главный', 'positions' => ['Администратор']]);
     User::factory()->create(['is_admin' => true, 'worker_id' => $adminWorker->id]);
 
     $this->actingAs($master)
@@ -96,7 +96,7 @@ test('мастер не видит карточку работника с акк
 
     $adminWorker = Worker::create([
         'name'          => 'Директор Цеховой',
-        'positions'     => ['Директор'],
+        'positions' => ['Администратор'],
         'department_id' => $dept->id,
     ]);
     User::factory()->create(['is_admin' => true, 'worker_id' => $adminWorker->id]);

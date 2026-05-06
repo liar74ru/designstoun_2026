@@ -27,17 +27,17 @@ class ReceptionTestHelper
     /**
      * Создать работника с позицией
      */
-    public static function worker(string $name = 'Тестов Тест', string $position = 'Приемщик'): Worker
+    public static function worker(string $name = 'Тестов Тест', string $position = 'Мастер'): Worker
     {
         return Worker::create(['name' => $name, 'positions' => [$position]]);
     }
 
     /**
-     * Создать пильщика
+     * Создать работника (исполнитель резки)
      */
     public static function cutter(string $name = 'Пильщиков Пётр'): Worker
     {
-        return self::worker($name, 'Пильщик');
+        return self::worker($name, 'Работник');
     }
 
     /**
