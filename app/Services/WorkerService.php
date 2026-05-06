@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\Worker;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 
 // рефакторинг v2 от 26.04.2026 — controller → service
 class WorkerService
@@ -19,7 +18,7 @@ class WorkerService
         }
 
         if (!empty($filters['position'])) {
-            $query->whereJsonContains('positions', $filters['position']);
+            $query->where('position', $filters['position']);
         }
 
         if (!empty($filters['department_id'])) {
@@ -81,23 +80,12 @@ class WorkerService
 
     private function positionSortSql(): string
     {
-        if (DB::getDriverName() === 'pgsql') {
-            return "CASE
-                WHEN positions::jsonb @> '[\"Администратор\"]'::jsonb    THEN 1
-                WHEN positions::jsonb @> '[\"Мастер\"]'::jsonb           THEN 2
-                WHEN positions::jsonb @> '[\"Помощник мастера\"]'::jsonb THEN 3
-                WHEN positions::jsonb @> '[\"Работник\"]'::jsonb         THEN 4
-                WHEN positions::jsonb @> '[\"Разнорабочий\"]'::jsonb     THEN 5
-                ELSE 6
-              END";
-        }
-
-        return "CASE
-            WHEN positions LIKE '%\"Администратор\"%'    THEN 1
-            WHEN positions LIKE '%\"Мастер\"%'           THEN 2
-            WHEN positions LIKE '%\"Помощник мастера\"%' THEN 3
-            WHEN positions LIKE '%\"Работник\"%'         THEN 4
-            WHEN positions LIKE '%\"Разнорабочий\"%'     THEN 5
+        return "CASE position
+            WHEN 'Администратор'    THEN 1
+            WHEN 'Мастер'           THEN 2
+            WHEN 'Помощник мастера' THEN 3
+            WHEN 'Работник'         THEN 4
+            WHEN 'Разнорабочий'     THEN 5
             ELSE 6
           END";
     }

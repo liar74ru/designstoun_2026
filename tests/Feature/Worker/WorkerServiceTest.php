@@ -12,8 +12,8 @@ use App\Services\WorkerService;
 describe('WorkerService::buildIndexQuery()', function () {
 
     test('фильтрует по position', function () {
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
-        $master = Worker::create(['name' => 'Мастер', 'positions' => ['Мастер']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
+        $master = Worker::create(['name' => 'Мастер', 'position' => 'Мастер']);
         $admin = actingAsAdmin();
 
         $service = new WorkerService();
@@ -25,8 +25,8 @@ describe('WorkerService::buildIndexQuery()', function () {
 
     test('фильтрует по department_id', function () {
         $dept = Department::create(['name' => 'Тест отдел', 'code' => 'TEST']);
-        $worker1 = Worker::create(['name' => 'Работник 1', 'positions' => ['Работник'], 'department_id' => $dept->id]);
-        $worker2 = Worker::create(['name' => 'Работник 2', 'positions' => ['Работник'], 'department_id' => null]);
+        $worker1 = Worker::create(['name' => 'Работник 1', 'position' => 'Работник', 'department_id' => $dept->id]);
+        $worker2 = Worker::create(['name' => 'Работник 2', 'position' => 'Работник', 'department_id' => null]);
         $admin = actingAsAdmin();
 
         $service = new WorkerService();
@@ -39,9 +39,9 @@ describe('WorkerService::buildIndexQuery()', function () {
 test('мастер видит только свой department', function () {
         $dept1 = Department::create(['name' => 'Отдел 1', 'code' => 'D1']);
         $dept2 = Department::create(['name' => 'Отдел 2', 'code' => 'D2']);
-        $masterWorker = Worker::create(['name' => 'Мастер', 'positions' => ['Мастер'], 'department_id' => $dept1->id]);
-        $cutterInDept = Worker::create(['name' => 'Пильщик 1', 'positions' => ['Работник'], 'department_id' => $dept1->id]);
-        $cutterOutDept = Worker::create(['name' => 'Пильщик 2', 'positions' => ['Работник'], 'department_id' => $dept2->id]);
+        $masterWorker = Worker::create(['name' => 'Мастер', 'position' => 'Мастер', 'department_id' => $dept1->id]);
+        $cutterInDept = Worker::create(['name' => 'Пильщик 1', 'position' => 'Работник', 'department_id' => $dept1->id]);
+        $cutterOutDept = Worker::create(['name' => 'Пильщик 2', 'position' => 'Работник', 'department_id' => $dept2->id]);
 
         $masterUser = User::factory()->create([
             'is_admin' => false,
@@ -59,8 +59,8 @@ test('мастер видит только свой department', function () {
     });
 
     test('фильтрует по has_account', function () {
-        $workerWithUser = Worker::create(['name' => 'С юзером', 'positions' => ['Работник'], 'phone' => '79000000001']);
-        $workerWithoutUser = Worker::create(['name' => 'Без юзера', 'positions' => ['Работник']]);
+        $workerWithUser = Worker::create(['name' => 'С юзером', 'position' => 'Работник', 'phone' => '79000000001']);
+        $workerWithoutUser = Worker::create(['name' => 'Без юзера', 'position' => 'Работник']);
         User::factory()->create(['worker_id' => $workerWithUser->id, 'phone' => '79000000001']);
         $admin = actingAsAdmin();
 
@@ -79,7 +79,7 @@ test('мастер видит только свой department', function () {
 describe('WorkerService::syncPhoneToUser()', function () {
 
     test('обновляет телефон у связанного пользователя', function () {
-        $worker = Worker::create(['name' => 'Тестов', 'positions' => ['Работник'], 'phone' => '79000000001']);
+        $worker = Worker::create(['name' => 'Тестов', 'position' => 'Работник', 'phone' => '79000000001']);
         $user = User::factory()->create(['worker_id' => $worker->id, 'phone' => '79000000001']);
 
         $service = new WorkerService();
@@ -90,7 +90,7 @@ describe('WorkerService::syncPhoneToUser()', function () {
     });
 
     test('не обновляет если телефон не изменился', function () {
-        $worker = Worker::create(['name' => 'Тестов', 'positions' => ['Работник'], 'phone' => '79000000001']);
+        $worker = Worker::create(['name' => 'Тестов', 'position' => 'Работник', 'phone' => '79000000001']);
         $user = User::factory()->create(['worker_id' => $worker->id, 'phone' => '79000000001']);
 
         $service = new WorkerService();
@@ -100,7 +100,7 @@ describe('WorkerService::syncPhoneToUser()', function () {
     });
 
     test('не обновляет если у работника нет пользователя', function () {
-        $worker = Worker::create(['name' => 'Тестов', 'positions' => ['Работник'], 'phone' => null]);
+        $worker = Worker::create(['name' => 'Тестов', 'position' => 'Работник', 'phone' => null]);
 
         $service = new WorkerService();
         $service->syncPhoneToUser($worker, '79000000001');
@@ -116,7 +116,7 @@ describe('WorkerService::syncPhoneToUser()', function () {
 describe('WorkerService::createUser()', function () {
 
     test('создаёт пользователя для работника с телефоном', function () {
-        $worker = Worker::create(['name' => 'Тестов', 'positions' => ['Работник'], 'phone' => '79000000001']);
+        $worker = Worker::create(['name' => 'Тестов', 'position' => 'Работник', 'phone' => '79000000001']);
 
         $service = new WorkerService();
         $result = $service->createUser($worker, 'secret123');
@@ -126,7 +126,7 @@ describe('WorkerService::createUser()', function () {
     });
 
     test('возвращает ошибку если у работника нет телефона', function () {
-        $worker = Worker::create(['name' => 'Тестов', 'positions' => ['Работник'], 'phone' => null]);
+        $worker = Worker::create(['name' => 'Тестов', 'position' => 'Работник', 'phone' => null]);
 
         $service = new WorkerService();
         $result = $service->createUser($worker, 'secret123');
@@ -136,10 +136,10 @@ describe('WorkerService::createUser()', function () {
     });
 
     test('возвращает ошибку если телефон уже используется', function () {
-        $existingWorker = Worker::create(['name' => 'Существующий', 'positions' => ['Работник'], 'phone' => '79000000001']);
+        $existingWorker = Worker::create(['name' => 'Существующий', 'position' => 'Работник', 'phone' => '79000000001']);
         $existingUser = User::factory()->create(['phone' => '79000000001']);
 
-        $newWorker = Worker::create(['name' => 'Новый', 'positions' => ['Работник'], 'phone' => '79000000001']);
+        $newWorker = Worker::create(['name' => 'Новый', 'position' => 'Работник', 'phone' => '79000000001']);
 
         $service = new WorkerService();
         $result = $service->createUser($newWorker, 'secret123');
@@ -156,7 +156,7 @@ describe('WorkerService::createUser()', function () {
 describe('WorkerService::updateUser()', function () {
 
     test('обновляет пароль пользователя', function () {
-        $worker = Worker::create(['name' => 'Тестов', 'positions' => ['Работник'], 'phone' => '79000000001']);
+        $worker = Worker::create(['name' => 'Тестов', 'position' => 'Работник', 'phone' => '79000000001']);
         $user = User::factory()->create(['worker_id' => $worker->id, 'phone' => '79000000001']);
 
         $service = new WorkerService();
@@ -166,7 +166,7 @@ describe('WorkerService::updateUser()', function () {
     });
 
     test('админ может установить is_admin', function () {
-        $worker = Worker::create(['name' => 'Тестов', 'positions' => ['Работник'], 'phone' => '79000000001']);
+        $worker = Worker::create(['name' => 'Тестов', 'position' => 'Работник', 'phone' => '79000000001']);
         $user = User::factory()->create(['worker_id' => $worker->id, 'phone' => '79000000001', 'is_admin' => false]);
 
         $service = new WorkerService();
@@ -176,7 +176,7 @@ describe('WorkerService::updateUser()', function () {
     });
 
     test('неадмин не может установить is_admin', function () {
-        $worker = Worker::create(['name' => 'Тестов', 'positions' => ['Работник'], 'phone' => '79000000001']);
+        $worker = Worker::create(['name' => 'Тестов', 'position' => 'Работник', 'phone' => '79000000001']);
         $user = User::factory()->create(['worker_id' => $worker->id, 'phone' => '79000000001', 'is_admin' => false]);
 
         $service = new WorkerService();

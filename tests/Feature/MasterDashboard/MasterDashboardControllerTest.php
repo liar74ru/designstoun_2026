@@ -17,31 +17,33 @@ test('работник без привязки к Worker получает 403', 
 });
 
 test('мастер видит свою страницу дашборда', function () {
-    $worker = Worker::create(['name' => 'Мастеров Мастер', 'positions' => ['Мастер']]);
+    $worker = Worker::create(['name' => 'Мастеров Мастер', 'position' => 'Мастер']);
     $user = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
 
     $this->actingAs($user)->get('/master-work')->assertStatus(200);
 });
 
 test('администратор может открыть страницу любого мастера', function () {
-    $worker = Worker::create(['name' => 'Мастер Сидор', 'positions' => ['Мастер']]);
+    $worker = Worker::create(['name' => 'Мастер Сидор', 'position' => 'Мастер']);
     $admin = User::factory()->create(['is_admin' => true]);
 
     $this->actingAs($admin)->get("/master-work/{$worker->id}")->assertStatus(200);
 });
 
-test('не-администратор на /master-work/{id} видит свои данные', function () {
-    $worker1 = Worker::create(['name' => 'Мастер Иванов', 'positions' => ['Мастер']]);
-    $worker2 = Worker::create(['name' => 'Мастер Петров', 'positions' => ['Мастер']]);
+test('не-администратор на /master-work/{id} чужого мастера получает 403', function () {
+    $dept1   = \App\Models\Department::create(['name' => 'A', 'is_active' => true]);
+    $dept2   = \App\Models\Department::create(['name' => 'B', 'is_active' => true]);
+    $worker1 = Worker::create(['name' => 'Мастер Иванов', 'position' => 'Мастер', 'department_id' => $dept1->id]);
+    $worker2 = Worker::create(['name' => 'Мастер Петров', 'position' => 'Мастер', 'department_id' => $dept2->id]);
     $user = User::factory()->create(['worker_id' => $worker1->id, 'is_admin' => false]);
 
     $this->actingAs($user)
         ->get("/master-work/{$worker2->id}")
-        ->assertStatus(200);
+        ->assertForbidden();
 });
 
 test('не-администратор без worker_id на /master-work/{id} получает 403', function () {
-    $worker = Worker::create(['name' => 'Мастер Кузнецов', 'positions' => ['Мастер']]);
+    $worker = Worker::create(['name' => 'Мастер Кузнецов', 'position' => 'Мастер']);
     $user = User::factory()->create(['worker_id' => null, 'is_admin' => false]);
 
     $this->actingAs($user)
@@ -50,15 +52,15 @@ test('не-администратор без worker_id на /master-work/{id} п
 });
 
 test('страница дашборда мастера показывает имя работника', function () {
-    $worker = Worker::create(['name' => 'Мастер Алексеев', 'positions' => ['Мастер']]);
+    $worker = Worker::create(['name' => 'Мастер Алексеев', 'position' => 'Мастер']);
     $user = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
 
     $this->actingAs($user)->get('/master-work')->assertSee('Мастер Алексеев');
 });
 
 test('страница дашборда мастера показывает приёмки за период', function () {
-    $master = Worker::create(['name' => 'Мастер Приёмок', 'positions' => ['Мастер']]);
-    $cutter = Worker::create(['name' => 'Пильщик Приёмок', 'positions' => ['Работник']]);
+    $master = Worker::create(['name' => 'Мастер Приёмок', 'position' => 'Мастер']);
+    $cutter = Worker::create(['name' => 'Пильщик Приёмок', 'position' => 'Работник']);
     $store = Store::factory()->create();
     $product = Product::factory()->create();
     $user = User::factory()->create(['worker_id' => $master->id, 'is_admin' => false]);
@@ -81,8 +83,8 @@ test('страница дашборда мастера показывает пр
 });
 
 test('страница дашборда мастера фильтрует приёмки по датам', function () {
-    $master = Worker::create(['name' => 'Мастер Фильтр', 'positions' => ['Мастер']]);
-    $cutter = Worker::create(['name' => 'Пильщик Фильтр', 'positions' => ['Работник']]);
+    $master = Worker::create(['name' => 'Мастер Фильтр', 'position' => 'Мастер']);
+    $cutter = Worker::create(['name' => 'Пильщик Фильтр', 'position' => 'Работник']);
     $store = Store::factory()->create();
     $user = User::factory()->create(['worker_id' => $master->id, 'is_admin' => false]);
 

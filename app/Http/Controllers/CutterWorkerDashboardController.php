@@ -27,14 +27,9 @@ class CutterWorkerDashboardController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->isAdmin() && $workerId) {
+        if ($workerId) {
             $worker = Worker::findOrFail($workerId);
-        } elseif ($user->isMaster() && $workerId) {
-            $worker = Worker::findOrFail($workerId);
-            $masterDeptId = $user->worker?->department_id;
-            if ($masterDeptId && $worker->department_id !== $masterDeptId) {
-                abort(403, 'Нет доступа к дашборду этого работника');
-            }
+            $this->authorize('viewDashboard', $worker);
         } else {
             abort_unless($user->worker_id, 403, 'Ваш аккаунт не привязан к работнику');
             $worker = $user->worker;

@@ -54,12 +54,12 @@
                             ];
                         @endphp
                         <div class="d-flex flex-wrap gap-1">
-                            @forelse($worker->positions ?? [] as $pos)
-                                @php $c = $positionColors[$pos] ?? ['bg' => '#dee2e6', 'color' => '#212529']; @endphp
-                                <span class="badge" style="background:{{ $c['bg'] }};color:{{ $c['color'] }}">{{ $pos }}</span>
-                            @empty
+                            @if($worker->position)
+                                @php $c = $positionColors[$worker->position] ?? ['bg' => '#dee2e6', 'color' => '#212529']; @endphp
+                                <span class="badge" style="background:{{ $c['bg'] }};color:{{ $c['color'] }}">{{ $worker->position }}</span>
+                            @else
                                 <span class="text-muted small">—</span>
-                            @endforelse
+                            @endif
                             @if($worker->user->is_admin)
                                 <span class="badge bg-danger">Админ</span>
                             @endif

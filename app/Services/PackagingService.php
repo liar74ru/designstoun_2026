@@ -28,17 +28,11 @@ class PackagingService
 
     public function getFormOptions(?Packaging $packaging = null): array
     {
-        $packers = Worker::where(function ($q) {
-            foreach (['Мастер', 'Администратор'] as $pos) {
-                $q->orWhereJsonContains('positions', $pos);
-            }
-        })->orderBy('name')->get();
+        $packers = Worker::whereIn('position', ['Мастер', 'Администратор'])
+            ->orderBy('name')->get();
 
-        $masterWorkers = Worker::where(function ($q) {
-            foreach (['Мастер', 'Администратор'] as $pos) {
-                $q->orWhereJsonContains('positions', $pos);
-            }
-        })->orderBy('name')->get();
+        $masterWorkers = Worker::whereIn('position', ['Мастер', 'Администратор'])
+            ->orderBy('name')->get();
 
         $data = [
             'packers'         => $packers,

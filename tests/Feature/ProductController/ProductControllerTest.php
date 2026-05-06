@@ -389,17 +389,9 @@ describe('ProductController syncFromMoySklad()', function () {
     test('доступен только для администратора', function () {
         $user = User::factory()->create(['is_admin' => false]);
 
-        $response = $this->actingAs($user)
-            ->get(route('products.sync'));
-
-        // Проверяем что это редирект (обычно на главную или login)
-        $response->assertStatus(302);
-
-        // Или если у вас middleware проверяет is_admin и делает редирект
-        $response->assertRedirect();
-
-        // Альтернативная проверка - что нет успешного ответа
-        $response->assertDontSee('Синхронизировано');
+        $this->actingAs($user)
+            ->get(route('products.sync'))
+            ->assertForbidden();
     });
 });
 

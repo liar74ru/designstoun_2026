@@ -7,20 +7,17 @@ use App\Models\DepartmentOperationSetting;
 use App\Models\Store;
 use App\Models\Worker;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class DepartmentController extends Controller
 {
     public function create()
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
         return view('admin.departments.create');
     }
 
     public function store(Request $request)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:100', 'unique:departments,name'],
             'code'        => ['nullable', 'string', 'max:50', 'unique:departments,code'],
@@ -36,35 +33,42 @@ class DepartmentController extends Controller
 
     public function show(Department $department)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
-        $workers              = $department->activeWorkers()->get();
-        $stores               = Store::where('archived', false)->orderBy('name')->get();
-        $allWorkers           = Worker::orderBy('name')->get();
-        $operations           = config('department_operations');
-        $enabledOperationKeys = $department->enabledOperationKeys();
+        $workers           = $department->activeWorkers()->get();
+        $stores            = Store::where('archived', false)->orderBy('name')->get();
+        $allWorkers        = Worker::orderBy('name')->get();
+        $operations        = config('department_operations');
+        $allowedPositions  = $department->allowedPositionsByOperation();
 
         return view('admin.departments.show', compact(
-            'department', 'workers', 'stores', 'allWorkers', 'operations', 'enabledOperationKeys'
+            'department', 'workers', 'stores', 'allWorkers', 'operations', 'allowedPositions'
         ));
     }
 
     public function updateOperations(Request $request, Department $department)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
         $request->validate([
-            'operations'   => ['array'],
-            'operations.*' => ['boolean'],
+            'operations'                 => ['array'],
+            'operations.*.positions'     => ['array'],
+            'operations.*.positions.*'   => ['nullable', 'string', Rule::in(Worker::POSITIONS)],
         ]);
 
         $payload = $request->input('operations', []);
-        $allowed = array_keys(config('department_operations'));
 
-        foreach ($allowed as $key) {
+        foreach (config('department_operations') as $key => $op) {
+            $configurable = $op['configurable_positions'] ?? [];
+            if (empty($configurable)) {
+                continue;
+            }
+
+            $submitted = $payload[$key]['positions'] ?? [];
+            $positions = array_values(array_filter(
+                array_map('strval', is_array($submitted) ? $submitted : []),
+                fn ($p) => $p !== '' && in_array($p, $configurable, true)
+            ));
+
             DepartmentOperationSetting::updateOrCreate(
                 ['department_id' => $department->id, 'operation_key' => $key],
-                ['enabled' => (bool) ($payload[$key] ?? false)],
+                ['config' => ['positions' => $positions], 'enabled' => count($positions) > 0],
             );
         }
 
@@ -72,13 +76,11 @@ class DepartmentController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
-            ->with('success', 'Операции обновлены.');
+            ->with('success', 'Права обновлены.');
     }
 
     public function update(Request $request, Department $department)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:100', 'unique:departments,name,' . $department->id],
             'code'        => ['nullable', 'string', 'max:50', 'unique:departments,code,' . $department->id],
@@ -95,8 +97,6 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
         if ($department->workers()->exists()) {
             return redirect()
                 ->route('admin.settings.index')

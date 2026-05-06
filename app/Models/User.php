@@ -52,20 +52,19 @@ class User extends Authenticatable
 
     public function isMaster(): bool
     {
-        return $this->worker?->hasPosition('Мастер') ?? false;
+        return $this->worker?->position === 'Мастер';
     }
 
     public function isWorker(): bool
     {
-        return $this->worker?->hasPosition('Работник') ?? false;
+        return $this->worker?->position === 'Работник';
     }
 
     /**
      * Идентификаторы отделов, чьи записи доступны пользователю на index-страницах.
-     *
-     * - null  — без ограничения (админ + любые роли, кроме мастера)
-     * - []    — мастер без отдела: ничего не видит
-     * - [...] — конкретные id отделов (мастер с заданным department_id)
+     * - null  — без ограничения (только админ)
+     * - []    — не-админ без отдела: ничего не видит
+     * - [...] — отдел не-админа
      *
      * @return int[]|null
      */
@@ -75,11 +74,7 @@ class User extends Authenticatable
             return null;
         }
 
-        if ($this->isMaster()) {
-            $deptId = $this->worker?->department_id;
-            return $deptId ? [(int) $deptId] : [];
-        }
-
-        return null;
+        $deptId = $this->worker?->department_id;
+        return $deptId ? [(int) $deptId] : [];
     }
 }

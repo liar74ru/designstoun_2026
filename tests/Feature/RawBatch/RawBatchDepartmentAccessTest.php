@@ -20,9 +20,15 @@ function makeBatchInDept(?Department $dept, string $batchNumber): RawMaterialBat
 
 function makeMasterRB(Department $dept, string $name = 'Мастер RB'): User
 {
+    \App\Models\DepartmentOperationSetting::updateOrCreate(
+        ['department_id' => $dept->id, 'operation_key' => 'raw-batches'],
+        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
+    );
+    $dept->forgetOperationsCache();
+
     $worker = Worker::create([
         'name'          => $name,
-        'positions'     => ['Мастер'],
+        'position'      => 'Мастер',
         'department_id' => $dept->id,
     ]);
 
@@ -33,7 +39,7 @@ function makeMasterRBNoDept(): User
 {
     $worker = Worker::create([
         'name'      => 'Мастер RB без отдела',
-        'positions' => ['Мастер'],
+        'position' => 'Мастер',
     ]);
 
     return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
@@ -55,14 +61,13 @@ test('мастер видит только партии своего отдел�
         ->assertDontSee('BATCH-FOREIGN');
 });
 
-test('мастер без отдела не видит ни одной партии', function () {
+test('мастер без отдела не имеет доступа к партиям — 403', function () {
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
     makeBatchInDept($deptA, 'BATCH-ANY');
 
     $this->actingAs(makeMasterRBNoDept())
         ->get(route('raw-batches.index'))
-        ->assertStatus(200)
-        ->assertDontSee('BATCH-ANY');
+        ->assertForbidden();
 });
 
 test('мастер может через фильтр увидеть партии чужого отдела', function () {

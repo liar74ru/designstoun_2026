@@ -14,11 +14,11 @@ function makePackagingInDept(?Department $dept, string $tag): Packaging
     $store    = H::store('Склад ' . $tag);
     $packer   = Worker::create([
         'name'      => 'Упаковщик ' . $tag,
-        'positions' => ['Мастер'],
+        'position' => 'Мастер',
     ]);
     $receiver = Worker::create([
         'name'      => 'Приёмщик ' . $tag,
-        'positions' => ['Мастер'],
+        'position' => 'Мастер',
     ]);
 
     $product = Product::factory()->create([
@@ -54,9 +54,15 @@ function makePackagingInDept(?Department $dept, string $tag): Packaging
 
 function makeMasterPkg(Department $dept, string $name = 'Мастер PKG'): User
 {
+    \App\Models\DepartmentOperationSetting::updateOrCreate(
+        ['department_id' => $dept->id, 'operation_key' => 'packagings'],
+        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
+    );
+    $dept->forgetOperationsCache();
+
     $worker = Worker::create([
         'name'          => $name,
-        'positions'     => ['Мастер'],
+        'position'      => 'Мастер',
         'department_id' => $dept->id,
     ]);
 
@@ -67,7 +73,7 @@ function makeMasterPkgNoDept(): User
 {
     $worker = Worker::create([
         'name'      => 'Мастер PKG без отдела',
-        'positions' => ['Мастер'],
+        'position' => 'Мастер',
     ]);
 
     return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
@@ -89,14 +95,13 @@ test('мастер видит только упаковки своего отд�
         ->assertDontSee('Продукт PKG-FOREIGN');
 });
 
-test('мастер без отдела не видит ни одной упаковки', function () {
+test('мастер без отдела не имеет доступа к упаковке — 403', function () {
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
     makePackagingInDept($deptA, 'PKG-ANY');
 
     $this->actingAs(makeMasterPkgNoDept())
         ->get(route('packagings.index'))
-        ->assertStatus(200)
-        ->assertDontSee('Продукт PKG-ANY');
+        ->assertForbidden();
 });
 
 test('мастер может через фильтр увидеть упаковки чужого отдела', function () {

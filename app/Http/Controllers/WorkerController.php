@@ -36,8 +36,7 @@ class WorkerController extends Controller
     {
         $validated = $request->validate([
             'name'          => 'required|string|max:255',
-            'positions'     => 'required|array|min:1',
-            'positions.*'   => 'string|in:'.implode(',', Worker::POSITIONS),
+            'position'      => 'required|string|in:'.implode(',', Worker::POSITIONS),
             'email'         => 'nullable|email|unique:workers,email',
             'phone'         => 'nullable|string|max:50',
             'department_id' => 'nullable|exists:departments,id',
@@ -65,8 +64,7 @@ class WorkerController extends Controller
     {
         $validated = $request->validate([
             'name'          => 'required|string|max:255',
-            'positions'     => 'required|array|min:1',
-            'positions.*'   => 'string|in:'.implode(',', Worker::POSITIONS),
+            'position'      => 'required|string|in:'.implode(',', Worker::POSITIONS),
             'email'         => 'nullable|email|unique:workers,email,'.$worker->id,
             'phone'         => 'nullable|string|max:50',
             'department_id' => 'nullable|exists:departments,id',
@@ -100,6 +98,8 @@ class WorkerController extends Controller
 
     public function editUser(Worker $worker)
     {
+        $this->authorize('editSelf', $worker);
+
         if (!$worker->user) {
             return redirect()->route('workers.index')
                 ->with('error', 'У этого работника нет учётной записи');
@@ -131,6 +131,8 @@ class WorkerController extends Controller
 
     public function updateUser(Request $request, Worker $worker)
     {
+        $this->authorize('editSelf', $worker);
+
         if (!$worker->user) {
             return redirect()->route('workers.index')
                 ->with('error', 'У этого работника нет учётной записи');

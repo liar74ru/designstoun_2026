@@ -23,32 +23,38 @@ test('работник без привязки к Worker получает 403', 
 });
 
 test('работник видит свою страницу выработки', function () {
-    $worker = Worker::create(['name' => 'Петров Пётр', 'positions' => ['Работник']]);
+    $worker = Worker::create(['name' => 'Петров Пётр', 'position' => 'Работник']);
     $user   = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
     $this->actingAs($user)->get('/my-work')->assertStatus(200);
 });
 
 test('администратор может открыть страницу любого работника', function () {
-    $worker = Worker::create(['name' => 'Сидоров Сидор', 'positions' => ['Работник']]);
+    $worker = Worker::create(['name' => 'Сидоров Сидор', 'position' => 'Работник']);
     $admin  = User::factory()->create(['is_admin' => true]);
     $this->actingAs($admin)->get("/workers/{$worker->id}/dashboard")->assertStatus(200);
 });
 
-test('не-администратор на /workers/{id}/dashboard видит свои данные (не 403)', function () {
-    // Контроллер: если !isAdmin() — игнорирует workerId и показывает данные
-    // самого пользователя. 403 только если у него нет worker_id.
-    $worker1 = Worker::create(['name' => 'Иванов', 'positions' => ['Работник']]);
-    $worker2 = Worker::create(['name' => 'Петров', 'positions' => ['Работник']]);
+test('не-администратор на /workers/{id}/dashboard чужого получает 403', function () {
+    $worker1 = Worker::create(['name' => 'Иванов', 'position' => 'Работник']);
+    $worker2 = Worker::create(['name' => 'Петров', 'position' => 'Работник']);
     $user    = User::factory()->create(['worker_id' => $worker1->id, 'is_admin' => false]);
 
-    // Видит страницу (свои данные), а не 403
     $this->actingAs($user)
         ->get("/workers/{$worker2->id}/dashboard")
+        ->assertForbidden();
+});
+
+test('не-администратор на /workers/{своё-id}/dashboard видит свои данные', function () {
+    $worker = Worker::create(['name' => 'Иванов', 'position' => 'Работник']);
+    $user   = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
+
+    $this->actingAs($user)
+        ->get("/workers/{$worker->id}/dashboard")
         ->assertStatus(200);
 });
 
 test('не-администратор без worker_id на /workers/{id}/dashboard получает 403', function () {
-    $worker = Worker::create(['name' => 'Кузнецов', 'positions' => ['Работник']]);
+    $worker = Worker::create(['name' => 'Кузнецов', 'position' => 'Работник']);
     $user   = User::factory()->create(['worker_id' => null, 'is_admin' => false]);
 
     $this->actingAs($user)
@@ -61,15 +67,15 @@ test('не-администратор без worker_id на /workers/{id}/dashbo
 // ──────────────────────────────────────────────────────────────────────────────
 
 test('страница выработки показывает имя работника', function () {
-    $worker = Worker::create(['name' => 'Кузнецов Алексей', 'positions' => ['Работник']]);
+    $worker = Worker::create(['name' => 'Кузнецов Алексей', 'position' => 'Работник']);
     $user   = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
 
     $this->actingAs($user)->get('/my-work')->assertSee('Кузнецов Алексей');
 });
 
 test('страница выработки считает зарплату по приёмкам', function () {
-    $worker   = Worker::create(['name' => 'Тестов', 'positions' => ['Работник']]);
-    $receiver = Worker::create(['name' => 'Мастер', 'positions' => ['Мастер']]);
+    $worker   = Worker::create(['name' => 'Тестов', 'position' => 'Работник']);
+    $receiver = Worker::create(['name' => 'Мастер', 'position' => 'Мастер']);
     $store    = Store::factory()->create();
     $product  = Product::factory()->create(['prod_cost_coeff' => 1.0]);
     $user     = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);

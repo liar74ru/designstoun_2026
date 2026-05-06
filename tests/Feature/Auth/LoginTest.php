@@ -85,7 +85,7 @@ test('после входа пользователь попадает на dashb
 });
 
 test('работник после входа может перейти на my-work', function () {
-    $worker = Worker::create(['name' => 'Иванов Иван', 'positions' => ['Работник']]);
+    $worker = Worker::create(['name' => 'Иванов Иван', 'position' => 'Работник']);
 
     $user = User::factory()->create([
         'phone'     => '79991234567',

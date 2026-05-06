@@ -15,7 +15,7 @@ function makeAdmin(): User
 
 function makeMaster(): User
 {
-    $worker = Worker::create(['name' => 'Мастер', 'positions' => ['Мастер']]);
+    $worker = Worker::create(['name' => 'Мастер', 'position' => 'Мастер']);
     return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
 }
 
@@ -35,19 +35,19 @@ describe('GET /admin/settings', function () {
             ->assertRedirect('/login');
     });
 
-    test('пильщик получает редирект (WorkerOnly middleware)', function () {
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+    test('работник получает 403 на /admin/settings', function () {
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
         $user   = User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
 
         $this->actingAs($user)
             ->get('/admin/settings')
-            ->assertRedirect();
+            ->assertForbidden();
     });
 
-    test('мастер получает редирект (MasterOnly middleware)', function () {
+    test('мастер получает 403 на /admin/settings', function () {
         $this->actingAs(makeMaster())
             ->get('/admin/settings')
-            ->assertRedirect();
+            ->assertForbidden();
     });
 
 });
@@ -81,13 +81,13 @@ describe('POST /admin/settings', function () {
             ->assertSessionHasErrors();
     });
 
-    test('пильщик получает редирект (WorkerOnly middleware)', function () {
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+    test('не-админ получает 403 при попытке сохранить настройки', function () {
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
         $user   = User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
 
         $this->actingAs($user)
             ->post('/admin/settings', ['settings' => [['key' => 'X', 'value' => '1']]])
-            ->assertRedirect();
+            ->assertForbidden();
     });
 
 });

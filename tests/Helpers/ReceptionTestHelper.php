@@ -29,7 +29,7 @@ class ReceptionTestHelper
      */
     public static function worker(string $name = 'Тестов Тест', string $position = 'Мастер'): Worker
     {
-        return Worker::create(['name' => $name, 'positions' => [$position]]);
+        return Worker::create(['name' => $name, 'position' => $position]);
     }
 
     /**

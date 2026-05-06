@@ -38,11 +38,8 @@ class StoneReceptionService
     public function getFormOptions(?StoneReception $reception = null, ?int $cutterId = null): array
     {
         $data = [
-            'masterWorkers' => Worker::where(function ($q) {
-                foreach (['Мастер', 'Администратор'] as $pos) {
-                    $q->orWhereJsonContains('positions', $pos);
-                }
-            })->orderBy('name')->get(),
+            'masterWorkers' => Worker::whereIn('position', ['Мастер', 'Администратор'])
+                ->orderBy('name')->get(),
             'workers'      => Worker::orderBy('name')->get(),
             'products'     => Product::orderBy('name')->get(),
             'stores'       => Store::orderBy('name')->get(),

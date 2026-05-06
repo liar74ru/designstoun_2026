@@ -36,9 +36,15 @@ function makeOrderInDept(?Department $dept, string $number, ?Worker $receiver = 
 
 function makeMasterUserInDept(Department $dept): User
 {
+    \App\Models\DepartmentOperationSetting::updateOrCreate(
+        ['department_id' => $dept->id, 'operation_key' => 'supplier-orders'],
+        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
+    );
+    $dept->forgetOperationsCache();
+
     $worker = Worker::create([
         'name'          => 'Мастер ' . $dept->name,
-        'positions'     => ['Мастер'],
+        'position'      => 'Мастер',
         'department_id' => $dept->id,
     ]);
 
@@ -49,7 +55,7 @@ function makeMasterUserWithoutDept(): User
 {
     $worker = Worker::create([
         'name'      => 'Мастер Без Отдела',
-        'positions' => ['Мастер'],
+        'position' => 'Мастер',
     ]);
 
     return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
@@ -71,14 +77,13 @@ test('мастер видит только поступления своего �
         ->assertDontSee('FOREIGN-01');
 });
 
-test('мастер без отдела не видит ни одного поступления', function () {
+test('мастер без отдела не имеет доступа к поступлениям — 403', function () {
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
     makeOrderInDept($deptA, 'ANY-01');
 
     $this->actingAs(makeMasterUserWithoutDept())
         ->get(route('supplier-orders.index'))
-        ->assertStatus(200)
-        ->assertDontSee('ANY-01');
+        ->assertForbidden();
 });
 
 test('мастер может выбрать чужой отдел в фильтре и увидеть его поступления', function () {

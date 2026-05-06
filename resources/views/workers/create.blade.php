@@ -38,19 +38,17 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label">Должность <span class="text-danger">*</span></label>
-                                @error('positions')<div class="text-danger small mb-1">{{ $message }}</div>@enderror
-                                <div class="border rounded p-2 @error('positions') border-danger @enderror">
+                                <label for="position" class="form-label">Должность <span class="text-danger">*</span></label>
+                                <select class="form-select @error('position') is-invalid @enderror"
+                                        id="position" name="position" required>
+                                    <option value="">— выбрать —</option>
                                     @foreach(App\Models\Worker::POSITIONS as $pos)
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox"
-                                                   name="positions[]" value="{{ $pos }}"
-                                                   id="pos_{{ $loop->index }}"
-                                                   {{ in_array($pos, old('positions', [])) ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="pos_{{ $loop->index }}">{{ $pos }}</label>
-                                        </div>
+                                        <option value="{{ $pos }}" {{ old('position') === $pos ? 'selected' : '' }}>
+                                            {{ $pos }}
+                                        </option>
                                     @endforeach
-                                </div>
+                                </select>
+                                @error('position')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
                             <div class="mb-3">

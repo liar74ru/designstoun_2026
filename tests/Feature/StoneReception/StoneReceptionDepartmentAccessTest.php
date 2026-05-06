@@ -21,9 +21,15 @@ function makeReceptionInDept(?Department $dept, string $tag): StoneReception
 
 function makeMasterUserBoundToDept(Department $dept, string $name = 'Мастер Цеха'): User
 {
+    \App\Models\DepartmentOperationSetting::updateOrCreate(
+        ['department_id' => $dept->id, 'operation_key' => 'stone-receptions'],
+        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
+    );
+    $dept->forgetOperationsCache();
+
     $worker = Worker::create([
         'name'          => $name,
-        'positions'     => ['Мастер'],
+        'position'      => 'Мастер',
         'department_id' => $dept->id,
     ]);
 
@@ -33,8 +39,8 @@ function makeMasterUserBoundToDept(Department $dept, string $name = 'Масте�
 function makeMasterUserNoDept(): User
 {
     $worker = Worker::create([
-        'name'      => 'Мастер Без Отдела SR',
-        'positions' => ['Мастер'],
+        'name'     => 'Мастер Без Отдела SR',
+        'position' => 'Мастер',
     ]);
 
     return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
@@ -56,14 +62,13 @@ test('мастер видит только приёмки своего отде�
         ->assertDontSee('Приёмщик FOREIGN-SR');
 });
 
-test('мастер без отдела не видит ни одной приёмки', function () {
+test('мастер без отдела не имеет доступа к приёмкам — 403', function () {
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
     makeReceptionInDept($deptA, 'ANY-SR');
 
     $this->actingAs(makeMasterUserNoDept())
         ->get(route('stone-receptions.index'))
-        ->assertStatus(200)
-        ->assertDontSee('Приёмщик ANY-SR');
+        ->assertForbidden();
 });
 
 test('мастер может через фильтр увидеть приёмки чужого отдела', function () {

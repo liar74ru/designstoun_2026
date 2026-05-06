@@ -104,41 +104,82 @@
 
     {{-- 2. Операции в шапке --}}
     <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold py-2">Операции в шапке</div>
-        <div class="card-body p-3">
+        <div class="card-header fw-semibold py-2">Права на операции по позициям</div>
+        <div class="card-body p-2 p-md-3">
             <form method="POST" action="{{ route('admin.departments.operations.update', $department) }}">
                 @csrf
                 @method('PATCH')
 
-                <ul class="list-group list-group-flush">
-                    @foreach($operations as $key => $op)
-                        @php $always = $op['always_visible'] ?? false; @endphp
-                        <li class="list-group-item d-flex align-items-center px-0 py-2">
-                            <i class="bi {{ $op['icon'] }} me-2 fs-5"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold small">{{ $op['label'] }}</div>
-                                <div class="text-muted" style="font-size:.75rem">
-                                    {{ implode(', ', $op['roles']) }}
-                                    @if($always)
-                                        <span class="badge bg-secondary ms-1">всегда видна</span>
+                @php
+                    $columns = [
+                        'Мастер'           => ['short' => 'Мастер',  'full' => 'Мастер'],
+                        'Помощник мастера' => ['short' => 'Помощ.',  'full' => 'Помощник мастера'],
+                    ];
+                @endphp
+
+                <table class="table table-sm align-middle mb-0" style="table-layout:fixed">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="font-size:.8rem">Операция</th>
+                            @foreach($columns as $colKey => $col)
+                                <th class="text-center"
+                                    title="{{ $col['full'] }}"
+                                    style="width:62px;font-size:.75rem;white-space:nowrap">
+                                    {{ $col['short'] }}
+                                </th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($operations as $key => $op)
+                            @php
+                                $configurable    = $op['configurable_positions'] ?? [];
+                                $alwaysFor       = $op['positions_always_visible'] ?? [];
+                                $isAdminOnly     = ! empty($op['admin_only']);
+                                $allowed         = $allowedPositions[$key] ?? [];
+                            @endphp
+                            <tr>
+                                <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                    <i class="bi {{ $op['icon'] }} me-1"></i><span class="small">{{ $op['label'] }}</span>
+                                    @if($isAdminOnly)
+                                        <span class="badge bg-secondary ms-1" style="font-size:.65rem">админ</span>
+                                    @elseif(! empty($alwaysFor))
+                                        <span class="badge bg-info text-dark ms-1" style="font-size:.65rem"
+                                              title="Всегда видна для: {{ implode(', ', $alwaysFor) }}">всегда</span>
                                     @endif
-                                </div>
-                            </div>
-                            <div class="form-check form-switch ms-2 mb-0">
-                                <input type="hidden" name="operations[{{ $key }}]" value="0">
-                                <input class="form-check-input" type="checkbox"
-                                       name="operations[{{ $key }}]" value="1"
-                                       id="op_{{ $key }}"
-                                       {{ ($always || in_array($key, $enabledOperationKeys, true)) ? 'checked' : '' }}
-                                       {{ $always ? 'disabled' : '' }}>
-                            </div>
-                        </li>
-                    @endforeach
-                </ul>
+                                </td>
+                                @foreach(array_keys($columns) as $pos)
+                                    <td class="text-center" style="width:62px">
+                                        @if($isAdminOnly)
+                                            <input class="form-check-input" type="checkbox" disabled
+                                                   title="Только администратор">
+                                        @elseif(in_array($pos, $alwaysFor, true))
+                                            <input class="form-check-input" type="checkbox" disabled checked
+                                                   title="Всегда видна для этой позиции">
+                                        @elseif(in_array($pos, $configurable, true))
+                                            <input type="hidden" name="operations[{{ $key }}][positions][]" value="">
+                                            <input class="form-check-input" type="checkbox"
+                                                   name="operations[{{ $key }}][positions][]"
+                                                   value="{{ $pos }}"
+                                                   {{ in_array($pos, $allowed, true) ? 'checked' : '' }}>
+                                        @else
+                                            <span class="text-muted small">—</span>
+                                        @endif
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+
+                <div class="text-muted mt-2" style="font-size:.75rem">
+                    <span class="badge bg-secondary" style="font-size:.65rem">админ</span> — операция доступна только администратору.
+                    <span class="badge bg-info text-dark" style="font-size:.65rem">всегда</span> — захардкоженная видимость, не настраивается.
+                </div>
 
                 <div class="mt-3 d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-check-lg"></i> Сохранить операции
+                        <i class="bi bi-check-lg"></i> Сохранить
                     </button>
                 </div>
             </form>

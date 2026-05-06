@@ -11,8 +11,6 @@ class AdminSettingController extends Controller
 {
     public function index()
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
         $settings    = Setting::orderBy('id')->get();
         $departments = Department::orderBy('name')->get();
         $stores      = Store::where('archived', false)->orderBy('name')->get();
@@ -22,8 +20,6 @@ class AdminSettingController extends Controller
 
     public function update(Request $request)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
         $validated = $request->validate([
             'settings'           => ['required', 'array'],
             'settings.*.key'     => ['required', 'string', 'max:100'],
@@ -50,8 +46,6 @@ class AdminSettingController extends Controller
 
     public function updateDepartmentStores(Request $request)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
         $validated = $request->validate([
             'departments'                          => ['required', 'array'],
             'departments.*.raw_store_id'           => ['nullable', 'string', 'exists:stores,id'],

@@ -11,15 +11,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias([
-            'worker.only' => \App\Http\Middleware\WorkerOnly::class,
-            'master.only' => \App\Http\Middleware\MasterOnly::class,
-        ]);
-        // Применяем ко всем веб-маршрутам — каждый middleware сам проверяет роль пользователя
-        $middleware->web(append: [
-            \App\Http\Middleware\WorkerOnly::class,
-            \App\Http\Middleware\MasterOnly::class,
-        ]);
+        //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

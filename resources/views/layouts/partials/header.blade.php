@@ -27,40 +27,21 @@
                     </a>
 
                     @auth
-                        @php
-                            $user = auth()->user();
-                            $isAdmin  = $user->isAdmin();
-                            $isMaster = $user->isMaster();
-                            $isWorker = $user->isWorker() || ($user->worker_id && !$isAdmin && !$isMaster);
-                        @endphp
-
                         @foreach(($operationsRegistry ?? []) as $key => $op)
-                            @php
-                                $roles = $op['roles'] ?? [];
-                                $alwaysVisible  = (bool) ($op['always_visible'] ?? false);
-                                $enabledForDept = in_array($key, $enabledOperationKeys ?? [], true);
-
-                                if ($isAdmin) {
-                                    $visible = true;
-                                } else {
-                                    $roleMatch =
-                                        ($isMaster && in_array('master', $roles, true)) ||
-                                        ($isWorker && in_array('worker', $roles, true));
-                                    $visible = $roleMatch && ($alwaysVisible || $enabledForDept);
-                                }
-                                if (! $visible) { continue; }
-
-                                $href = !empty($op['route']) ? route($op['route']) : url($op['url'] ?? '/');
-                                $isActive = !empty($op['route_pattern'])
-                                    ? request()->routeIs($op['route_pattern'])
-                                    : (($op['url'] ?? null) === '/' && request()->is('/'));
-                            @endphp
-                            <a href="{{ $href }}"
-                               class="btn btn-sm nav-icon-btn {{ $isActive ? 'btn-primary' : 'btn-outline-secondary' }}"
-                               title="{{ $op['label'] }}">
-                                <i class="bi {{ $op['icon'] }}"></i>
-                                <span>{{ $op['label'] }}</span>
-                            </a>
+                            @can("see-{$key}")
+                                @php
+                                    $href = !empty($op['route']) ? route($op['route']) : url($op['url'] ?? '/');
+                                    $isActive = !empty($op['route_pattern'])
+                                        ? request()->routeIs($op['route_pattern'])
+                                        : (($op['url'] ?? null) === '/' && request()->is('/'));
+                                @endphp
+                                <a href="{{ $href }}"
+                                   class="btn btn-sm nav-icon-btn {{ $isActive ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                   title="{{ $op['label'] }}">
+                                    <i class="bi {{ $op['icon'] }}"></i>
+                                    <span>{{ $op['label'] }}</span>
+                                </a>
+                            @endcan
                         @endforeach
                     @endauth
                 </div>

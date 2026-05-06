@@ -9,7 +9,7 @@ function makeWorker(array $attrs = []): Worker
 {
     return Worker::create(array_merge([
         'name'      => 'Тестов Тест',
-        'positions' => ['Работник'],
+        'position' => 'Работник',
         'phone'     => null,
         'email'     => null,
     ], $attrs));
@@ -75,7 +75,7 @@ describe('WorkerController store()', function () {
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
                 'name'      => 'Новиков Иван',
-                'positions' => ['Работник'],
+                'position' => 'Работник',
             ])
             ->assertRedirect(route('workers.index'))
             ->assertSessionHas('success');
@@ -89,7 +89,7 @@ describe('WorkerController store()', function () {
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
                 'name'          => 'Отделов Отдел',
-                'positions'     => ['Мастер'],
+                'position' => 'Мастер',
                 'department_id' => $dept->id,
             ])
             ->assertRedirect(route('workers.index'));
@@ -99,17 +99,17 @@ describe('WorkerController store()', function () {
 
     test('отклоняет без имени', function () {
         $this->actingAs(H::adminUser())
-            ->post(route('workers.store'), ['positions' => ['Работник']])
+            ->post(route('workers.store'), ['position' => 'Работник'])
             ->assertSessionHasErrors('name');
     });
 
     test('отклоняет недопустимую должность', function () {
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
-                'name'      => 'Тестов Тест',
-                'positions' => ['НесуществующаяДолжность'],
+                'name'     => 'Тестов Тест',
+                'position' => 'НесуществующаяДолжность',
             ])
-            ->assertSessionHasErrors('positions.0');
+            ->assertSessionHasErrors('position');
     });
 
     test('отклоняет дублирующийся email', function () {
@@ -118,7 +118,7 @@ describe('WorkerController store()', function () {
         $this->actingAs(H::adminUser())
             ->post(route('workers.store'), [
                 'name'      => 'Другой Работник',
-                'positions' => ['Работник'],
+                'position' => 'Работник',
                 'email'     => 'dup@test.com',
             ])
             ->assertSessionHasErrors('email');
@@ -160,7 +160,7 @@ describe('WorkerController update()', function () {
         $this->actingAs(H::adminUser())
             ->put(route('workers.update', $worker), [
                 'name'      => 'Новое Имя',
-                'positions' => ['Мастер'],
+                'position' => 'Мастер',
             ])
             ->assertRedirect(route('workers.index'))
             ->assertSessionHas('success');
@@ -180,7 +180,7 @@ describe('WorkerController update()', function () {
         $this->actingAs(H::adminUser())
             ->put(route('workers.update', $worker), [
                 'name'      => 'Синхронов Синх',
-                'positions' => ['Работник'],
+                'position' => 'Работник',
                 'phone'     => '999',
             ])
             ->assertRedirect(route('workers.index'));
@@ -192,7 +192,7 @@ describe('WorkerController update()', function () {
         $worker = makeWorker();
 
         $this->actingAs(H::adminUser())
-            ->put(route('workers.update', $worker), ['positions' => ['Работник']])
+            ->put(route('workers.update', $worker), ['position' => 'Работник'])
             ->assertSessionHasErrors('name');
     });
 
@@ -201,9 +201,9 @@ describe('WorkerController update()', function () {
 
         $this->actingAs(H::adminUser())
             ->put(route('workers.update', $worker), [
-                'name'      => $worker->name,
-                'positions' => $worker->positions,
-                'email'     => 'own@test.com',
+                'name'     => $worker->name,
+                'position' => $worker->position,
+                'email'    => 'own@test.com',
             ])
             ->assertRedirect(route('workers.index'));
     });

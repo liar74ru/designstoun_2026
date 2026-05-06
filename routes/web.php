@@ -30,108 +30,132 @@ Route::middleware(['auth'])->group(function () {
         return view('home');
     })->name('home');
 
-    // Профиль
+    // Дашборды — свои защищены Gate'ом, *.by-id защищены Policy в контроллере
+    Route::get('/my-work', [CutterWorkerDashboardController::class, 'showWorker'])
+        ->middleware('can:see-worker-dashboard')
+        ->name('worker.dashboard');
+    Route::get('/master-work', [CutterWorkerDashboardController::class, 'showMaster'])
+        ->middleware('can:see-master-dashboard')
+        ->name('master.dashboard');
+    Route::get('/master-work/{workerId}', [CutterWorkerDashboardController::class, 'showMaster'])
+        ->name('master.dashboard.by-id');
+    Route::get('/workers/{workerId}/dashboard', [CutterWorkerDashboardController::class, 'showWorker'])
+        ->name('worker.dashboard.by-id');
 
-    // Страница работника
-    Route::get('/my-work', [CutterWorkerDashboardController::class, 'showWorker'])->name('worker.dashboard');
-    Route::get('/master-work', [CutterWorkerDashboardController::class, 'showMaster'])->name('master.dashboard');
-    Route::get('/master-work/{workerId}', [CutterWorkerDashboardController::class, 'showMaster'])->name('master.dashboard.by-id');
-    Route::get('/workers/{workerId}/dashboard', [CutterWorkerDashboardController::class, 'showWorker'])->name('worker.dashboard.by-id');
+    // Товары — операция products
+    Route::middleware('can:see-products')->group(function () {
+        Route::resource('products', ProductController::class)->only(['index', 'show']);
+        Route::get('/products/sync/moysklad', [ProductController::class, 'syncFromMoySklad'])->name('products.sync');
+        Route::get('/products/{id}/refresh', [ProductController::class, 'refresh'])->name('products.refresh');
+        Route::post('/products/stocks/sync-all-by-stores', [ProductController::class, 'syncAllProductsStocks'])->name('products.stocks.sync-all-by-stores');
+        Route::get('/products/groups/tree', [ProductController::class, 'groups'])->name('products.groups');
+        Route::get('/products/groups/sync', [ProductController::class, 'syncGroups'])->name('products.groups.sync');
+        Route::post('/products/{moyskladId}/stocks-sync', [ProductController::class, 'syncStocks'])->name('products.stocks.sync');
+    });
 
-    // Товары
-    Route::resource('products', ProductController::class)->only(['index', 'show']);
-    Route::get('/products/sync/moysklad', [ProductController::class, 'syncFromMoySklad'])->name('products.sync');
-    Route::get('/products/{id}/refresh', [ProductController::class, 'refresh'])->name('products.refresh');
-    Route::post('/products/stocks/sync-all-by-stores', [ProductController::class, 'syncAllProductsStocks'])->name('products.stocks.sync-all-by-stores');
-    Route::get('/products/groups/tree', [ProductController::class, 'groups'])->name('products.groups');
-    Route::get('/products/groups/sync', [ProductController::class, 'syncGroups'])->name('products.groups.sync');
-    Route::post('/products/{moyskladId}/stocks-sync', [ProductController::class, 'syncStocks'])->name('products.stocks.sync');
+    // Заказы — операция orders
+    Route::middleware('can:see-orders')->group(function () {
+        Route::resource('orders', OrderController::class);
+    });
 
-    // Заказы
-    Route::resource('orders', OrderController::class);
+    // Работники — список/CRUD доступен по can:see-workers; смена своего пароля — отдельно
+    Route::resource('workers', WorkerController::class)
+        ->except(['show'])
+        ->middleware('can:see-workers');
+    Route::get('/workers/{worker}/create-user', [WorkerController::class, 'createUser'])
+        ->middleware('can:see-workers')
+        ->name('workers.create-user');
+    Route::post('/workers/{worker}/store-user', [WorkerController::class, 'storeUser'])
+        ->middleware('can:see-workers')
+        ->name('workers.store-user');
 
-    // Работники
-    Route::resource('workers', WorkerController::class)->except(['show']);
-    Route::get('/workers/{worker}/create-user', [WorkerController::class, 'createUser'])->name('workers.create-user');
-    Route::post('/workers/{worker}/store-user', [WorkerController::class, 'storeUser'])->name('workers.store-user');
+    // Свой пароль — доступен любому залогиненному (Policy на конкретного worker)
     Route::get('/workers/{worker}/edit-user', [WorkerController::class, 'editUser'])->name('workers.edit-user');
     Route::put('/workers/{worker}/update-user', [WorkerController::class, 'updateUser'])->name('workers.update-user');
 
-    // Синхронизация
-    Route::get('/sync', [SyncController::class, 'index'])->name('sync.index');
+    // Синхронизация — админ
+    Route::middleware('can:manage-admin')->group(function () {
+        Route::get('/sync', [SyncController::class, 'index'])->name('sync.index');
 
-    // Контрагенты
-    Route::get('/counterparties', [CounterpartyController::class, 'index'])->name('counterparties.index');
-    Route::post('/counterparties/sync', [CounterpartyController::class, 'sync'])->name('counterparties.sync');
+        Route::get('/counterparties', [CounterpartyController::class, 'index'])->name('counterparties.index');
+        Route::post('/counterparties/sync', [CounterpartyController::class, 'sync'])->name('counterparties.sync');
 
-    // Поступления сырья
-    Route::get('/supplier-orders', [SupplierOrderController::class, 'index'])->name('supplier-orders.index');
-    Route::get('/supplier-orders/create', [SupplierOrderController::class, 'create'])->name('supplier-orders.create');
-    Route::get('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'show'])->name('supplier-orders.show');
-    Route::post('/supplier-orders', [SupplierOrderController::class, 'store'])->name('supplier-orders.store');
-    Route::get('/supplier-orders/{supplierOrder}/edit', [SupplierOrderController::class, 'edit'])->name('supplier-orders.edit');
-    Route::put('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'update'])->name('supplier-orders.update');
-    Route::delete('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'destroy'])->name('supplier-orders.destroy');
-    Route::post('/supplier-orders/{supplierOrder}/sync', [SupplierOrderController::class, 'sync'])->name('supplier-orders.sync');
-    Route::get('/supplier-orders/{supplierOrder}/sync-confirm', [SupplierOrderController::class, 'syncConfirm'])->name('supplier-orders.sync-confirm');
-    Route::post('/supplier-orders/{supplierOrder}/force-sync', [SupplierOrderController::class, 'forceSync'])->name('supplier-orders.force-sync');
-    Route::get('/api/supplier-orders/next-number', [SupplierOrderController::class, 'nextOrderNumber'])->name('api.supplier-orders.next-number');
+        Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
+        Route::get('/stores/{store}', [StoreController::class, 'show'])->name('stores.show');
+        Route::post('/stores/sync', [StoreController::class, 'sync'])->name('stores.sync');
+        Route::post('/stores/stocks/sync-all', [StoreController::class, 'syncAllStocks'])->name('stores.stocks.sync-all');
+        Route::post('/stores/{store}/stocks-sync', [StoreController::class, 'syncStoreStocks'])->name('stores.stocks.sync');
+    });
 
-    // Склады
-    Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
-    Route::get('/stores/{store}', [StoreController::class, 'show'])->name('stores.show');
-    Route::post('/stores/sync', [StoreController::class, 'sync'])->name('stores.sync');
-    Route::post('/stores/stocks/sync-all', [StoreController::class, 'syncAllStocks'])->name('stores.stocks.sync-all');
-    Route::post('/stores/{store}/stocks-sync', [StoreController::class, 'syncStoreStocks'])->name('stores.stocks.sync');
+    // Поступления сырья — операция supplier-orders
+    Route::middleware('can:see-supplier-orders')->group(function () {
+        Route::get('/supplier-orders', [SupplierOrderController::class, 'index'])->name('supplier-orders.index');
+        Route::get('/supplier-orders/create', [SupplierOrderController::class, 'create'])->name('supplier-orders.create');
+        Route::get('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'show'])->name('supplier-orders.show');
+        Route::post('/supplier-orders', [SupplierOrderController::class, 'store'])->name('supplier-orders.store');
+        Route::get('/supplier-orders/{supplierOrder}/edit', [SupplierOrderController::class, 'edit'])->name('supplier-orders.edit');
+        Route::put('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'update'])->name('supplier-orders.update');
+        Route::delete('/supplier-orders/{supplierOrder}', [SupplierOrderController::class, 'destroy'])->name('supplier-orders.destroy');
+        Route::post('/supplier-orders/{supplierOrder}/sync', [SupplierOrderController::class, 'sync'])->name('supplier-orders.sync');
+        Route::get('/supplier-orders/{supplierOrder}/sync-confirm', [SupplierOrderController::class, 'syncConfirm'])->name('supplier-orders.sync-confirm');
+        Route::post('/supplier-orders/{supplierOrder}/force-sync', [SupplierOrderController::class, 'forceSync'])->name('supplier-orders.force-sync');
+        Route::get('/api/supplier-orders/next-number', [SupplierOrderController::class, 'nextOrderNumber'])->name('api.supplier-orders.next-number');
+    });
 
-    // Приёмки камня
-    Route::resource('stone-receptions', StoneReceptionController::class);
-    Route::get('/stone-receptions-logs', [StoneReceptionController::class, 'logs'])->name('stone-receptions.logs');
-    Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])->name('stone-receptions.copy');
-    Route::patch('/stone-receptions/{stoneReception}/reset-status', [StoneReceptionController::class, 'resetStatus'])->name('stone-receptions.reset-status');
-    Route::patch('/stone-receptions/{stoneReception}/mark-completed', [StoneReceptionController::class, 'markCompleted'])->name('stone-receptions.mark-completed');
-    Route::post('/stone-receptions/{stoneReception}/sync', [StoneReceptionController::class, 'syncToProcessing'])->name('stone-receptions.sync');
+    // Приёмки камня — операция stone-receptions
+    Route::middleware('can:see-stone-receptions')->group(function () {
+        Route::resource('stone-receptions', StoneReceptionController::class);
+        Route::get('/stone-receptions-logs', [StoneReceptionController::class, 'logs'])->name('stone-receptions.logs');
+        Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])->name('stone-receptions.copy');
+        Route::patch('/stone-receptions/{stoneReception}/reset-status', [StoneReceptionController::class, 'resetStatus'])->name('stone-receptions.reset-status');
+        Route::patch('/stone-receptions/{stoneReception}/mark-completed', [StoneReceptionController::class, 'markCompleted'])->name('stone-receptions.mark-completed');
+        Route::post('/stone-receptions/{stoneReception}/sync', [StoneReceptionController::class, 'syncToProcessing'])->name('stone-receptions.sync');
+        Route::post('/stone-receptions/{stoneReception}/item-coeffs', [StoneReceptionController::class, 'updateItemCoeff'])->name('stone-receptions.update-item-coeff');
+        Route::post('/stone-receptions/{stoneReception}/refresh-item-coeffs', [StoneReceptionController::class, 'refreshItemCoeffs'])->name('stone-receptions.refresh-item-coeffs');
 
-    // Упаковка
-    Route::resource('packagings', PackagingController::class);
-    Route::post  ('packagings/{packaging}/copy',                [PackagingController::class, 'copy'])->name('packagings.copy');
-    Route::patch ('packagings/{packaging}/reset-status',        [PackagingController::class, 'resetStatus'])->name('packagings.reset-status');
-    Route::patch ('packagings/{packaging}/mark-completed',      [PackagingController::class, 'markCompleted'])->name('packagings.mark-completed');
-    Route::post  ('packagings/{packaging}/sync',                [PackagingController::class, 'syncToProcessing'])->name('packagings.sync');
-    Route::post  ('packagings/{packaging}/item-coeffs',         [PackagingController::class, 'updateItemCoeff'])->name('packagings.update-item-coeff');
-    Route::post  ('packagings/{packaging}/refresh-item-coeffs', [PackagingController::class, 'refreshItemCoeffs'])->name('packagings.refresh-item-coeffs');
-    Route::get   ('api/workers/{worker}/default-production-store', [PackagingController::class, 'getDefaultStoreJson'])->name('api.worker.default-production-store');
+        // AJAX-эндпоинты, относящиеся к приёмкам
+        Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])->name('api.worker.batches');
+        Route::get('/api/batches/{batch}/receptions', [StoneReceptionController::class, 'getReceptionsByBatchJson'])->name('api.batch.receptions');
+        Route::get('/api/batches/{batch}/active-reception', [StoneReceptionController::class, 'getActiveReceptionByBatchJson'])->name('api.batch.active-reception');
+    });
 
-    // Партии сырья
-    Route::resource('raw-batches', RawMaterialBatchController::class)->parameters(['raw-batches' => 'batch']);
-    Route::delete('raw-batches/{batch}/new', [RawMaterialBatchController::class, 'destroyNew'])->name('raw-batches.destroy-new');
-    Route::get('raw-batches/{batch}/copy', [RawMaterialBatchController::class, 'copy'])->name('raw-batches.copy');
-    Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])->name('raw-batches.transfer.form');
-    Route::post('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transfer'])->name('raw-batches.transfer');
-    Route::get('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'returnForm'])->name('raw-batches.return.form');
-    Route::post('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'return'])->name('raw-batches.return');
-    Route::get('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjustForm'])->name('raw-batches.adjust.form');
-    Route::post('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjust'])->name('raw-batches.adjust');
-    Route::post('raw-batches/{batch}/archive', [RawMaterialBatchController::class, 'archive'])->name('raw-batches.archive');
-    Route::post('raw-batches/{batch}/mark-used', [RawMaterialBatchController::class, 'markAsUsed'])->name('raw-batches.mark-used');
-    Route::post('raw-batches/{batch}/mark-in-work', [RawMaterialBatchController::class, 'markAsInWork'])->name('raw-batches.mark-in-work');
-    Route::post('raw-batches/{batch}/sync', [RawMaterialBatchController::class, 'syncBatch'])->name('raw-batches.sync');
+    // Упаковка — операция packagings
+    Route::middleware('can:see-packagings')->group(function () {
+        Route::resource('packagings', PackagingController::class);
+        Route::post  ('packagings/{packaging}/copy',                [PackagingController::class, 'copy'])->name('packagings.copy');
+        Route::patch ('packagings/{packaging}/reset-status',        [PackagingController::class, 'resetStatus'])->name('packagings.reset-status');
+        Route::patch ('packagings/{packaging}/mark-completed',      [PackagingController::class, 'markCompleted'])->name('packagings.mark-completed');
+        Route::post  ('packagings/{packaging}/sync',                [PackagingController::class, 'syncToProcessing'])->name('packagings.sync');
+        Route::post  ('packagings/{packaging}/item-coeffs',         [PackagingController::class, 'updateItemCoeff'])->name('packagings.update-item-coeff');
+        Route::post  ('packagings/{packaging}/refresh-item-coeffs', [PackagingController::class, 'refreshItemCoeffs'])->name('packagings.refresh-item-coeffs');
+        Route::get   ('api/workers/{worker}/default-production-store', [PackagingController::class, 'getDefaultStoreJson'])->name('api.worker.default-production-store');
+    });
 
-    // AJAX-эндпоинты
-    Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])->name('api.worker.batches');
-    Route::get('/api/batches/{batch}/receptions', [StoneReceptionController::class, 'getReceptionsByBatchJson'])->name('api.batch.receptions');
-    Route::get('/api/batches/{batch}/active-reception', [StoneReceptionController::class, 'getActiveReceptionByBatchJson'])->name('api.batch.active-reception');
-    Route::get('/api/workers/{worker}/next-batch-number', [RawMaterialBatchController::class, 'nextBatchNumber'])->name('api.worker.next-batch-number');
+    // Партии сырья — операция raw-batches
+    Route::middleware('can:see-raw-batches')->group(function () {
+        Route::resource('raw-batches', RawMaterialBatchController::class)->parameters(['raw-batches' => 'batch']);
+        Route::delete('raw-batches/{batch}/new', [RawMaterialBatchController::class, 'destroyNew'])->name('raw-batches.destroy-new');
+        Route::get('raw-batches/{batch}/copy', [RawMaterialBatchController::class, 'copy'])->name('raw-batches.copy');
+        Route::get('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transferForm'])->name('raw-batches.transfer.form');
+        Route::post('raw-batches/{batch}/transfer', [RawMaterialBatchController::class, 'transfer'])->name('raw-batches.transfer');
+        Route::get('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'returnForm'])->name('raw-batches.return.form');
+        Route::post('raw-batches/{batch}/return', [RawMaterialBatchController::class, 'return'])->name('raw-batches.return');
+        Route::get('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjustForm'])->name('raw-batches.adjust.form');
+        Route::post('raw-batches/{batch}/adjust', [RawMaterialBatchController::class, 'adjust'])->name('raw-batches.adjust');
+        Route::post('raw-batches/{batch}/archive', [RawMaterialBatchController::class, 'archive'])->name('raw-batches.archive');
+        Route::post('raw-batches/{batch}/mark-used', [RawMaterialBatchController::class, 'markAsUsed'])->name('raw-batches.mark-used');
+        Route::post('raw-batches/{batch}/mark-in-work', [RawMaterialBatchController::class, 'markAsInWork'])->name('raw-batches.mark-in-work');
+        Route::post('raw-batches/{batch}/sync', [RawMaterialBatchController::class, 'syncBatch'])->name('raw-batches.sync');
+        Route::get('/api/workers/{worker}/next-batch-number', [RawMaterialBatchController::class, 'nextBatchNumber'])->name('api.worker.next-batch-number');
+    });
+
+    // AJAX-эндпоинты товаров — для всех с правами на работу с товарами/приёмками
     Route::get('/api/products/tree', [ProductController::class, 'groupsJson'])->name('api.products.tree');
     Route::get('/api/products/stocks', [ProductController::class, 'stocksJson'])->name('api.products.stocks');
     Route::get('/api/products/{product}/coeff', [ProductController::class, 'getCoeff'])->name('api.products.coeff');
 
-    // Редактирование коэффициентов позиций приёмки (из страницы show)
-    Route::post('/stone-receptions/{stoneReception}/item-coeffs', [StoneReceptionController::class, 'updateItemCoeff'])->name('stone-receptions.update-item-coeff');
-    Route::post('/stone-receptions/{stoneReception}/refresh-item-coeffs', [StoneReceptionController::class, 'refreshItemCoeffs'])->name('stone-receptions.refresh-item-coeffs');
-
-    // Настройки системы (только администратор — проверка в контроллере)
-    Route::prefix('admin')->name('admin.')->group(function () {
+    // Настройки системы — только админ (через can:manage-admin на группе)
+    Route::prefix('admin')->name('admin.')->middleware('can:manage-admin')->group(function () {
         Route::get('/settings',  [AdminSettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');

@@ -18,7 +18,7 @@ describe('RawMaterialBatchService::create()', function () {
         $product = Product::factory()->create();
         $storeFrom = Store::factory()->create();
         $storeTo = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
         ProductStock::create([
             'product_id' => $product->id,
             'store_id' => $storeFrom->id,
@@ -45,7 +45,7 @@ describe('RawMaterialBatchService::create()', function () {
         $product = Product::factory()->create();
         $storeFrom = Store::factory()->create();
         $storeTo = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
         ProductStock::create([
             'product_id' => $product->id,
             'store_id' => $storeFrom->id,
@@ -78,7 +78,7 @@ describe('RawMaterialBatchService::update()', function () {
     test('обновляет количество партии', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
@@ -108,7 +108,7 @@ describe('RawMaterialBatchService::update()', function () {
     test('возвращает null если изменений нет', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
@@ -138,7 +138,7 @@ describe('RawMaterialBatchService::adjust()', function () {
     test('увеличивает количество партии', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
@@ -160,7 +160,7 @@ describe('RawMaterialBatchService::adjust()', function () {
     test('уменьшает количество партии', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
@@ -188,7 +188,7 @@ describe('RawMaterialBatchService::deleteNew()', function () {
     test('удаляет новую партию и возвращает moysklad_move_id', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
@@ -231,7 +231,7 @@ describe('RawMaterialBatchService::markAsUsed()', function () {
     test('переводит партию в статус used', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
@@ -259,7 +259,7 @@ describe('RawMaterialBatchService::markAsInWork()', function () {
     test('возвращает партию из статуса used в in_work', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
@@ -287,7 +287,7 @@ describe('RawMaterialBatchService::archive()', function () {
     test('архивирует партию', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
-        $worker = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $worker = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
@@ -315,8 +315,8 @@ describe('RawMaterialBatchService::transfer()', function () {
     test('передаёт часть партии другому пильщику', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
-        $cutter1 = Worker::create(['name' => 'Пильщик 1', 'positions' => ['Работник']]);
-        $cutter2 = Worker::create(['name' => 'Пильщик 2', 'positions' => ['Работник']]);
+        $cutter1 = Worker::create(['name' => 'Пильщик 1', 'position' => 'Работник']);
+        $cutter2 = Worker::create(['name' => 'Пильщик 2', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
@@ -352,7 +352,7 @@ describe('RawMaterialBatchService::returnToStore()', function () {
         $product = Product::factory()->create();
         $store = Store::factory()->create();
         $store2 = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'positions' => ['Работник']]);
+        $cutter = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
 
         $batch = RawMaterialBatch::create([
             'product_id' => $product->id,
