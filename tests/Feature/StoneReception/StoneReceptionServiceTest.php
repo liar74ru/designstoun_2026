@@ -441,8 +441,9 @@ describe('StoneReceptionService::markCompleted()', function () {
         ]);
 
         $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
+        $mockSync->shouldReceive('syncReception')->andReturnNull();
         $mockSync->shouldReceive('completeProcessing')->andReturn(['success' => false, 'message' => 'no id']);
-        
+
         $service = makeStoneReceptionService($mockSync);
         $result = $service->markCompleted($reception);
 

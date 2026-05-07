@@ -367,12 +367,17 @@ class StoneReceptionService
 
         $reception->refresh();
 
-        if ($reception->hasMoySkladProcessing()) {
+        if ($reception->store_id && $reception->rawMaterialBatch) {
+            $this->syncService->syncReception($reception);
+            $reception->refresh();
+        }
+
+        if ($reception->hasMoySkladProcessing() && !$reception->hasSyncError()) {
             $result = $this->syncService->completeProcessing($reception->moysklad_processing_id);
 
             if ($result['success']) {
                 $reception->markSynced($reception->moysklad_processing_id);
-                return ['success' => true, 'message' => 'Приёмка завершена.'];
+                return ['success' => true, 'message' => 'Приёмка завершена и синхронизирована с МойСклад.'];
             }
 
             $reception->markSyncError($result['message']);
@@ -382,7 +387,19 @@ class StoneReceptionService
             ];
         }
 
+        if ($reception->hasSyncError()) {
+            return [
+                'success' => false,
+                'message' => 'Приёмка завершена локально, но ошибка синхронизации с МойСклад: ' . $reception->moysklad_sync_error,
+            ];
+        }
+
         return ['success' => true, 'message' => 'Приёмка завершена.'];
+    }
+
+    public function updateStore(StoneReception $reception, string $storeId): void
+    {
+        $reception->update(['store_id' => $storeId]);
     }
 
     public function resetStatus(StoneReception $reception): bool|string
@@ -402,14 +419,7 @@ class StoneReceptionService
         $processingId = $reception->moysklad_processing_id;
 
         DB::transaction(function () use ($reception) {
-            $reception->update([
-                'status'                   => StoneReception::STATUS_ACTIVE,
-                'moysklad_processing_id'   => null,
-                'moysklad_processing_name' => null,
-                'moysklad_sync_status'     => null,
-                'moysklad_sync_error'      => null,
-                'synced_at'                => null,
-            ]);
+            $reception->update(['status' => StoneReception::STATUS_ACTIVE]);
 
             $batch = $reception->rawMaterialBatch;
             if ($batch && $batch->status === RawMaterialBatch::STATUS_USED) {
@@ -419,7 +429,10 @@ class StoneReceptionService
 
         if ($processingId) {
             $result = $this->syncService->reactivateProcessing($processingId);
-            if (!$result['success']) {
+            if ($result['success']) {
+                $reception->markSynced($processingId);
+            } else {
+                $reception->markSyncError($result['message']);
                 return 'Статус сброшен локально, но ошибка синхронизации с МойСклад: ' . $result['message'];
             }
         }

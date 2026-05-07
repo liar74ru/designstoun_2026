@@ -301,7 +301,7 @@ describe('Удаление приёмки [destroy()]', function () {
 
 describe('Сброс статуса приёмки [resetStatus()]', function () {
 
-    test('сбрасывает статус на active и очищает moysklad_processing_id', function () {
+    test('сбрасывает статус на active и сохраняет связь с техоперацией МойСклад', function () {
         $user      = H::adminUser();
         $receiver  = H::worker();
         $cutter    = H::cutter();
@@ -319,6 +319,6 @@ describe('Сброс статуса приёмки [resetStatus()]', function ()
 
         $reception->refresh();
         expect($reception->status)->toBe('active');
-        expect($reception->moysklad_processing_id)->toBeNull();
+        expect($reception->moysklad_processing_id)->toBe('some-uuid');
     });
 });

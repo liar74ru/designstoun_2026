@@ -65,8 +65,8 @@ class StoneReceptionController extends Controller
         $data['selectedBatchId']  = $batchId;
 
         $department = auth()->user()?->worker?->department;
-        if ($department && $department->default_product_store_id) {
-            $data['defaultStore'] = Setting::deptProductStore($department, $data['stores']);
+        if ($department && $department->default_production_store_id) {
+            $data['defaultStore'] = Setting::deptProductionStore($department, $data['stores']);
         }
 
         $copyItems = [];
@@ -140,8 +140,9 @@ class StoneReceptionController extends Controller
         ]);
 
         $backUrl = back_url(route('stone-receptions.index'));
+        $stores  = \App\Models\Store::orderBy('name')->get();
 
-        return view('stone-receptions.show', compact('stoneReception', 'backUrl'));
+        return view('stone-receptions.show', compact('stoneReception', 'backUrl', 'stores'));
     }
 
     public function edit(Request $request, StoneReception $stoneReception): View
@@ -152,8 +153,8 @@ class StoneReceptionController extends Controller
         $data['lastReceptions'] = $this->service->getLastReceptions(15, $rawProductId, $request);
 
         $department = auth()->user()?->worker?->department;
-        if ($department && $department->default_product_store_id) {
-            $data['defaultStore'] = Setting::deptProductStore($department, $data['stores']);
+        if ($department && $department->default_production_store_id) {
+            $data['defaultStore'] = Setting::deptProductionStore($department, $data['stores']);
         }
 
         return view('stone-receptions.edit', $data);
@@ -243,6 +244,19 @@ class StoneReceptionController extends Controller
         }
 
         return back()->with('success', $result['message']);
+    }
+
+    public function updateStore(Request $request, StoneReception $stoneReception): RedirectResponse
+    {
+        abort_unless($stoneReception->status === StoneReception::STATUS_ACTIVE, 403, 'Сменить склад можно только у активной приёмки');
+
+        $validated = $request->validate([
+            'store_id' => ['required', 'string', 'exists:stores,id'],
+        ]);
+
+        $this->service->updateStore($stoneReception, $validated['store_id']);
+
+        return back()->with('success', 'Склад приёмки обновлён.');
     }
 
     public function updateItemCoeff(Request $request, StoneReception $stoneReception): RedirectResponse

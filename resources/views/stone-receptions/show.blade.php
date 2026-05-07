@@ -66,6 +66,40 @@
                             </div>
                         </div>
 
+                        {{-- Склад приёмки --}}
+                        <div class="info-block">
+                            <div class="info-block-header">
+                                <span class="small fw-semibold text-muted">Склад приёмки</span>
+                            </div>
+                            <div class="info-block-body">
+                                @if($stoneReception->status === \App\Models\StoneReception::STATUS_ACTIVE)
+                                    <form method="POST"
+                                          action="{{ route('stone-receptions.update-store', $stoneReception) }}"
+                                          class="d-flex gap-2 align-items-center">
+                                        @csrf
+                                        @method('PATCH')
+                                        <select name="store_id"
+                                                class="form-select form-select-sm"
+                                                style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
+                                                required>
+                                            <option value="">— Выберите склад —</option>
+                                            @foreach($stores as $store)
+                                                <option value="{{ $store->id }}"
+                                                    {{ $stoneReception->store_id == $store->id ? 'selected' : '' }}>
+                                                    {{ $store->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-primary" style="flex-shrink:0">
+                                            <i class="bi bi-save"></i>
+                                        </button>
+                                    </form>
+                                @else
+                                    <span class="small">{{ $stoneReception->store?->name ?? '—' }}</span>
+                                @endif
+                            </div>
+                        </div>
+
                         {{-- Партия сырья --}}
                         <div class="info-block">
                             <div class="info-block-header">

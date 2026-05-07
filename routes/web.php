@@ -109,6 +109,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('stone-receptions/{stoneReception}/copy', [StoneReceptionController::class, 'copy'])->name('stone-receptions.copy');
         Route::patch('/stone-receptions/{stoneReception}/reset-status', [StoneReceptionController::class, 'resetStatus'])->name('stone-receptions.reset-status');
         Route::patch('/stone-receptions/{stoneReception}/mark-completed', [StoneReceptionController::class, 'markCompleted'])->name('stone-receptions.mark-completed');
+        Route::patch('/stone-receptions/{stoneReception}/update-store', [StoneReceptionController::class, 'updateStore'])->name('stone-receptions.update-store');
         Route::post('/stone-receptions/{stoneReception}/sync', [StoneReceptionController::class, 'syncToProcessing'])->name('stone-receptions.sync');
         Route::post('/stone-receptions/{stoneReception}/item-coeffs', [StoneReceptionController::class, 'updateItemCoeff'])->name('stone-receptions.update-item-coeff');
         Route::post('/stone-receptions/{stoneReception}/refresh-item-coeffs', [StoneReceptionController::class, 'refreshItemCoeffs'])->name('stone-receptions.refresh-item-coeffs');
