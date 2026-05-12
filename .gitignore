@@ -40,3 +40,6 @@ CLAUDE.md
 coverage-report
 C:*
 --cache-result
+.superpowers/
+.agents/
+.claude/
