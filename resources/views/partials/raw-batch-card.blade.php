@@ -68,7 +68,7 @@
         {{-- Блок: товар слева, нач./ост. справа --}}
         <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
             <span class="fw-semibold text-truncate me-2" style="font-size:.75rem">
-                <i class="bi bi-box text-secondary me-1"></i>{{ $batch->product?->name ?? '—' }}
+                <ion-icon name="{{ \App\Models\Product::getIconBySku($batch->product?->sku) }}" class="text-secondary me-1"></ion-icon>{{ $batch->product?->name ?? '—' }}
             </span>
             <div class="d-flex gap-1 align-items-center flex-shrink-0">
                 <span style="font-size:.6rem;color:#6c757d;white-space:nowrap">нач.</span>

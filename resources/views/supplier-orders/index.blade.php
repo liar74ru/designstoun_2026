@@ -151,7 +151,7 @@
                             {{-- Продукты сразу после контрагента --}}
                             @foreach($order->items as $item)
                                 <div class="d-flex align-items-center gap-1 mb-1" style="font-size:.8rem">
-                                    <i class="bi bi-box text-muted flex-shrink-0"></i>
+                                    <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-muted flex-shrink-0"></ion-icon>
                                     <span class="text-truncate">{{ $item->product?->name ?? '—' }}</span>
                                     <span class="text-muted flex-shrink-0">× {{ $fmt($item->quantity) }} м³</span>
                                 </div>

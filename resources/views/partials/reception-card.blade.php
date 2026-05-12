@@ -113,7 +113,7 @@
                             @if($item->is_undercut)
                                 <i class="bi bi-lightning-charge-fill me-1" style="color:#ffc107"></i>
                             @else
-                                <i class="bi bi-grid-3x3 text-secondary me-1"></i>
+                                <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-secondary me-1" style="vertical-align:-2px"></ion-icon>
                             @endif
                             {{ $item->product->name }}
                         </span>
@@ -138,7 +138,7 @@
             @endphp
             <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                 <span class="text-muted text-truncate me-2" style="font-size:.72rem">
-                    <i class="bi bi-box me-1"></i>
+                    <ion-icon name="{{ \App\Models\Product::getIconBySku($reception->rawMaterialBatch->product?->sku) }}" class="me-1" style="vertical-align:-2px"></ion-icon>
                     <a href="{{ route('raw-batches.show', $reception->rawMaterialBatch) }}" class="text-muted">
                         {{ $reception->rawMaterialBatch->product->name ?? '?' }}
                     </a>

@@ -83,6 +83,30 @@ class Product extends Model
         return self::SKU_COLORS[$prefix] ?? '#FFFFFF';
     }
 
+    /**
+     * Имена Ionicons-иконок категорий камня по первому сегменту SKU.
+     * Ключ — первая часть SKU до дефиса ("01".."05").
+     */
+    const SKU_ICONS = [
+        '01' => 'server-sharp',   // Плитняк (бесформенные плитки)
+        '02' => 'apps-outline',   // Щебень
+        '03' => 'cloud-sharp',    // Валуны
+        '04' => 'grid-outline',   // Плитка из камня
+        '05' => 'flame-sharp',    // Камень для бани
+    ];
+
+    /**
+     * Возвращает имя Ionicons-иконки по SKU (для <ion-icon name="…">).
+     * Сопоставление по первому сегменту SKU ("01".."05").
+     * Для неизвестных SKU — "cube-outline" как нейтральный fallback.
+     */
+    public static function getIconBySku(?string $sku): string
+    {
+        if (!$sku) return 'cube-outline';
+        $prefix = explode('-', $sku, 2)[0];
+        return self::SKU_ICONS[$prefix] ?? 'cube-outline';
+    }
+
     // ─── Связи ───────────────────────────────────────────────────────────────
 
     public function group()
