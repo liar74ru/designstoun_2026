@@ -406,6 +406,28 @@
         </div>
     </div>
 
+    {{-- Статусы заявок МойСклад --}}
+    <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
+             role="button"
+             data-block-id="order-statuses">
+            <span>Статусы заявок</span>
+            <i class="bi bi-chevron-down collapse-icon"></i>
+        </div>
+        <div class="collapse-content" id="block-order-statuses" style="display: none;">
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Список имён статусов <strong>customerorder</strong> из МойСклад,
+                    которые подгружаются при синхронизации заявок.
+                </p>
+                <a href="{{ route('admin.order-statuses.index') }}"
+                   class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-list-check"></i> Открыть настройки статусов
+                </a>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <style>

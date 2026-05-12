@@ -1,12 +1,20 @@
 <?php
 
 return [
+    'home' => [
+        'label'         => 'Главная',
+        'icon'          => 'bi-house-door-fill',
+        'route'         => 'home',
+        'route_pattern' => 'home',
+        'admin_only'    => true,
+    ],
     'master-dashboard' => [
         'label'                    => 'Дашборд',
         'icon'                     => 'bi-bar-chart-line',
         'route'                    => 'master.dashboard',
         'route_pattern'            => 'master.dashboard',
         'positions_always_visible' => ['Мастер', 'Помощник мастера'],
+        'hide_for_admin'           => true,
     ],
     'worker-dashboard' => [
         'label'                     => 'Выраб.',
@@ -14,6 +22,7 @@ return [
         'route'                     => 'worker.dashboard',
         'route_pattern'             => 'worker.dashboard',
         'positions_always_visible'  => ['Работник', 'Разнорабочий'],
+        'hide_for_admin'            => true,
     ],
     'stone-receptions' => [
         'label'                  => 'Приём',

@@ -118,6 +118,12 @@ class SettingsSeeder extends Seeder
                 'label'       => 'Статус «Завершена»',
                 'description' => 'Точное имя статуса в МойСклад, который назначается при завершении техоперации.',
             ],
+            [
+                'key'         => 'MOYSKLAD_ORDER_STATUSES',
+                'value'       => json_encode(['Новая', 'В процессе', 'Собран'], JSON_UNESCAPED_UNICODE),
+                'label'       => 'Статусы заявок для синхронизации',
+                'description' => 'JSON-массив имён статусов customerorder в МойСклад, которые подгружаются при синхронизации заявок. Управляется на отдельной странице.',
+            ],
         ];
 
         foreach ($settings as $data) {

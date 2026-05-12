@@ -27,8 +27,12 @@
                     </a>
 
                     @auth
+                        @php $__isAdmin = auth()->user()->isAdmin(); @endphp
                         @foreach(($operationsRegistry ?? []) as $key => $op)
                             @can("see-{$key}")
+                                @if($__isAdmin && !empty($op['hide_for_admin']))
+                                    @continue
+                                @endif
                                 @php
                                     $href = !empty($op['route']) ? route($op['route']) : url($op['url'] ?? '/');
                                     $isActive = !empty($op['route_pattern'])

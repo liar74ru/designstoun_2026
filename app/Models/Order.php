@@ -3,77 +3,64 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
     protected $fillable = [
         'moysklad_id',
         'name',
-        'description',
-        'sum',
-        'shipped_sum',
-        'payed_sum',
-        'state',
+        'state_moysklad_id',
         'state_name',
-        'agent_id',
+        'counterparty_id',
         'agent_name',
-        'organization_id',
-        'organization_name',
         'moment',
-        'delivery_planned_at',
-        'positions',
         'attributes',
-        'is_active',
     ];
 
     protected $casts = [
-        'sum' => 'decimal:2',
-        'shipped_sum' => 'decimal:2',
-        'payed_sum' => 'decimal:2',
-        'moment' => 'datetime',
-        'delivery_planned_at' => 'datetime',
-        'positions' => 'array',
+        'moment'     => 'datetime',
         'attributes' => 'array',
-        'is_active' => 'boolean',
     ];
 
-    /**
-     * Получить отформатированную сумму
-     */
-    public function getFormattedSumAttribute(): string
+    public function items(): HasMany
     {
-        return number_format($this->sum, 2, ',', ' ') . ' ₽';
+        return $this->hasMany(OrderItem::class);
     }
 
-    /**
-     * Проверить, полностью ли оплачен заказ
-     */
-    public function getIsPaidAttribute(): bool
+    public function counterparty(): BelongsTo
     {
-        return $this->payed_sum >= $this->sum;
+        return $this->belongsTo(Counterparty::class);
     }
 
-    /**
-     * Проверить, полностью ли отгружен заказ
-     */
-    public function getIsShippedAttribute(): bool
+    public function departments(): BelongsToMany
     {
-        return $this->shipped_sum >= $this->sum;
+        return $this->belongsToMany(Department::class, 'order_department');
     }
 
-    /**
-     * Получить статус на русском
-     */
-    public function getStatusTextAttribute(): string
+    public const STATE_COLORS = [
+        'Проект'              => '#94a3b8',
+        'Новый'               => '#94a3b8',
+        'Новая'               => '#94a3b8',
+        'Изменено'            => '#6b7280',
+        'Посчитанно'          => '#6b7280',
+        'В процессе'          => '#f97316',
+        'Собран'              => '#06b6d4',
+        'В процессе отгрузки' => '#ec4899',
+        'Отправлен'           => '#2563eb',
+        'Под Реализацию'      => '#a855f7',
+        'Завершён'            => '#16a34a',
+        'Завершена'           => '#16a34a',
+        'Сорван'              => '#dc2626',
+    ];
+
+    public static function stateColor(?string $name): string
     {
-        return match($this->state) {
-            'shipped' => 'Отгружен',
-            'paid' => 'Оплачен',
-            'new' => 'Новый',
-            'processing' => 'В обработке',
-            'completed' => 'Выполнен',
-            'canceled' => 'Отменен',
-            default => $this->state_name ?? $this->state ?? 'Неизвестно',
-        };
+        if (!$name) {
+            return '#6c757d';
+        }
+        return self::STATE_COLORS[$name] ?? '#6c757d';
     }
 }

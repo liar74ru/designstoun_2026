@@ -10,6 +10,7 @@ use App\Http\Controllers\StoreController;
 use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
+use App\Http\Controllers\Admin\OrderStatusSettingController;
 use App\Http\Controllers\AdminSettingController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\CutterWorkerDashboardController;
@@ -53,9 +54,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/products/{moyskladId}/stocks-sync', [ProductController::class, 'syncStocks'])->name('products.stocks.sync');
     });
 
-    // Заказы — операция orders
+    // Заявки — операция orders
     Route::middleware('can:see-orders')->group(function () {
-        Route::resource('orders', OrderController::class);
+        Route::get ('orders',       [OrderController::class, 'index'])->name('orders.index');
+        Route::post('orders/sync',  [OrderController::class, 'sync'])->name('orders.sync');
     });
 
     // Работники — список/CRUD доступен по can:see-workers; смена своего пароля — отдельно
@@ -162,6 +164,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
         Route::patch('/departments/{department}/operations', [DepartmentController::class, 'updateOperations'])->name('departments.operations.update');
         Route::resource('departments', DepartmentController::class)->only(['create', 'store', 'show', 'update', 'destroy']);
+
+        Route::get ('/order-statuses', [OrderStatusSettingController::class, 'index'])->name('order-statuses.index');
+        Route::post('/order-statuses', [OrderStatusSettingController::class, 'update'])->name('order-statuses.update');
     });
 });
 

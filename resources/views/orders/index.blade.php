@@ -1,91 +1,114 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Заказы из БД</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
-        h1 { margin-top: 0; color: #333; }
-        .nav { margin-bottom: 20px; }
-        .nav a { padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin-right: 10px; }
-        .nav a:hover { background: #0056b3; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; }
-        td { padding: 12px; border-bottom: 1px solid #dee2e6; }
-        tr:hover { background: #f8f9fa; }
-        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        .status-new { background: #e3f2fd; color: #1976d2; }
-        .status-processing { background: #fff3e0; color: #f57c00; }
-        .status-completed { background: #e8f5e8; color: #388e3c; }
-        .status-canceled { background: #ffebee; color: #d32f2f; }
-        .error { background: #ffebee; color: #c62828; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
-        .success { background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
-        .pagination { margin-top: 20px; }
-    </style>
-</head>
-<body>
-<div class="nav">
-    <a href="{{ route('products.create') }}">➕ Создать товар</a>
-    <a href="{{ route('moysklad.sync.products') }}" onclick="return confirm('Синхронизировать товары с МойСклад?')">🔄 Синхронизировать с МойСклад</a>
-    <a href="{{ route('products.index') }}?moysklad">📦 Просмотр из МойСклад</a>
-    <a href="{{ route('orders.index') }}">📋 К заказам</a>
-</div>
-<div class="container">
-    <h1>📦 Заказы из локальной БД</h1>
+@extends('layouts.app')
 
-    <div class="nav">
-        <a href="{{ route('orders.index') }}?moysklad">🔄 Получить из МойСклад</a>
-        <a href="{{ route('products.index') }}">📱 К товарам</a>
+@section('title', 'Заявки')
+
+@section('content')
+<div class="container py-3">
+
+    <x-page-header
+        title="📋 Заявки"
+        mobileTitle="Заявки"
+        :hide-mobile="true">
+        <x-slot name="actions">
+            <form method="POST" action="{{ route('orders.sync') }}" class="d-inline"
+                  onsubmit="return confirm('Синхронизировать заявки и остатки?')">
+                @csrf
+                <button type="submit" class="btn btn-primary btn-lg px-4">
+                    <i class="bi bi-cloud-download"></i> Синхронизировать
+                </button>
+            </form>
+        </x-slot>
+    </x-page-header>
+
+    {{-- Мобильная кнопка --}}
+    <div class="d-md-none mb-2">
+        <form method="POST" action="{{ route('orders.sync') }}"
+              onsubmit="return confirm('Синхронизировать заявки и остатки?')">
+            @csrf
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-cloud-download"></i> Синхронизировать
+            </button>
+        </form>
     </div>
 
-    @if(session('error'))
-        <div class="error">{{ session('error') }}</div>
-    @endif
+    @include('partials.alerts')
 
-    @if(session('success'))
-        <div class="success">{{ session('success') }}</div>
-    @endif
+    @include('partials.filters', [
+        'filterCutters'      => null,
+        'filterRawProducts'  => null,
+        'filterProducts'     => null,
+        'showStatus'         => 'multi',
+        'statusOptions'      => $statusOptions,
+        'statusDefaults'     => $statusDefaults,
+        'filterDepartments'  => $filterDepartments,
+        'departmentDefaults' => $departmentDefaults,
+    ])
 
     @if($orders->count() > 0)
-        <table>
-            <thead>
-            <tr>
-                <th>Номер заказа</th>
-                <th>Дата</th>
-                <th>Контрагент</th>
-                <th>Сумма</th>
-                <th>Оплачено</th>
-                <th>Статус</th>
-                <th>Действия</th>
-            </tr>
-            </thead>
-            <tbody>
-            @foreach($orders as $order)
-                <tr>
-                    <td><strong>{{ $order->name }}</strong></td>
-                    <td>{{ $order->moment ? $order->moment->format('d.m.Y H:i') : 'Н/Д' }}</td>
-                    <td>{{ $order->agent_name ?? 'Не указан' }}</td>
-                    <td>{{ number_format($order->sum, 2, ',', ' ') }} ₽</td>
-                    <td>{{ number_format($order->payed_sum, 2, ',', ' ') }} ₽</td>
-                    <td>
-                            <span class="status status-{{ $order->state ?? 'new' }}">
-                                {{ $order->status_text }}
-                            </span>
-                    </td>
-                    <td>
-                        <a href="{{ route('orders.show', $order->moysklad_id) }}">👁️ Просмотр</a>
-                    </td>
-                </tr>
-            @endforeach
-            </tbody>
-        </table>
 
-        <div class="pagination">
+        {{-- Десктоп --}}
+        <div class="d-none d-md-block card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Номер</th>
+                            <th>Дата</th>
+                            <th>Контрагент</th>
+                            <th>Товары</th>
+                            <th>Отделы</th>
+                            <th>Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($orders as $order)
+                        <tr>
+                            <td class="fw-semibold align-top">{{ $order->name }}</td>
+                            <td class="text-muted small align-top">
+                                {{ $order->moment ? $order->moment->format('d.m.Y') : '—' }}
+                            </td>
+                            <td class="align-top">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</td>
+                            <td class="align-top p-0">
+                                @include('partials.order-items-table', ['order' => $order, 'productionStoreId' => $productionStoreId])
+                            </td>
+                            <td class="align-top">
+                                @forelse($order->departments as $dept)
+                                    <span class="badge bg-light text-dark border me-1">{{ $dept->name }}</span>
+                                @empty
+                                    <span class="text-muted small">—</span>
+                                @endforelse
+                            </td>
+                            <td class="align-top">
+                                <span class="badge text-white"
+                                      style="background-color: {{ \App\Models\Order::stateColor($order->state_name) }}">
+                                    {{ $order->state_name ?? '—' }}
+                                </span>
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- Мобильный --}}
+        <div class="d-md-none">
+            @foreach($orders as $order)
+                @include('partials.order-card', ['order' => $order, 'productionStoreId' => $productionStoreId])
+            @endforeach
+        </div>
+
+        <div class="d-flex justify-content-center mt-3">
             {{ $orders->links() }}
         </div>
+
     @else
-        <p>Заказы не найдены. <a href="{{ route('orders.index') }}?moysklad">Загрузить из МойСклад</a></p>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <h3 class="text-muted mt-3">Заявок нет</h3>
+            <p class="mb-4">Нажмите «Синхронизировать», чтобы подтянуть заявки из МойСклад.</p>
+        </div>
     @endif
+
 </div>
-</body>
-</html>
+@endsection
