@@ -42,6 +42,10 @@ function mockSupplyService(bool $success = true, ?string $code = null): void
         'message'            => $success ? 'OK' : 'Ошибка',
         'code'               => $code,
     ]);
+    $mock->shouldReceive('deleteSupply')->andReturn([
+        'success' => $success,
+        'message' => $success ? 'OK' : 'Ошибка',
+    ]);
     app()->instance(MoySkladSupplyService::class, $mock);
 }
 
@@ -255,24 +259,30 @@ describe('SupplierOrderController destroy()', function () {
         expect(SupplierOrder::find($order->id))->toBeNull();
     });
 
-    test('нельзя удалить поступление в статусе sent', function () {
+    test('админ удаляет поступление в статусе sent (каскадно из МойСклад)', function () {
         $user  = H::adminUser();
         $store = H::store();
         $cp    = makeCounterparty();
 
+        mockPurchaseOrderService();
+        mockSupplyService();
+        mockStockSync();
+
         $order = SupplierOrder::create([
-            'number'          => 'SENT-DEL',
-            'store_id'        => $store->id,
-            'counterparty_id' => $cp->id,
-            'status'          => SupplierOrder::STATUS_SENT,
+            'number'             => 'SENT-DEL',
+            'store_id'           => $store->id,
+            'counterparty_id'    => $cp->id,
+            'status'             => SupplierOrder::STATUS_SENT,
+            'moysklad_id'        => 'ms-po-uuid',
+            'supply_moysklad_id' => 'ms-supply-uuid',
         ]);
 
         $this->actingAs($user)
             ->delete(route('supplier-orders.destroy', $order))
             ->assertRedirect(route('supplier-orders.index'))
-            ->assertSessionHas('warning');
+            ->assertSessionHas('success');
 
-        expect(SupplierOrder::find($order->id))->not->toBeNull();
+        expect(SupplierOrder::find($order->id))->toBeNull();
     });
 
     test('удаляет позиции вместе с поступлением', function () {

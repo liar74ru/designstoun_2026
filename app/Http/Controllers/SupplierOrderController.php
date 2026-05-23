@@ -29,7 +29,7 @@ class SupplierOrderController extends Controller
 
     public function show(SupplierOrder $supplierOrder): View
     {
-        $supplierOrder->load(['counterparty', 'store', 'receiver', 'items.product']);
+        $supplierOrder->load(['counterparty', 'store', 'receiver', 'items.product', 'createdBy.worker']);
         return view('supplier-orders.show', compact('supplierOrder'));
     }
 
@@ -63,7 +63,9 @@ class SupplierOrderController extends Controller
 
     public function store(StoreSupplierOrderRequest $request): RedirectResponse
     {
-        $order      = $this->service->create($request->validated(), auth()->user()?->isAdmin() ?? false);
+        $data = $request->validated();
+        $data['created_by_user_id'] = auth()->id();
+        $order      = $this->service->create($data, auth()->user()?->isAdmin() ?? false);
         $syncResult = $this->syncService->syncOrderToMoysklad($order);
 
         if ($syncResult['success']) {
@@ -118,17 +120,19 @@ class SupplierOrderController extends Controller
 
     public function destroy(SupplierOrder $supplierOrder): RedirectResponse
     {
-        if (!$supplierOrder->isNew()) {
+        $isAdmin = auth()->user()?->isAdmin() ?? false;
+
+        if (!$isAdmin && !$supplierOrder->isNew()) {
             return redirect()->route('supplier-orders.index')
                 ->with('warning', 'Удалить можно только поступления в статусе «Новый».');
         }
 
         $number = $supplierOrder->number;
 
-        if ($supplierOrder->moysklad_id) {
-            $result = $this->syncService->deleteOrderFromMoysklad($supplierOrder->moysklad_id);
+        if ($supplierOrder->moysklad_id || $supplierOrder->supply_moysklad_id) {
+            $result = $this->syncService->deleteOrderWithSupply($supplierOrder);
             if (!$result['success']) {
-                return redirect()->route('supplier-orders.index')
+                return redirect()->route('supplier-orders.show', $supplierOrder)
                     ->with('danger', "Не удалось удалить поступление №{$number} из МойСклад: {$result['message']}");
             }
         }

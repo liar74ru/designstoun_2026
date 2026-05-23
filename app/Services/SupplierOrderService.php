@@ -28,7 +28,7 @@ class SupplierOrderService
                     $q->whereIn('supplier_orders.department_id', (array) $v)),
                 AllowedFilter::exact('status'),
             ])
-            ->with(['counterparty', 'store', 'receiver', 'items.product', 'department'])
+            ->with(['counterparty', 'store', 'receiver', 'items.product', 'department', 'createdBy.worker'])
             ->when($request->filled('date_from'), fn($q) =>
                 $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->filled('date_to'), fn($q) =>
@@ -61,7 +61,7 @@ class SupplierOrderService
     {
         $accessible = $request?->user()?->accessibleDepartmentIds();
 
-        return SupplierOrder::with(['counterparty', 'store', 'items.product'])
+        return SupplierOrder::with(['counterparty', 'store', 'items.product', 'createdBy.worker'])
             ->when($accessible !== null,
                 fn($q) => $q->whereIn('department_id', $accessible ?: [-1]))
             ->orderBy('created_at', 'desc')
@@ -85,15 +85,16 @@ class SupplierOrderService
 
         DB::transaction(function () use ($data, $createdAt, $departmentId, &$order) {
             $order = SupplierOrder::create([
-                'number'          => $data['number'],
-                'store_id'        => $data['store_id'],
-                'counterparty_id' => $data['counterparty_id'],
-                'receiver_id'     => $data['receiver_id'] ?? null,
-                'department_id'   => $departmentId,
-                'note'            => $data['note'] ?? null,
-                'status'          => SupplierOrder::STATUS_NEW,
-                'created_at'      => $createdAt,
-                'updated_at'      => $createdAt,
+                'number'             => $data['number'],
+                'store_id'           => $data['store_id'],
+                'counterparty_id'    => $data['counterparty_id'],
+                'receiver_id'        => $data['receiver_id'] ?? null,
+                'created_by_user_id' => $data['created_by_user_id'] ?? null,
+                'department_id'      => $departmentId,
+                'note'               => $data['note'] ?? null,
+                'status'             => SupplierOrder::STATUS_NEW,
+                'created_at'         => $createdAt,
+                'updated_at'         => $createdAt,
             ]);
 
             foreach ($data['products'] as $item) {

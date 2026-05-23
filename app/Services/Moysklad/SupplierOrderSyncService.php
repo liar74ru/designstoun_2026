@@ -72,6 +72,42 @@ class SupplierOrderSyncService
         return ['success' => $result['success'], 'message' => $result['message'] ?? ''];
     }
 
+    /**
+     * Каскадное удаление документов МойСклад: сначала Приёмка, затем Заказ поставщику.
+     * При успешном удалении Приёмки локальные остатки актуализируются.
+     * При полу-состоянии (Приёмка удалена, Заказ — нет) модель обновляется:
+     * supply_moysklad_id обнуляется, статус возвращается в new, moysklad_id остаётся,
+     * sync_error заполняется текстом ошибки.
+     */
+    public function deleteOrderWithSupply(SupplierOrder $order): array
+    {
+        if ($order->supply_moysklad_id) {
+            $supplyResult = $this->supplyService->deleteSupply($order->supply_moysklad_id);
+            if (!$supplyResult['success']) {
+                $order->update(['sync_error' => $supplyResult['message']]);
+                return ['success' => false, 'message' => $supplyResult['message']];
+            }
+
+            $order->update([
+                'supply_moysklad_id' => null,
+                'status'             => SupplierOrder::STATUS_NEW,
+                'sync_error'         => null,
+            ]);
+            $order->refresh();
+            $this->syncSuppliedProductStocks($order);
+        }
+
+        if ($order->moysklad_id) {
+            $poResult = $this->purchaseOrderService->deletePurchaseOrder($order->moysklad_id);
+            if (!$poResult['success']) {
+                $order->update(['sync_error' => $poResult['message']]);
+                return ['success' => false, 'message' => $poResult['message']];
+            }
+        }
+
+        return ['success' => true];
+    }
+
     public function initiateSync(SupplierOrder $order): array
     {
         $order->loadMissing(['counterparty', 'store', 'items.product']);

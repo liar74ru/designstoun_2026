@@ -41,6 +41,10 @@
                                 <td>{{ $supplierOrder->receiver->name ?? '—' }}</td>
                             </tr>
                             <tr>
+                                <th>Автор:</th>
+                                <td>{{ $supplierOrder->createdBy?->worker?->name ?? $supplierOrder->createdBy?->name ?? '—' }}</td>
+                            </tr>
+                            <tr>
                                 <th>Статус:</th>
                                 <td>
                                     <span class="badge {{ $supplierOrder->statusBadgeClass() }}">
@@ -143,23 +147,35 @@
                 </div>
 
                 {{-- Действия --}}
-                @if($supplierOrder->isNew())
+                @php
+                    $isAdmin = auth()->user()?->is_admin;
+                    $canEdit = $supplierOrder->isNew();
+                    $canDelete = $supplierOrder->isNew() || $isAdmin;
+                    $confirmText = $supplierOrder->status === \App\Models\SupplierOrder::STATUS_SENT
+                        ? "Удалить поступление №{$supplierOrder->number}? Будут удалены Приёмка и Заявка поставщику из МойСклад, остатки откатятся. Это действие необратимо."
+                        : "Удалить поступление №{$supplierOrder->number}? Это действие необратимо.";
+                @endphp
+                @if($canEdit || $canDelete)
                     <div class="card shadow-sm mb-4">
                         <div class="card-header bg-white py-2">
                             <span class="fw-semibold small text-muted">Действия</span>
                         </div>
                         <div class="card-body py-2">
                             <div class="d-grid gap-2">
-                                <a href="{{ route('supplier-orders.edit', $supplierOrder) }}" class="btn btn-secondary">
-                                    <i class="bi bi-pencil me-1"></i>Редактировать
-                                </a>
-                                <form method="POST" action="{{ route('supplier-orders.destroy', $supplierOrder) }}"
-                                      onsubmit="return confirm('Удалить поступление №{{ $supplierOrder->number }}? Это действие необратимо.')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-danger w-100">
-                                        <i class="bi bi-trash me-1"></i>Удалить
-                                    </button>
-                                </form>
+                                @if($canEdit)
+                                    <a href="{{ route('supplier-orders.edit', $supplierOrder) }}" class="btn btn-secondary">
+                                        <i class="bi bi-pencil me-1"></i>Редактировать
+                                    </a>
+                                @endif
+                                @if($canDelete)
+                                    <form method="POST" action="{{ route('supplier-orders.destroy', $supplierOrder) }}"
+                                          onsubmit="return confirm('{{ $confirmText }}')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn btn-danger w-100">
+                                            <i class="bi bi-trash me-1"></i>Удалить
+                                        </button>
+                                    </form>
+                                @endif
                             </div>
                         </div>
                     </div>

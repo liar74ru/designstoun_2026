@@ -68,8 +68,10 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
                 'positions'    => $positions,
             ];
 
-            if ($order->note) {
-                $body['description'] = $order->note;
+            $order->loadMissing('createdBy.worker');
+            $authorName = $order->createdBy?->worker?->name ?? $order->createdBy?->name;
+            if ($authorName) {
+                $body['description'] = $authorName;
             }
 
             $response = $this->post('/entity/purchaseorder', $body);
@@ -185,8 +187,11 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
                 'agent'     => ['meta' => $agentMeta],
                 'positions' => $positions,
             ];
-            if ($order->note !== null) {
-                $body['description'] = $order->note;
+
+            $order->loadMissing('createdBy.worker');
+            $authorName = $order->createdBy?->worker?->name ?? $order->createdBy?->name;
+            if ($authorName) {
+                $body['description'] = $authorName;
             }
 
             $response = $this->put('/entity/purchaseorder/' . $order->moysklad_id, $body);

@@ -54,6 +54,7 @@
                             <th>Склад</th>
                             <th>Позиции</th>
                             <th>Приёмщик</th>
+                            <th>Автор</th>
                             <th>Отдел</th>
                             <th>Статус</th>
                             <th>Дата</th>
@@ -75,6 +76,7 @@
                                 @endforeach
                             </td>
                             <td class="small">{{ $order->receiver?->name ?? '—' }}</td>
+                            <td class="small">{{ $order->createdBy?->worker?->name ?? $order->createdBy?->name ?? '—' }}</td>
                             <td class="small text-muted">{{ $order->department?->name ?? '—' }}</td>
                             <td>
                                 <span class="badge {{ $order->statusBadgeClass() }}">{{ $order->statusLabel() }}</span>
@@ -163,6 +165,11 @@
                             <div class="small text-muted">
                                 <i class="bi bi-calendar me-1"></i>{{ $order->created_at->format('d.m.Y') }}
                             </div>
+                            @if($order->createdBy)
+                                <div class="small text-muted">
+                                    <i class="bi bi-person-gear me-1"></i>{{ $order->createdBy->worker?->name ?? $order->createdBy->name }}
+                                </div>
+                            @endif
                         </div>
 
                         {{-- Правая часть: кнопки --}}

@@ -112,4 +112,48 @@ class MoySkladSupplyService extends MoySkladBaseService
 
         return $result;
     }
+
+    /**
+     * Удалить Приёмку в МойСклад (DELETE /entity/supply/{id}).
+     *
+     * @param string $supplyId UUID приёмки в МойСклад
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function deleteSupply(string $supplyId): array
+    {
+        $result = ['success' => false, 'message' => ''];
+
+        if (!$this->hasCredentials()) {
+            $result['message'] = 'MoySklad токен не установлен';
+            return $result;
+        }
+
+        try {
+            $response = $this->delete('/entity/supply/' . $supplyId);
+
+            if ($response->status() === 200 || $response->status() === 204) {
+                $result['success'] = true;
+                $result['message'] = 'Приёмка удалена';
+                Log::info('Приёмка удалена в МойСклад', ['supply_id' => $supplyId]);
+            } else {
+                $errors   = $response->json()['errors'] ?? [];
+                $errorMsg = $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
+                $result['message'] = 'Ошибка API МойСклад: ' . $errorMsg . ' (HTTP ' . $response->status() . ')';
+                Log::error('Ошибка удаления приёмки в МойСклад', [
+                    'supply_id' => $supplyId,
+                    'status'    => $response->status(),
+                    'response'  => $response->json(),
+                ]);
+            }
+
+            return $result;
+        } catch (\Exception $e) {
+            $result['message'] = 'Ошибка: ' . $e->getMessage();
+            Log::error('Исключение при удалении приёмки в МойСклад', [
+                'supply_id' => $supplyId,
+                'error'     => $e->getMessage(),
+            ]);
+            return $result;
+        }
+    }
 }
