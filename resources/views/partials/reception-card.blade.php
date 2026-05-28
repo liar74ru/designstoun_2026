@@ -112,6 +112,8 @@
                         <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
                             @if($item->is_undercut)
                                 <i class="bi bi-lightning-charge-fill me-1" style="color:#ffc107"></i>
+                            @elseif($item->is_edging)
+                                <i class="bi bi-scissors me-1" style="color:#0dcaf0"></i>
                             @else
                                 <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-secondary me-1" style="vertical-align:-2px"></ion-icon>
                             @endif

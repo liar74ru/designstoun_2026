@@ -167,6 +167,9 @@
                                         @if(!empty($row['is_undercut']))
                                             <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">подкол 80%</span>
                                         @endif
+                                        @if(!empty($row['is_edging']))
+                                            <span class="badge bg-info text-dark ms-1" style="font-size:.6rem">торцовка</span>
+                                        @endif
                                         @if(!empty($row['is_small_tile']))
                                             <span class="badge bg-info text-dark ms-1" style="font-size:.6rem">< 50мм</span>
                                         @endif
@@ -225,6 +228,9 @@
                                         {{ $row['product']?->name ?? '—' }}
                                         @if(!empty($row['is_undercut']))
                                             <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">подкол 80%</span>
+                                        @endif
+                                        @if(!empty($row['is_edging']))
+                                            <span class="badge bg-info text-dark ms-1" style="font-size:.6rem">торцовка</span>
                                         @endif
                                     </td>
                                     <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
