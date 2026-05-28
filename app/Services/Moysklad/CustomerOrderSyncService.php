@@ -55,26 +55,37 @@ class CustomerOrderSyncService extends MoySkladBaseService
             return ['success' => false, 'count' => 0, 'message' => 'Ошибка API: ' . $e->getMessage()];
         }
 
-        if (empty($rows)) {
+        $count = 0;
+
+        if (! empty($rows)) {
+            $counterpartyMap   = $this->resolveCounterparties($rows);
+            $productMap        = $this->resolveProducts($rows);
+            $departmentNameMap = Department::pluck('id', 'name');
+
+            foreach ($rows as $row) {
+                DB::transaction(function () use ($row, $counterpartyMap, $productMap, $departmentNameMap, &$count) {
+                    $this->upsertOrder($row, $counterpartyMap, $productMap, $departmentNameMap);
+                    $count++;
+                });
+            }
+        }
+
+        $syncedIds = array_column($rows, 'id');
+        $deleted = Order::whereNotIn('moysklad_id', $syncedIds)->delete();
+
+        if ($count === 0 && $deleted === 0) {
             return ['success' => true, 'count' => 0, 'message' => 'Новых заявок не найдено.'];
         }
 
-        $counterpartyMap   = $this->resolveCounterparties($rows);
-        $productMap        = $this->resolveProducts($rows);
-        $departmentNameMap = Department::pluck('id', 'name');
-
-        $count = 0;
-        foreach ($rows as $row) {
-            DB::transaction(function () use ($row, $counterpartyMap, $productMap, $departmentNameMap, &$count) {
-                $this->upsertOrder($row, $counterpartyMap, $productMap, $departmentNameMap);
-                $count++;
-            });
+        $message = "Синхронизировано заявок: {$count}.";
+        if ($deleted > 0) {
+            $message .= " Удалено устаревших: {$deleted}.";
         }
 
         return [
             'success' => true,
             'count'   => $count,
-            'message' => "Синхронизировано заявок: {$count}.",
+            'message' => $message,
         ];
     }
 

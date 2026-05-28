@@ -10,10 +10,10 @@
         mobileTitle="Заявки"
         :hide-mobile="true">
         <x-slot name="actions">
-            <form method="POST" action="{{ route('orders.sync') }}" class="d-inline"
-                  onsubmit="return confirm('Синхронизировать заявки и остатки?')">
+            <form method="POST" action="{{ route('orders.sync') }}" class="d-inline sync-form">
                 @csrf
-                <button type="submit" class="btn btn-primary btn-lg px-4">
+                <button type="submit" class="btn btn-primary btn-lg px-4"
+                        onclick="return confirm('Синхронизировать заявки и остатки?')">
                     <i class="bi bi-cloud-download"></i> Синхронизировать
                 </button>
             </form>
@@ -22,10 +22,10 @@
 
     {{-- Мобильная кнопка --}}
     <div class="d-md-none mb-2">
-        <form method="POST" action="{{ route('orders.sync') }}"
-              onsubmit="return confirm('Синхронизировать заявки и остатки?')">
+        <form method="POST" action="{{ route('orders.sync') }}" class="sync-form">
             @csrf
-            <button type="submit" class="btn btn-primary w-100">
+            <button type="submit" class="btn btn-primary w-100"
+                    onclick="return confirm('Синхронизировать заявки и остатки?')">
                 <i class="bi bi-cloud-download"></i> Синхронизировать
             </button>
         </form>
@@ -112,3 +112,27 @@
 
 </div>
 @endsection
+
+@push('styles')
+    <style>
+        .sync-form button[disabled] {
+            opacity: .7;
+            cursor: wait;
+        }
+    </style>
+@endpush
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('form.sync-form').forEach(function (form) {
+                form.addEventListener('submit', function () {
+                    const btn = form.querySelector('button[type=submit]');
+                    if (!btn) return;
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Выполняется…';
+                });
+            });
+        });
+    </script>
+@endpush
