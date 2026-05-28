@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Cache;
  * Расчёт зарплаты:
  *   PIECE_RATE             — базовая ставка пильщика (₽, используется в Product::prodCost())
  *   UNDERCUT_PENALTY       — штраф коэффициента при флаге «подкол > 80%» (StoneReceptionItem)
+ *   EDGING_COEFF           — коэффициент «Торцовка»: полностью заменяет prod_cost_coeff (доступен для партий 04-XX); может быть отрицательным
  *
  * Себестоимость производства (₽/м²):
  *   BLADE_WEAR, RECEPTION_COST, PACKAGING_COST, WASTE_REMOVAL,

@@ -18,6 +18,8 @@ class AdminSettingController extends Controller
         return view('admin.settings.index', compact('settings', 'departments', 'stores'));
     }
 
+    private const ALLOW_NEGATIVE_KEYS = ['EDGING_COEFF'];
+
     public function update(Request $request)
     {
         $validated = $request->validate([
@@ -27,7 +29,12 @@ class AdminSettingController extends Controller
                 'required',
                 'string',
                 'max:500',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($request) {
+                    $idx = explode('.', $attribute)[1] ?? null;
+                    $key = $request->input("settings.{$idx}.key");
+                    if (in_array($key, self::ALLOW_NEGATIVE_KEYS, true)) {
+                        return;
+                    }
                     if (is_numeric($value) && (float) $value < 0) {
                         $fail('Значение не может быть отрицательным.');
                     }

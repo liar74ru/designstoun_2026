@@ -72,6 +72,32 @@
                             @enderror
                         </div>
                     @endif
+
+                    @php $edgingSetting = $settings->firstWhere('key', 'EDGING_COEFF'); @endphp
+                    @if($edgingSetting)
+                        @php $k = $settings->search(fn($s) => $s->key === 'EDGING_COEFF'); @endphp
+                        <div class="mb-0 mt-3">
+                            <label for="setting_EDGING_COEFF" class="form-label fw-semibold mb-1">
+                                {{ $edgingSetting->label }}
+                            </label>
+                            @if($edgingSetting->description)
+                                <div class="text-muted small mb-1">{{ $edgingSetting->description }}</div>
+                            @endif
+                            <input
+                                type="number"
+                                step="any"
+                                id="setting_EDGING_COEFF"
+                                name="settings[{{ $k }}][value]"
+                                value="{{ old('settings.' . $k . '.value', $edgingSetting->value) }}"
+                                class="form-control @error('settings.' . $k . '.value') is-invalid @enderror"
+                                required
+                            >
+                            <input type="hidden" name="settings[{{ $k }}][key]" value="EDGING_COEFF">
+                            @error('settings.' . $k . '.value')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

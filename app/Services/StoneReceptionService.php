@@ -447,13 +447,15 @@ class StoneReceptionService
                 $item = $reception->items()->with('product')->findOrFail($row['item_id']);
 
                 $isUndercut  = !empty($row['is_undercut']);
+                $isEdging    = !empty($row['is_edging']);
                 $baseCoeff   = (float) $row['base_coeff'];
                 $isSmallTile = StoneReceptionItem::skuIsSmallTile($item->product?->sku);
-                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging);
 
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
                     'is_undercut'          => $isUndercut,
+                    'is_edging'            => $isEdging,
                     'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff),
                     'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
@@ -476,8 +478,9 @@ class StoneReceptionService
 
                 $baseCoeff   = (float) $item->product->prod_cost_coeff;
                 $isUndercut  = (bool) $item->is_undercut;
+                $isEdging    = (bool) $item->is_edging;
                 $isSmallTile = StoneReceptionItem::skuIsSmallTile($item->product->sku);
-                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging);
 
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
@@ -564,14 +567,16 @@ class StoneReceptionService
             $prod        = $productMap->get($product['product_id']);
             $baseCoeff   = (float) ($prod?->prod_cost_coeff ?? 0);
             $isUndercut  = !empty($product['is_undercut']);
+            $isEdging    = !empty($product['is_edging']);
             $isSmallTile = StoneReceptionItem::skuIsSmallTile($prod?->sku);
-            $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+            $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging);
 
             $reception->items()->create([
                 'product_id'           => $product['product_id'],
                 'quantity'             => $product['quantity'],
                 'effective_cost_coeff' => $effCoeff,
                 'is_undercut'          => $isUndercut,
+                'is_edging'            => $isEdging,
                 'is_small_tile'        => $isSmallTile,
                 'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
                 'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
@@ -602,14 +607,16 @@ class StoneReceptionService
                 $prod        = $productMap->get($productId);
                 $baseCoeff   = (float) ($prod?->prod_cost_coeff ?? 0);
                 $isUndercut  = !empty($product['is_undercut']);
+                $isEdging    = !empty($product['is_edging']);
                 $isSmallTile = StoneReceptionItem::skuIsSmallTile($prod?->sku);
-                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut);
+                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging);
 
                 $reception->items()->create([
                     'product_id'           => $productId,
                     'quantity'             => $product['quantity'],
                     'effective_cost_coeff' => $effCoeff,
                     'is_undercut'          => $isUndercut,
+                    'is_edging'            => $isEdging,
                     'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
                     'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),

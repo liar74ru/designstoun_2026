@@ -20,6 +20,9 @@
       $showUndercut    — bool (default: false) — чекбокс «80% подкол»
       $isUndercut      — bool (default: false) — предзаполнение чекбокса
       $undercutClass   — string (default: 'undercut-checkbox') — класс чекбокса (для совместимости с edit)
+      $showEdging      — bool (default: false) — чекбокс «Торцовка» (скрыт по умолчанию, JS показывает по SKU партии 04-XX)
+      $isEdging        — bool (default: false) — предзаполнение чекбокса
+      $edgingClass     — string (default: 'edging-checkbox')
       $showCoeff       — bool (default: false) — отображение коэффициента
       $coeffClass      — string (default: 'coeff-display') — класс span с коэффициентом
       $showRemove      — bool (default: true)
@@ -43,6 +46,9 @@
     $showUndercut    = $showUndercut    ?? false;
     $isUndercut      = $isUndercut      ?? false;
     $undercutClass   = $undercutClass   ?? 'undercut-checkbox';
+    $showEdging      = $showEdging      ?? false;
+    $isEdging        = $isEdging        ?? false;
+    $edgingClass     = $edgingClass     ?? 'edging-checkbox';
     $showCoeff       = $showCoeff       ?? false;
     $coeffClass      = $coeffClass      ?? 'coeff-display';
     $showRemove      = $showRemove      ?? true;
@@ -52,7 +58,7 @@
     $extraRowClass   = $extraRowClass   ?? '';
 
     $idxStr  = (string) $index;
-    $hasRow2 = $qtyMode !== 'none' || $showUndercut || $showCoeff;
+    $hasRow2 = $qtyMode !== 'none' || $showUndercut || $showEdging || $showCoeff;
 @endphp
 
 <div class="product-picker-row {{ $extraRowClass }}"
@@ -144,6 +150,24 @@
                        data-tpl-index="{{ $idxStr }}"
                        title="Снижает коэффициент на 1.5">
                     80% подкол
+                </label>
+            </div>
+        @endif
+
+        @if($showEdging)
+            <div class="form-check mb-0 flex-shrink-0 edging-wrapper" style="display:none">
+                <input class="form-check-input {{ $edgingClass }}"
+                       type="checkbox"
+                       id="edging_{{ $idxStr }}"
+                       name="{{ $name }}[{{ $idxStr }}][is_edging]"
+                       value="1"
+                       data-tpl-index="{{ $idxStr }}"
+                       @if($isEdging) checked @endif>
+                <label class="form-check-label small text-info-emphasis fw-semibold"
+                       for="edging_{{ $idxStr }}"
+                       data-tpl-index="{{ $idxStr }}"
+                       title="Полностью заменяет коэффициент продукта на значение настройки EDGING_COEFF">
+                    Торцовка
                 </label>
             </div>
         @endif

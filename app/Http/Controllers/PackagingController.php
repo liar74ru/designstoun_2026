@@ -193,6 +193,7 @@ class PackagingController extends Controller
             'items.*.item_id'     => ['required', 'integer'],
             'items.*.base_coeff'  => ['required', 'numeric'],
             'items.*.is_undercut' => ['nullable', 'boolean'],
+            'items.*.is_edging'   => ['nullable', 'boolean'],
         ]);
 
         $this->service->updateItemCoeff($packaging, $validated);

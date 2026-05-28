@@ -77,6 +77,7 @@ class StoneReceptionController extends Controller
                     'product_id'    => $item->product_id,
                     'product_label' => $item->product?->name ?? '',
                     'is_undercut'   => (bool) $item->is_undercut,
+                    'is_edging'     => (bool) $item->is_edging,
                 ])->toArray();
             }
         }
@@ -266,6 +267,7 @@ class StoneReceptionController extends Controller
             'items.*.item_id'     => ['required', 'integer'],
             'items.*.base_coeff'  => ['required', 'numeric'],
             'items.*.is_undercut' => ['nullable', 'boolean'],
+            'items.*.is_edging'   => ['nullable', 'boolean'],
         ]);
 
         $this->service->updateItemCoeff($stoneReception, $validated);
@@ -326,6 +328,7 @@ class StoneReceptionController extends Controller
                     'product_label' => $i->product?->name ?? '—',
                     'quantity'      => number_format($i->quantity, 2),
                     'is_undercut'   => (bool) $i->is_undercut,
+                    'is_edging'     => (bool) $i->is_edging,
                 ]),
             ]);
 

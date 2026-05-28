@@ -36,6 +36,7 @@ class UpdateStoneReceptionRequest extends FormRequest
             'products.*.product_id'  => 'required|exists:products,id',
             'products.*.quantity'    => 'required|numeric|min:0',
             'products.*.is_undercut' => 'nullable|boolean',
+            'products.*.is_edging'   => 'nullable|boolean',
         ];
     }
 

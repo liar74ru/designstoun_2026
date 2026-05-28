@@ -15,6 +15,7 @@ class StoneReceptionItem extends Model
         'quantity',
         'effective_cost_coeff',
         'is_undercut',
+        'is_edging',
         'is_small_tile',
         'worker_cost_per_m2',
         'master_cost_per_m2',
@@ -24,6 +25,7 @@ class StoneReceptionItem extends Model
         'quantity'             => 'decimal:3',
         'effective_cost_coeff' => 'decimal:4',
         'is_undercut'          => 'boolean',
+        'is_edging'            => 'boolean',
         'is_small_tile'        => 'boolean',
         'worker_cost_per_m2'   => 'decimal:2',
         'master_cost_per_m2'   => 'decimal:2',
@@ -51,22 +53,28 @@ class StoneReceptionItem extends Model
 
     /**
      * Базовый коэффициент приёмки (без поправок).
-     * Если is_undercut=true, то base = effective + UNDERCUT_PENALTY.
+     * Для is_edging «обратное» восстановление невозможно (полная замена),
+     * поэтому возвращаем коэффициент из справочника продукта.
      */
     public function getBaseCoeffAttribute(): float
     {
+        if ($this->is_edging) {
+            return (float) ($this->product?->prod_cost_coeff ?? 0);
+        }
         $eff = (float) $this->effective_cost_coeff;
         return $this->is_undercut ? $eff + (float) Setting::get('UNDERCUT_PENALTY', 1.5) : $eff;
     }
 
     /**
      * Рассчитать итоговый коэффициент из базового и набора флагов-модификаторов.
-     * Сейчас есть только один: is_undercut (−UNDERCUT_PENALTY).
-     * В будущем сюда добавятся другие условия.
+     * is_edging  — полная замена baseCoeff на EDGING_COEFF (для партий 04-XX).
+     * is_undercut — вычитает UNDERCUT_PENALTY (применяется поверх торцовки).
      */
-    public static function computeEffectiveCoeff(float $baseCoeff, bool $isUndercut): float
+    public static function computeEffectiveCoeff(float $baseCoeff, bool $isUndercut, bool $isEdging = false): float
     {
-        $coeff = $baseCoeff;
+        $coeff = $isEdging
+            ? (float) Setting::get('EDGING_COEFF', -2.5)
+            : $baseCoeff;
         if ($isUndercut) {
             $coeff -= (float) Setting::get('UNDERCUT_PENALTY', 1.5);
         }

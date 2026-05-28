@@ -14,6 +14,7 @@ class PackagingItem extends Model
         'quantity',
         'effective_cost_coeff',
         'is_undercut',
+        'is_edging',
         'is_small_tile',
         'worker_cost_per_m2',
         'master_cost_per_m2',
@@ -23,6 +24,7 @@ class PackagingItem extends Model
         'quantity'             => 'decimal:3',
         'effective_cost_coeff' => 'decimal:4',
         'is_undercut'          => 'boolean',
+        'is_edging'            => 'boolean',
         'is_small_tile'        => 'boolean',
         'worker_cost_per_m2'   => 'decimal:2',
         'master_cost_per_m2'   => 'decimal:2',
@@ -40,6 +42,9 @@ class PackagingItem extends Model
 
     public function getBaseCoeffAttribute(): float
     {
+        if ($this->is_edging) {
+            return (float) ($this->product?->prod_cost_coeff ?? 0);
+        }
         $eff = (float) $this->effective_cost_coeff;
         return $this->is_undercut ? $eff + (float) Setting::get('UNDERCUT_PENALTY', 1.5) : $eff;
     }

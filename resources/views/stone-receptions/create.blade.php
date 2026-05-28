@@ -320,6 +320,7 @@
                                                 'product_id'    => $item->product_id,
                                                 'product_label' => $item->product?->name ?? '',
                                                 'is_undercut'   => (bool) $item->is_undercut,
+                                                'is_edging'     => (bool) $item->is_edging,
                                             ])->toJson(JSON_UNESCAPED_UNICODE);
                                         @endphp
                                         <button type="button"
@@ -502,6 +503,7 @@
                         product_id:    i.product_id,
                         product_label: i.product_label,
                         is_undercut:   i.is_undercut,
+                        is_edging:     i.is_edging,
                     }))).replace(/"/g, '&quot;');
 
                     return `<div class="list-group-item px-2 py-2">
@@ -544,9 +546,11 @@
             const allCatalogWrap  = document.getElementById('allCatalogWrap');
             const allCatalogCheck = document.getElementById('allCatalogCheck');
             let currentSkuPrefix  = null;
+            let currentRawSku     = null;
 
             // Маппинг первой группы сырья → группа готовой продукции
             const SKU_GROUP_MAP = { '01': '04' };
+            const EDGING_COEFF  = {{ (float) \App\Models\Setting::get('EDGING_COEFF', -2.5) }};
 
             function localDerivePrefix(rawSku) {
                 if (!rawSku) return null;
@@ -568,6 +572,23 @@
                     allCatalogWrap.style.display = prefix ? '' : 'none';
                     if (allCatalogCheck) allCatalogCheck.checked = false;
                 }
+            }
+
+            // Видимость чекбокса «Торцовка» — только для партий сырья с SKU 04-XX
+            function applyEdgingVisibility(rawSku) {
+                currentRawSku = rawSku || null;
+                const show = !!(rawSku && rawSku.startsWith('04-'));
+                container.querySelectorAll('.edging-wrapper').forEach(el => {
+                    el.style.display = show ? '' : 'none';
+                    if (!show) {
+                        const cb = el.querySelector('input[type="checkbox"]');
+                        if (cb && cb.checked) {
+                            cb.checked = false;
+                            const row = el.closest('.product-picker-row');
+                            if (row) updateRowCoeff(row);
+                        }
+                    }
+                });
             }
 
             if (allCatalogCheck) {
@@ -648,8 +669,10 @@
                     rawQtyInput.value = rem.toFixed(3);
                     loadReceptionsByBatch(opt.value);
                     applySkuPrefix(localDerivePrefix(opt.dataset.productSku || ''));
+                    applyEdgingVisibility(opt.dataset.productSku || '');
                 } else {
                     applySkuPrefix(null);
+                    applyEdgingVisibility(null);
                 }
                 updateRemainingIndicator();
                 updateBatchSidePanels(opt);
@@ -661,6 +684,7 @@
                 const selectedOpt = batchSelect.options[batchSelect.selectedIndex];
                 if (selectedOpt?.dataset.productSku) {
                     applySkuPrefix(localDerivePrefix(selectedOpt.dataset.productSku));
+                    applyEdgingVisibility(selectedOpt.dataset.productSku);
                 }
                 // Заполняем расход остатком партии если поле ещё не заполнено
                 if (selectedOpt?.dataset.remaining && (!rawQtyInput.value || parseFloat(rawQtyInput.value) === 0)) {
@@ -703,18 +727,31 @@
             function updateRowCoeff(row) {
                 const coeffDisplay = row.querySelector('.coeff-display');
                 const undercutCb   = row.querySelector('.undercut-checkbox');
+                const edgingCb     = row.querySelector('.edging-checkbox');
                 if (!coeffDisplay) return;
 
                 const baseCoeff = parseFloat(coeffDisplay.dataset.baseCoeff);
                 if (isNaN(baseCoeff)) return;
 
                 const isUndercut = undercutCb?.checked || false;
-                const effective  = isUndercut ? baseCoeff - 1.5 : baseCoeff;
-                coeffDisplay.textContent = isUndercut
-                    ? `${baseCoeff.toFixed(1)} − 1.5 = ${effective.toFixed(1)}`
-                    : baseCoeff.toFixed(1);
-                coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut);
-                coeffDisplay.classList.toggle('text-dark', !isUndercut);
+                const isEdging   = edgingCb?.checked   || false;
+                const source     = isEdging ? EDGING_COEFF : baseCoeff;
+                const effective  = isUndercut ? source - 1.5 : source;
+
+                let text;
+                if (isEdging && isUndercut) {
+                    text = `${EDGING_COEFF.toFixed(1)} − 1.5 = ${effective.toFixed(1)}`;
+                } else if (isEdging) {
+                    text = `${baseCoeff.toFixed(1)} → ${EDGING_COEFF.toFixed(1)}`;
+                } else if (isUndercut) {
+                    text = `${baseCoeff.toFixed(1)} − 1.5 = ${effective.toFixed(1)}`;
+                } else {
+                    text = baseCoeff.toFixed(1);
+                }
+                coeffDisplay.textContent = text;
+                coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut && !isEdging);
+                coeffDisplay.classList.toggle('text-info-emphasis', isEdging);
+                coeffDisplay.classList.toggle('text-dark', !isUndercut && !isEdging);
             }
 
             document.addEventListener('product-picker:selected', async function (e) {
@@ -734,7 +771,8 @@
             });
 
             container.addEventListener('change', function (e) {
-                if (e.target.classList.contains('undercut-checkbox')) {
+                if (e.target.classList.contains('undercut-checkbox') ||
+                    e.target.classList.contains('edging-checkbox')) {
                     const row = e.target.closest('.product-picker-row');
                     if (row) updateRowCoeff(row);
                 }
@@ -754,7 +792,7 @@
             });
 
             // ── Добавить строку продукта ─────────────────────────────────────────────
-            function addRow(productId = '', productLabel = '', quantity = '', isUndercut = false) {
+            function addRow(productId = '', productLabel = '', quantity = '', isUndercut = false, isEdging = false) {
                 const tpl   = document.getElementById('pickerRowTemplate');
                 const clone = tpl.content.cloneNode(true);
 
@@ -770,11 +808,13 @@
                 const hiddenInput  = clone.querySelector('input[type="hidden"][name*="product_id"]');
                 const qtyInput     = clone.querySelector('.product-picker-qty');
                 const undercutCb   = clone.querySelector('.undercut-checkbox');
+                const edgingCb     = clone.querySelector('.edging-checkbox');
 
                 if (searchInput) searchInput.value = productLabel;
                 if (hiddenInput) hiddenInput.value  = productId;
                 if (qtyInput)    qtyInput.value     = quantity;
                 if (undercutCb && isUndercut) undercutCb.checked = true;
+                if (edgingCb && isEdging)     edgingCb.checked   = true;
 
                 const row = clone.querySelector('.product-picker-row');
                 if (currentSkuPrefix && !(allCatalogCheck?.checked)) {
@@ -785,6 +825,14 @@
                 }
                 container.appendChild(clone);
                 if (window.ProductPicker) window.ProductPicker.initRow(row);
+
+                // Видимость «Торцовки» — по текущему SKU партии
+                const edgingWrapper = row.querySelector('.edging-wrapper');
+                if (edgingWrapper) {
+                    const show = !!(currentRawSku && currentRawSku.startsWith('04-'));
+                    edgingWrapper.style.display = show ? '' : 'none';
+                    if (!show && edgingCb) edgingCb.checked = false;
+                }
 
                 // Загружаем коэффициент если продукт уже задан (копирование)
                 if (productId) {
@@ -812,7 +860,7 @@
                     if (!items.length) return;
                     container.innerHTML = '';
                     rowIndex = 0;
-                    items.forEach(p => addRow(p.product_id, p.product_label, '', p.is_undercut));
+                    items.forEach(p => addRow(p.product_id, p.product_label, '', p.is_undercut, p.is_edging));
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } catch (err) {
                     console.error('copy-reception-btn parse error', err);
@@ -822,7 +870,7 @@
             addBtn.addEventListener('click', () => addRow());
 
             if (copyItems.length > 0) {
-                copyItems.forEach(p => addRow(p.product_id, p.product_label, '', p.is_undercut));
+                copyItems.forEach(p => addRow(p.product_id, p.product_label, '', p.is_undercut, p.is_edging));
             } else {
                 addRow();
             }
@@ -891,6 +939,7 @@
             'unit'         => 'м²',
             'qtyMode'      => 'simple',
             'showUndercut' => true,
+            'showEdging'   => true,
             'showCoeff'    => true,
             'showRemove'   => true,
         ])

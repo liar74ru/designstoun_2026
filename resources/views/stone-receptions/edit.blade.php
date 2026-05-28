@@ -252,6 +252,12 @@
                                                     80% подкол
                                                 </span>
                                             @endif
+                                            @if($item->is_edging)
+                                                <span class="badge bg-info text-dark position-absolute"
+                                                      style="top:0;left:0;bottom:0;writing-mode:vertical-rl;font-size:.55rem;border-radius:.4rem 0 0 .4rem;padding:.25rem .2rem">
+                                                    Торцовка
+                                                </span>
+                                            @endif
 
                                             <div style="font-size:.85rem;font-weight:600;padding-right:1.8rem;margin-bottom:.15rem">
                                                 {{ $item->product->name ?? '—' }}
@@ -377,6 +383,7 @@
                                                 'product_id'    => $item->product_id,
                                                 'product_label' => $item->product?->name ?? '',
                                                 'is_undercut'   => (bool) $item->is_undercut,
+                                                'is_edging'     => (bool) $item->is_edging,
                                             ])->toJson(JSON_UNESCAPED_UNICODE);
                                         @endphp
                                         <button type="button"
@@ -555,19 +562,34 @@
                 } catch { return null; }
             }
 
+            const EDGING_COEFF = {{ (float) \App\Models\Setting::get('EDGING_COEFF', -2.5) }};
+
             function updateNewRowCoeff(row) {
                 const undercutCb   = row.querySelector('.js-new-undercut');
+                const edgingCb     = row.querySelector('.js-new-edging');
                 const coeffDisplay = row.querySelector('.js-new-coeff-display');
                 if (!coeffDisplay) return;
                 const baseCoeff = parseFloat(coeffDisplay.dataset.baseCoeff);
                 if (isNaN(baseCoeff)) return;
                 const isUndercut = undercutCb?.checked || false;
-                const effective  = isUndercut ? baseCoeff - 1.5 : baseCoeff;
-                coeffDisplay.textContent = isUndercut
-                    ? `${baseCoeff.toFixed(4)} − 1.5 = ${effective.toFixed(4)}`
-                    : baseCoeff.toFixed(4);
-                coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut);
-                coeffDisplay.classList.toggle('text-dark', !isUndercut);
+                const isEdging   = edgingCb?.checked   || false;
+                const source     = isEdging ? EDGING_COEFF : baseCoeff;
+                const effective  = isUndercut ? source - 1.5 : source;
+
+                let text;
+                if (isEdging && isUndercut) {
+                    text = `${EDGING_COEFF.toFixed(4)} − 1.5 = ${effective.toFixed(4)}`;
+                } else if (isEdging) {
+                    text = `${baseCoeff.toFixed(4)} → ${EDGING_COEFF.toFixed(4)}`;
+                } else if (isUndercut) {
+                    text = `${baseCoeff.toFixed(4)} − 1.5 = ${effective.toFixed(4)}`;
+                } else {
+                    text = baseCoeff.toFixed(4);
+                }
+                coeffDisplay.textContent = text;
+                coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut && !isEdging);
+                coeffDisplay.classList.toggle('text-info-emphasis', isEdging);
+                coeffDisplay.classList.toggle('text-dark', !isUndercut && !isEdging);
             }
 
             document.addEventListener('product-picker:selected', async function (e) {
@@ -591,15 +613,35 @@
             const newContainer = document.getElementById('new-products-container');
 
             newContainer.addEventListener('change', function (e) {
-                if (e.target.classList.contains('js-new-undercut')) {
+                if (e.target.classList.contains('js-new-undercut') ||
+                    e.target.classList.contains('js-new-edging')) {
                     const row = e.target.closest('.new-product-row');
                     if (row) updateNewRowCoeff(row);
                 }
             });
 
             let currentSkuPrefix = null;
+            let currentRawSku    = null;
 
-            function addNewProduct(productId = '', productLabel = '', isUndercut = false) {
+            // Видимость чекбокса «Торцовка» (только для партий 04-XX)
+            function applyEdgingVisibility(rawSku) {
+                currentRawSku = rawSku || null;
+                const show = !!(rawSku && rawSku.startsWith('04-'));
+                if (!newContainer) return;
+                newContainer.querySelectorAll('.edging-wrapper').forEach(el => {
+                    el.style.display = show ? '' : 'none';
+                    if (!show) {
+                        const cb = el.querySelector('input[type="checkbox"]');
+                        if (cb && cb.checked) {
+                            cb.checked = false;
+                            const row = el.closest('.new-product-row');
+                            if (row) updateNewRowCoeff(row);
+                        }
+                    }
+                });
+            }
+
+            function addNewProduct(productId = '', productLabel = '', isUndercut = false, isEdging = false) {
                 const idx   = newIdx++;
                 const tpl   = document.getElementById('editPickerRowTemplate');
                 const clone = tpl.content.cloneNode(true);
@@ -642,6 +684,10 @@
                         const undercutCb = row.querySelector('.js-new-undercut');
                         if (undercutCb) undercutCb.checked = true;
                     }
+                    if (isEdging) {
+                        const edgingCb = row.querySelector('.js-new-edging');
+                        if (edgingCb) edgingCb.checked = true;
+                    }
                     fetchProductCoeff(productId).then(coeff => {
                         if (coeff !== null) {
                             const coeffDisplay = row.querySelector('.js-new-coeff-display');
@@ -651,6 +697,17 @@
                             }
                         }
                     });
+                }
+
+                // Видимость «Торцовки» — по SKU фиксированной партии
+                const edgingWrapper = row.querySelector('.edging-wrapper');
+                if (edgingWrapper) {
+                    const show = !!(currentRawSku && currentRawSku.startsWith('04-'));
+                    edgingWrapper.style.display = show ? '' : 'none';
+                    if (!show) {
+                        const cb = edgingWrapper.querySelector('input[type="checkbox"]');
+                        if (cb) cb.checked = false;
+                    }
                 }
             }
 
@@ -696,6 +753,7 @@
             const batchHidden = document.getElementById('raw_material_batch_id');
             if (batchHidden?.dataset.productSku) {
                 applySkuPrefix(localDerivePrefix(batchHidden.dataset.productSku));
+                applyEdgingVisibility(batchHidden.dataset.productSku);
             }
 
             // ── Последние приёмки: сворачивание на мобильном ────────────────────────
@@ -744,7 +802,7 @@
                         alert('Все продукты из этой приёмки уже добавлены');
                         return;
                     }
-                    toAdd.forEach(p => addNewProduct(String(p.product_id), p.product_label, !!p.is_undercut));
+                    toAdd.forEach(p => addNewProduct(String(p.product_id), p.product_label, !!p.is_undercut, !!p.is_edging));
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } catch (err) {
                     console.error('copy-reception-btn parse error', err);
@@ -799,9 +857,11 @@
         'unit'          => 'м²',
         'qtyMode'       => 'delta',
         'showUndercut'  => true,
+        'showEdging'    => true,
         'showCoeff'     => true,
         'showRemove'    => true,
         'undercutClass' => 'js-new-undercut',
+        'edgingClass'   => 'js-new-edging',
         'coeffClass'    => 'js-new-coeff-display',
         'extraRowClass' => 'new-product-row',
     ])

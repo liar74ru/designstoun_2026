@@ -98,7 +98,8 @@ class WorkerDashboardService
                 $receptionItem = $logItem->receptionLog?->stoneReception?->items
                     ->firstWhere('product_id', $logItem->product_id);
                 $isUndercut = $receptionItem ? (bool) $receptionItem->is_undercut : false;
-                return $logItem->product_id . '_' . ($isUndercut ? '1' : '0');
+                $isEdging   = $receptionItem ? (bool) $receptionItem->is_edging   : false;
+                return $logItem->product_id . '_' . ($isUndercut ? '1' : '0') . '_' . ($isEdging ? '1' : '0');
             })
             ->map(function ($items) {
                 $firstLogItem       = $items->first();
@@ -106,6 +107,7 @@ class WorkerDashboardService
                 $firstReceptionItem = $firstLogItem->receptionLog?->stoneReception?->items
                     ->firstWhere('product_id', $firstLogItem->product_id);
                 $isUndercut  = $firstReceptionItem ? (bool) $firstReceptionItem->is_undercut  : false;
+                $isEdging    = $firstReceptionItem ? (bool) $firstReceptionItem->is_edging    : false;
                 $isSmallTile = $firstReceptionItem ? (bool) $firstReceptionItem->is_small_tile : false;
 
                 $quantity = $items->sum(fn($item) => (float) $item->quantity_delta);
@@ -142,6 +144,7 @@ class WorkerDashboardService
                     'quantity'      => $quantity,
                     'coeff'         => $effCoeffDisplay,
                     'is_undercut'   => $isUndercut,
+                    'is_edging'     => $isEdging,
                     'is_small_tile' => $isSmallTile,
                     'prodCost'      => $items
                         ->map(fn($li) => $li->receptionLog?->stoneReception?->items
@@ -158,7 +161,7 @@ class WorkerDashboardService
                 ];
             })
             ->filter(fn($row) => abs($row['quantity']) > 0.0001)
-            ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '_' . ($row['is_undercut'] ? '1' : '0'))
+            ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '_' . ($row['is_undercut'] ? '1' : '0') . '_' . ($row['is_edging'] ? '1' : '0'))
             ->values();
     }
 }
