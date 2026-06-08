@@ -69,12 +69,13 @@ class StoneReceptionItem extends Model
      * Рассчитать итоговый коэффициент из базового и набора флагов-модификаторов.
      * is_edging  — полная замена baseCoeff на EDGING_COEFF (для партий 04-XX).
      * is_undercut — вычитает UNDERCUT_PENALTY (применяется поверх торцовки).
+     * SKU-бонус маски (04-07-xx) — добавляется к baseCoeff перед торцовкой/подколом.
      */
-    public static function computeEffectiveCoeff(float $baseCoeff, bool $isUndercut, bool $isEdging = false): float
+    public static function computeEffectiveCoeff(float $baseCoeff, bool $isUndercut, bool $isEdging = false, ?string $sku = null): float
     {
         $coeff = $isEdging
             ? (float) Setting::get('EDGING_COEFF', -2.5)
-            : $baseCoeff;
+            : $baseCoeff + (self::skuIsMaskTile($sku) ? (float) Setting::get('MASK_TILE_COEFF_BONUS', 2.0) : 0.0);
         if ($isUndercut) {
             $coeff -= (float) Setting::get('UNDERCUT_PENALTY', 1.5);
         }
@@ -108,6 +109,16 @@ class StoneReceptionItem extends Model
         if (!$sku) return false;
         $parts = explode('-', $sku);
         return count($parts) >= 3 && $parts[2] === '30';
+    }
+
+    /**
+     * Проверяет, является ли SKU плиткой маской (04-07-xx).
+     */
+    public static function skuIsMaskTile(?string $sku): bool
+    {
+        if (!$sku) return false;
+        $parts = explode('-', $sku);
+        return ($parts[0] ?? '') === '04' && ($parts[1] ?? '') === '07';
     }
 
     /**

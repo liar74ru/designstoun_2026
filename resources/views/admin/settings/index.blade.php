@@ -98,6 +98,32 @@
                             @enderror
                         </div>
                     @endif
+
+                    @php $maskSetting = $settings->firstWhere('key', 'MASK_TILE_COEFF_BONUS'); @endphp
+                    @if($maskSetting)
+                        @php $m = $settings->search(fn($s) => $s->key === 'MASK_TILE_COEFF_BONUS'); @endphp
+                        <div class="mb-0 mt-3">
+                            <label for="setting_MASK_TILE_COEFF_BONUS" class="form-label fw-semibold mb-1">
+                                {{ $maskSetting->label }}
+                            </label>
+                            @if($maskSetting->description)
+                                <div class="text-muted small mb-1">{{ $maskSetting->description }}</div>
+                            @endif
+                            <input
+                                type="number"
+                                step="any"
+                                id="setting_MASK_TILE_COEFF_BONUS"
+                                name="settings[{{ $m }}][value]"
+                                value="{{ old('settings.' . $m . '.value', $maskSetting->value) }}"
+                                class="form-control @error('settings.' . $m . '.value') is-invalid @enderror"
+                                required
+                            >
+                            <input type="hidden" name="settings[{{ $m }}][key]" value="MASK_TILE_COEFF_BONUS">
+                            @error('settings.' . $m . '.value')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

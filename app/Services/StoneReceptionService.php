@@ -450,7 +450,7 @@ class StoneReceptionService
                 $isEdging    = !empty($row['is_edging']);
                 $baseCoeff   = (float) $row['base_coeff'];
                 $isSmallTile = StoneReceptionItem::skuIsSmallTile($item->product?->sku);
-                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging);
+                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging, $item->product?->sku);
 
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
@@ -480,7 +480,7 @@ class StoneReceptionService
                 $isUndercut  = (bool) $item->is_undercut;
                 $isEdging    = (bool) $item->is_edging;
                 $isSmallTile = StoneReceptionItem::skuIsSmallTile($item->product->sku);
-                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging);
+                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging, $item->product->sku);
 
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
@@ -569,7 +569,7 @@ class StoneReceptionService
             $isUndercut  = !empty($product['is_undercut']);
             $isEdging    = !empty($product['is_edging']);
             $isSmallTile = StoneReceptionItem::skuIsSmallTile($prod?->sku);
-            $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging);
+            $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging, $prod?->sku);
 
             $reception->items()->create([
                 'product_id'           => $product['product_id'],
@@ -609,7 +609,7 @@ class StoneReceptionService
                 $isUndercut  = !empty($product['is_undercut']);
                 $isEdging    = !empty($product['is_edging']);
                 $isSmallTile = StoneReceptionItem::skuIsSmallTile($prod?->sku);
-                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging);
+                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging, $prod?->sku);
 
                 $reception->items()->create([
                     'product_id'           => $productId,
