@@ -21,8 +21,9 @@ class WorkerController extends Controller
 
         $departments = Department::orderBy('name')->get();
         $positions   = array_combine(Worker::POSITIONS, Worker::POSITIONS);
+        $status      = $request->input('filter.status', 'active');
 
-        return view('workers.index', compact('workers', 'departments', 'positions'));
+        return view('workers.index', compact('workers', 'departments', 'positions', 'status'));
     }
 
     public function create()
@@ -84,6 +85,22 @@ class WorkerController extends Controller
 
         return redirect()->route('workers.index')
             ->with('success', 'Работник успешно удален');
+    }
+
+    public function archive(Worker $worker)
+    {
+        $worker->archive();
+
+        return redirect()->route('workers.index')
+            ->with('success', 'Работник '.$worker->name.' переведён в архив');
+    }
+
+    public function restore(Worker $worker)
+    {
+        $worker->restore();
+
+        return redirect()->route('workers.index')
+            ->with('success', 'Работник '.$worker->name.' возвращён из архива');
     }
 
     public function createUser(Worker $worker)

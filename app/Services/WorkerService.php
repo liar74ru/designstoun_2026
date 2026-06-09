@@ -13,6 +13,14 @@ class WorkerService
     {
         $query = Worker::with('department');
 
+        // Статус: active (по умолчанию) / archived / all
+        $status = $filters['status'] ?? 'active';
+        if ($status === 'archived') {
+            $query->archived();
+        } elseif ($status !== 'all') {
+            $query->active();
+        }
+
         if ($authUser->isMaster() && $authUser->worker?->department_id) {
             $query->where('department_id', $authUser->worker->department_id);
         }

@@ -119,6 +119,58 @@
                         </form>
                     </div>
                 </div>
+
+                @if(auth()->user()->isAdmin())
+                    <div class="card shadow-sm mt-3">
+                        <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            @if($worker->isArchived())
+                                <div>
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-archive"></i> В архиве
+                                    </span>
+                                    <span class="text-muted small ms-1">
+                                        с {{ $worker->archived_at->format('d.m.Y') }}
+                                    </span>
+                                </div>
+                            @else
+                                <div class="text-muted small">
+                                    Работник уволен? Переведите его в архив — он сохранится в истории,
+                                    но не будет предлагаться при выборе в производственных формах.
+                                </div>
+                            @endif
+
+                            <div class="d-flex gap-2 flex-wrap">
+                                @if($worker->isArchived())
+                                    <form method="POST" action="{{ route('workers.restore', $worker) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="btn btn-outline-success">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Вернуть из архива
+                                        </button>
+                                    </form>
+                                @else
+                                    <form method="POST" action="{{ route('workers.archive', $worker) }}"
+                                          onsubmit="return confirm('Перевести работника {{ $worker->name }} в архив?')">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="btn btn-outline-warning">
+                                            <i class="bi bi-archive"></i> В архив
+                                        </button>
+                                    </form>
+                                @endif
+
+                                <form method="POST" action="{{ route('workers.destroy', $worker) }}"
+                                      onsubmit="return confirm('Вы уверены, что хотите удалить работника {{ $worker->name }}? Действие необратимо.')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Удалить
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

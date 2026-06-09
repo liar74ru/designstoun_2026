@@ -28,16 +28,23 @@ class PackagingService
 
     public function getFormOptions(?Packaging $packaging = null): array
     {
+        // При редактировании сохраняем уже назначенных работников в списках,
+        // даже если они переведены в архив (иначе <select> потеряет значение).
+        $keep = $packaging ? array_filter([$packaging->packer_id, $packaging->receiver_id]) : [];
+
         $packers = Worker::whereIn('position', ['Мастер', 'Администратор'])
+            ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
 
         $masterWorkers = Worker::whereIn('position', ['Мастер', 'Администратор'])
+            ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
 
         $data = [
             'packers'         => $packers,
             'masterWorkers'   => $masterWorkers,
-            'workers'         => Worker::orderBy('name')->get(),
+            'workers'         => Worker::where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
+                ->orderBy('name')->get(),
             'products'        => Product::orderBy('name')->get(),
             'packageProducts' => Product::where('sku', 'like', '07-03%')->orderBy('name')->get(),
             'stores'          => Store::orderBy('name')->get(),

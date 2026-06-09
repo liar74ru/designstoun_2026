@@ -70,6 +70,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/workers/{worker}/store-user', [WorkerController::class, 'storeUser'])
         ->middleware('can:see-workers')
         ->name('workers.store-user');
+    Route::patch('/workers/{worker}/archive', [WorkerController::class, 'archive'])
+        ->middleware('can:see-workers')
+        ->name('workers.archive');
+    Route::patch('/workers/{worker}/restore', [WorkerController::class, 'restore'])
+        ->middleware('can:see-workers')
+        ->name('workers.restore');
 
     // Свой пароль — доступен любому залогиненному (Policy на конкретного worker)
     Route::get('/workers/{worker}/edit-user', [WorkerController::class, 'editUser'])->name('workers.edit-user');

@@ -28,6 +28,23 @@
 
     @include('partials.alerts')
 
+    @if(auth()->user()->isAdmin())
+        <div class="btn-group btn-group-sm mb-3 w-100" role="group" aria-label="Фильтр по статусу">
+            <a href="{{ route('workers.index', ['filter' => ['status' => 'active']]) }}"
+               class="btn {{ $status === 'active' ? 'btn-primary' : 'btn-outline-primary' }}">
+                <i class="bi bi-people"></i> Активные
+            </a>
+            <a href="{{ route('workers.index', ['filter' => ['status' => 'archived']]) }}"
+               class="btn {{ $status === 'archived' ? 'btn-primary' : 'btn-outline-primary' }}">
+                <i class="bi bi-archive"></i> Архивные
+            </a>
+            <a href="{{ route('workers.index', ['filter' => ['status' => 'all']]) }}"
+               class="btn {{ $status === 'all' ? 'btn-primary' : 'btn-outline-primary' }}">
+                Все
+            </a>
+        </div>
+    @endif
+
     @if($workers->count() > 0)
 
         {{-- Десктоп --}}
@@ -60,7 +77,14 @@
                         @if(auth()->user()->isAdmin() || !($worker->user?->isAdmin()))
                         <tr>
                             <td class="text-muted small">{{ $worker->id }}</td>
-                            <td class="fw-bold">{{ $worker->name }}</td>
+                            <td class="fw-bold">
+                                {{ $worker->name }}
+                                @if($worker->isArchived())
+                                    <span class="badge bg-secondary ms-1" title="Уволен {{ $worker->archived_at->format('d.m.Y') }}">
+                                        <i class="bi bi-archive"></i> В архиве
+                                    </span>
+                                @endif
+                            </td>
                             <td>
                                 @php
                                     $pos = $worker->position;
@@ -133,15 +157,6 @@
                                            class="btn btn-sm btn-outline-primary" title="Редактировать">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <form action="{{ route('workers.destroy', $worker) }}" method="POST"
-                                              class="d-inline"
-                                              onsubmit="return confirm('Вы уверены, что хотите удалить работника {{ $worker->name }}?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
                                     @endif
                                 </div>
                             </td>
@@ -167,6 +182,11 @@
                     <div class="info-block-header d-flex justify-content-between align-items-start gap-2">
                         <span class="fw-semibold small">{{ $worker->name }}</span>
                         <div class="d-flex flex-wrap gap-1 justify-content-end">
+                            @if($worker->isArchived())
+                                <span class="badge small bg-secondary">
+                                    <i class="bi bi-archive"></i> В архиве
+                                </span>
+                            @endif
                             @if($pos)
                                 <span class="badge small"
                                       style="background:{{ $posColor }};color:{{ $pos === 'Мастер' ? '#212529' : '#fff' }}">
@@ -236,14 +256,6 @@
                                    class="btn btn-sm btn-outline-primary w-100">
                                     <i class="bi bi-pencil"></i> Изменить
                                 </a>
-                                <form action="{{ route('workers.destroy', $worker) }}" method="POST"
-                                      onsubmit="return confirm('Удалить работника {{ $worker->name }}?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">
-                                        <i class="bi bi-trash"></i> Удалить
-                                    </button>
-                                </form>
                             @endif
                         </div>
 

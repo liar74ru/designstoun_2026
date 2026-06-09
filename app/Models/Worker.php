@@ -23,7 +23,44 @@ class Worker extends Model
         'phone',
         'position',
         'department_id',
+        'archived_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'archived_at' => 'datetime',
+        ];
+    }
+
+    /** Активные (не уволенные) работники */
+    public function scopeActive($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    /** Архивные (уволенные) работники */
+    public function scopeArchived($query)
+    {
+        return $query->whereNotNull('archived_at');
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    /** Перевести работника в архив */
+    public function archive(): void
+    {
+        $this->update(['archived_at' => now()]);
+    }
+
+    /** Вернуть работника из архива */
+    public function restore(): void
+    {
+        $this->update(['archived_at' => null]);
+    }
 
     public function user()
     {
