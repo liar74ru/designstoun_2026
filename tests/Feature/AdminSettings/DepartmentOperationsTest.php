@@ -118,6 +118,9 @@ describe('Header — видимость иконок по позиции и от
         $response->assertOk();
 
         foreach (config('department_operations') as $op) {
+            if ($op['hide_for_admin'] ?? false) {
+                continue;
+            }
             $response->assertSeeText($op['label']);
         }
     });
