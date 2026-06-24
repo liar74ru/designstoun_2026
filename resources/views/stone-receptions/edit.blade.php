@@ -141,6 +141,7 @@
                             @php
                                 $rawQtyLocked = $stoneReception->rawMaterialBatch &&
                                     $stoneReception->rawMaterialBatch->current_worker_id != $stoneReception->cutter_id;
+                                $rawRemaining = (float)($stoneReception->rawMaterialBatch?->remaining_quantity ?? 0);
                             @endphp
                             <div class="rounded border border-secondary border-opacity-25 mb-2">
                                 <div class="px-2 py-1 border-bottom border-secondary border-opacity-25">
@@ -175,7 +176,7 @@
                                                        style="width:110px"
                                                        step="0.001"
                                                        placeholder="0.000"
-                                                       value="{{ old('raw_quantity_delta', 0) }}">
+                                                       value="{{ old('raw_quantity_delta', $rawRemaining) }}">
                                                 <span class="text-muted">=</span>
                                                 <div class="d-flex align-items-center gap-1">
                                                     <span class="fw-bold" style="font-size:.9rem">Итого:</span>
@@ -202,7 +203,7 @@
                                                        class="form-control form-control-sm flex-fill"
                                                        step="0.001"
                                                        placeholder="0.000"
-                                                       value="{{ old('raw_quantity_delta', 0) }}"
+                                                       value="{{ old('raw_quantity_delta', $rawRemaining) }}"
                                                        data-mirror="raw_quantity_delta">
                                                 <span class="text-muted">=</span>
                                                 <div class="text-center flex-shrink-0">
