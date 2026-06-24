@@ -32,6 +32,7 @@ class UpdateStoneReceptionRequest extends FormRequest
             'raw_material_batch_id'  => 'required|exists:raw_material_batches,id',
             'raw_quantity_used'      => 'required|numeric|min:0',
             'notes'                  => 'nullable|string',
+            'manual_created_at'      => 'nullable|date',
             'products'               => 'required|array|min:1',
             'products.*.product_id'  => 'required|exists:products,id',
             'products.*.quantity'    => 'required|numeric|min:0',
