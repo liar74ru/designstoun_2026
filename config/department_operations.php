@@ -8,6 +8,13 @@ return [
         'route_pattern' => 'home',
         'admin_only'    => true,
     ],
+    'enterprise-dashboard' => [
+        'label'         => 'Итоги',
+        'icon'          => 'bi-graph-up',
+        'route'         => 'admin.enterprise-dashboard',
+        'route_pattern' => 'admin.enterprise-dashboard',
+        'admin_only'    => true,
+    ],
     'master-dashboard' => [
         'label'                    => 'Дашборд',
         'icon'                     => 'bi-bar-chart-line',

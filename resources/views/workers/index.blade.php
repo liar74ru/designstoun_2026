@@ -146,7 +146,7 @@
                                             <i class="bi bi-bar-chart"></i>
                                         </a>
                                     @endif
-                                    @if($worker->position === 'Мастер')
+                                    @if(in_array($worker->position, ['Мастер', 'Администратор'], true))
                                         <a href="{{ route('master.dashboard.by-id', $worker->id) }}"
                                            class="btn btn-sm btn-outline-success" title="Выработка мастера">
                                             <i class="bi bi-bar-chart"></i>
@@ -245,7 +245,7 @@
                                     <i class="bi bi-bar-chart"></i> Выработка
                                 </a>
                             @endif
-                            @if($worker->position === 'Мастер')
+                            @if(in_array($worker->position, ['Мастер', 'Администратор'], true))
                                 <a href="{{ route('master.dashboard.by-id', $worker->id) }}"
                                    class="btn btn-sm btn-outline-success w-100">
                                     <i class="bi bi-bar-chart"></i> Выработка

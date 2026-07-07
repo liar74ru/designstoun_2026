@@ -82,6 +82,32 @@ test('страница дашборда мастера показывает пр
         ->assertStatus(200);
 });
 
+test('в списке работников у админа-работника есть кнопка выработки', function () {
+    $worker = Worker::create(['name' => 'Админ-приёмщик', 'position' => 'Администратор']);
+    $admin  = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => true]);
+
+    $this->actingAs($admin)->get(route('workers.index'))
+        ->assertStatus(200)
+        ->assertSee(route('master.dashboard.by-id', $worker->id), false);
+});
+
+test('иконка дашборда мастера не выводится в шапке для админа', function () {
+    $admin = User::factory()->create(['worker_id' => null, 'is_admin' => true]);
+
+    $this->actingAs($admin)->get('/')
+        ->assertStatus(200)
+        ->assertDontSee('/master-work');
+});
+
+test('админ с привязкой к работнику открывает свой дашборд', function () {
+    $worker = Worker::create(['name' => 'Админ Дашбордов', 'position' => 'Администратор']);
+    $admin  = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => true]);
+
+    $this->actingAs($admin)->get('/master-work')
+        ->assertStatus(200)
+        ->assertSee('Админ Дашбордов');
+});
+
 test('страница дашборда мастера фильтрует приёмки по датам', function () {
     $master = Worker::create(['name' => 'Мастер Фильтр', 'position' => 'Мастер']);
     $cutter = Worker::create(['name' => 'Пильщик Фильтр', 'position' => 'Работник']);

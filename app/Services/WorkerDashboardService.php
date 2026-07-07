@@ -89,6 +89,51 @@ class WorkerDashboardService
         );
     }
 
+    /**
+     * Общий дашборд предприятия: агрегация всего производства за период по всем приёмкам,
+     * с группировкой по отделам (внутри — сводка по продуктам). Только для админа.
+     */
+    public function getEnterpriseDashboardData(Carbon $dateFrom, Carbon $dateTo): array
+    {
+        $logs = ReceptionLog::with([
+                'items.product',
+                'stoneReception.items',
+                'stoneReception.department',
+            ])
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Привязать inverse-отношение log↔items, чтобы buildProductSummary не делал N+1.
+        $logs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('receptionLog', $log)));
+
+        $departments = $logs
+            ->groupBy(fn($log) => $log->stoneReception?->department_id)
+            ->map(function ($deptLogs) {
+                $summary = $this->buildProductSummary($deptLogs);
+
+                return [
+                    'department'     => $deptLogs->first()?->stoneReception?->department,
+                    'summary'        => $summary,
+                    'totalQuantity'  => $summary->sum('quantity'),
+                    'totalPay'       => $summary->sum('pay'),
+                    'totalMasterPay' => $summary->sum('masterPay'),
+                ];
+            })
+            ->filter(fn($row) => $row['summary']->isNotEmpty())
+            ->sortBy(fn($row) => $row['department']?->name ?? "\u{FFFF}")
+            ->values();
+
+        return [
+            'departments'    => $departments,
+            'grandQuantity'  => $departments->sum('totalQuantity'),
+            'grandPay'       => $departments->sum('totalPay'),
+            'grandMasterPay' => $departments->sum('totalMasterPay'),
+            'dateFrom'       => $dateFrom,
+            'dateTo'         => $dateTo,
+        ];
+    }
+
     private function buildProductSummary(Collection $logs): Collection
     {
         $allItems = $logs->flatMap(fn($log) => $log->items);

@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\OrderStatusSettingController;
 use App\Http\Controllers\AdminSettingController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\CutterWorkerDashboardController;
+use App\Http\Controllers\EnterpriseDashboardController;
 use Illuminate\Support\Facades\Route;
 
 // Главная — редирект на login если не авторизован
@@ -170,6 +171,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Настройки системы — только админ (через can:manage-admin на группе)
     Route::prefix('admin')->name('admin.')->middleware('can:manage-admin')->group(function () {
+        Route::get('/enterprise-dashboard', [EnterpriseDashboardController::class, 'index'])->name('enterprise-dashboard');
         Route::get('/settings',  [AdminSettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
