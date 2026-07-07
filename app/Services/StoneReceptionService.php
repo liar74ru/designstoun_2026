@@ -42,9 +42,7 @@ class StoneReceptionService
         $keep = $reception ? array_filter([$reception->cutter_id, $reception->receiver_id]) : [];
 
         $data = [
-            'masterWorkers' => Worker::whereIn('position', ['Мастер', 'Администратор'])
-                ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
-                ->orderBy('name')->get(),
+            'masterWorkers' => $this->getMasterWorkers($keep),
             'workers'      => Worker::where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
                 ->orderBy('name')->get(),
             'products'     => Product::orderBy('name')->get(),
@@ -259,7 +257,7 @@ class StoneReceptionService
             ? (float) $reception->rawMaterialBatch->remaining_quantity
             : null;
 
-        DB::transaction(function () use ($reception, $data, $rawDelta, $batchSnapshotBefore) {
+        DB::transaction(function () use ($reception, $data, $rawDelta, $batchSnapshotBefore, $isAdmin) {
             $preSaveItems = $reception->items()
                 ->get()
                 ->pluck('quantity', 'product_id')
@@ -293,6 +291,11 @@ class StoneReceptionService
             }
 
             $logDate = $data['manual_created_at'] ?? now();
+            // Дельта засчитывается тому, кто фактически правит: не-админ — всегда сам,
+            // админ — по выбору из формы (fallback на текущего пользователя в writeReceptionLog).
+            $logReceiverId = $isAdmin
+                ? ($data['receiver_id'] ?? null)
+                : auth()->user()?->worker_id;
             $this->writeReceptionLog(
                 $reception,
                 ReceptionLog::TYPE_UPDATED,
@@ -300,7 +303,7 @@ class StoneReceptionService
                 $batchSnapshotBefore,
                 $deltas,
                 $logDate,
-                $data['receiver_id'] ?? null
+                $logReceiverId
             );
         });
 
@@ -313,6 +316,26 @@ class StoneReceptionService
     public function delete(StoneReception $reception): void
     {
         DB::transaction(fn() => $reception->delete());
+    }
+
+    /**
+     * Список мастеров/администраторов для выбора приёмщика.
+     * $keep — id, которые нужно сохранить в списке, даже если работник в архиве.
+     */
+    public function getMasterWorkers(array $keep = []): Collection
+    {
+        return Worker::whereIn('position', ['Мастер', 'Администратор'])
+            ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
+            ->orderBy('name')->get();
+    }
+
+    /**
+     * Точечная правка приёмщика в записи журнала (только админ).
+     * Меняет только атрибуцию выработки — синхронизация с МойСклад не требуется.
+     */
+    public function updateLogReceiver(ReceptionLog $log, int $receiverId): void
+    {
+        $log->update(['receiver_id' => $receiverId]);
     }
 
     public function closeBatch(RawMaterialBatch $batch): bool

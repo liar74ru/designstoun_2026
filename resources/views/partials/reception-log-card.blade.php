@@ -3,6 +3,8 @@
     $showRawDetails  = $showRawDetails  ?? false;
     $showStoreBottom = $showStoreBottom ?? false;
     $isMaster        = $isMaster        ?? false;
+    $editableReceiver = $editableReceiver ?? false;
+    $masterWorkers    = $masterWorkers    ?? collect();
 
     $skuColor = \App\Models\Product::getColorBySku($log->rawMaterialBatch?->product?->sku);
     $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
@@ -146,6 +148,15 @@
                         <i class="bi bi-person-gear me-1"></i>{{ $log->receiver->name }}
                     </span>
                 @endif
+            </div>
+        @elseif($editableReceiver && $masterWorkers->isNotEmpty())
+            <div class="d-flex justify-content-end align-items-center gap-1" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">
+                <i class="bi bi-person-gear text-muted" style="font-size:.65rem"></i>
+                @include('partials.reception-log-receiver', [
+                    'log'              => $log,
+                    'editableReceiver' => true,
+                    'masterWorkers'    => $masterWorkers,
+                ])
             </div>
         @elseif($log->receiver)
             <div class="d-flex justify-content-end" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem">

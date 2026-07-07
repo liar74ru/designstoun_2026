@@ -122,6 +122,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/stone-receptions/{stoneReception}/item-coeffs', [StoneReceptionController::class, 'updateItemCoeff'])->name('stone-receptions.update-item-coeff');
         Route::post('/stone-receptions/{stoneReception}/refresh-item-coeffs', [StoneReceptionController::class, 'refreshItemCoeffs'])->name('stone-receptions.refresh-item-coeffs');
 
+        // Правка приёмщика в записи журнала — только админ (ретроспективная атрибуция выработки)
+        Route::patch('/reception-logs/{receptionLog}/receiver', [StoneReceptionController::class, 'updateLogReceiver'])
+            ->name('reception-logs.update-receiver')
+            ->middleware('can:manage-admin');
+
         // AJAX-эндпоинты, относящиеся к приёмкам
         Route::get('/api/workers/{worker}/batches', [StoneReceptionController::class, 'getBatchesJson'])->name('api.worker.batches');
         Route::get('/api/batches/{batch}/receptions', [StoneReceptionController::class, 'getReceptionsByBatchJson'])->name('api.batch.receptions');

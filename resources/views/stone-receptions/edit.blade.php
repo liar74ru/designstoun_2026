@@ -63,7 +63,7 @@
                                                         @foreach($masterWorkers as $worker)
                                                             <option value="{{ $worker->id }}"
                                                                 data-department-id="{{ $worker->department_id }}"
-                                                                {{ old('receiver_id', $stoneReception->receiver_id) == $worker->id ? 'selected' : '' }}>
+                                                                {{ old('receiver_id', auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
                                                                 {{ $worker->name }}
                                                             </option>
                                                         @endforeach
@@ -71,8 +71,8 @@
                                                     @error('receiver_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                                 @else
                                                     <input type="text" class="form-control form-control-sm bg-light"
-                                                           style="font-size:.8rem" value="{{ $stoneReception->receiver->name ?? '—' }}" readonly>
-                                                    <input type="hidden" name="receiver_id" value="{{ $stoneReception->receiver_id }}">
+                                                           style="font-size:.8rem" value="{{ auth()->user()->worker->name ?? '—' }}" readonly>
+                                                    <input type="hidden" name="receiver_id" value="{{ auth()->user()->worker_id }}">
                                                 @endif
                                             </div>
                                             <div class="col-6">

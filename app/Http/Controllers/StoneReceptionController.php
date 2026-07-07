@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoneReception\StoreStoneReceptionRequest;
 use App\Http\Requests\StoneReception\UpdateStoneReceptionRequest;
 use App\Models\RawMaterialBatch;
+use App\Models\ReceptionLog;
 use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\Worker;
@@ -140,10 +141,11 @@ class StoneReceptionController extends Controller
             'receptionLogs.cutter',
         ]);
 
-        $backUrl = back_url(route('stone-receptions.index'));
-        $stores  = \App\Models\Store::orderBy('name')->get();
+        $backUrl       = back_url(route('stone-receptions.index'));
+        $stores        = \App\Models\Store::orderBy('name')->get();
+        $masterWorkers = $this->service->getMasterWorkers();
 
-        return view('stone-receptions.show', compact('stoneReception', 'backUrl', 'stores'));
+        return view('stone-receptions.show', compact('stoneReception', 'backUrl', 'stores', 'masterWorkers'));
     }
 
     public function edit(Request $request, StoneReception $stoneReception): View
@@ -182,6 +184,20 @@ class StoneReceptionController extends Controller
             Log::error('Ошибка обновления приёмки:', ['error' => $e->getMessage()]);
             return back()->withErrors(['error' => 'Ошибка: ' . $e->getMessage()])->withInput();
         }
+    }
+
+    public function updateLogReceiver(Request $request, ReceptionLog $receptionLog): JsonResponse
+    {
+        $validated = $request->validate([
+            'receiver_id' => 'required|exists:workers,id',
+        ]);
+
+        $this->service->updateLogReceiver($receptionLog, (int) $validated['receiver_id']);
+
+        return response()->json([
+            'success'       => true,
+            'receiver_name' => $receptionLog->fresh('receiver')->receiver?->name,
+        ]);
     }
 
     public function destroy(StoneReception $stoneReception): RedirectResponse

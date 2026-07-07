@@ -6,6 +6,7 @@ use App\Models\ReceptionLog;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
 use App\Models\Store;
+use App\Models\User;
 use App\Models\Worker;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\Moysklad\StoneReceptionSyncService;
@@ -237,9 +238,14 @@ describe('StoneReceptionService::update()', function () {
             'quantity' => 2.0,
         ]);
 
+        // Правку выполняет мастер-редактор (не создатель приёмки): дельта должна засчитаться ему.
+        $editor     = Worker::create(['name' => 'Редактор', 'position' => 'Мастер']);
+        $editorUser = User::factory()->create(['worker_id' => $editor->id]);
+        $this->actingAs($editorUser);
+
         $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
         $mockSync->shouldReceive('syncReception')->andReturn(null);
-        
+
         $service = makeStoneReceptionService($mockSync);
         $service->update($reception, [
             'receiver_id' => $receiver->id,
@@ -255,6 +261,12 @@ describe('StoneReceptionService::update()', function () {
 
         $reception->refresh();
         expect((float) $reception->items->first()->quantity)->toBe(4.0);
+
+        // Лог правки засчитан редактору, а не исходному приёмщику
+        $log = ReceptionLog::where('stone_reception_id', $reception->id)
+            ->where('type', ReceptionLog::TYPE_UPDATED)->first();
+        expect($log)->not->toBeNull()
+            ->and($log->receiver_id)->toBe($editor->id);
     });
 
     test('не пишет лог если ничего не изменилось', function () {

@@ -431,11 +431,13 @@
                         <div class="p-2">
                             @foreach($stoneReception->receptionLogs as $log)
                                 @include('partials.reception-log-card', [
-                                    'log'             => $log,
-                                    'showActions'     => false,
-                                    'showRawDetails'  => true,
-                                    'showStoreBottom' => false,
-                                    'isMaster'        => false,
+                                    'log'              => $log,
+                                    'showActions'      => false,
+                                    'showRawDetails'   => true,
+                                    'showStoreBottom'  => false,
+                                    'isMaster'         => false,
+                                    'editableReceiver' => auth()->user()->isAdmin(),
+                                    'masterWorkers'    => $masterWorkers,
                                 ])
                             @endforeach
                         </div>
@@ -452,6 +454,9 @@
 @endsection
 
 @push('scripts')
+@if(auth()->user()->isAdmin())
+    @include('partials.reception-log-receiver-script')
+@endif
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const toggleBtn = document.getElementById('toggleCoeffEdit');
