@@ -83,6 +83,20 @@
                 </div>
             </div>
 
+            {{-- Товар-результат --}}
+            @if($packaging->resultProduct)
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-white py-2">
+                        <span class="small fw-semibold text-muted"><i class="bi bi-box-arrow-in-down me-1"></i> Товар-результат</span>
+                    </div>
+                    <div class="card-body p-2 small">
+                        <div><strong>{{ $packaging->resultProduct->name }}</strong></div>
+                        <div class="text-muted">{{ $packaging->resultProduct->sku }}</div>
+                        <div class="mt-1">Оприходовано: <span class="badge bg-success">{{ number_format((float) $packaging->package_quantity, 0) }} шт</span></div>
+                    </div>
+                </div>
+            @endif
+
             {{-- Примечание --}}
             @if($packaging->notes)
                 <div class="card shadow-sm mb-3">

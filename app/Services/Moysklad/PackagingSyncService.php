@@ -15,8 +15,18 @@ class PackagingSyncService extends MoySkladBaseService
 {
     use HandlesProcessingSync;
 
+    public function __construct(
+        private StockSyncService $stockSyncService,
+    ) {
+        parent::__construct();
+    }
+
     /**
      * Создать техоперацию для упаковки.
+     *
+     * Если у упаковки задан result_product_id — продуктом техоперации становится
+     * товар-результат (кол-во = package_quantity), а упакованные продукты уходят
+     * только в материалы. Иначе (режим цеха) продукты = упакованные продукты.
      *
      * @return array ['success', 'processing_id', 'processing_name', 'code', 'message']
      */
@@ -54,7 +64,7 @@ class PackagingSyncService extends MoySkladBaseService
                 throw new \Exception('Не удалось получить метаданные тары из МойСклад');
             }
 
-            $packaging->loadMissing('items.product');
+            $packaging->loadMissing('items.product', 'resultProduct');
             $productsGrouped = [];
             $totalQuantity   = 0;
 
@@ -97,6 +107,8 @@ class PackagingSyncService extends MoySkladBaseService
                 'quantity'   => (float) $packaging->package_quantity,
                 'assortment' => ['meta' => $packageMeta],
             ];
+
+            [$productsGrouped, $totalQuantity] = $this->buildResultProducts($packaging, $productsGrouped, $totalQuantity);
 
             $packagingDate = $packaging->created_at ?? now();
             $weekCount = Packaging::whereBetween('created_at', [
@@ -194,20 +206,14 @@ class PackagingSyncService extends MoySkladBaseService
     /**
      * Обновить техоперацию упаковки: продукты, материалы (продукты + тара), processingSum, description.
      *
-     * @param  string                            $processingId
-     * @param  \Illuminate\Support\Collection    $items                 Коллекция PackagingItem
-     * @param  string                            $storeId
-     * @param  string|null                       $packageMoyskladId     UUID товара-тары в МойСклад
-     * @param  float                             $packageQuantity       Количество тары
-     * @param  string|null                       $description
+     * @param  string      $processingId
+     * @param  Packaging   $packaging
+     * @param  string|null $description
      * @return array ['success', 'code', 'message']
      */
     public function updateProcessingProducts(
         string $processingId,
-        \Illuminate\Support\Collection $items,
-        string $storeId,
-        ?string $packageMoyskladId,
-        float $packageQuantity,
+        Packaging $packaging,
         ?string $description = null
     ): array {
         $result = ['success' => false, 'code' => '', 'message' => ''];
@@ -217,7 +223,12 @@ class PackagingSyncService extends MoySkladBaseService
                 throw new \Exception('MoySklad токен не установлен');
             }
 
-            $storeMeta = $this->getEntityMeta('store', $storeId);
+            $packaging->loadMissing('items.product', 'packageProduct', 'resultProduct');
+            $items             = $packaging->items;
+            $packageMoyskladId = $packaging->packageProduct?->moysklad_id;
+            $packageQuantity   = (float) $packaging->package_quantity;
+
+            $storeMeta = $this->getEntityMeta('store', $packaging->store_id ?? '');
             if (!$storeMeta) {
                 throw new \Exception('Не удалось получить данные склада');
             }
@@ -264,8 +275,10 @@ class PackagingSyncService extends MoySkladBaseService
             $existingProductIds  = $this->fetchExistingPositionIds($processingId, 'products');
             $existingMaterialIds = $this->fetchExistingPositionIds($processingId, 'materials');
 
+            [$resultProducts, $totalQuantity] = $this->buildResultProducts($packaging, $productsGrouped, $totalQuantity);
+
             $products = [];
-            foreach ($productsGrouped as $moyskladId => $product) {
+            foreach ($resultProducts as $moyskladId => $product) {
                 $entry = $product;
                 if (isset($existingProductIds[$moyskladId])) {
                     $entry['id'] = $existingProductIds[$moyskladId];
@@ -347,7 +360,7 @@ class PackagingSyncService extends MoySkladBaseService
     public function syncPackaging(Packaging $packaging, ?string $customName = null): void
     {
         try {
-            $packaging->loadMissing('items.product', 'packageProduct');
+            $packaging->loadMissing('items.product', 'packageProduct', 'resultProduct');
             $description = $this->buildPackagingDescription($packaging);
 
             if (!$packaging->hasMoySkladProcessing()) {
@@ -355,6 +368,7 @@ class PackagingSyncService extends MoySkladBaseService
 
                 if ($result['success']) {
                     $packaging->markSynced($result['processing_id'], $result['processing_name']);
+                    $this->refreshAffectedStocks($packaging);
                 } else {
                     $packaging->markSyncError($result['message']);
                     Log::warning('syncPackaging: не удалось создать техоперацию', [
@@ -365,15 +379,13 @@ class PackagingSyncService extends MoySkladBaseService
             } else {
                 $result = $this->updateProcessingProducts(
                     $packaging->moysklad_processing_id,
-                    $packaging->items,
-                    $packaging->store_id ?? '',
-                    $packaging->packageProduct?->moysklad_id,
-                    (float) $packaging->package_quantity,
+                    $packaging,
                     $description ?: null
                 );
 
                 if ($result['success']) {
                     $packaging->markSynced($packaging->moysklad_processing_id);
+                    $this->refreshAffectedStocks($packaging);
                 } else {
                     $packaging->markSyncError($result['message']);
                     Log::warning('syncPackaging: не удалось обновить техоперацию', [
@@ -389,6 +401,73 @@ class PackagingSyncService extends MoySkladBaseService
                 'error'        => $e->getMessage(),
             ]);
             $packaging->markSyncError('Ошибка: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Построить массив products техоперации и итоговый quantity с учётом товара-результата.
+     *
+     * Возвращает [массив позиций с ключами moysklad_id (формат $productsGrouped), quantity].
+     * Без result_product_id — продукты и количество остаются как есть (режим цеха).
+     *
+     * @throws \Exception
+     */
+    private function buildResultProducts(Packaging $packaging, array $productsGrouped, float $totalQuantity): array
+    {
+        if (!$packaging->result_product_id) {
+            return [$productsGrouped, $totalQuantity];
+        }
+
+        $resultProduct = $packaging->resultProduct;
+        if (!$resultProduct || !$resultProduct->moysklad_id) {
+            throw new \Exception('Товар-результат не синхронизирован с МойСклад (нет moysklad_id)');
+        }
+
+        $resultQuantity = (float) $packaging->package_quantity;
+        if ($resultQuantity <= 0) {
+            throw new \Exception('Для товара-результата количество тары должно быть больше 0');
+        }
+
+        $resultMeta = $this->getEntityMeta('product', $resultProduct->moysklad_id);
+        if (!$resultMeta) {
+            throw new \Exception('Не удалось получить метаданные товара-результата из МойСклад');
+        }
+
+        $products = [
+            $resultProduct->moysklad_id => [
+                'quantity'   => $resultQuantity,
+                'assortment' => ['meta' => $resultMeta],
+            ],
+        ];
+
+        return [$products, $resultQuantity];
+    }
+
+    /**
+     * Подтянуть из МойСклад актуальные остатки товаров, затронутых упаковкой:
+     * упакованные продукты, тара и товар-результат. Вызывается только после
+     * успешной синхронизации; ошибка подтяжки не роняет поток — логируем.
+     */
+    private function refreshAffectedStocks(Packaging $packaging): void
+    {
+        try {
+            $packaging->loadMissing('items.product', 'packageProduct', 'resultProduct');
+
+            $ids = collect();
+            foreach ($packaging->items as $item) {
+                $ids->push($item->product?->moysklad_id);
+            }
+            $ids->push($packaging->packageProduct?->moysklad_id);
+            $ids->push($packaging->resultProduct?->moysklad_id);
+
+            foreach ($ids->filter()->unique() as $moyskladId) {
+                $this->stockSyncService->updateProductStocksByMoyskladId($moyskladId);
+            }
+        } catch (\Exception $e) {
+            Log::warning('PackagingSyncService::refreshAffectedStocks: не удалось обновить остатки', [
+                'packaging_id' => $packaging->id,
+                'error'        => $e->getMessage(),
+            ]);
         }
     }
 

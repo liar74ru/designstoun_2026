@@ -33,6 +33,7 @@
                                         class="form-select form-select-sm worker-picker"
                                         style="border-radius:.4rem"
                                         data-user-dept-id="{{ $userDeptId }}"
+                                        data-dept-select-id="departmentSelect"
                                         data-toggle-id="allWorkersParticipantsPack"
                                         required>
                                     <option value="">— упаковщик —</option>
@@ -53,6 +54,7 @@
                                         class="form-select form-select-sm worker-picker"
                                         style="border-radius:.4rem"
                                         data-user-dept-id="{{ $userDeptId }}"
+                                        data-dept-select-id="departmentSelect"
                                         data-toggle-id="allWorkersParticipantsPack"
                                         required>
                                     @foreach($masterWorkers as $worker)
@@ -73,6 +75,34 @@
                             <input type="hidden" name="store_id" id="storeHidden" value="{{ $defaultStore?->id }}">
                             <div class="form-text" style="font-size:.7rem">Берётся из настроек отдела упаковщика (склад производства).</div>
                         </div>
+                    </div>
+                </div>
+
+                {{-- Блок: Отдел (свёрнутый) --}}
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-white py-2" role="button" id="deptToggle">
+                        <span class="small fw-semibold text-muted"><i class="bi bi-diagram-2 me-1"></i> Отдел</span>
+                        <i class="bi bi-chevron-down float-end" id="deptChevron"></i>
+                    </div>
+                    <div class="card-body" id="deptBody" style="display:none">
+                        <select name="department_id"
+                                id="departmentSelect"
+                                class="form-select form-select-sm @error('department_id') is-invalid @enderror"
+                                style="border-radius:.4rem">
+                            <option value="">— Не задан —</option>
+                            @foreach($departments as $department)
+                                <option value="{{ $department->id }}"
+                                    {{ (string) old('department_id', $userDeptId) === (string) $department->id ? 'selected' : '' }}>
+                                    {{ $department->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text" style="font-size:.7rem">
+                            По умолчанию — ваш отдел. Смена отдела перефильтрует списки работников.
+                        </div>
+                        @error('department_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
                 </div>
 
@@ -118,6 +148,30 @@
                                        value="{{ old('package_quantity', 1) }}">
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                {{-- Блок: Товар-результат (опционально) --}}
+                <div class="card shadow-sm mb-3">
+                    <div class="card-body">
+                        <span class="small fw-semibold text-muted d-block mb-2"><i class="bi bi-box-arrow-in-down me-1"></i> Товар-результат (опционально)</span>
+                        @include('partials.product-picker', [
+                            'id'          => 'result',
+                            'name'        => 'result_product_id',
+                            'value'       => old('result_product_id'),
+                            'label'       => old('result_product_name', ''),
+                            'placeholder' => 'Введите название товара-результата...',
+                            'showTree'    => true,
+                            'showClear'   => true,
+                            'required'    => false,
+                        ])
+                        <div class="form-text" style="font-size:.7rem">
+                            Пусто — приходуются те же продукты, что упакованы.
+                            Если задан — в МойСклад приходуется этот товар (кол-во = кол-ву тары), а продукты и тара уходят в материалы.
+                        </div>
+                        @error('result_product_id')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
                     </div>
                 </div>
 
@@ -171,6 +225,7 @@
                             <li>Выберите упаковщика — склад подставится из настроек отдела.</li>
                             <li>Добавьте продукт упаковки и его количество (м²).</li>
                             <li>Выберите вариант упаковки (07-03-xx) и количество тары (шт).</li>
+                            <li>Если на выходе другой товар (коробка с плиткой) — задайте «Товар-результат»: он оприходуется в количестве тары, а продукты и тара спишутся.</li>
                             <li>Сохраните: создастся техоперация в МойСклад с префиксом УПАК.</li>
                         </ol>
                     </div>
@@ -269,6 +324,20 @@
         const open = msBody.style.display === 'none';
         msBody.style.display = open ? '' : 'none';
         msChevron.className  = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
+    });
+
+    // Тоггл блока «Отдел» (раскрыт при ошибке валидации)
+    const deptToggle  = document.getElementById('deptToggle');
+    const deptBody    = document.getElementById('deptBody');
+    const deptChevron = document.getElementById('deptChevron');
+    @if($errors->has('department_id'))
+        deptBody.style.display = '';
+        deptChevron.className  = 'bi bi-chevron-up float-end';
+    @endif
+    deptToggle.addEventListener('click', () => {
+        const open = deptBody.style.display === 'none';
+        deptBody.style.display = open ? '' : 'none';
+        deptChevron.className  = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
     });
 
     const manualCb = document.getElementById('manualProcessingName');

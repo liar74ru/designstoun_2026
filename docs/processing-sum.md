@@ -93,3 +93,16 @@ processingSum = round(totalRubles × 100 / totalQty)
 - Итог: `processingSum = round(workerSalaryTotal × 100 / totalQuantity)`.
 
 `PACKAGING_COST` уже учтён в зарплате упаковщика — отдельно как накладные он **не складывается**.
+
+### Товар-результат (`result_product_id`)
+
+У упаковки два режима формирования позиций техоперации:
+
+| Режим | `products` (приход) | `materials` (списание) | `quantity` / делитель `processingSum` |
+|---|---|---|---|
+| `result_product_id = NULL` (цех) | упакованные продукты (те же SKU) | продукты + тара | Σ количеств позиций |
+| `result_product_id` задан (отдел упаковки) | товар-результат, кол-во = `package_quantity` | продукты + тара | `package_quantity` |
+
+Зарплата упаковщика в обоих режимах считается одинаково — по позициям упаковки (`PackagingItem`). В режиме товара-результата делителем `calcProcessingSum` становится `package_quantity`, чтобы МойСклад, умножив копейки/ед. на `quantity` техоперации, получил ту же итоговую сумму.
+
+После успешной синхронизации остатки затронутых товаров (продукты, тара, товар-результат) подтягиваются из МойСклад в `product_stocks` (`StockSyncService::updateProductStocksByMoyskladId`).

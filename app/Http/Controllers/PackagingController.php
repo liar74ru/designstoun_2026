@@ -91,6 +91,7 @@ class PackagingController extends Controller
             'store',
             'items.product',
             'packageProduct',
+            'resultProduct',
             'packagingLogs' => fn($q) => $q->orderBy('created_at', 'asc'),
             'packagingLogs.items.product',
             'packagingLogs.packer',

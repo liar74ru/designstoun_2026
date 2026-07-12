@@ -137,6 +137,30 @@
             </div>
         </div>
 
+        {{-- Блок: Товар-результат (опционально) --}}
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <span class="small fw-semibold text-muted d-block mb-2"><i class="bi bi-box-arrow-in-down me-1"></i> Товар-результат (опционально)</span>
+                @include('partials.product-picker', [
+                    'id'          => 'result',
+                    'name'        => 'result_product_id',
+                    'value'       => old('result_product_id', $packaging->result_product_id),
+                    'label'       => old('result_product_id') ? '' : ($packaging->resultProduct?->name ?? ''),
+                    'placeholder' => 'Введите название товара-результата...',
+                    'showTree'    => true,
+                    'showClear'   => true,
+                    'required'    => false,
+                ])
+                <div class="form-text" style="font-size:.7rem">
+                    Пусто — приходуются те же продукты, что упакованы.
+                    Если задан — в МойСклад приходуется этот товар (кол-во = кол-ву тары), а продукты и тара уходят в материалы.
+                </div>
+                @error('result_product_id')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                @enderror
+            </div>
+        </div>
+
         {{-- Блок: Примечание --}}
         <div class="card shadow-sm mb-3">
             <div class="card-body">

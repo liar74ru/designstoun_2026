@@ -17,8 +17,10 @@ class StorePackagingRequest extends FormRequest
             'packer_id'              => 'required|exists:workers,id',
             'receiver_id'            => 'required|exists:workers,id',
             'store_id'               => 'required|exists:stores,id',
+            'department_id'          => 'nullable|exists:departments,id',
             'package_product_id'     => 'required|exists:products,id',
             'package_quantity'       => 'required|numeric|min:0.001',
+            'result_product_id'      => 'nullable|exists:products,id|different:package_product_id',
             'notes'                  => 'nullable|string',
             'processing_name'        => 'nullable|string|max:255',
             'manual_created_at'      => 'nullable|date',
@@ -29,6 +31,23 @@ class StorePackagingRequest extends FormRequest
         ];
     }
 
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $resultId = $this->input('result_product_id');
+            if (!$resultId) {
+                return;
+            }
+            $productIds = array_column($this->input('products', []), 'product_id');
+            if (in_array($resultId, $productIds)) {
+                $validator->errors()->add(
+                    'result_product_id',
+                    'Товар-результат не может совпадать с упакованным продуктом'
+                );
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [
@@ -37,6 +56,7 @@ class StorePackagingRequest extends FormRequest
             'package_product_id.required'     => 'Выберите упаковку (тару)',
             'package_quantity.required'       => 'Укажите количество тары',
             'package_quantity.min'            => 'Количество тары должно быть больше 0',
+            'result_product_id.different'     => 'Товар-результат не может совпадать с тарой',
             'products.required'               => 'Добавьте хотя бы один упакованный продукт',
             'products.*.product_id.required'  => 'Выберите продукт',
             'products.*.quantity.required'    => 'Укажите количество',

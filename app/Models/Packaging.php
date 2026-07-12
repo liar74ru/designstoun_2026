@@ -23,6 +23,7 @@ class Packaging extends Model
         'department_id',
         'package_product_id',
         'package_quantity',
+        'result_product_id',
         'notes',
         'status',
         'moysklad_processing_id',
@@ -64,6 +65,11 @@ class Packaging extends Model
     public function packageProduct()
     {
         return $this->belongsTo(Product::class, 'package_product_id');
+    }
+
+    public function resultProduct()
+    {
+        return $this->belongsTo(Product::class, 'result_product_id');
     }
 
     public function items()

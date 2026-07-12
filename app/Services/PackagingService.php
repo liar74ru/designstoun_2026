@@ -49,10 +49,11 @@ class PackagingService
             'packageProducts' => Product::where('sku', 'like', '07-03%')->orderBy('name')->get(),
             'stores'          => Store::orderBy('name')->get(),
             'defaultStore'    => Store::getDefault(),
+            'departments'     => Department::where('is_active', true)->orderBy('name')->get(),
         ];
 
         if ($packaging) {
-            $packaging->load('items.product', 'packageProduct', 'packer.department');
+            $packaging->load('items.product', 'packageProduct', 'resultProduct', 'packer.department');
             $data['packaging'] = $packaging;
         }
 
@@ -368,6 +369,7 @@ class PackagingService
             'store_id'           => $data['store_id'],
             'department_id'      => $departmentId,
             'package_product_id' => $data['package_product_id'],
+            'result_product_id'  => $data['result_product_id'] ?? null,
             'notes'              => $data['notes'] ?? null,
         ];
 
