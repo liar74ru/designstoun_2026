@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
@@ -49,7 +50,9 @@ class RawMaterialBatchController extends Controller
         $formOptions     = $this->service->getCreateFormOptions($request);
         $copyProductName = null;
 
-        if ($copyProductId = $request->input('copy_product')) {
+        // Имя продукта для подписи пикера: из copy_product или из old('product_id')
+        // (последнее — чтобы название не терялось при повторном рендере после ошибки).
+        if ($copyProductId = ($request->input('copy_product') ?: old('product_id'))) {
             $copyProductName = \App\Models\Product::find($copyProductId)?->name;
         }
 
@@ -61,9 +64,21 @@ class RawMaterialBatchController extends Controller
             ? Setting::deptProductionStore($department, $formOptions['stores'])
             : null;
 
+        // Отделы для селекта + карта складов-дефолтов по отделу (для клиентской подстановки).
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $departmentStoreDefaults = $departments->mapWithKeys(fn($d) => [
+            $d->id => [
+                'from' => $d->default_raw_store_id,
+                'to'   => $d->default_production_store_id,
+            ],
+        ]);
+
         return view('raw-batches.create', array_merge(
             $formOptions,
-            compact('copyProductName', 'defaultFromStore', 'defaultToStore')
+            compact(
+                'copyProductName', 'defaultFromStore', 'defaultToStore',
+                'departments', 'departmentStoreDefaults'
+            )
         ));
     }
 

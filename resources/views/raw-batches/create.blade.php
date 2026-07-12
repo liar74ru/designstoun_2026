@@ -63,6 +63,7 @@
                                             id="workerSelect"
                                             class="form-select worker-picker @error('worker_id') is-invalid @enderror"
                                             data-user-dept-id="{{ $userDeptId }}"
+                                            data-dept-select-id="departmentSelect"
                                             data-toggle-id="allWorkersWorker"
                                             required>
                                         <option value="">— Выберите пильщика —</option>
@@ -122,6 +123,36 @@
                                     @error('quantity')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
+                                </div>
+                            </div>
+
+                            {{-- Отдел (скрытый блок) --}}
+                            <div class="info-block">
+                                <div class="info-block-header d-flex justify-content-between align-items-center"
+                                     id="deptToggle" style="cursor:pointer" role="button">
+                                    <span class="small fw-semibold text-muted">Отдел</span>
+                                    <i class="bi bi-chevron-down" id="deptChevron"></i>
+                                </div>
+                                <div id="deptBody" style="display:none">
+                                    <div class="info-block-body">
+                                        <select name="department_id"
+                                                id="departmentSelect"
+                                                class="form-select @error('department_id') is-invalid @enderror">
+                                            <option value="">— Не задан —</option>
+                                            @foreach($departments as $department)
+                                                <option value="{{ $department->id }}"
+                                                    {{ (string) old('department_id', $userDeptId) === (string) $department->id ? 'selected' : '' }}>
+                                                    {{ $department->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <div class="form-text text-muted small">
+                                            По умолчанию — ваш отдел. Смена отдела перефильтрует список работников и подставит склады отдела.
+                                        </div>
+                                        @error('department_id')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
                                 </div>
                             </div>
 
@@ -212,25 +243,39 @@
                                 </div>
                             </div>
 
-                            <x-admin-date-field />
-
                             @php
                                 $canIgnoreStock = auth()->user()?->isAdmin() || auth()->user()?->isMaster();
                             @endphp
-                            @if($canIgnoreStock)
-                                <div class="mb-3 mx-2 p-3 border border-warning rounded bg-warning bg-opacity-10">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox"
-                                               name="ignore_stock_check" value="1" id="ignoreStockCheck"
-                                               {{ old('ignore_stock_check') ? 'checked' : '' }}>
-                                        <label class="form-check-label fw-semibold text-warning-emphasis" for="ignoreStockCheck">
-                                            <i class="bi bi-exclamation-triangle"></i> Игнорировать остаток на складе
-                                            <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">
-                                                Только для админа и мастера
-                                            </span>
-                                        </label>
-                                        <div class="form-text">
-                                            Создать партию даже если остатка на складе-источнике недостаточно. Остаток уйдёт в минус.
+                            @if(auth()->user()?->isAdmin() || $canIgnoreStock)
+                                {{-- Дата и Игнор количества (скрытый блок, только админ/мастер) --}}
+                                <div class="info-block">
+                                    <div class="info-block-header d-flex justify-content-between align-items-center"
+                                         id="moreToggle" style="cursor:pointer" role="button">
+                                        <span class="small fw-semibold text-muted">Дата и Игнор количества</span>
+                                        <i class="bi bi-chevron-down" id="moreChevron"></i>
+                                    </div>
+                                    <div id="moreBody" style="display:none">
+                                        <div class="info-block-body">
+                                            <x-admin-date-field />
+
+                                            @if($canIgnoreStock)
+                                                <div class="mb-2 p-3 border border-warning rounded bg-warning bg-opacity-10">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox"
+                                                               name="ignore_stock_check" value="1" id="ignoreStockCheck"
+                                                               {{ old('ignore_stock_check') ? 'checked' : '' }}>
+                                                        <label class="form-check-label fw-semibold text-warning-emphasis" for="ignoreStockCheck">
+                                                            <i class="bi bi-exclamation-triangle"></i> Игнорировать остаток на складе
+                                                            <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">
+                                                                Только для админа и мастера
+                                                            </span>
+                                                        </label>
+                                                        <div class="form-text">
+                                                            Создать партию даже если остатка на складе-источнике недостаточно. Остаток уйдёт в минус.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -403,8 +448,9 @@
                 }
             });
 
-            // Если пильщик уже выбран (например, после копирования) — сразу генерируем
-            if (workerSelect?.value) {
+            // Если пильщик уже выбран (например, после копирования) — сразу генерируем.
+            // Но не затираем номер, восстановленный из old() после ошибки валидации.
+            if (workerSelect?.value && !batchInput.value) {
                 fetchBatchNumber(workerSelect.value);
             }
 
@@ -422,6 +468,50 @@
                     const isHidden = body.style.display === 'none';
                     body.style.display = isHidden ? '' : 'none';
                     chevron.className  = isHidden ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+                });
+            })();
+
+            // ── Раскрывающийся блок (переиспользуемый тогглер) ──────────────────────
+            function initCollapsible(toggleId, bodyId, chevronId, openInitially) {
+                const toggle  = document.getElementById(toggleId);
+                const body    = document.getElementById(bodyId);
+                const chevron = document.getElementById(chevronId);
+                if (!toggle || !body) return;
+                if (openInitially) {
+                    body.style.display = '';
+                    if (chevron) chevron.className = 'bi bi-chevron-up';
+                }
+                toggle.addEventListener('click', function () {
+                    const isHidden = body.style.display === 'none';
+                    body.style.display = isHidden ? '' : 'none';
+                    if (chevron) chevron.className = isHidden ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+                });
+            }
+
+            // Блок «Отдел» (раскрыть при ошибке отдела)
+            initCollapsible('deptToggle', 'deptBody', 'deptChevron',
+                {{ $errors->has('department_id') ? 'true' : 'false' }});
+
+            // Блок «Дата и Игнор количества» (раскрыть при ошибке даты)
+            initCollapsible('moreToggle', 'moreBody', 'moreChevron',
+                {{ $errors->has('manual_created_at') ? 'true' : 'false' }});
+
+            // ── Подстановка складов-дефолтов при смене отдела ───────────────────────
+            (function () {
+                const departmentSelect = document.getElementById('departmentSelect');
+                if (!departmentSelect) return;
+                const deptStoreDefaults = @json($departmentStoreDefaults);
+
+                departmentSelect.addEventListener('change', function () {
+                    const def = deptStoreDefaults[this.value];
+                    if (!def) return;
+                    if (def.from && fromStoreSelect) {
+                        fromStoreSelect.value = def.from;
+                        syncSourceStore();
+                    }
+                    if (def.to && toStoreSelect) {
+                        toStoreSelect.value = def.to;
+                    }
                 });
             })();
 

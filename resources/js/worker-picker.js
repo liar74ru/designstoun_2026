@@ -1,14 +1,23 @@
 function initWorkerPicker(select) {
-    const userDeptId = select.dataset.userDeptId || '';
     const toggleId   = select.dataset.toggleId;
     const toggle     = toggleId ? document.getElementById(toggleId) : null;
 
+    // Отдел, по которому фильтруем: либо живое значение связанного селекта отдела
+    // (data-dept-select-id), либо статический data-user-dept-id (фолбэк).
+    const deptSelectId = select.dataset.deptSelectId;
+    const deptSelect   = deptSelectId ? document.getElementById(deptSelectId) : null;
+
+    function currentDept() {
+        return deptSelect ? deptSelect.value : (select.dataset.userDeptId || '');
+    }
+
     function apply() {
-        const showAll = !userDeptId || (toggle?.checked ?? false);
+        const dept    = currentDept();
+        const showAll = !dept || (toggle?.checked ?? false);
         Array.from(select.options).forEach(opt => {
             if (!opt.value) return;
-            const dept = opt.dataset.departmentId || '';
-            const visible = showAll || String(dept) === String(userDeptId);
+            const optDept = opt.dataset.departmentId || '';
+            const visible = showAll || String(optDept) === String(dept);
             opt.hidden = !visible;
             opt.disabled = !visible;
             if (!visible && opt.selected) {
@@ -19,14 +28,16 @@ function initWorkerPicker(select) {
         });
     }
 
-    if (userDeptId && select.value && toggle) {
+    const initialDept = currentDept();
+    if (initialDept && select.value && toggle) {
         const selOpt = select.options[select.selectedIndex];
-        if (selOpt && String(selOpt.dataset.departmentId || '') !== String(userDeptId)) {
+        if (selOpt && String(selOpt.dataset.departmentId || '') !== String(initialDept)) {
             toggle.checked = true;
         }
     }
 
     toggle?.addEventListener('change', apply);
+    deptSelect?.addEventListener('change', apply);
     apply();
 }
 
