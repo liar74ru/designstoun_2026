@@ -210,22 +210,15 @@ class StoneReception extends Model
     }
 
     /**
-     * Обновить остатки на складе и в партии сырья
+     * Списать сырьё из партии и зафиксировать движение.
+     *
+     * Остатки готовой продукции в product_stocks НЕ трогаем — они являются
+     * зеркалом МойСклад и подтягиваются после успешной техоперации
+     * (StoneReceptionSyncService::refreshAffectedStocks).
      */
     public function updateStocks()
     {
         DB::transaction(function () {
-            // Добавляем готовую продукцию на склад
-            foreach ($this->items as $item) {
-                $stock = ProductStock::firstOrCreate([
-                    'product_id' => $item->product_id,
-                    'store_id' => $this->store_id
-                ]);
-
-                $stock->quantity += $item->quantity;
-                $stock->save();
-            }
-
             // Списываем сырье из партии
             if ($this->rawMaterialBatch) {
                 $batch = $this->rawMaterialBatch;
@@ -289,18 +282,9 @@ class StoneReception extends Model
         });
 
         static::deleted(function ($reception) {
-            // Уменьшаем количество готовой продукции при удалении
-            foreach ($reception->items as $item) {
-                $stock = ProductStock::where([
-                    'product_id' => $item->product_id,
-                    'store_id' => $reception->store_id
-                ])->first();
-
-                if ($stock) {
-                    $stock->quantity -= $item->quantity;
-                    $stock->save();
-                }
-            }
+            // Остатки готовой продукции в product_stocks не откатываем: локальное
+            // удаление приёмки не удаляет техоперацию в МойСклад, поэтому остаток
+            // в МойСклад не меняется, и его зеркало трогать нельзя.
 
             // Возвращаем сырье обратно в партию
             if ($reception->rawMaterialBatch) {

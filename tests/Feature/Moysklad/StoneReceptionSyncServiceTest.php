@@ -21,7 +21,7 @@ describe('StoneReceptionSyncService::manualCostPerUnit()', function () {
         Setting::set('RENT_COST', 90);
         Setting::set('OTHER_COSTS', 10);
 
-        $service = new StoneReceptionSyncService();
+        $service = app(StoneReceptionSyncService::class);
         $result = $service->manualCostPerUnit();
 
         // 100 + 50 + 20 + 80 + 40 + 60 + 70 + 90 + 10 = 520 (без PACKAGING_COST 30)
@@ -35,7 +35,7 @@ describe('StoneReceptionSyncService::manualCostPerUnit()', function () {
             'RENT_COST', 'OTHER_COSTS',
         ])->delete();
 
-        $service = new StoneReceptionSyncService();
+        $service = app(StoneReceptionSyncService::class);
         $result = $service->manualCostPerUnit();
 
         expect($result)->toBe(0.0);
@@ -45,7 +45,7 @@ describe('StoneReceptionSyncService::manualCostPerUnit()', function () {
         Setting::set('BLADE_WEAR', '100.50');
         Setting::set('RECEPTION_COST', '200.25');
 
-        $service = new StoneReceptionSyncService();
+        $service = app(StoneReceptionSyncService::class);
         $result = $service->manualCostPerUnit();
 
         expect($result)->toBe(300.75);
@@ -58,7 +58,7 @@ describe('StoneReceptionSyncService::manualCostPerUnit()', function () {
             'RENT_COST', 'OTHER_COSTS',
         ])->delete();
 
-        $service = new StoneReceptionSyncService();
+        $service = app(StoneReceptionSyncService::class);
         $result = $service->manualCostPerUnit();
 
         expect($result)->toBe(0.0);

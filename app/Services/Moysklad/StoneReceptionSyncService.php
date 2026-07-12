@@ -20,8 +20,9 @@ class StoneReceptionSyncService extends MoySkladBaseService
 
     private float $processingSum;
 
-    public function __construct()
-    {
+    public function __construct(
+        private StockSyncService $stockSyncService,
+    ) {
         parent::__construct();
         $this->processingSum = $this->manualCostPerUnit();
     }
@@ -631,6 +632,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
 
                 if ($result['success']) {
                     $reception->markSynced($result['processing_id'], $result['processing_name']);
+                    $this->refreshAffectedStocks($reception);
                 } else {
                     $reception->markSyncError($result['message']);
                     Log::warning('syncReception: не удалось создать техоперацию', [
@@ -650,6 +652,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
 
                 if ($result['success']) {
                     $reception->markSynced($reception->moysklad_processing_id);
+                    $this->refreshAffectedStocks($reception);
                 } else {
                     $reception->markSyncError($result['message']);
                     Log::warning('syncReception: не удалось обновить техоперацию', [
@@ -665,6 +668,31 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 'error'        => $e->getMessage(),
             ]);
             $reception->markSyncError('Ошибка: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Подтянуть из МойСклад актуальные остатки товаров, затронутых приёмкой:
+     * сырьё партии + вся готовая продукция. Вызывается только после успешной
+     * техоперации. Ошибка подтяжки не должна ронять поток приёмки — логируем.
+     */
+    private function refreshAffectedStocks(StoneReception $reception): void
+    {
+        try {
+            $ids = collect();
+            $ids->push($reception->rawMaterialBatch?->product?->moysklad_id);
+            foreach ($reception->items as $item) {
+                $ids->push($item->product?->moysklad_id);
+            }
+
+            foreach ($ids->filter()->unique() as $moyskladId) {
+                $this->stockSyncService->updateProductStocksByMoyskladId($moyskladId);
+            }
+        } catch (\Exception $e) {
+            Log::warning('refreshAffectedStocks: не удалось обновить остатки', [
+                'reception_id' => $reception->id,
+                'error'        => $e->getMessage(),
+            ]);
         }
     }
 
