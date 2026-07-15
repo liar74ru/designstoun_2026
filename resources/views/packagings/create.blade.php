@@ -253,14 +253,32 @@
                         ])
                         <div class="form-text" style="font-size:.7rem">
                             Пусто — приходуются те же продукты, что упакованы.
-                            Если задан — в МойСклад приходуется этот товар (кол-во = кол-ву тары), а продукты и тара уходят в материалы.
+                            Если задан — в МойСклад приходуется этот товар в указанном ниже количестве, а продукты и тара уходят в материалы.
                         </div>
                         @error('result_product_id')
                             <div class="text-danger small mt-1">{{ $message }}</div>
                         @enderror
 
+                        {{-- Количество результата (по умолчанию = кол-во тары, редактируется) --}}
+                        <div class="row g-2 mt-1" id="resultQtyWrap" style="display:none">
+                            <div class="col-12 col-sm-5">
+                                <label class="form-label small text-muted mb-1">Количество результата</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" id="resultUnit">шт</span>
+                                    <input type="number" name="result_quantity" id="resultQty"
+                                           step="0.001" min="0.001"
+                                           class="form-control @error('result_quantity') is-invalid @enderror"
+                                           style="border-radius:0 .4rem .4rem 0"
+                                           value="{{ old('result_quantity') }}">
+                                </div>
+                                @error('result_quantity')
+                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
                         <div class="pf-result-line">
-                            <i class="bi bi-check2-circle"></i> На выходе — <strong id="resultQtyOut">1</strong>&nbsp;шт готовой упаковки
+                            <i class="bi bi-check2-circle"></i> На выходе — <strong id="resultQtyOut">1</strong>&nbsp;<span id="resultQtyOutUnit">шт</span> готового продукта
                         </div>
                     </div>
                 </div>
@@ -448,16 +466,64 @@
         procName.readOnly = !manualCb.checked;
     });
 
-    // «На выходе N шт» — отражает количество тары в блоке результата
-    const pkgQtyInput  = document.querySelector('input[name="package_quantity"]');
-    const resultQtyOut = document.getElementById('resultQtyOut');
-    function syncResultQty() {
-        if (!pkgQtyInput || !resultQtyOut) return;
-        const v = parseFloat(pkgQtyInput.value) || 0;
-        resultQtyOut.textContent = Number.isInteger(v) ? v : v.toFixed(3).replace(/\.?0+$/, '');
+    // Блок результата: количество по умолчанию = кол-во тары, но редактируется вручную.
+    const pkgQtyInput      = document.querySelector('input[name="package_quantity"]');
+    const resultQty        = document.getElementById('resultQty');
+    const resultUnit       = document.getElementById('resultUnit');
+    const resultQtyWrap    = document.getElementById('resultQtyWrap');
+    const resultHidden     = document.getElementById('result_hidden');
+    const resultQtyOut     = document.getElementById('resultQtyOut');
+    const resultQtyOutUnit = document.getElementById('resultQtyOutUnit');
+    let resultQtyTouched   = false;
+
+    function fmtQty(v) {
+        return Number.isInteger(v) ? String(v) : v.toFixed(3).replace(/\.?0+$/, '');
     }
-    pkgQtyInput?.addEventListener('input', syncResultQty);
-    syncResultQty();
+
+    function updateIndicator() {
+        if (!resultQtyOut) return;
+        const hasResult = resultHidden && resultHidden.value;
+        const v = hasResult
+            ? (parseFloat(resultQty?.value) || 0)
+            : (parseFloat(pkgQtyInput?.value) || 0);
+        resultQtyOut.textContent = fmtQty(v);
+        if (resultQtyOutUnit) resultQtyOutUnit.textContent = hasResult ? (resultUnit?.textContent || 'шт') : 'шт';
+    }
+
+    function mirrorPackageQty() {
+        if (resultQty && !resultQtyTouched) resultQty.value = pkgQtyInput?.value || '';
+    }
+
+    // Выбор товара-результата → показать поле, подставить единицу и кол-во тары
+    document.addEventListener('product-picker:selected', (e) => {
+        const row = e.detail?.row;
+        if (!row || !row.querySelector('input[name="result_product_id"]')) return;
+        if (resultQtyWrap) resultQtyWrap.style.display = '';
+        if (resultUnit) resultUnit.textContent = e.detail.unit || 'шт';
+        resultQtyTouched = false;
+        mirrorPackageQty();
+        updateIndicator();
+    });
+
+    // Сброс товара-результата (кнопка очистки) → скрыть поле
+    document.addEventListener('product-picker:removed', () => {
+        if (resultHidden && !resultHidden.value) {
+            if (resultQtyWrap) resultQtyWrap.style.display = 'none';
+            resultQtyTouched = false;
+            if (resultQty) resultQty.value = '';
+        }
+        updateIndicator();
+    });
+
+    pkgQtyInput?.addEventListener('input', () => { mirrorPackageQty(); updateIndicator(); });
+    resultQty?.addEventListener('input', () => { resultQtyTouched = true; updateIndicator(); });
+
+    // Восстановление после ошибки валидации: результат уже выбран — показать блок
+    if (resultHidden && resultHidden.value) {
+        if (resultQtyWrap) resultQtyWrap.style.display = '';
+        if (resultQty && resultQty.value) resultQtyTouched = true;
+    }
+    updateIndicator();
 })();
 </script>
 @endpush

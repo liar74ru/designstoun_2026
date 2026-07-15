@@ -382,6 +382,7 @@ class PackagingService
             'department_id'      => $departmentId,
             'package_product_id' => $data['package_product_id'],
             'result_product_id'  => $data['result_product_id'] ?? null,
+            'result_quantity'    => !empty($data['result_product_id']) ? ($data['result_quantity'] ?? null) : null,
             'notes'              => $data['notes'] ?? null,
         ];
 

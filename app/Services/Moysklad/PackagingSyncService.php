@@ -444,9 +444,9 @@ class PackagingSyncService extends MoySkladBaseService
             throw new \Exception('Товар-результат не синхронизирован с МойСклад (нет moysklad_id)');
         }
 
-        $resultQuantity = (float) $packaging->package_quantity;
+        $resultQuantity = (float) ($packaging->result_quantity ?? $packaging->package_quantity);
         if ($resultQuantity <= 0) {
-            throw new \Exception('Для товара-результата количество тары должно быть больше 0');
+            throw new \Exception('Для товара-результата количество должно быть больше 0');
         }
 
         $resultMeta = $this->getEntityMeta('product', $resultProduct->moysklad_id);

@@ -25,6 +25,7 @@ class Packaging extends Model
         'package_product_id',
         'package_quantity',
         'result_product_id',
+        'result_quantity',
         'notes',
         'status',
         'moysklad_processing_id',
@@ -38,6 +39,7 @@ class Packaging extends Model
 
     protected $casts = [
         'package_quantity' => 'decimal:3',
+        'result_quantity'  => 'decimal:3',
         'created_at'       => 'datetime',
         'updated_at'       => 'datetime',
         'synced_at'        => 'datetime',

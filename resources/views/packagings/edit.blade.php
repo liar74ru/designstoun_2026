@@ -193,11 +193,29 @@
                 ])
                 <div class="form-text" style="font-size:.7rem">
                     Пусто — приходуются те же продукты, что упакованы.
-                    Если задан — в МойСклад приходуется этот товар (кол-во = кол-ву тары), а продукты и тара уходят в материалы.
+                    Если задан — в МойСклад приходуется этот товар в указанном ниже количестве, а продукты и тара уходят в материалы.
                 </div>
                 @error('result_product_id')
                     <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
+
+                {{-- Количество результата --}}
+                <div class="row g-2 mt-1" id="resultQtyWrap" style="display:{{ $packaging->result_product_id ? '' : 'none' }}">
+                    <div class="col-12 col-sm-5">
+                        <label class="form-label small text-muted mb-1">Количество результата</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text" id="resultUnit">{{ $packaging->resultProduct?->uom ?? 'шт' }}</span>
+                            <input type="number" name="result_quantity" id="resultQty"
+                                   step="0.001" min="0.001"
+                                   class="form-control @error('result_quantity') is-invalid @enderror"
+                                   style="border-radius:0 .4rem .4rem 0"
+                                   value="{{ old('result_quantity', $packaging->result_quantity ?? $packaging->package_quantity) }}">
+                        </div>
+                        @error('result_quantity')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -277,6 +295,26 @@
     const packageQty = parseFloat(@json((float) $packaging->package_quantity)) || 0;
     const packageDelta  = document.getElementById('packageQtyDelta');
     const packageResult = document.getElementById('packageQtyResult');
+
+    // Блок результата: количество редактируется вручную; при выборе нового товара
+    // и при отсутствии ручной правки — зеркалит эффективное количество тары.
+    const resultQty     = document.getElementById('resultQty');
+    const resultUnit    = document.getElementById('resultUnit');
+    const resultQtyWrap = document.getElementById('resultQtyWrap');
+    const resultHidden  = document.getElementById('result_hidden');
+    // Сохранённое значение считаем «тронутым» — не перетираем при пересчёте тары.
+    let resultQtyTouched = !!(resultHidden && resultHidden.value);
+
+    function effectivePackageQty() {
+        return packageQty + (parseFloat(packageDelta.value) || 0);
+    }
+    function mirrorPackageQty() {
+        if (resultQty && !resultQtyTouched) {
+            const v = effectivePackageQty();
+            resultQty.value = (Number.isInteger(v) ? String(v) : v.toFixed(3).replace(/\.?0+$/, ''));
+        }
+    }
+
     packageDelta.addEventListener('input', () => {
         const d = parseFloat(packageDelta.value) || 0;
         const total = packageQty + d;
@@ -286,7 +324,29 @@
             packageDelta.classList.remove('is-invalid');
         }
         packageResult.textContent = total.toFixed(3).replace(/\.?0+$/, '');
+        mirrorPackageQty();
     });
+
+    // Выбор нового товара-результата → показать поле, единица и кол-во тары
+    document.addEventListener('product-picker:selected', (e) => {
+        const row = e.detail?.row;
+        if (!row || !row.querySelector('input[name="result_product_id"]')) return;
+        if (resultQtyWrap) resultQtyWrap.style.display = '';
+        if (resultUnit) resultUnit.textContent = e.detail.unit || 'шт';
+        resultQtyTouched = false;
+        mirrorPackageQty();
+    });
+
+    // Сброс товара-результата → скрыть поле
+    document.addEventListener('product-picker:removed', () => {
+        if (resultHidden && !resultHidden.value) {
+            if (resultQtyWrap) resultQtyWrap.style.display = 'none';
+            resultQtyTouched = false;
+            if (resultQty) resultQty.value = '';
+        }
+    });
+
+    resultQty?.addEventListener('input', () => { resultQtyTouched = true; });
 
     // Добавление новых продуктов
     const newItems = document.getElementById('newItems');

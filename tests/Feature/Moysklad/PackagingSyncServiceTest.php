@@ -389,7 +389,7 @@ describe('PackagingSyncService: товар-результат', function () {
         $result = app(PackagingSyncService::class)->createProcessingForPackaging($this->packaging->fresh());
 
         expect($result['success'])->toBeFalse()
-            ->and($result['message'])->toContain('количество тары');
+            ->and($result['message'])->toContain('количество должно быть больше 0');
     });
 });
 
