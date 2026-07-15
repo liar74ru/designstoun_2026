@@ -5,7 +5,6 @@ namespace App\Services\Moysklad;
 use App\Models\Setting;
 use App\Services\Moysklad\Concerns\HandlesProcessingSync;
 use App\Support\DocumentNaming;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
@@ -375,14 +374,14 @@ class StoneReceptionSyncService extends MoySkladBaseService
             }
 
             $receptionDate = $reception->created_at ?? now();
-            $weekCount = \App\Models\StoneReception::whereBetween('created_at', [
-                $receptionDate->copy()->startOfWeek(Carbon::FRIDAY),
-                $receptionDate->copy()->endOfWeek(Carbon::THURSDAY),
-            ])->whereNotNull('raw_material_batch_id')
-              ->distinct('raw_material_batch_id')
-              ->count();
+            $weekPrefix = DocumentNaming::weekPrefix('ТО', $receptionDate);
+            $sequence = DocumentNaming::nextSequence(
+                RawMaterialBatch::where('moysklad_processing_name', 'like', $weekPrefix . '%')
+                    ->pluck('moysklad_processing_name'),
+                $weekPrefix
+            );
 
-            $name = $customName ?? DocumentNaming::weeklyName('ТО', $weekCount + 1, $receptionDate);
+            $name = $customName ?? DocumentNaming::weeklyName('ТО', $sequence, $receptionDate);
 
             $reception->loadMissing('items.product');
             $workerSalaryTotal = 0;

@@ -17,6 +17,7 @@ class StorePackagingRequest extends FormRequest
             'packer_id'              => 'required|exists:workers,id',
             'receiver_id'            => 'required|exists:workers,id',
             'store_id'               => 'required|exists:stores,id',
+            'product_store_id'       => 'required|exists:stores,id',
             'department_id'          => 'nullable|exists:departments,id',
             'package_product_id'     => 'required|exists:products,id',
             'package_quantity'       => 'required|numeric|min:0.001',
@@ -53,6 +54,8 @@ class StorePackagingRequest extends FormRequest
         return [
             'packer_id.required'              => 'Выберите упаковщика',
             'receiver_id.required'            => 'Выберите приёмщика',
+            'store_id.required'               => 'Выберите склад сырья',
+            'product_store_id.required'       => 'Выберите склад продукта',
             'package_product_id.required'     => 'Выберите упаковку (тару)',
             'package_quantity.required'       => 'Укажите количество тары',
             'package_quantity.min'            => 'Количество тары должно быть больше 0',

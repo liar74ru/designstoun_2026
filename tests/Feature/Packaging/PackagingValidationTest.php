@@ -24,6 +24,31 @@ beforeEach(function () {
     ];
 });
 
+describe('Валидация складов при создании упаковки', function () {
+
+    test('без product_store_id запрос отклоняется', function () {
+        $this->actingAs(H::adminUser())
+            ->post(route('packagings.store'), $this->basePayload)
+            ->assertSessionHasErrors('product_store_id');
+    });
+
+    test('несуществующий склад продукта отклоняется', function () {
+        $this->actingAs(H::adminUser())
+            ->post(route('packagings.store'), $this->basePayload + [
+                'product_store_id' => 'non-existent-store-id',
+            ])
+            ->assertSessionHasErrors('product_store_id');
+    });
+
+    test('с валидным product_store_id ошибки валидации складов нет', function () {
+        $this->actingAs(H::adminUser())
+            ->post(route('packagings.store'), $this->basePayload + [
+                'product_store_id' => $this->store->id,
+            ])
+            ->assertSessionDoesntHaveErrors(['store_id', 'product_store_id']);
+    });
+});
+
 describe('Валидация result_product_id при создании упаковки', function () {
 
     test('товар-результат не может совпадать с тарой', function () {

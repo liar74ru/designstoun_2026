@@ -20,6 +20,35 @@ class DocumentNaming
     }
 
     /**
+     * Недельный префикс имени документа: «ГГ-НН-ПРЕФИКС-».
+     * Использует ту же ISO-неделю, что и weeklyName().
+     */
+    public static function weekPrefix(string $prefix, ?\Carbon\Carbon $date = null): string
+    {
+        $d = $date ?? now();
+        return $d->format('y') . '-' . $d->format('W') . '-' . $prefix . '-';
+    }
+
+    /**
+     * Следующий порядковый номер недели: max NN среди существующих имён + 1.
+     * Имена с суффиксом коллизии («…-02_01») учитываются по базовому NN.
+     *
+     * @param iterable $names      Существующие имена документов недели
+     * @param string   $weekPrefix Префикс из weekPrefix()
+     */
+    public static function nextSequence(iterable $names, string $weekPrefix): int
+    {
+        $max = 0;
+        foreach ($names as $name) {
+            if (preg_match('/^' . preg_quote($weekPrefix, '/') . '(\d+)/u', (string) $name, $m)) {
+                $max = max($max, (int) $m[1]);
+            }
+        }
+
+        return $max + 1;
+    }
+
+    /**
      * Генерирует следующее суффиксное имя при коллизии в МойСклад:
      * «26-15-ПРОГ-01»    → «26-15-ПРОГ-01_01»
      * «26-15-ПРОГ-01_01» → «26-15-ПРОГ-01_02»

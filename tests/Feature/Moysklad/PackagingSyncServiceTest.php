@@ -144,6 +144,149 @@ describe('PackagingSyncService::createProcessingForPackaging()', function () {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Склады техоперации: materialsStore / productsStore
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('PackagingSyncService: склады техоперации', function () {
+
+    test('с product_store_id склады в payload различаются', function () {
+        $productStore = Store::factory()->create();
+        $this->packaging->update(['product_store_id' => $productStore->id]);
+        PackagingItem::create([
+            'packaging_id'       => $this->packaging->id,
+            'product_id'         => $this->product->id,
+            'quantity'           => 5.0,
+            'worker_cost_per_m2' => 210.0,
+        ]);
+
+        Http::fake([
+            '*report/stock/bystore*'                => Http::response(['rows' => []], 200),
+            '*entity/processing/metadata*'          => Http::response(['states' => []], 200),
+            '*entity/organization*'                 => Http::response([
+                'rows' => [['meta' => ['href' => 'org-href', 'type' => 'organization', 'mediaType' => 'application/json']]],
+            ], 200),
+            "*entity/store/{$this->store->id}*"     => Http::response([
+                'meta' => ['href' => 'materials-store-href', 'type' => 'store', 'mediaType' => 'application/json'],
+            ], 200),
+            "*entity/store/{$productStore->id}*"    => Http::response([
+                'meta' => ['href' => 'products-store-href', 'type' => 'store', 'mediaType' => 'application/json'],
+            ], 200),
+            '*entity/product/*'                     => Http::response([
+                'meta' => ['href' => 'product-href', 'type' => 'product', 'mediaType' => 'application/json'],
+            ], 200),
+            '*entity/processing'                    => Http::response(['id' => 'proc-id', 'name' => 'УПАК-1'], 200),
+        ]);
+
+        $result = app(PackagingSyncService::class)->createProcessingForPackaging($this->packaging->fresh());
+        expect($result['success'])->toBeTrue();
+
+        Http::assertSent(function ($request) {
+            if ($request->method() !== 'POST' || !str_ends_with($request->url(), '/entity/processing')) {
+                return false;
+            }
+            $data = $request->data();
+            return ($data['materialsStore']['meta']['href'] ?? null) === 'materials-store-href'
+                && ($data['productsStore']['meta']['href'] ?? null) === 'products-store-href';
+        });
+    });
+
+    test('без product_store_id оба склада — store_id (фолбэк для legacy)', function () {
+        expect($this->packaging->product_store_id)->toBeNull();
+        PackagingItem::create([
+            'packaging_id'       => $this->packaging->id,
+            'product_id'         => $this->product->id,
+            'quantity'           => 5.0,
+            'worker_cost_per_m2' => 210.0,
+        ]);
+
+        fakeMoyskladForPackaging();
+
+        $result = app(PackagingSyncService::class)->createProcessingForPackaging($this->packaging->fresh());
+        expect($result['success'])->toBeTrue();
+
+        Http::assertSent(function ($request) {
+            if ($request->method() !== 'POST' || !str_ends_with($request->url(), '/entity/processing')) {
+                return false;
+            }
+            $data = $request->data();
+            return ($data['materialsStore']['meta']['href'] ?? null) === 'store-href'
+                && ($data['productsStore']['meta']['href'] ?? null) === 'store-href';
+        });
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Нумерация имён УПАК: max NN по существующим именам ISO-недели
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('PackagingSyncService: нумерация УПАК', function () {
+
+    function makeNamedPackaging($ctx, string $name): Packaging {
+        return Packaging::create([
+            'packer_id'                => $ctx->packer->id,
+            'receiver_id'              => $ctx->receiver->id,
+            'store_id'                 => $ctx->store->id,
+            'package_product_id'       => $ctx->packageProduct->id,
+            'package_quantity'         => 1.0,
+            'status'                   => Packaging::STATUS_ACTIVE,
+            'moysklad_processing_name' => $name,
+        ]);
+    }
+
+    function assertSentProcessingName(string $expected): void {
+        Http::assertSent(function ($request) use ($expected) {
+            return $request->method() === 'POST'
+                && str_ends_with($request->url(), '/entity/processing')
+                && ($request->data()['name'] ?? null) === $expected;
+        });
+    }
+
+    beforeEach(function () {
+        PackagingItem::create([
+            'packaging_id'       => $this->packaging->id,
+            'product_id'         => $this->product->id,
+            'quantity'           => 5.0,
+            'worker_cost_per_m2' => 210.0,
+        ]);
+    });
+
+    test('первая упаковка недели получает номер 01', function () {
+        fakeMoyskladForPackaging();
+
+        app(PackagingSyncService::class)->createProcessingForPackaging($this->packaging->fresh());
+
+        assertSentProcessingName(\App\Support\DocumentNaming::weeklyName('УПАК', 1));
+    });
+
+    test('следующая упаковка недели получает max NN + 1', function () {
+        makeNamedPackaging($this, \App\Support\DocumentNaming::weeklyName('УПАК', 1));
+
+        fakeMoyskladForPackaging();
+        app(PackagingSyncService::class)->createProcessingForPackaging($this->packaging->fresh());
+
+        assertSentProcessingName(\App\Support\DocumentNaming::weeklyName('УПАК', 2));
+    });
+
+    test('имена чужих недель не влияют на счётчик', function () {
+        makeNamedPackaging($this, \App\Support\DocumentNaming::weeklyName('УПАК', 7, now()->subWeeks(2)));
+
+        fakeMoyskladForPackaging();
+        app(PackagingSyncService::class)->createProcessingForPackaging($this->packaging->fresh());
+
+        assertSentProcessingName(\App\Support\DocumentNaming::weeklyName('УПАК', 1));
+    });
+
+    test('имя с суффиксом коллизии учитывается по базовому NN', function () {
+        makeNamedPackaging($this, \App\Support\DocumentNaming::weeklyName('УПАК', 2) . '_01');
+
+        fakeMoyskladForPackaging();
+        app(PackagingSyncService::class)->createProcessingForPackaging($this->packaging->fresh());
+
+        assertSentProcessingName(\App\Support\DocumentNaming::weeklyName('УПАК', 3));
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Режим товара-результата (result_product_id)
 // ══════════════════════════════════════════════════════════════════════════════
 

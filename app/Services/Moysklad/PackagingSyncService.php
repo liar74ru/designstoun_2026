@@ -8,7 +8,6 @@ use App\Models\Setting;
 use App\Models\Worker;
 use App\Services\Moysklad\Concerns\HandlesProcessingSync;
 use App\Support\DocumentNaming;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class PackagingSyncService extends MoySkladBaseService
@@ -50,10 +49,7 @@ class PackagingSyncService extends MoySkladBaseService
                 throw new \Exception('Не удалось получить данные организации');
             }
 
-            $storeMeta = $this->getEntityMeta('store', $packaging->store_id);
-            if (!$storeMeta) {
-                throw new \Exception('Не удалось получить данные склада');
-            }
+            [$materialsStoreMeta, $productsStoreMeta] = $this->getStoreMetas($packaging);
 
             $packageProduct = $packaging->packageProduct;
             if (!$packageProduct || !$packageProduct->moysklad_id) {
@@ -111,12 +107,14 @@ class PackagingSyncService extends MoySkladBaseService
             [$productsGrouped, $totalQuantity] = $this->buildResultProducts($packaging, $productsGrouped, $totalQuantity);
 
             $packagingDate = $packaging->created_at ?? now();
-            $weekCount = Packaging::whereBetween('created_at', [
-                $packagingDate->copy()->startOfWeek(Carbon::FRIDAY),
-                $packagingDate->copy()->endOfWeek(Carbon::THURSDAY),
-            ])->count();
+            $weekPrefix = DocumentNaming::weekPrefix('УПАК', $packagingDate);
+            $sequence = DocumentNaming::nextSequence(
+                Packaging::where('moysklad_processing_name', 'like', $weekPrefix . '%')
+                    ->pluck('moysklad_processing_name'),
+                $weekPrefix
+            );
 
-            $name = $customName ?? DocumentNaming::weeklyName('УПАК', $weekCount + 1, $packagingDate);
+            $name = $customName ?? DocumentNaming::weeklyName('УПАК', $sequence, $packagingDate);
 
             $workerSalaryTotal = 0;
             foreach ($packaging->items as $item) {
@@ -126,8 +124,8 @@ class PackagingSyncService extends MoySkladBaseService
 
             $processingData = [
                 'organization'   => ['meta' => $organizationMeta],
-                'productsStore'  => ['meta' => $storeMeta],
-                'materialsStore' => ['meta' => $storeMeta],
+                'productsStore'  => ['meta' => $productsStoreMeta],
+                'materialsStore' => ['meta' => $materialsStoreMeta],
                 'processingSum'  => $totalProcessingSum,
                 'products'       => array_values($productsGrouped),
                 'materials'      => $materials,
@@ -228,10 +226,7 @@ class PackagingSyncService extends MoySkladBaseService
             $packageMoyskladId = $packaging->packageProduct?->moysklad_id;
             $packageQuantity   = (float) $packaging->package_quantity;
 
-            $storeMeta = $this->getEntityMeta('store', $packaging->store_id ?? '');
-            if (!$storeMeta) {
-                throw new \Exception('Не удалось получить данные склада');
-            }
+            [$materialsStoreMeta, $productsStoreMeta] = $this->getStoreMetas($packaging);
 
             $productsGrouped = [];
             $totalQuantity   = 0;
@@ -311,8 +306,8 @@ class PackagingSyncService extends MoySkladBaseService
             }
 
             $payload = [
-                'productsStore'  => ['meta' => $storeMeta],
-                'materialsStore' => ['meta' => $storeMeta],
+                'productsStore'  => ['meta' => $productsStoreMeta],
+                'materialsStore' => ['meta' => $materialsStoreMeta],
                 'processingSum'  => $this->calcProcessingSum($workerSalaryTotal, $totalQuantity),
                 'products'       => $products,
                 'materials'      => $materials,
@@ -402,6 +397,32 @@ class PackagingSyncService extends MoySkladBaseService
             ]);
             $packaging->markSyncError('Ошибка: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Меты складов техоперации: [materialsStore (склад сырья), productsStore (склад продукта)].
+     * Для legacy-записей без product_store_id — фолбэк на store_id.
+     *
+     * @throws \Exception
+     */
+    private function getStoreMetas(Packaging $packaging): array
+    {
+        $materialsStoreMeta = $this->getEntityMeta('store', $packaging->store_id ?? '');
+        if (!$materialsStoreMeta) {
+            throw new \Exception('Не удалось получить данные склада сырья');
+        }
+
+        $productStoreId = $packaging->product_store_id ?: $packaging->store_id;
+        if ($productStoreId === $packaging->store_id) {
+            return [$materialsStoreMeta, $materialsStoreMeta];
+        }
+
+        $productsStoreMeta = $this->getEntityMeta('store', $productStoreId);
+        if (!$productsStoreMeta) {
+            throw new \Exception('Не удалось получить данные склада продукта');
+        }
+
+        return [$materialsStoreMeta, $productsStoreMeta];
     }
 
     /**

@@ -20,6 +20,7 @@ class Packaging extends Model
         'packer_id',
         'receiver_id',
         'store_id',
+        'product_store_id',
         'department_id',
         'package_product_id',
         'package_quantity',
@@ -55,6 +56,11 @@ class Packaging extends Model
     public function store()
     {
         return $this->belongsTo(Store::class);
+    }
+
+    public function productStore()
+    {
+        return $this->belongsTo(Store::class, 'product_store_id');
     }
 
     public function department()
@@ -123,15 +129,17 @@ class Packaging extends Model
      * Согласовано с пользователем: упакованные продукты остаются на месте,
      * двигается только упаковочная тара.
      */
-    public function adjustPackageStock(float $delta): void
+    public function adjustPackageStock(float $delta, ?string $storeId = null): void
     {
-        if (!$this->package_product_id || !$this->store_id || abs($delta) < 0.0001) {
+        $storeId ??= $this->store_id;
+
+        if (!$this->package_product_id || !$storeId || abs($delta) < 0.0001) {
             return;
         }
 
         $stock = ProductStock::firstOrCreate([
             'product_id' => $this->package_product_id,
-            'store_id'   => $this->store_id,
+            'store_id'   => $storeId,
         ]);
 
         // delta > 0 — списываем (отнимаем со склада); delta < 0 — возвращаем.

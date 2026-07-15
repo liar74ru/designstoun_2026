@@ -16,7 +16,7 @@
         {{-- Блок: Участники и склад (свёрнутый) --}}
         <div class="card shadow-sm mb-3">
             <div class="card-header bg-white py-2" role="button" id="peopleToggle">
-                <span class="small fw-semibold text-muted"><i class="bi bi-people me-1"></i> Участники и склад</span>
+                <span class="small fw-semibold text-muted"><i class="bi bi-people me-1"></i> Участники</span>
                 <i class="bi bi-chevron-down float-end" id="peopleChevron"></i>
             </div>
             <div class="card-body" id="peopleBody" style="display:none">
@@ -47,6 +47,7 @@
                                 @foreach($masterWorkers as $worker)
                                     <option value="{{ $worker->id }}"
                                         data-department-id="{{ $worker->department_id }}"
+                                        @if($worker->position === 'Администратор') data-always-visible @endif
                                         {{ old('receiver_id', $packaging->receiver_id) == $worker->id ? 'selected' : '' }}>
                                         {{ $worker->name }}
                                     </option>
@@ -59,11 +60,50 @@
                         @endif
                     </div>
                 </div>
-                <div class="mt-2">
-                    <label class="form-label small fw-semibold mb-1">Склад производства</label>
-                    <input type="text" class="form-control form-control-sm" style="border-radius:.4rem" readonly
-                           value="{{ $packaging->store->name ?? '—' }}">
-                    <input type="hidden" name="store_id" value="{{ $packaging->store_id }}">
+            </div>
+        </div>
+
+        {{-- Блок: Склады --}}
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <span class="small fw-semibold text-muted d-block mb-2"><i class="bi bi-building me-1"></i> Склады <span class="text-danger">*</span></span>
+                <div class="row g-2">
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small text-muted mb-1">Склад сырья (материалов)</label>
+                        <select name="store_id"
+                                class="form-select form-select-sm @error('store_id') is-invalid @enderror"
+                                style="border-radius:.4rem" required>
+                            <option value="">— Выберите склад —</option>
+                            @foreach($stores as $store)
+                                <option value="{{ $store->id }}"
+                                    {{ old('store_id', $packaging->store_id) == $store->id ? 'selected' : '' }}>
+                                    {{ $store->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text" style="font-size:.7rem">Списание упаковываемых продуктов и тары. При смене остаток тары переносится на новый склад.</div>
+                        @error('store_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small text-muted mb-1">Склад продукта</label>
+                        <select name="product_store_id"
+                                class="form-select form-select-sm @error('product_store_id') is-invalid @enderror"
+                                style="border-radius:.4rem" required>
+                            <option value="">— Выберите склад —</option>
+                            @foreach($stores as $store)
+                                <option value="{{ $store->id }}"
+                                    {{ old('product_store_id', $packaging->product_store_id ?? $packaging->store_id) == $store->id ? 'selected' : '' }}>
+                                    {{ $store->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text" style="font-size:.7rem">Оприходование результата упаковки.</div>
+                        @error('product_store_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </div>
             </div>
         </div>

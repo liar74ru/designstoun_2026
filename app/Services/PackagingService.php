@@ -40,16 +40,22 @@ class PackagingService
             ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
 
+        $userDepartment = auth()->user()?->worker?->department;
+        $userDepartment?->loadMissing('defaultProductionStore', 'defaultProductStore');
+
         $data = [
-            'packers'         => $packers,
-            'masterWorkers'   => $masterWorkers,
-            'workers'         => Worker::where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
+            'packers'             => $packers,
+            'masterWorkers'       => $masterWorkers,
+            'workers'             => Worker::where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
                 ->orderBy('name')->get(),
-            'products'        => Product::orderBy('name')->get(),
-            'packageProducts' => Product::where('sku', 'like', '07-03%')->orderBy('name')->get(),
-            'stores'          => Store::orderBy('name')->get(),
-            'defaultStore'    => Store::getDefault(),
-            'departments'     => Department::where('is_active', true)->orderBy('name')->get(),
+            'products'            => Product::orderBy('name')->get(),
+            'packageProducts'     => Product::where('sku', 'like', '07-03%')->orderBy('name')->get(),
+            'stores'              => Store::orderBy('name')->get(),
+            'defaultStore'        => $userDepartment?->defaultProductionStore ?? Store::getDefault(),
+            'defaultProductStore' => $userDepartment?->defaultProductStore ?? Store::getDefault(),
+            'departments'         => Department::where('is_active', true)
+                ->with('defaultProductionStore', 'defaultProductStore')
+                ->orderBy('name')->get(),
         ];
 
         if ($packaging) {
@@ -181,6 +187,7 @@ class PackagingService
                 ->toArray();
 
             $oldPackageQty = (float) $packaging->package_quantity;
+            $oldStoreId    = $packaging->store_id;
             $newPackageQty = $oldPackageQty + $packageDelta;
             if ($newPackageQty < 0) {
                 throw new \Exception('Количество тары не может быть отрицательным');
@@ -188,8 +195,12 @@ class PackagingService
 
             $packaging->update($this->preparePackagingData($data, false, $newPackageQty));
 
-            // Корректируем складской остаток на дельту тары (booted-хук срабатывает только на created/deleted).
-            if (abs($packageDelta) > 0.0001) {
+            // Корректируем складской остаток тары (booted-хук срабатывает только на created/deleted).
+            if ((string) $oldStoreId !== (string) $packaging->store_id) {
+                // Склад сырья сменился: вернуть тару на старый склад, списать с нового.
+                $packaging->adjustPackageStock(-$oldPackageQty, $oldStoreId);
+                $packaging->adjustPackageStock($newPackageQty);
+            } elseif (abs($packageDelta) > 0.0001) {
                 $packaging->adjustPackageStock($packageDelta);
             }
 
@@ -367,6 +378,7 @@ class PackagingService
         $prepared = [
             'packer_id'          => $data['packer_id'],
             'store_id'           => $data['store_id'],
+            'product_store_id'   => $data['product_store_id'] ?? null,
             'department_id'      => $departmentId,
             'package_product_id' => $data['package_product_id'],
             'result_product_id'  => $data['result_product_id'] ?? null,

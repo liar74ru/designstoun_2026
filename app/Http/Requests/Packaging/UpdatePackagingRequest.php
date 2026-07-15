@@ -27,6 +27,7 @@ class UpdatePackagingRequest extends FormRequest
             'packer_id'              => 'required|exists:workers,id',
             'receiver_id'            => 'required|exists:workers,id',
             'store_id'               => 'required|exists:stores,id',
+            'product_store_id'       => 'required|exists:stores,id',
             'department_id'          => 'nullable|exists:departments,id',
             'package_product_id'     => 'required|exists:products,id',
             'package_quantity'       => 'required|numeric|min:0',
@@ -62,6 +63,8 @@ class UpdatePackagingRequest extends FormRequest
         return [
             'packer_id.required'             => 'Выберите упаковщика',
             'receiver_id.required'           => 'Выберите приёмщика',
+            'store_id.required'              => 'Выберите склад сырья',
+            'product_store_id.required'      => 'Выберите склад продукта',
             'package_product_id.required'    => 'Выберите упаковку (тару)',
             'result_product_id.different'    => 'Товар-результат не может совпадать с тарой',
             'products.required'              => 'Должен быть хотя бы один упакованный продукт',

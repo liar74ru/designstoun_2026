@@ -17,7 +17,9 @@ function initWorkerPicker(select) {
         Array.from(select.options).forEach(opt => {
             if (!opt.value) return;
             const optDept = opt.dataset.departmentId || '';
-            const visible = showAll || String(optDept) === String(dept);
+            // data-always-visible (например, администраторы) — не фильтруется по отделу
+            const visible = showAll || opt.hasAttribute('data-always-visible')
+                || String(optDept) === String(dept);
             opt.hidden = !visible;
             opt.disabled = !visible;
             if (!visible && opt.selected) {
@@ -31,7 +33,8 @@ function initWorkerPicker(select) {
     const initialDept = currentDept();
     if (initialDept && select.value && toggle) {
         const selOpt = select.options[select.selectedIndex];
-        if (selOpt && String(selOpt.dataset.departmentId || '') !== String(initialDept)) {
+        if (selOpt && !selOpt.hasAttribute('data-always-visible')
+            && String(selOpt.dataset.departmentId || '') !== String(initialDept)) {
             toggle.checked = true;
         }
     }

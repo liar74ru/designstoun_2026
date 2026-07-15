@@ -39,9 +39,8 @@
                                     <option value="">— упаковщик —</option>
                                     @foreach($packers as $worker)
                                         <option value="{{ $worker->id }}"
-                                            data-store-id="{{ optional($worker->department?->defaultProductionStore)->id }}"
-                                            data-store-name="{{ optional($worker->department?->defaultProductionStore)->name }}"
                                             data-department-id="{{ $worker->department_id }}"
+                                            @if($worker->position === 'Администратор') data-always-visible @endif
                                             {{ old('packer_id', $selectedPackerId ?? '') == $worker->id ? 'selected' : '' }}>
                                             {{ $worker->name }}
                                         </option>
@@ -60,6 +59,7 @@
                                     @foreach($masterWorkers as $worker)
                                         <option value="{{ $worker->id }}"
                                             data-department-id="{{ $worker->department_id }}"
+                                            @if($worker->position === 'Администратор') data-always-visible @endif
                                             {{ old('receiver_id', auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
                                             {{ $worker->name }}
                                         </option>
@@ -68,13 +68,6 @@
                             </div>
                         </div>
 
-                        <div class="mt-2">
-                            <label class="form-label small fw-semibold mb-1">Склад производства</label>
-                            <input type="text" id="storeNameInput" class="form-control form-control-sm" style="border-radius:.4rem"
-                                   readonly value="{{ $defaultStore?->name ?? 'Выберите упаковщика' }}">
-                            <input type="hidden" name="store_id" id="storeHidden" value="{{ $defaultStore?->id }}">
-                            <div class="form-text" style="font-size:.7rem">Берётся из настроек отдела упаковщика (склад производства).</div>
-                        </div>
                     </div>
                 </div>
 
@@ -92,17 +85,64 @@
                             <option value="">— Не задан —</option>
                             @foreach($departments as $department)
                                 <option value="{{ $department->id }}"
+                                    data-production-store-id="{{ $department->defaultProductionStore?->id }}"
+                                    data-product-store-id="{{ $department->defaultProductStore?->id }}"
                                     {{ (string) old('department_id', $userDeptId) === (string) $department->id ? 'selected' : '' }}>
                                     {{ $department->name }}
                                 </option>
                             @endforeach
                         </select>
                         <div class="form-text" style="font-size:.7rem">
-                            По умолчанию — ваш отдел. Смена отдела перефильтрует списки работников.
+                            По умолчанию — ваш отдел. Смена отдела перефильтрует списки работников и подставит склады отдела.
                         </div>
                         @error('department_id')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
+                    </div>
+                </div>
+
+                {{-- Блок: Склады --}}
+                <div class="card shadow-sm mb-3">
+                    <div class="card-body">
+                        <span class="small fw-semibold text-muted d-block mb-2"><i class="bi bi-building me-1"></i> Склады <span class="text-danger">*</span></span>
+                        <div class="row g-2">
+                            <div class="col-12 col-sm-6">
+                                <label for="rawStoreSelect" class="form-label small text-muted mb-1">Склад сырья (материалов)</label>
+                                <select name="store_id" id="rawStoreSelect"
+                                        class="form-select form-select-sm @error('store_id') is-invalid @enderror"
+                                        style="border-radius:.4rem" required>
+                                    <option value="">— Выберите склад —</option>
+                                    @foreach($stores as $store)
+                                        <option value="{{ $store->id }}"
+                                            {{ old('store_id', $defaultStore?->id) == $store->id ? 'selected' : '' }}>
+                                            {{ $store->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text" style="font-size:.7rem">Списание упаковываемых продуктов и тары.</div>
+                                @error('store_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label for="productStoreSelect" class="form-label small text-muted mb-1">Склад продукта</label>
+                                <select name="product_store_id" id="productStoreSelect"
+                                        class="form-select form-select-sm @error('product_store_id') is-invalid @enderror"
+                                        style="border-radius:.4rem" required>
+                                    <option value="">— Выберите склад —</option>
+                                    @foreach($stores as $store)
+                                        <option value="{{ $store->id }}"
+                                            {{ old('product_store_id', $defaultProductStore?->id) == $store->id ? 'selected' : '' }}>
+                                            {{ $store->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text" style="font-size:.7rem">Оприходование результата упаковки.</div>
+                                @error('product_store_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -222,7 +262,8 @@
                     </div>
                     <div class="card-body small text-muted">
                         <ol class="ps-3 mb-0">
-                            <li>Выберите упаковщика — склад подставится из настроек отдела.</li>
+                            <li>Выберите упаковщика и приёмщика.</li>
+                            <li>Склады подставляются из настроек отдела — при необходимости выберите вручную в блоке «Склады».</li>
                             <li>Добавьте продукт упаковки и его количество (м²).</li>
                             <li>Выберите вариант упаковки (07-03-xx) и количество тары (шт).</li>
                             <li>Если на выходе другой товар (коробка с плиткой) — задайте «Товар-результат»: он оприходуется в количестве тары, а продукты и тара спишутся.</li>
@@ -256,9 +297,6 @@
     const container   = document.getElementById('productsContainer');
     const addBtn      = document.getElementById('addProductBtn');
     const totalQtyEl  = document.getElementById('totalQty');
-    const packerSelect = document.getElementById('packerSelect');
-    const storeHidden  = document.getElementById('storeHidden');
-    const storeName    = document.getElementById('storeNameInput');
 
     let rowIndex = 0;
 
@@ -304,17 +342,30 @@
 
     addRow();
 
-    // Подтягиваем склад при смене упаковщика
-    function syncStoreFromPacker() {
-        const opt = packerSelect.options[packerSelect.selectedIndex];
-        if (!opt) return;
-        const sid   = opt.dataset.storeId   || '';
-        const sname = opt.dataset.storeName || 'Склад не задан в отделе';
-        storeHidden.value  = sid;
-        storeName.value    = sname;
+    // Склады по умолчанию — из настроек выбранного отдела.
+    // Ручной выбор склада (событие change) больше не перетирается.
+    const departmentSelect  = document.getElementById('departmentSelect');
+    const rawStoreSelect    = document.getElementById('rawStoreSelect');
+    const productStoreSelect = document.getElementById('productStoreSelect');
+
+    rawStoreSelect.addEventListener('change', () => rawStoreSelect.dataset.touched = '1');
+    productStoreSelect.addEventListener('change', () => productStoreSelect.dataset.touched = '1');
+
+    function syncStoresFromDepartment() {
+        const opt = departmentSelect.options[departmentSelect.selectedIndex];
+        if (!opt || !opt.value) return;
+        if (!rawStoreSelect.dataset.touched && opt.dataset.productionStoreId) {
+            rawStoreSelect.value = opt.dataset.productionStoreId;
+        }
+        if (!productStoreSelect.dataset.touched && opt.dataset.productStoreId) {
+            productStoreSelect.value = opt.dataset.productStoreId;
+        }
     }
-    packerSelect.addEventListener('change', syncStoreFromPacker);
-    if (packerSelect.value) syncStoreFromPacker();
+    departmentSelect.addEventListener('change', syncStoresFromDepartment);
+    @if(old('store_id') || old('product_store_id'))
+        rawStoreSelect.dataset.touched = '1';
+        productStoreSelect.dataset.touched = '1';
+    @endif
 
     // Тоггл блока МойСклад
     const msToggle  = document.getElementById('msToggle');

@@ -168,6 +168,106 @@ describe('PackagingService::update()', function () {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Склады: product_store_id и перенос остатка тары при смене склада сырья
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('PackagingService: склады', function () {
+
+    test('create сохраняет product_store_id', function () {
+        $productStore = Store::factory()->create();
+        $service      = new PackagingService($this->mockSync);
+
+        $packaging = $service->create([
+            'packer_id'          => $this->packer->id,
+            'receiver_id'        => $this->receiver->id,
+            'store_id'           => $this->store->id,
+            'product_store_id'   => $productStore->id,
+            'package_product_id' => $this->packageProduct->id,
+            'package_quantity'   => 1.0,
+            'products'           => [
+                ['product_id' => $this->product->id, 'quantity' => 5.0],
+            ],
+        ], false);
+
+        expect($packaging->product_store_id)->toBe($productStore->id)
+            ->and($packaging->store_id)->toBe($this->store->id);
+    });
+
+    test('update со сменой склада сырья переносит списанную тару на новый склад', function () {
+        $service = new PackagingService($this->mockSync);
+
+        $packaging = $service->create([
+            'packer_id'          => $this->packer->id,
+            'receiver_id'        => $this->receiver->id,
+            'store_id'           => $this->store->id,
+            'product_store_id'   => $this->store->id,
+            'package_product_id' => $this->packageProduct->id,
+            'package_quantity'   => 3.0,
+            'products'           => [
+                ['product_id' => $this->product->id, 'quantity' => 5.0],
+            ],
+        ], false);
+
+        // При создании тара списана со старого склада
+        $oldStock = \App\Models\ProductStock::where('product_id', $this->packageProduct->id)
+            ->where('store_id', $this->store->id)->first();
+        expect((float) $oldStock->quantity)->toBe(-3.0);
+
+        $newStore = Store::factory()->create();
+        $service->update($packaging, [
+            'packer_id'          => $this->packer->id,
+            'receiver_id'        => $this->receiver->id,
+            'store_id'           => $newStore->id,
+            'product_store_id'   => $this->store->id,
+            'package_product_id' => $this->packageProduct->id,
+            'products'           => [
+                ['product_id' => $this->product->id, 'quantity' => 5.0],
+            ],
+        ], false);
+
+        // Старый склад восстановлен, новый — списан
+        expect((float) $oldStock->fresh()->quantity)->toBe(0.0);
+
+        $newStock = \App\Models\ProductStock::where('product_id', $this->packageProduct->id)
+            ->where('store_id', $newStore->id)->first();
+        expect((float) $newStock->quantity)->toBe(-3.0)
+            ->and($packaging->fresh()->store_id)->toBe($newStore->id);
+    });
+
+    test('update без смены склада корректирует остаток только на дельту тары', function () {
+        $service = new PackagingService($this->mockSync);
+
+        $packaging = $service->create([
+            'packer_id'          => $this->packer->id,
+            'receiver_id'        => $this->receiver->id,
+            'store_id'           => $this->store->id,
+            'product_store_id'   => $this->store->id,
+            'package_product_id' => $this->packageProduct->id,
+            'package_quantity'   => 3.0,
+            'products'           => [
+                ['product_id' => $this->product->id, 'quantity' => 5.0],
+            ],
+        ], false);
+
+        $service->update($packaging, [
+            'packer_id'               => $this->packer->id,
+            'receiver_id'             => $this->receiver->id,
+            'store_id'                => $this->store->id,
+            'product_store_id'        => $this->store->id,
+            'package_product_id'      => $this->packageProduct->id,
+            'package_quantity_delta'  => 2.0,
+            'products'                => [
+                ['product_id' => $this->product->id, 'quantity' => 5.0],
+            ],
+        ], false);
+
+        $stock = \App\Models\ProductStock::where('product_id', $this->packageProduct->id)
+            ->where('store_id', $this->store->id)->first();
+        expect((float) $stock->quantity)->toBe(-5.0);
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 // PackagingService::refreshItemCoeffs()
 // ══════════════════════════════════════════════════════════════════════════════
 

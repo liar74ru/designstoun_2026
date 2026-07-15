@@ -45,15 +45,8 @@ class PackagingController extends Controller
 
     public function create(Request $request): View
     {
-        $packerId = $request->input('packer_id');
-
         $data = $this->service->getFormOptions();
-        $data['selectedPackerId'] = $packerId;
-
-        if ($packerId) {
-            $packer = Worker::find($packerId);
-            $data['defaultStore'] = $this->service->getDefaultStoreForPacker($packer);
-        }
+        $data['selectedPackerId'] = $request->input('packer_id');
 
         return view('packagings.create', $data);
     }
@@ -106,7 +99,6 @@ class PackagingController extends Controller
     public function edit(Packaging $packaging): View
     {
         $data = $this->service->getFormOptions($packaging);
-        $data['defaultStore'] = $this->service->getDefaultStoreForPacker($packaging->packer);
 
         return view('packagings.edit', $data);
     }
