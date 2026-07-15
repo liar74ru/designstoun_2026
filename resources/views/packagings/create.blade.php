@@ -5,12 +5,15 @@
 @php $userDeptId = auth()->user()?->worker?->department_id; @endphp
 
 <style>
+/* Компактные по высоте селекты (склады, работник) */
+.compact-select{padding-top:.15rem;padding-bottom:.15rem;min-height:0;height:auto;line-height:1.25}
 /* Конвейер упаковки: сырьё + тара → продукт */
 .pack-flow{
     --pf-raw:#2f6df6;  --pf-raw-bg:#eef4ff;  --pf-raw-bd:#cfe0ff;
     --pf-pack:#d9820e; --pf-pack-bg:#fdf3e3; --pf-pack-bd:#f4dcae;
     --pf-prod:#0f9e6a; --pf-prod-bg:#e8f7f0; --pf-prod-bd:#bfe9d5;
     --pf-line:#dee2e6;
+    display:flex;flex-direction:column;gap:.5rem;
 }
 .pf-node{border:1px solid var(--pf-line);border-radius:.6rem;padding:.85rem .9rem;background:#fff}
 .pf-node.raw{background:var(--pf-raw-bg);border-color:var(--pf-raw-bd)}
@@ -29,9 +32,6 @@
 .pf-node.raw .pf-badge{color:var(--pf-raw)}
 .pf-node.pack .pf-badge{color:var(--pf-pack)}
 .pf-node.prod .pf-badge{color:var(--pf-prod)}
-.pf-pipe{position:relative;height:2rem;display:flex;align-items:center;justify-content:center}
-.pf-pipe::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--pf-line)}
-.pf-pipe-badge{position:relative;width:1.6rem;height:1.6rem;border-radius:50%;background:#fff;border:1.5px solid var(--pf-line);display:grid;place-items:center;font-weight:700;color:#6c757d;font-size:.9rem;line-height:1}
 .pf-result-line{display:flex;align-items:center;gap:.4rem;margin-top:.6rem;padding-top:.55rem;border-top:1px dashed var(--pf-prod-bd);color:var(--pf-prod);font-size:.8rem;font-weight:600}
 </style>
 
@@ -48,7 +48,7 @@
             <div class="col-12 col-lg-7">
 
                 {{-- Блок: Отдел и Мастер (свёрнутый) --}}
-                <div class="card shadow-sm mb-3">
+                <div class="card shadow-sm mb-2">
                     <div class="card-header bg-white py-2" role="button" id="deptToggle">
                         <span class="small fw-semibold text-muted"><i class="bi bi-diagram-2 me-1"></i> Отдел и Мастер</span>
                         <i class="bi bi-chevron-down float-end" id="deptChevron"></i>
@@ -101,52 +101,47 @@
                     </div>
                 </div>
 
-                {{-- Блок: Участники --}}
-                <div class="card shadow-sm mb-3">
-                    <div class="card-body">
-                        @if($userDeptId)
-                            <div class="d-flex justify-content-end mb-1">
-                                <div class="form-check form-check-inline mb-0">
+                {{-- Блок: Работник --}}
+                <div class="card shadow-sm mb-2">
+                    <div class="card-body py-2">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <label for="packerSelect" class="form-label small fw-semibold mb-0">Работник <span class="text-danger">*</span></label>
+                            @if($userDeptId)
+                                <div class="form-check form-check-inline mb-0 me-0">
                                     <input class="form-check-input" type="checkbox" id="allWorkersParticipantsPack">
                                     <label class="form-check-label small text-muted" for="allWorkersParticipantsPack">все работники</label>
                                 </div>
-                            </div>
-                        @endif
-                        <div class="row g-2">
-                            <div class="col-12">
-                                <label for="packerSelect" class="form-label small fw-semibold mb-1">Упаковщик <span class="text-danger">*</span></label>
-                                <select name="packer_id" id="packerSelect"
-                                        class="form-select form-select-sm worker-picker"
-                                        style="border-radius:.4rem"
-                                        data-user-dept-id="{{ $userDeptId }}"
-                                        data-dept-select-id="departmentSelect"
-                                        data-toggle-id="allWorkersParticipantsPack"
-                                        required>
-                                    <option value="">— упаковщик —</option>
-                                    @foreach($packers as $worker)
-                                        <option value="{{ $worker->id }}"
-                                            data-department-id="{{ $worker->department_id }}"
-                                            @if($worker->position === 'Администратор') data-always-visible @endif
-                                            {{ old('packer_id', $selectedPackerId ?? '') == $worker->id ? 'selected' : '' }}>
-                                            {{ $worker->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            @endif
                         </div>
-
+                        <select name="packer_id" id="packerSelect"
+                                class="form-select form-select-sm worker-picker compact-select"
+                                style="border-radius:.4rem"
+                                data-user-dept-id="{{ $userDeptId }}"
+                                data-dept-select-id="departmentSelect"
+                                data-toggle-id="allWorkersParticipantsPack"
+                                required>
+                            <option value="">— работник —</option>
+                            @foreach($packers as $worker)
+                                <option value="{{ $worker->id }}"
+                                    data-department-id="{{ $worker->department_id }}"
+                                    @if($worker->position === 'Администратор') data-always-visible @endif
+                                    {{ old('packer_id', $selectedPackerId ?? '') == $worker->id ? 'selected' : '' }}>
+                                    {{ $worker->name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
                 {{-- Блок: Склады --}}
-                <div class="card shadow-sm mb-3">
-                    <div class="card-body">
-                        <span class="small fw-semibold text-muted d-block mb-2"><i class="bi bi-building me-1"></i> Склады <span class="text-danger">*</span></span>
+                <div class="card shadow-sm mb-2">
+                    <div class="card-body py-2">
+                        <span class="small fw-semibold text-muted d-block mb-1"><i class="bi bi-building me-1"></i> Склады <span class="text-danger">*</span></span>
                         <div class="row g-2">
                             <div class="col-12 col-sm-6">
-                                <label for="rawStoreSelect" class="form-label small text-muted mb-1">Склад сырья (материалов)</label>
+                                <label for="rawStoreSelect" class="form-label small text-muted mb-1">Склад сырья</label>
                                 <select name="store_id" id="rawStoreSelect"
-                                        class="form-select form-select-sm @error('store_id') is-invalid @enderror"
+                                        class="form-select form-select-sm compact-select @error('store_id') is-invalid @enderror"
                                         style="border-radius:.4rem" required>
                                     <option value="">— Выберите склад —</option>
                                     @foreach($stores as $store)
@@ -156,7 +151,6 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                <div class="form-text" style="font-size:.7rem">Списание упаковываемых продуктов и тары.</div>
                                 @error('store_id')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -164,7 +158,7 @@
                             <div class="col-12 col-sm-6">
                                 <label for="productStoreSelect" class="form-label small text-muted mb-1">Склад продукта</label>
                                 <select name="product_store_id" id="productStoreSelect"
-                                        class="form-select form-select-sm @error('product_store_id') is-invalid @enderror"
+                                        class="form-select form-select-sm compact-select @error('product_store_id') is-invalid @enderror"
                                         style="border-radius:.4rem" required>
                                     <option value="">— Выберите склад —</option>
                                     @foreach($stores as $store)
@@ -174,7 +168,6 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                <div class="form-text" style="font-size:.7rem">Оприходование результата упаковки.</div>
                                 @error('product_store_id')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -184,13 +177,13 @@
                 </div>
 
                 {{-- Конвейер: Сырьё · продукты  +  Тара · упаковка  →  Продукт · результат --}}
-                <div class="pack-flow mb-3">
+                <div class="pack-flow mb-2">
 
                     {{-- ① Сырьё · продукты --}}
                     <div class="pf-node raw">
                         <div class="pf-head">
                             <span class="pf-title"><span class="pf-step">1</span><i class="bi bi-box"></i> Сырьё · продукты <span class="text-danger">*</span></span>
-                            <span class="pf-badge">Итого: <strong id="totalQty">0</strong> м²</span>
+                            <span class="pf-badge">Итого: <strong id="totalQty">0</strong> <span id="totalQtyUnit">м²</span></span>
                         </div>
 
                         <div id="productsContainer"></div>
@@ -199,9 +192,6 @@
                             <i class="bi bi-plus-circle"></i> Добавить продукт
                         </button>
                     </div>
-
-                    {{-- + --}}
-                    <div class="pf-pipe"><span class="pf-pipe-badge">+</span></div>
 
                     {{-- ② Тара · упаковка --}}
                     <div class="pf-node pack">
@@ -231,9 +221,6 @@
                             </div>
                         </div>
                     </div>
-
-                    {{-- ↓ --}}
-                    <div class="pf-pipe"><span class="pf-pipe-badge"><i class="bi bi-arrow-down"></i></span></div>
 
                     {{-- ③ Продукт · результат --}}
                     <div class="pf-node prod">
@@ -284,7 +271,7 @@
                 </div>
 
                 {{-- Блок: Примечание --}}
-                <div class="card shadow-sm mb-3">
+                <div class="card shadow-sm mb-2">
                     <div class="card-body">
                         <label class="form-label small fw-semibold mb-1">Примечание</label>
                         <textarea name="notes" rows="2" class="form-control form-control-sm" style="border-radius:.4rem">{{ old('notes') }}</textarea>
@@ -292,7 +279,7 @@
                 </div>
 
                 {{-- Блок: Техоперация МойСклад --}}
-                <div class="card shadow-sm mb-3">
+                <div class="card shadow-sm mb-2">
                     <div class="card-header bg-white py-2" role="button" id="msToggle">
                         <span class="small fw-semibold text-muted"><i class="bi bi-cloud me-1"></i> Техоперация МойСклад</span>
                         <i class="bi bi-chevron-down float-end" id="msChevron"></i>
@@ -363,9 +350,34 @@
 @vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
 <script>
 (function () {
-    const container   = document.getElementById('productsContainer');
-    const addBtn      = document.getElementById('addProductBtn');
-    const totalQtyEl  = document.getElementById('totalQty');
+    const container     = document.getElementById('productsContainer');
+    const addBtn        = document.getElementById('addProductBtn');
+    const totalQtyEl    = document.getElementById('totalQty');
+    const totalQtyUnit  = document.getElementById('totalQtyUnit');
+    const resultPickerRow = document.getElementById('result_hidden')?.closest('.product-picker-row');
+
+    // Склады — объявлены заранее, т.к. addRow проставляет sourceStoreId на строки сырья.
+    const departmentSelect   = document.getElementById('departmentSelect');
+    const rawStoreSelect     = document.getElementById('rawStoreSelect');
+    const productStoreSelect = document.getElementById('productStoreSelect');
+
+    // Карта остатков товаров — бейджи остатка в выпадающем списке пикера.
+    fetch('/api/products/stocks', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => { window.ProductPickerStockMap = data; });
+
+    // Одиночные пикеры тары и результата: тара — со склада сырья, результат — со склада продукта.
+    const packageRow = document.getElementById('package_hidden')?.closest('.product-picker-row');
+    const resultRow  = document.getElementById('result_hidden')?.closest('.product-picker-row');
+    function applyPackageStore() { if (packageRow && rawStoreSelect.value) packageRow.dataset.sourceStoreId = rawStoreSelect.value; }
+    function applyResultStore()  { if (resultRow && productStoreSelect.value) resultRow.dataset.sourceStoreId = productStoreSelect.value; }
+    function applyRawStoreToRows() {
+        container.querySelectorAll('.product-picker-row').forEach(row => {
+            if (rawStoreSelect.value) row.dataset.sourceStoreId = rawStoreSelect.value;
+            else delete row.dataset.sourceStoreId;
+        });
+        applyPackageStore();
+    }
 
     let rowIndex = 0;
 
@@ -374,6 +386,19 @@
         container.querySelectorAll('.product-picker-qty').forEach(el => sum += parseFloat(el.value) || 0);
         totalQtyEl.textContent = sum.toFixed(2);
     }
+
+    // При выборе товара сырья: единица «Итого» (uom) + маска SKU для пикера результата.
+    document.addEventListener('product-picker:selected', (e) => {
+        const row = e.detail?.row;
+        if (row && container.contains(row)) {
+            if (totalQtyUnit) totalQtyUnit.textContent = e.detail.unit || 'м²';
+            // Маска результата: SKU сырья без последнего символа (02-03-11 → префикс 02-03-1).
+            // Поиск в пикере результата фильтруется по префиксу; иной товар — через дерево.
+            if (resultPickerRow && e.detail.sku) {
+                resultPickerRow.dataset.skuPrefix = e.detail.sku.slice(0, -1);
+            }
+        }
+    });
 
     function addRow(productId = '', productLabel = '', quantity = '') {
         const tpl   = document.getElementById('pickerRowTemplate');
@@ -396,6 +421,7 @@
         if (quantity)     qty.value    = quantity;
 
         const row = clone.querySelector('.product-picker-row');
+        if (rawStoreSelect.value) row.dataset.sourceStoreId = rawStoreSelect.value;
         container.appendChild(clone);
         if (window.ProductPicker) window.ProductPicker.initRow(row);
 
@@ -413,12 +439,15 @@
 
     // Склады по умолчанию — из настроек выбранного отдела.
     // Ручной выбор склада (событие change) больше не перетирается.
-    const departmentSelect  = document.getElementById('departmentSelect');
-    const rawStoreSelect    = document.getElementById('rawStoreSelect');
-    const productStoreSelect = document.getElementById('productStoreSelect');
-
-    rawStoreSelect.addEventListener('change', () => rawStoreSelect.dataset.touched = '1');
-    productStoreSelect.addEventListener('change', () => productStoreSelect.dataset.touched = '1');
+    // (departmentSelect / rawStoreSelect / productStoreSelect объявлены выше.)
+    rawStoreSelect.addEventListener('change', () => {
+        rawStoreSelect.dataset.touched = '1';
+        applyRawStoreToRows();
+    });
+    productStoreSelect.addEventListener('change', () => {
+        productStoreSelect.dataset.touched = '1';
+        applyResultStore();
+    });
 
     function syncStoresFromDepartment() {
         const opt = departmentSelect.options[departmentSelect.selectedIndex];
@@ -429,8 +458,14 @@
         if (!productStoreSelect.dataset.touched && opt.dataset.productStoreId) {
             productStoreSelect.value = opt.dataset.productStoreId;
         }
+        // Программная смена .value не шлёт change — обновляем строки вручную.
+        applyRawStoreToRows();
+        applyResultStore();
     }
     departmentSelect.addEventListener('change', syncStoresFromDepartment);
+    // Начальные склады уже подставлены из отдела в blade — проставляем на одиночные пикеры.
+    applyPackageStore();
+    applyResultStore();
     @if(old('store_id') || old('product_store_id'))
         rawStoreSelect.dataset.touched = '1';
         productStoreSelect.dataset.touched = '1';

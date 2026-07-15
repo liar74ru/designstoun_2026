@@ -182,7 +182,7 @@ function selectProduct(searchInput, hiddenInput, product, row) {
     }
 
     document.dispatchEvent(new CustomEvent('product-picker:selected', {
-        detail: { row, productId: product.id, unit: product.unit }
+        detail: { row, productId: product.id, unit: product.unit, sku: product.sku }
     }));
 }
 
