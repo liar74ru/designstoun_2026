@@ -151,11 +151,12 @@ class ProductGroupService
         foreach ($groups as &$group) {
             $group['products'] = Product::where('group_id', $group['id'])
                 ->orderBy('name')
-                ->get(['id', 'name', 'sku'])
+                ->get(['id', 'name', 'sku', 'uom'])
                 ->map(fn ($p) => [
                     'id'    => $p->id,
                     'label' => $p->name,
                     'sku'   => $p->sku ?? '',
+                    'unit'  => $p->uom,
                 ])
                 ->toArray();
 

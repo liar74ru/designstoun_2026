@@ -173,6 +173,14 @@ function initSearch(row) {
 function selectProduct(searchInput, hiddenInput, product, row) {
     searchInput.value = product.label;
     hiddenInput.value = product.id;
+
+    // Подмена единицы измерения на uom товара (только для opt-in строк).
+    // Если у товара нет единицы — оставляем значение из шаблона.
+    if (row?.dataset.dynamicUnit && product.unit) {
+        row.querySelectorAll('.product-picker-unit')
+           .forEach(el => { el.textContent = product.unit; });
+    }
+
     document.dispatchEvent(new CustomEvent('product-picker:selected', {
         detail: { row, productId: product.id }
     }));

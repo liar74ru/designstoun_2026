@@ -16,6 +16,7 @@ class Product extends Model
         'group_name',
         'name',
         'sku',
+        'uom',
         'description',
         'price',
         'old_price',

@@ -108,7 +108,7 @@ class ProductController extends Controller
             $message .= ". Синхронизировано групп: {$groupsResult['synced']}";
         }
 
-        cache()->forget('products_tree_json_v2');
+        cache()->forget('products_tree_json_v3');
 
         return redirect()->route('products.index')->with('success', $message);
     }
@@ -128,7 +128,7 @@ class ProductController extends Controller
             return back()->with('error', $result['message']);
         }
 
-        cache()->forget('products_tree_json_v2');
+        cache()->forget('products_tree_json_v3');
 
         return redirect()->route('products.show', $result['product']->moysklad_id)
             ->with('success', 'Товар обновлен');
@@ -178,7 +178,7 @@ class ProductController extends Controller
      */
     public function groupsJson()
     {
-        $tree = cache()->remember('products_tree_json_v2', 600, function () {
+        $tree = cache()->remember('products_tree_json_v3', 600, function () {
             $groups = $this->productGroupService->getGroupsTree();
 
             return $this->productGroupService->attachProductsToTree($groups);

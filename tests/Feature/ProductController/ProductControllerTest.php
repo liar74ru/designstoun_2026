@@ -323,7 +323,7 @@ describe('ProductController syncFromMoySklad()', function () {
     });
 
     test('очищает кэш после успешной синхронизации', function () {
-        Cache::put('products_tree_json_v2', ['test' => 'data'], 3600);
+        Cache::put('products_tree_json_v3', ['test' => 'data'], 3600);
 
         $mock = Mockery::mock(MoySkladService::class);
         $mock->shouldReceive('hasCredentials')
@@ -343,13 +343,13 @@ describe('ProductController syncFromMoySklad()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        expect(Cache::has('products_tree_json_v2'))->toBeTrue();
+        expect(Cache::has('products_tree_json_v3'))->toBeTrue();
 
         $this->actingAs(adminUser())
             ->get(route('products.sync'))
             ->assertRedirect(route('products.index'));
 
-        expect(Cache::has('products_tree_json_v2'))->toBeFalse();
+        expect(Cache::has('products_tree_json_v3'))->toBeFalse();
     });
 
     test('обрабатывает ситуацию когда syncGroups вернул success=false', function () {
@@ -505,7 +505,7 @@ describe('ProductController refresh()', function () {
 
     test('очищает кэш после обновления товара', function () {
         $product = makeProduct();
-        Cache::put('products_tree_json_v2', ['test' => 'data'], 3600);
+        Cache::put('products_tree_json_v3', ['test' => 'data'], 3600);
 
         $mock = Mockery::mock(MoySkladService::class);
         $mock->shouldReceive('hasCredentials')
@@ -524,12 +524,12 @@ describe('ProductController refresh()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        expect(Cache::has('products_tree_json_v2'))->toBeTrue();
+        expect(Cache::has('products_tree_json_v3'))->toBeTrue();
 
         $this->actingAs(adminUser())
             ->get(route('products.refresh', $product->moysklad_id));
 
-        expect(Cache::has('products_tree_json_v2'))->toBeFalse();
+        expect(Cache::has('products_tree_json_v3'))->toBeFalse();
     });
 
     test('недоступен без авторизации', function () {
@@ -749,7 +749,7 @@ describe('ProductController groupsJson()', function () {
             ->get(route('api.products.tree'))
             ->assertStatus(200);
 
-        $cachedData = Cache::get('products_tree_json_v2');
+        $cachedData = Cache::get('products_tree_json_v3');
         expect($cachedData)->not->toBeNull();
 
         // Второй запрос - должен вернуть те же данные из кэша

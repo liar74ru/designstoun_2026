@@ -332,6 +332,7 @@
         'index'       => '__IDX__',
         'placeholder' => 'Введите название...',
         'unit'        => 'м²',
+        'dynamicUnit' => true,
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
         'showRemove'  => true,

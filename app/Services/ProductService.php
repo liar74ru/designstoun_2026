@@ -33,6 +33,7 @@ class ProductService
             [
                 'name'            => $item['name'] ?? '',
                 'sku'             => $item['article'] ?? $item['code'] ?? '',
+                'uom'             => $item['uom']['name'] ?? null,
                 'description'     => $item['description'] ?? '',
                 'price'           => $price,
                 'old_price'       => $oldPrice,

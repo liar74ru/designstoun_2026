@@ -10,6 +10,8 @@
       $quantity        — string: значение qty для предзаполнения (default: '')
       $placeholder     — string: placeholder поиска (default: 'Название продукта...')
       $unit            — string: 'м²' или 'м³' (default: 'м²')
+      $dynamicUnit     — bool (default: false) — если true, ставит data-dynamic-unit на строку,
+                         и JS (product-picker.js) подменяет единицу (.product-picker-unit) на uom выбранного товара
       $qtyStep         — string (default: '0.001')
       $qtyMin          — string (default: '0.001')
       $qtyWidth        — string (default: '130px')
@@ -56,6 +58,7 @@
     $requiredProduct = $requiredProduct ?? true;
     $skuPrefix       = $skuPrefix       ?? null;
     $extraRowClass   = $extraRowClass   ?? '';
+    $dynamicUnit     = $dynamicUnit     ?? false;
 
     $idxStr  = (string) $index;
     $hasRow2 = $qtyMode !== 'none' || $showUndercut || $showEdging || $showCoeff;
@@ -64,6 +67,7 @@
 <div class="product-picker-row {{ $extraRowClass }}"
      data-tpl-index="{{ $idxStr }}"
      @if($skuPrefix) data-sku-prefix="{{ $skuPrefix }}" @endif
+     @if($dynamicUnit) data-dynamic-unit="1" @endif
      style="padding:.35rem 0;border-bottom:1px solid #f0f0f0">
 
     {{-- Строка 1: поиск + tree-кнопка + удалить --}}
@@ -110,7 +114,7 @@
 
         @if($qtyMode === 'simple')
             <div class="input-group input-group-sm" style="width:{{ $qtyWidth }};flex-shrink:0">
-                <span class="input-group-text" style="font-size:.75rem">{{ $unit }}</span>
+                <span class="input-group-text product-picker-unit" style="font-size:.75rem">{{ $unit }}</span>
                 <input type="number"
                        id="qty_{{ $idxStr }}"
                        name="{{ $name }}[{{ $idxStr }}][quantity]"
@@ -132,7 +136,7 @@
                        data-tpl-index="{{ $idxStr }}">
                 <span>=</span>
                 <span class="js-new-result fw-semibold text-muted" data-tpl-index="{{ $idxStr }}">—</span>
-                <span>{{ $unit }}</span>
+                <span class="product-picker-unit">{{ $unit }}</span>
             </div>
         @endif
 

@@ -313,7 +313,7 @@ class MoySkladService extends MoySkladBaseService
                     'limit' => $limit,
                     'offset' => $offset,
                     'order' => 'updated,desc',
-                    'expand' => 'attributes',  // запрашиваем кастомные атрибуты
+                    'expand' => 'attributes,uom',  // запрашиваем кастомные атрибуты и единицу измерения
                 ]);
 
                 if (! $data || ! isset($data['rows'])) {
@@ -425,6 +425,7 @@ class MoySkladService extends MoySkladBaseService
                 'group_id' => $groupId,
                 'group_name' => $groupName,
                 'sku' => $sku,
+                'uom' => $productData['uom']['name'] ?? null,
                 'description' => $productData['description'] ?? null,
                 'price' => $price,
                 'old_price' => $oldPrice,
@@ -483,7 +484,7 @@ class MoySkladService extends MoySkladBaseService
             return null;
         }
 
-        return $this->get('/entity/product/' . $id, ['expand' => 'attributes']);
+        return $this->get('/entity/product/' . $id, ['expand' => 'attributes,uom']);
     }
 
     /**
