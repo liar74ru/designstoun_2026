@@ -3,6 +3,38 @@
 
 @section('content')
 @php $userDeptId = auth()->user()?->worker?->department_id; @endphp
+
+<style>
+/* Конвейер упаковки: сырьё + тара → продукт */
+.pack-flow{
+    --pf-raw:#2f6df6;  --pf-raw-bg:#eef4ff;  --pf-raw-bd:#cfe0ff;
+    --pf-pack:#d9820e; --pf-pack-bg:#fdf3e3; --pf-pack-bd:#f4dcae;
+    --pf-prod:#0f9e6a; --pf-prod-bg:#e8f7f0; --pf-prod-bd:#bfe9d5;
+    --pf-line:#dee2e6;
+}
+.pf-node{border:1px solid var(--pf-line);border-radius:.6rem;padding:.85rem .9rem;background:#fff}
+.pf-node.raw{background:var(--pf-raw-bg);border-color:var(--pf-raw-bd)}
+.pf-node.pack{background:var(--pf-pack-bg);border-color:var(--pf-pack-bd)}
+.pf-node.prod{background:var(--pf-prod-bg);border-color:var(--pf-prod);box-shadow:0 .35rem 1.1rem rgba(15,158,106,.15)}
+.pf-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap}
+.pf-title{display:flex;align-items:center;gap:.4rem;font-size:.78rem;font-weight:650;text-transform:uppercase;letter-spacing:.02em;margin:0}
+.pf-node.raw .pf-title{color:var(--pf-raw)}
+.pf-node.pack .pf-title{color:var(--pf-pack)}
+.pf-node.prod .pf-title{color:var(--pf-prod)}
+.pf-step{width:1.35rem;height:1.35rem;border-radius:50%;display:inline-grid;place-items:center;font-size:.72rem;font-weight:700;color:#fff;flex:none}
+.pf-node.raw .pf-step{background:var(--pf-raw)}
+.pf-node.pack .pf-step{background:var(--pf-pack)}
+.pf-node.prod .pf-step{background:var(--pf-prod)}
+.pf-badge{font-size:.72rem;font-weight:600;padding:.15rem .5rem;border-radius:.4rem;background:#fff}
+.pf-node.raw .pf-badge{color:var(--pf-raw)}
+.pf-node.pack .pf-badge{color:var(--pf-pack)}
+.pf-node.prod .pf-badge{color:var(--pf-prod)}
+.pf-pipe{position:relative;height:2rem;display:flex;align-items:center;justify-content:center}
+.pf-pipe::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--pf-line)}
+.pf-pipe-badge{position:relative;width:1.6rem;height:1.6rem;border-radius:50%;background:#fff;border:1.5px solid var(--pf-line);display:grid;place-items:center;font-weight:700;color:#6c757d;font-size:.9rem;line-height:1}
+.pf-result-line{display:flex;align-items:center;gap:.4rem;margin-top:.6rem;padding-top:.55rem;border-top:1px dashed var(--pf-prod-bd);color:var(--pf-prod);font-size:.8rem;font-weight:600}
+</style>
+
 <div class="container py-3 py-md-4" style="max-width:980px">
 
     <x-page-header title="Новая упаковка" :back-url="route('packagings.index')" mobileTitle="Упаковка" />
@@ -14,6 +46,60 @@
 
         <div class="row g-3">
             <div class="col-12 col-lg-7">
+
+                {{-- Блок: Отдел и Мастер (свёрнутый) --}}
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-white py-2" role="button" id="deptToggle">
+                        <span class="small fw-semibold text-muted"><i class="bi bi-diagram-2 me-1"></i> Отдел и Мастер</span>
+                        <i class="bi bi-chevron-down float-end" id="deptChevron"></i>
+                    </div>
+                    <div class="card-body" id="deptBody" style="display:none">
+                        <div class="row g-2">
+                            <div class="col-12 col-sm-6">
+                                <label for="departmentSelect" class="form-label small fw-semibold mb-1">Отдел</label>
+                                <select name="department_id"
+                                        id="departmentSelect"
+                                        class="form-select form-select-sm @error('department_id') is-invalid @enderror"
+                                        style="border-radius:.4rem">
+                                    <option value="">— Не задан —</option>
+                                    @foreach($departments as $department)
+                                        <option value="{{ $department->id }}"
+                                            data-production-store-id="{{ $department->defaultProductionStore?->id }}"
+                                            data-product-store-id="{{ $department->defaultProductStore?->id }}"
+                                            {{ (string) old('department_id', $userDeptId) === (string) $department->id ? 'selected' : '' }}>
+                                            {{ $department->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text" style="font-size:.7rem">
+                                    По умолчанию — ваш отдел. Смена отдела перефильтрует списки работников и подставит склады отдела.
+                                </div>
+                                @error('department_id')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small fw-semibold mb-1">Мастер <span class="text-danger">*</span></label>
+                                <select name="receiver_id"
+                                        class="form-select form-select-sm worker-picker"
+                                        style="border-radius:.4rem"
+                                        data-user-dept-id="{{ $userDeptId }}"
+                                        data-dept-select-id="departmentSelect"
+                                        data-toggle-id="allWorkersParticipantsPack"
+                                        required>
+                                    @foreach($masterWorkers as $worker)
+                                        <option value="{{ $worker->id }}"
+                                            data-department-id="{{ $worker->department_id }}"
+                                            @if($worker->position === 'Администратор') data-always-visible @endif
+                                            {{ old('receiver_id', auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
+                                            {{ $worker->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 {{-- Блок: Участники --}}
                 <div class="card shadow-sm mb-3">
@@ -27,7 +113,7 @@
                             </div>
                         @endif
                         <div class="row g-2">
-                            <div class="col-12 col-sm-6">
+                            <div class="col-12">
                                 <label for="packerSelect" class="form-label small fw-semibold mb-1">Упаковщик <span class="text-danger">*</span></label>
                                 <select name="packer_id" id="packerSelect"
                                         class="form-select form-select-sm worker-picker"
@@ -47,57 +133,8 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small fw-semibold mb-1">Приёмщик <span class="text-danger">*</span></label>
-                                <select name="receiver_id"
-                                        class="form-select form-select-sm worker-picker"
-                                        style="border-radius:.4rem"
-                                        data-user-dept-id="{{ $userDeptId }}"
-                                        data-dept-select-id="departmentSelect"
-                                        data-toggle-id="allWorkersParticipantsPack"
-                                        required>
-                                    @foreach($masterWorkers as $worker)
-                                        <option value="{{ $worker->id }}"
-                                            data-department-id="{{ $worker->department_id }}"
-                                            @if($worker->position === 'Администратор') data-always-visible @endif
-                                            {{ old('receiver_id', auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
-                                            {{ $worker->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
                         </div>
 
-                    </div>
-                </div>
-
-                {{-- Блок: Отдел (свёрнутый) --}}
-                <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-white py-2" role="button" id="deptToggle">
-                        <span class="small fw-semibold text-muted"><i class="bi bi-diagram-2 me-1"></i> Отдел</span>
-                        <i class="bi bi-chevron-down float-end" id="deptChevron"></i>
-                    </div>
-                    <div class="card-body" id="deptBody" style="display:none">
-                        <select name="department_id"
-                                id="departmentSelect"
-                                class="form-select form-select-sm @error('department_id') is-invalid @enderror"
-                                style="border-radius:.4rem">
-                            <option value="">— Не задан —</option>
-                            @foreach($departments as $department)
-                                <option value="{{ $department->id }}"
-                                    data-production-store-id="{{ $department->defaultProductionStore?->id }}"
-                                    data-product-store-id="{{ $department->defaultProductStore?->id }}"
-                                    {{ (string) old('department_id', $userDeptId) === (string) $department->id ? 'selected' : '' }}>
-                                    {{ $department->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <div class="form-text" style="font-size:.7rem">
-                            По умолчанию — ваш отдел. Смена отдела перефильтрует списки работников и подставит склады отдела.
-                        </div>
-                        @error('department_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
                     </div>
                 </div>
 
@@ -146,12 +183,14 @@
                     </div>
                 </div>
 
-                {{-- Блок: Продукт упаковки --}}
-                <div class="card shadow-sm mb-3">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="small fw-semibold text-muted"><i class="bi bi-box me-1"></i> Продукт упаковки <span class="text-danger">*</span></span>
-                            <span class="text-muted small">Итого: <strong id="totalQty">0</strong></span>
+                {{-- Конвейер: Сырьё · продукты  +  Тара · упаковка  →  Продукт · результат --}}
+                <div class="pack-flow mb-3">
+
+                    {{-- ① Сырьё · продукты --}}
+                    <div class="pf-node raw">
+                        <div class="pf-head">
+                            <span class="pf-title"><span class="pf-step">1</span><i class="bi bi-box"></i> Сырьё · продукты <span class="text-danger">*</span></span>
+                            <span class="pf-badge">Итого: <strong id="totalQty">0</strong> м²</span>
                         </div>
 
                         <div id="productsContainer"></div>
@@ -160,12 +199,15 @@
                             <i class="bi bi-plus-circle"></i> Добавить продукт
                         </button>
                     </div>
-                </div>
 
-                {{-- Блок: Упаковка (тара) --}}
-                <div class="card shadow-sm mb-3">
-                    <div class="card-body">
-                        <span class="small fw-semibold text-muted d-block mb-2"><i class="bi bi-box-seam me-1"></i> Упаковка (тара) <span class="text-danger">*</span></span>
+                    {{-- + --}}
+                    <div class="pf-pipe"><span class="pf-pipe-badge">+</span></div>
+
+                    {{-- ② Тара · упаковка --}}
+                    <div class="pf-node pack">
+                        <div class="pf-head">
+                            <span class="pf-title"><span class="pf-step">2</span><i class="bi bi-box-seam"></i> Тара · упаковка <span class="text-danger">*</span></span>
+                        </div>
 
                         <div class="row g-2">
                             <div class="col-12 col-sm-8">
@@ -189,12 +231,16 @@
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {{-- Блок: Товар-результат (опционально) --}}
-                <div class="card shadow-sm mb-3">
-                    <div class="card-body">
-                        <span class="small fw-semibold text-muted d-block mb-2"><i class="bi bi-box-arrow-in-down me-1"></i> Товар-результат (опционально)</span>
+                    {{-- ↓ --}}
+                    <div class="pf-pipe"><span class="pf-pipe-badge"><i class="bi bi-arrow-down"></i></span></div>
+
+                    {{-- ③ Продукт · результат --}}
+                    <div class="pf-node prod">
+                        <div class="pf-head">
+                            <span class="pf-title"><span class="pf-step">3</span><i class="bi bi-check2-circle"></i> Продукт · результат <span class="text-muted fw-normal text-lowercase">(опционально)</span></span>
+                        </div>
+
                         @include('partials.product-picker', [
                             'id'          => 'result',
                             'name'        => 'result_product_id',
@@ -212,6 +258,10 @@
                         @error('result_product_id')
                             <div class="text-danger small mt-1">{{ $message }}</div>
                         @enderror
+
+                        <div class="pf-result-line">
+                            <i class="bi bi-check2-circle"></i> На выходе — <strong id="resultQtyOut">1</strong>&nbsp;шт готовой упаковки
+                        </div>
                     </div>
                 </div>
 
@@ -262,7 +312,7 @@
                     </div>
                     <div class="card-body small text-muted">
                         <ol class="ps-3 mb-0">
-                            <li>Выберите упаковщика и приёмщика.</li>
+                            <li>Выберите упаковщика и мастера.</li>
                             <li>Склады подставляются из настроек отдела — при необходимости выберите вручную в блоке «Склады».</li>
                             <li>Добавьте продукт упаковки и его количество (м²).</li>
                             <li>Выберите вариант упаковки (07-03-xx) и количество тары (шт).</li>
@@ -396,6 +446,17 @@
     manualCb?.addEventListener('change', () => {
         procName.readOnly = !manualCb.checked;
     });
+
+    // «На выходе N шт» — отражает количество тары в блоке результата
+    const pkgQtyInput  = document.querySelector('input[name="package_quantity"]');
+    const resultQtyOut = document.getElementById('resultQtyOut');
+    function syncResultQty() {
+        if (!pkgQtyInput || !resultQtyOut) return;
+        const v = parseFloat(pkgQtyInput.value) || 0;
+        resultQtyOut.textContent = Number.isInteger(v) ? v : v.toFixed(3).replace(/\.?0+$/, '');
+    }
+    pkgQtyInput?.addEventListener('input', syncResultQty);
+    syncResultQty();
 })();
 </script>
 @endpush
