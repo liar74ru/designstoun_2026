@@ -97,10 +97,14 @@
             </div>
         </div>
 
-        {{-- Блок: Склады --}}
+        {{-- Блок: Склады (свёрнутый) --}}
+        @php $storesOpen = $errors->has('store_id') || $errors->has('product_store_id'); @endphp
         <div class="card shadow-sm mb-2">
-            <div class="card-body">
-                <span class="small fw-semibold text-muted d-block mb-2"><i class="bi bi-building me-1"></i> Склады <span class="text-danger">*</span></span>
+            <div class="card-header bg-white py-2" role="button" id="storeToggle">
+                <span class="small fw-semibold text-muted"><i class="bi bi-building me-1"></i> Склады <span class="text-danger">*</span></span>
+                <i class="bi {{ $storesOpen ? 'bi-chevron-up' : 'bi-chevron-down' }} float-end" id="storeChevron"></i>
+            </div>
+            <div class="card-body" id="storeBody" @if(!$storesOpen) style="display:none" @endif>
                 <div class="row g-2">
                     <div class="col-12 col-sm-6">
                         <label class="form-label small text-muted mb-1">Склад сырья (материалов)</label>
@@ -142,8 +146,36 @@
             </div>
         </div>
 
-        {{-- Конвейер: Сырьё → Упаковка → Продукт → Затраты --}}
+        {{-- Конвейер: Итого продукта → Сырьё → Упаковка → Продукт → Затраты --}}
         <div class="pack-flow mb-2">
+
+            {{-- Итого продукта: пропорциональный пересчёт сырья и упаковки --}}
+            @if($productItems->isNotEmpty())
+            <div class="pf-node prod">
+                <div class="pf-head">
+                    <span class="pf-title"><i class="bi bi-calculator"></i> Итого продукта</span>
+                    <span class="text-muted small">Сырьё и упаковка пересчитаются пропорционально</span>
+                </div>
+                <div id="scaleContainer">
+                    @foreach($productItems as $sIdx => $item)
+                        <div class="scale-row rounded border bg-white" style="padding:.3rem .5rem;margin-bottom:.25rem"
+                             data-base="{{ number_format((float) $item->quantity, 3, '.', '') }}"
+                             data-product-index="{{ $sIdx }}">
+                            <div class="small fw-semibold" style="margin-bottom:.15rem">{{ $item->product->name }}</div>
+                            <div class="d-flex align-items-center gap-1 flex-wrap">
+                                <span class="text-muted small">{{ (float) $item->quantity }}</span>
+                                <span class="text-muted">+</span>
+                                <input type="number" class="form-control form-control-sm js-scale-delta"
+                                       style="width:90px;border-radius:.4rem" step="0.001" placeholder="0">
+                                <span class="text-muted">=</span>
+                                <span class="fw-semibold js-scale-result">{{ (float) $item->quantity }}</span>
+                                <span class="text-muted small js-scale-unit">шт</span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
 
             {{-- ① Сырьё --}}
             <div class="pf-node raw">
@@ -369,14 +401,92 @@
     applyStores();
     updateTotals();
 
-    // Тоггл блока «Участники»
-    const pToggle = document.getElementById('peopleToggle');
-    const pBody   = document.getElementById('peopleBody');
-    const pChev   = document.getElementById('peopleChevron');
-    pToggle.addEventListener('click', () => {
-        const open = pBody.style.display === 'none';
-        pBody.style.display = open ? '' : 'none';
-        pChev.className     = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
+    // ── Итого продукта: пропорциональный пересчёт от базовых значений ──
+    (function () {
+        const scaleContainer = document.getElementById('scaleContainer');
+        if (!scaleContainer) return;
+
+        const qty = row => row.querySelector('.product-picker-qty');
+        const bases = type => Array.from(blocks[type].container.querySelectorAll('.product-picker-row')).map(row => ({
+            input: qty(row),
+            base:  parseFloat(qty(row)?.value) || 0,
+        }));
+        const rawBases    = bases('raw');
+        const packBases   = bases('package');
+        const productRows = Array.from(blocks.product.container.querySelectorAll('.product-picker-row'));
+
+        const scaleRows = Array.from(scaleContainer.querySelectorAll('.scale-row')).map(el => {
+            const productRow = productRows[parseInt(el.dataset.productIndex, 10)] || null;
+            const unitEl = productRow?.querySelector('.product-picker-unit');
+            if (unitEl) el.querySelector('.js-scale-unit').textContent = unitEl.textContent.trim();
+            return {
+                el,
+                base:   parseFloat(el.dataset.base) || 0,
+                delta:  el.querySelector('.js-scale-delta'),
+                result: el.querySelector('.js-scale-result'),
+                input:  productRow ? qty(productRow) : null,
+            };
+        });
+
+        const round3 = v => Math.round(v * 1000) / 1000;
+
+        function applyScale() {
+            let baseSum = 0, newSum = 0;
+            scaleRows.forEach(r => {
+                const alive = r.input && document.contains(r.input);
+                r.el.style.display = alive ? '' : 'none';
+                if (!alive) return;
+                const result = round3(r.base + (parseFloat(r.delta.value) || 0));
+                r.result.textContent = String(result);
+                r.result.classList.toggle('text-danger', result < 0);
+                r.input.value = result;
+                baseSum += r.base;
+                newSum  += result;
+            });
+            if (baseSum > 0) {
+                const k = newSum / baseSum;
+                rawBases.forEach(b => {
+                    if (b.input && document.contains(b.input)) b.input.value = round3(b.base * k).toFixed(3);
+                });
+                packBases.forEach(b => {
+                    // округление до 6 знаков перед ceil — иначе 10 × 1.2 = 12.000…002 → 13
+                    if (b.input && document.contains(b.input)) b.input.value = Math.ceil(Math.round(b.base * k * 1e6) / 1e6);
+                });
+            }
+            updateTotals();
+        }
+
+        scaleContainer.addEventListener('input', e => {
+            if (e.target.classList.contains('js-scale-delta')) applyScale();
+        });
+        document.addEventListener('product-picker:removed', () => {
+            if (scaleRows.some(r => parseFloat(r.delta.value))) applyScale();
+            else scaleRows.forEach(r => {
+                if (!(r.input && document.contains(r.input))) r.el.style.display = 'none';
+            });
+        });
+    })();
+
+    // Тогглы блоков «Участники» и «Склады»
+    [['peopleToggle', 'peopleBody', 'peopleChevron'],
+     ['storeToggle',  'storeBody',  'storeChevron'],
+    ].forEach(([tid, bid, cid]) => {
+        const toggle  = document.getElementById(tid);
+        const body    = document.getElementById(bid);
+        const chevron = document.getElementById(cid);
+        toggle.addEventListener('click', () => {
+            const open = body.style.display === 'none';
+            body.style.display = open ? '' : 'none';
+            chevron.className  = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
+        });
+    });
+
+    // Автораскрытие «Складов», если скрытый required-селект не заполнен
+    [rawStoreSelect, productStoreSelect].forEach(sel => {
+        sel.addEventListener('invalid', () => {
+            document.getElementById('storeBody').style.display = '';
+            document.getElementById('storeChevron').className  = 'bi bi-chevron-up float-end';
+        });
     });
 
     document.getElementById('workshopEditForm').addEventListener('submit', function (e) {

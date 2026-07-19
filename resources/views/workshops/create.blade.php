@@ -103,42 +103,17 @@
                     </div>
                 </div>
 
-                {{-- Блок: Работник --}}
+                {{-- Блок: Склады (свёрнутый) --}}
+                @php
+                    $storesOpen = $errors->has('store_id') || $errors->has('product_store_id')
+                        || !old('store_id', $defaultStore?->id) || !old('product_store_id', $defaultProductStore?->id);
+                @endphp
                 <div class="card shadow-sm mb-2">
-                    <div class="card-body py-2">
-                        <div class="d-flex align-items-center justify-content-between mb-1">
-                            <label for="packerSelect" class="form-label small fw-semibold mb-0">Работник <span class="text-danger">*</span></label>
-                            @if($userDeptId)
-                                <div class="form-check form-check-inline mb-0 me-0">
-                                    <input class="form-check-input" type="checkbox" id="allWorkersParticipantsPack">
-                                    <label class="form-check-label small text-muted" for="allWorkersParticipantsPack">все работники</label>
-                                </div>
-                            @endif
-                        </div>
-                        <select name="packer_id" id="packerSelect"
-                                class="form-select form-select-sm worker-picker compact-select"
-                                style="border-radius:.4rem"
-                                data-user-dept-id="{{ $userDeptId }}"
-                                data-dept-select-id="departmentSelect"
-                                data-toggle-id="allWorkersParticipantsPack"
-                                required>
-                            <option value="">— работник —</option>
-                            @foreach($packers as $worker)
-                                <option value="{{ $worker->id }}"
-                                    data-department-id="{{ $worker->department_id }}"
-                                    @if($worker->position === 'Администратор') data-always-visible @endif
-                                    {{ old('packer_id', $selectedPackerId ?? '') == $worker->id ? 'selected' : '' }}>
-                                    {{ $worker->name }}
-                                </option>
-                            @endforeach
-                        </select>
+                    <div class="card-header bg-white py-2" role="button" id="storeToggle">
+                        <span class="small fw-semibold text-muted"><i class="bi bi-building me-1"></i> Склады <span class="text-danger">*</span></span>
+                        <i class="bi {{ $storesOpen ? 'bi-chevron-up' : 'bi-chevron-down' }} float-end" id="storeChevron"></i>
                     </div>
-                </div>
-
-                {{-- Блок: Склады --}}
-                <div class="card shadow-sm mb-2">
-                    <div class="card-body py-2">
-                        <span class="small fw-semibold text-muted d-block mb-1"><i class="bi bi-building me-1"></i> Склады <span class="text-danger">*</span></span>
+                    <div class="card-body py-2" id="storeBody" @if(!$storesOpen) style="display:none" @endif>
                         <div class="row g-2">
                             <div class="col-12 col-sm-6">
                                 <label for="rawStoreSelect" class="form-label small text-muted mb-1">Склад сырья</label>
@@ -207,6 +182,38 @@
                             Заполнит сырьё, тару и продукт: количество = норма из шаблона × кол-во продукции.
                             Текущие строки будут заменены.
                         </div>
+                    </div>
+                </div>
+
+                {{-- Блок: Работник --}}
+                <div class="card shadow-sm mb-2">
+                    <div class="card-body py-2">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <label for="packerSelect" class="form-label small fw-semibold mb-0">Работник <span class="text-danger">*</span></label>
+                            @if($userDeptId)
+                                <div class="form-check form-check-inline mb-0 me-0">
+                                    <input class="form-check-input" type="checkbox" id="allWorkersParticipantsPack">
+                                    <label class="form-check-label small text-muted" for="allWorkersParticipantsPack">все работники</label>
+                                </div>
+                            @endif
+                        </div>
+                        <select name="packer_id" id="packerSelect"
+                                class="form-select form-select-sm worker-picker compact-select"
+                                style="border-radius:.4rem"
+                                data-user-dept-id="{{ $userDeptId }}"
+                                data-dept-select-id="departmentSelect"
+                                data-toggle-id="allWorkersParticipantsPack"
+                                required>
+                            <option value="">— работник —</option>
+                            @foreach($packers as $worker)
+                                <option value="{{ $worker->id }}"
+                                    data-department-id="{{ $worker->department_id }}"
+                                    @if($worker->position === 'Администратор') data-always-visible @endif
+                                    {{ old('packer_id', $selectedPackerId ?? '') == $worker->id ? 'selected' : '' }}>
+                                    {{ $worker->name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
@@ -716,6 +723,23 @@
     });
 
     // ── Тоггл блока «Шаблоны» ────────────────────────────────────────────────
+    // Тоггл блока «Склады» + автораскрытие, если скрытый required-селект не заполнен
+    const storeToggle  = document.getElementById('storeToggle');
+    const storeBody    = document.getElementById('storeBody');
+    const storeChevron = document.getElementById('storeChevron');
+    function openStoreBody() {
+        storeBody.style.display = '';
+        storeChevron.className  = 'bi bi-chevron-up float-end';
+    }
+    storeToggle.addEventListener('click', () => {
+        const open = storeBody.style.display === 'none';
+        storeBody.style.display = open ? '' : 'none';
+        storeChevron.className  = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
+    });
+    [rawStoreSelect, productStoreSelect].forEach(sel => {
+        sel.addEventListener('invalid', openStoreBody);
+    });
+
     const presetToggle  = document.getElementById('presetToggle');
     const presetBody    = document.getElementById('presetBody');
     const presetChevron = document.getElementById('presetChevron');
