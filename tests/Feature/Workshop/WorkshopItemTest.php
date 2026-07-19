@@ -1,55 +1,8 @@
 <?php
 
-use App\Models\WorkshopItem;
+use App\Models\Product;
 use App\Models\Setting;
-
-// ══════════════════════════════════════════════════════════════════════════════
-// WorkshopItem::computePackerCost()
-// ══════════════════════════════════════════════════════════════════════════════
-
-describe('WorkshopItem::computePackerCost()', function () {
-
-    test('считает по формуле: PACKAGING_PROD_COST × productCoeff + PACKAGING_COST × packageCoeff', function () {
-        Setting::set('PACKAGING_PROD_COST', 100);
-        Setting::set('PACKAGING_COST', 30);
-
-        // 100 × 1.5 + 30 × 2.0 = 150 + 60 = 210
-        expect(WorkshopItem::computePackerCost(1.5, 2.0))->toBe(210.0);
-    });
-
-    test('возвращает 0 когда оба коэффициента null', function () {
-        Setting::set('PACKAGING_PROD_COST', 100);
-        Setting::set('PACKAGING_COST', 30);
-
-        expect(WorkshopItem::computePackerCost(null, null))->toBe(0.0);
-    });
-
-    test('null коэффициент трактуется как 0', function () {
-        Setting::set('PACKAGING_PROD_COST', 100);
-        Setting::set('PACKAGING_COST', 30);
-
-        // 100 × 0 + 30 × 2.0 = 60
-        expect(WorkshopItem::computePackerCost(null, 2.0))->toBe(60.0);
-        // 100 × 1.5 + 30 × 0 = 150
-        expect(WorkshopItem::computePackerCost(1.5, null))->toBe(150.0);
-    });
-
-    test('PACKAGING_PROD_COST по умолчанию = 0 (только тара участвует)', function () {
-        Setting::where('key', 'PACKAGING_PROD_COST')->delete();
-        Setting::set('PACKAGING_COST', 30);
-
-        // 0 × 1.5 + 30 × 2.0 = 60
-        expect(WorkshopItem::computePackerCost(1.5, 2.0))->toBe(60.0);
-    });
-
-    test('PACKAGING_COST по умолчанию = 0 когда настройка отсутствует', function () {
-        Setting::set('PACKAGING_PROD_COST', 100);
-        Setting::where('key', 'PACKAGING_COST')->delete();
-
-        // 100 × 1.5 + 0 × 2.0 = 150
-        expect(WorkshopItem::computePackerCost(1.5, 2.0))->toBe(150.0);
-    });
-});
+use App\Models\WorkshopItem;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // WorkshopItem::effectiveProdCost()
@@ -57,15 +10,20 @@ describe('WorkshopItem::computePackerCost()', function () {
 
 describe('WorkshopItem::effectiveProdCost()', function () {
 
-    test('возвращает worker_cost_per_m2 как число', function () {
+    test('возвращает зафиксированный worker_cost_per_m2 как число', function () {
         $item = new WorkshopItem(['worker_cost_per_m2' => 123.45]);
 
         expect($item->effectiveProdCost())->toBe(123.45);
     });
 
-    test('null worker_cost_per_m2 возвращается как 0.0', function () {
-        $item = new WorkshopItem();
+    test('при null worker_cost_per_m2 считает по prodCost продукта (как в приёмке)', function () {
+        Setting::set('PIECE_RATE', 390);
 
-        expect($item->effectiveProdCost())->toBe(0.0);
+        $product = Product::factory()->create(['sku' => '04-01-10', 'prod_cost_coeff' => 1.0]);
+        $item    = new WorkshopItem(['effective_cost_coeff' => 1.0]);
+        $item->setRelation('product', $product);
+
+        // prodCost(1.0): floor((390 + 390×0.17×1.0) / 10) × 10 = floor(45.63) × 10 = 450
+        expect($item->effectiveProdCost())->toBe(450.0);
     });
 });

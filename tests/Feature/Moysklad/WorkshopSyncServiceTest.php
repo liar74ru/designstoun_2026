@@ -3,7 +3,6 @@
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
 use App\Models\Product;
-use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Services\Moysklad\WorkshopSyncService;
@@ -14,10 +13,7 @@ beforeEach(function () {
     config()->set('services.moysklad.token', 'test-token');
     config()->set('services.moysklad.base_url', 'https://api.moysklad.ru/api/remap/1.2');
 
-    Setting::set('PACKAGING_PROD_COST', 100);
-    Setting::set('PACKAGING_COST', 30);
-
-    $this->packer   = Worker::create(['name' => 'Упаковщик', 'position' => 'Мастер']);
+    $this->packer   = Worker::create(['name' => 'Работник', 'position' => 'Мастер']);
     $this->receiver = Worker::create(['name' => 'Мастер',    'position' => 'Мастер']);
     $this->store    = Store::factory()->create();
 

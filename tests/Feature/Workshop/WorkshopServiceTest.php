@@ -11,10 +11,9 @@ use App\Services\WorkshopService;
 use App\Services\Moysklad\WorkshopSyncService;
 
 beforeEach(function () {
-    Setting::set('PACKAGING_PROD_COST', 100);
-    Setting::set('PACKAGING_COST', 30);
+    Setting::set('PIECE_RATE', 390);
 
-    $this->packer   = Worker::create(['name' => 'Упаковщик', 'position' => 'Мастер']);
+    $this->packer   = Worker::create(['name' => 'Работник', 'position' => 'Мастер']);
     $this->receiver = Worker::create(['name' => 'Мастер',    'position' => 'Мастер']);
     $this->store    = Store::factory()->create();
 
@@ -71,24 +70,22 @@ describe('WorkshopService::create()', function () {
             ->and((float) $workshop->productItems()->first()->quantity)->toBe(1.0);
     });
 
-    test('сохраняет worker_cost_per_m2 продукта по формуле работника', function () {
+    test('сохраняет worker_cost_per_m2 продукта по формуле prodCost (как в приёмке)', function () {
         $service  = new WorkshopService($this->mockSync);
         $workshop = $service->create(basePayload($this), false);
 
-        // 100 × 1.0 (коэф продукта) + 30 × 2.0 (коэф тары) = 160
-        expect((float) $workshop->productItems()->first()->worker_cost_per_m2)->toBe(160.0);
+        // prodCost(1.0): floor((390 + 390×0.17×1.0) / 10) × 10 = floor(45.63) × 10 = 450
+        expect((float) $workshop->productItems()->first()->worker_cost_per_m2)->toBe(450.0);
     });
 
-    test('worker_cost_per_m2 учитывает коэффициент упаковочной тары', function () {
-        Setting::set('PACKAGING_PROD_COST', 0);
-        Setting::set('PACKAGING_COST', 50);
+    test('worker_cost_per_m2 не зависит от коэффициента упаковочной тары', function () {
         $this->packageProduct->update(['prod_cost_coeff' => 3.5]);
 
         $service  = new WorkshopService($this->mockSync);
         $workshop = $service->create(basePayload($this), false);
 
-        // 0 × 1.0 + 50 × 3.5 = 175
-        expect((float) $workshop->productItems()->first()->worker_cost_per_m2)->toBe(175.0);
+        // Тара на зарплату рабочего не влияет — только коэф продукта (1.0) → prodCost = 450
+        expect((float) $workshop->productItems()->first()->worker_cost_per_m2)->toBe(450.0);
     });
 
     test('сохраняет manual_processing_sum и явно переданный department_id', function () {
@@ -260,12 +257,11 @@ describe('WorkshopService::refreshItemCoeffs()', function () {
         $service  = new WorkshopService($this->mockSync);
         $workshop = $service->create(basePayload($this), false);
 
-        Setting::set('PACKAGING_PROD_COST', 200);
-        Setting::set('PACKAGING_COST', 60);
+        Setting::set('PIECE_RATE', 500);
 
         $service->refreshItemCoeffs($workshop);
 
-        // 200 × 1.0 + 60 × 2.0 = 320
-        expect((float) $workshop->productItems()->first()->fresh()->worker_cost_per_m2)->toBe(320.0);
+        // prodCost(1.0): floor((500 + 500×0.17×1.0) / 10) × 10 = floor(58.5) × 10 = 580
+        expect((float) $workshop->productItems()->first()->fresh()->worker_cost_per_m2)->toBe(580.0);
     });
 });

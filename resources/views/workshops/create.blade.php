@@ -409,8 +409,7 @@
 @vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
 <script>
 (function () {
-    const PACKAGING_PROD_COST = {{ (float) \App\Models\Setting::get('PACKAGING_PROD_COST', 0) }};
-    const PACKAGING_COST      = {{ (float) \App\Models\Setting::get('PACKAGING_COST', 0) }};
+    const PIECE_RATE = {{ (float) \App\Models\Setting::get('PIECE_RATE', 390.0) }};
 
     const departmentSelect   = document.getElementById('departmentSelect');
     const rawStoreSelect     = document.getElementById('rawStoreSelect');
@@ -514,7 +513,6 @@
 
     async function recomputeSuggestedCost() {
         const products = rowsData(blocks.product.container);
-        const packages = rowsData(blocks.package.container);
         const totalProduct = sumQty(blocks.product.container);
 
         if (!products.length || totalProduct <= 0) {
@@ -522,13 +520,11 @@
             return;
         }
 
-        // Коэффициент тары — по первой позиции упаковки.
-        const packageCoeff = packages.length ? await fetchCoeff(packages[0].productId) : 0;
-
         let salaryTotal = 0;
         for (const p of products) {
             const coeff = await fetchCoeff(p.productId);
-            const workerCost = PACKAGING_PROD_COST * coeff + PACKAGING_COST * packageCoeff;
+            // Зеркало Product::prodCost(): floor((PIECE_RATE + PIECE_RATE*17% * coeff) / 10) * 10.
+            const workerCost = Math.floor((PIECE_RATE + PIECE_RATE * 0.17 * coeff) / 10) * 10;
             salaryTotal += workerCost * p.qty;
         }
 

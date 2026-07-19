@@ -380,9 +380,7 @@ class WorkshopService
 
     public function updateItemCoeff(Workshop $workshop, array $validated): void
     {
-        $packageCoeff = $this->firstPackageCoeff($workshop);
-
-        DB::transaction(function () use ($workshop, $validated, $packageCoeff) {
+        DB::transaction(function () use ($workshop, $validated) {
             foreach ($validated['items'] as $row) {
                 $item = $workshop->productItems()->with('product')->findOrFail($row['item_id']);
 
@@ -397,7 +395,7 @@ class WorkshopService
                     'is_undercut'          => $isUndercut,
                     'is_edging'            => $isEdging,
                     'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => WorkshopItem::computePackerCost($productCoeff, $packageCoeff),
+                    'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff),
                     'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
                 ]);
             }
@@ -407,9 +405,8 @@ class WorkshopService
     public function refreshItemCoeffs(Workshop $workshop): void
     {
         $workshop->loadMissing('items.product');
-        $packageCoeff = $this->firstPackageCoeff($workshop);
 
-        DB::transaction(function () use ($workshop, $packageCoeff) {
+        DB::transaction(function () use ($workshop) {
             foreach ($workshop->productItems()->with('product')->get() as $item) {
                 if (!$item->product || $item->product->prod_cost_coeff === null) {
                     continue;
@@ -424,7 +421,7 @@ class WorkshopService
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
                     'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => WorkshopItem::computePackerCost($productCoeff, $packageCoeff),
+                    'worker_cost_per_m2'   => $item->product->prodCost($effCoeff),
                     'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
                 ]);
             }
@@ -460,13 +457,6 @@ class WorkshopService
         return $prepared;
     }
 
-    /** Коэффициент первой позиции тары — для расчёта зарплаты продукта (fallback). */
-    private function firstPackageCoeff(Workshop $workshop): float
-    {
-        $item = $workshop->packageItems()->with('product')->first();
-        return (float) ($item?->product?->prod_cost_coeff ?? 0);
-    }
-
     /**
      * Создать строки одной роли. Себестоимостные поля (зарплата/коэффициенты)
      * заполняются только для продукта (role=product) — они нужны лишь для авто-fallback
@@ -490,18 +480,17 @@ class WorkshopService
             return;
         }
 
-        $packageCoeff = $this->firstPackageCoeff($workshop);
-        $productMap   = Product::whereIn('id', array_column($rows, 'product_id'))->get()->keyBy('id');
+        $productMap = Product::whereIn('id', array_column($rows, 'product_id'))->get()->keyBy('id');
 
         foreach ($rows as $row) {
             $workshop->items()->create(
-                $this->productItemAttributes($row['product_id'], $row['quantity'], $productMap->get($row['product_id']), $packageCoeff)
+                $this->productItemAttributes($row['product_id'], $row['quantity'], $productMap->get($row['product_id']))
             );
         }
     }
 
     /** Атрибуты строки продукта с зафиксированной зарплатой. */
-    private function productItemAttributes(int $productId, $quantity, ?Product $prod, float $packageCoeff): array
+    private function productItemAttributes(int $productId, $quantity, ?Product $prod): array
     {
         $productCoeff = (float) ($prod?->prod_cost_coeff ?? 0);
         $isSmallTile  = StoneReceptionItem::skuIsSmallTile($prod?->sku);
@@ -515,7 +504,7 @@ class WorkshopService
             'is_undercut'          => false,
             'is_edging'            => false,
             'is_small_tile'        => $isSmallTile,
-            'worker_cost_per_m2'   => WorkshopItem::computePackerCost($productCoeff, $packageCoeff),
+            'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
             'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(false, $isSmallTile),
         ];
     }
@@ -535,7 +524,6 @@ class WorkshopService
         $productMap = ($role === WorkshopItem::ROLE_PRODUCT && $newIds)
             ? Product::whereIn('id', $newIds)->get()->keyBy('id')
             : collect();
-        $packageCoeff = $role === WorkshopItem::ROLE_PRODUCT ? $this->firstPackageCoeff($workshop) : 0.0;
 
         foreach ($rows as $row) {
             $productId = $row['product_id'];
@@ -547,7 +535,7 @@ class WorkshopService
 
             if ($role === WorkshopItem::ROLE_PRODUCT) {
                 $workshop->items()->create(
-                    $this->productItemAttributes($productId, $row['quantity'], $productMap->get($productId), $packageCoeff)
+                    $this->productItemAttributes($productId, $row['quantity'], $productMap->get($productId))
                 );
             } else {
                 $workshop->items()->create([

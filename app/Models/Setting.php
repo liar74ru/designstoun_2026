@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Cache;
  *   EDGING_COEFF           — коэффициент «Торцовка»: полностью заменяет prod_cost_coeff (доступен для партий 04-XX); может быть отрицательным
  *
  * Себестоимость производства (₽/м²):
- *   BLADE_WEAR, RECEPTION_COST, PACKAGING_COST, WASTE_REMOVAL,
+ *   BLADE_WEAR, RECEPTION_COST, WASTE_REMOVAL,
  *   ELECTRICITY, PPE_COST, FORKLIFT_COST, MACHINE_COST, RENT_COST, OTHER_COSTS
  *
  * Ставки мастера (₽/м²):

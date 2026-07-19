@@ -181,61 +181,6 @@
             </div>
         </div>
 
-        {{-- Упаковка --}}
-        @php
-            $workshopKeys     = ['PACKAGING_PROD_COST', 'PACKAGING_COST'];
-            $workshopSettings = $settings->filter(fn($s) => in_array($s->key, $workshopKeys));
-        @endphp
-        @if($workshopSettings->isNotEmpty())
-        <div class="card shadow-sm mb-3">
-            <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
-                 role="button"
-                 data-block-id="workshop">
-                <span>Цех</span>
-                <i class="bi bi-chevron-down collapse-icon"></i>
-            </div>
-            <div class="collapse-content" id="block-workshop" style="display: none;">
-                <div class="card-body">
-                    <div class="alert alert-info py-2 px-3 mb-3 small">
-                        <i class="bi bi-info-circle"></i>
-                        Зарплата упаковщика за 1&nbsp;м² = ставка за продукт × коэффициент продукта (04-XX) +
-                        ставка за тару × коэффициент тары (07-03-XX). Коэффициенты берутся из карточки товара.
-                    </div>
-
-                    @foreach($workshopKeys as $key)
-                        @php
-                            $setting = $workshopSettings->firstWhere('key', $key);
-                            $i       = $settings->search(fn($s) => $s->key === $key);
-                        @endphp
-                        @if($setting)
-                            <div class="mb-3">
-                                <label for="setting_{{ $setting->key }}" class="form-label fw-semibold mb-1">
-                                    {{ $setting->label ?? $setting->key }}
-                                </label>
-                                @if($setting->description)
-                                    <div class="text-muted small mb-1">{{ $setting->description }}</div>
-                                @endif
-                                <input
-                                    type="number"
-                                    step="any"
-                                    id="setting_{{ $setting->key }}"
-                                    name="settings[{{ $i }}][value]"
-                                    value="{{ old('settings.' . $i . '.value', $setting->value) }}"
-                                    class="form-control @error('settings.' . $i . '.value') is-invalid @enderror"
-                                    required
-                                >
-                                <input type="hidden" name="settings[{{ $i }}][key]" value="{{ $setting->key }}">
-                                @error('settings.' . $i . '.value')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        @endif
-                    @endforeach
-                </div>
-            </div>
-        </div>
-        @endif
-
         {{-- Ставки мастера --}}
         @php
             $masterKeys     = ['MASTER_BASE_RATE', 'MASTER_UNDERCUT_RATE', 'MASTER_PACKAGING_RATE', 'MASTER_SMALL_TILE_RATE'];
