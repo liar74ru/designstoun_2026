@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Workshop\StoreWorkshopRequest;
 use App\Http\Requests\Workshop\UpdateWorkshopRequest;
+use App\Models\Department;
 use App\Models\Workshop;
 use App\Models\Worker;
+use App\Services\WorkshopPresetService;
 use App\Services\WorkshopService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -223,5 +225,13 @@ class WorkshopController extends Controller
             'id'   => $store->id,
             'name' => $store->name,
         ] : null);
+    }
+
+    /**
+     * AJAX: пресеты (шаблоны) отдела для блока «Шаблоны» формы создания.
+     */
+    public function getPresetsJson(Department $department, WorkshopPresetService $presets): JsonResponse
+    {
+        return response()->json($presets->getPresetsJsonFor($department));
     }
 }

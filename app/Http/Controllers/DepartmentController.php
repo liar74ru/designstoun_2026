@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\DepartmentOperationSetting;
 use App\Models\Store;
 use App\Models\Worker;
+use App\Services\WorkshopPresetService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -31,16 +32,19 @@ class DepartmentController extends Controller
             ->with('success', 'Отдел успешно создан.');
     }
 
-    public function show(Department $department)
+    public function show(Department $department, WorkshopPresetService $presetService)
     {
         $workers           = $department->activeWorkers()->get();
         $stores            = Store::where('archived', false)->orderBy('name')->get();
         $allWorkers        = Worker::orderBy('name')->get();
         $operations        = config('department_operations');
         $allowedPositions  = $department->allowedPositionsByOperation();
+        $presets           = $presetService->getForDepartment($department);
+        $allDepartments    = Department::where('is_active', true)->orderBy('name')->get();
 
         return view('admin.departments.show', compact(
-            'department', 'workers', 'stores', 'allWorkers', 'operations', 'allowedPositions'
+            'department', 'workers', 'stores', 'allWorkers', 'operations', 'allowedPositions',
+            'presets', 'allDepartments'
         ));
     }
 

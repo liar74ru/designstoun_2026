@@ -347,6 +347,69 @@
         </div>
     </div>
 
+    {{-- 5. Пресеты цеха --}}
+    <div class="card shadow-sm mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center py-2">
+            <span class="fw-semibold">Пресеты цеха ({{ $presets->count() }})</span>
+            <a href="{{ route('admin.departments.presets.create', $department) }}"
+               class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-plus-circle"></i> Добавить
+            </a>
+        </div>
+        <div class="card-body p-0">
+            @forelse($presets as $preset)
+                @php
+                    $rawCount     = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_RAW)->count();
+                    $packageCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PACKAGE)->count();
+                    $productCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PRODUCT)->count();
+                @endphp
+                <div class="px-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="me-2">
+                            <div class="fw-semibold small">{{ $preset->name }}</div>
+                            <div class="text-muted" style="font-size:.75rem">
+                                сырьё: {{ $rawCount }} · тара: {{ $packageCount }} · продукт: {{ $productCount }}
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <form method="POST" action="{{ route('admin.departments.presets.copy', [$department, $preset]) }}"
+                                  class="d-flex align-items-center gap-1">
+                                @csrf
+                                <select name="target_department_id" class="form-select form-select-sm"
+                                        style="border-radius:.4rem;width:auto">
+                                    @foreach($allDepartments as $dept)
+                                        <option value="{{ $dept->id }}" {{ $dept->id === $department->id ? 'selected' : '' }}>
+                                            {{ $dept->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Копировать в выбранный отдел">
+                                    <i class="bi bi-copy"></i>
+                                </button>
+                            </form>
+                            <a href="{{ route('admin.departments.presets.edit', [$department, $preset]) }}"
+                               class="btn btn-sm btn-outline-primary" title="Изменить">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ route('admin.departments.presets.destroy', [$department, $preset]) }}"
+                                  onsubmit="return confirm('Удалить пресет «{{ $preset->name }}»?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            @empty
+                <div class="text-center text-muted py-3 small">
+                    Пресетов нет. Добавьте первый — он появится в форме цеха в блоке «Шаблоны».
+                </div>
+            @endforelse
+        </div>
+    </div>
+
     {{-- Зона удаления (только если нет сотрудников) --}}
     @if($workers->isEmpty())
     <div class="card shadow-sm border-danger mb-3">

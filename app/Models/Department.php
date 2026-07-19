@@ -58,6 +58,11 @@ class Department extends Model
         return $this->hasMany(DepartmentOperationSetting::class);
     }
 
+    public function presets(): HasMany
+    {
+        return $this->hasMany(WorkshopPreset::class);
+    }
+
     /**
      * Список ключей операций, явно включённых в этом отделе.
      *

@@ -178,6 +178,38 @@
                     </div>
                 </div>
 
+                {{-- Блок: Шаблоны (пресеты отдела) --}}
+                <div class="card shadow-sm mb-2">
+                    <div class="card-header bg-white py-2" role="button" id="presetToggle">
+                        <span class="small fw-semibold text-muted"><i class="bi bi-collection me-1"></i> Шаблоны</span>
+                        <i class="bi bi-chevron-down float-end" id="presetChevron"></i>
+                    </div>
+                    <div class="card-body py-2" id="presetBody" style="display:none">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-sm-6">
+                                <label for="presetSelect" class="form-label small text-muted mb-1">Шаблон</label>
+                                <select id="presetSelect" class="form-select form-select-sm compact-select" style="border-radius:.4rem">
+                                    <option value="">— выберите шаблон —</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <label for="presetCount" class="form-label small text-muted mb-1">Кол-во продукции</label>
+                                <input type="number" id="presetCount" class="form-control form-control-sm"
+                                       style="border-radius:.4rem" step="0.001" min="0.001" value="1">
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <button type="button" id="presetApplyBtn" class="btn btn-sm btn-primary w-100" disabled>
+                                    Применить
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-text" style="font-size:.7rem">
+                            Заполнит сырьё, тару и продукт: количество = норма из шаблона × кол-во продукции.
+                            Текущие строки будут заменены.
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Конвейер: Сырьё → Упаковка → Продукт → Затраты --}}
                 <div class="pack-flow mb-2">
 
@@ -574,6 +606,53 @@
         }
     });
 
+    // ── Шаблоны (пресеты отдела) ─────────────────────────────────────────────
+    const presetSelect   = document.getElementById('presetSelect');
+    const presetCount    = document.getElementById('presetCount');
+    const presetApplyBtn = document.getElementById('presetApplyBtn');
+    let presetsById = {};
+
+    function updatePresetApplyState() {
+        presetApplyBtn.disabled = !presetsById[presetSelect.value];
+    }
+
+    async function loadPresets() {
+        presetSelect.innerHTML = '<option value="">— выберите шаблон —</option>';
+        presetsById = {};
+        updatePresetApplyState();
+        const deptId = departmentSelect.value;
+        if (!deptId) return;
+        try {
+            const res = await fetch(`/api/departments/${deptId}/workshop-presets`,
+                { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!res.ok) return;
+            (await res.json()).forEach(p => {
+                presetsById[p.id] = p;
+                presetSelect.add(new Option(p.name, p.id));
+            });
+        } catch (err) {
+            console.error('loadPresets', err);
+        }
+    }
+
+    function applyPreset() {
+        const preset = presetsById[presetSelect.value];
+        if (!preset) return;
+        const count = parseFloat(presetCount.value) || 1; // пустое поле = 1
+        ['raw', 'package', 'product'].forEach(t => { blocks[t].container.innerHTML = ''; });
+        rowIndex = 0;
+        preset.items.forEach(it => {
+            if (!blocks[it.role]) return;
+            const qty = Math.round(it.quantity * count * 1000) / 1000;
+            addRow(it.role, { productId: it.product_id, label: it.product_label, quantity: qty });
+        });
+    }
+
+    presetApplyBtn.addEventListener('click', applyPreset);
+    presetSelect.addEventListener('change', updatePresetApplyState);
+    departmentSelect.addEventListener('change', loadPresets);
+    loadPresets();
+
     // ── Склады строк по блокам ───────────────────────────────────────────────
     function applyStores() {
         [['raw', rawStoreSelect], ['package', rawStoreSelect], ['product', productStoreSelect]].forEach(([type, sel]) => {
@@ -634,6 +713,16 @@
         const open = deptBody.style.display === 'none';
         deptBody.style.display = open ? '' : 'none';
         deptChevron.className  = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
+    });
+
+    // ── Тоггл блока «Шаблоны» ────────────────────────────────────────────────
+    const presetToggle  = document.getElementById('presetToggle');
+    const presetBody    = document.getElementById('presetBody');
+    const presetChevron = document.getElementById('presetChevron');
+    presetToggle.addEventListener('click', () => {
+        const open = presetBody.style.display === 'none';
+        presetBody.style.display = open ? '' : 'none';
+        presetChevron.className  = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
     });
 
     const manualCb = document.getElementById('manualProcessingName');

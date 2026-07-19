@@ -11,6 +11,7 @@ use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
 use App\Http\Controllers\Admin\OrderStatusSettingController;
+use App\Http\Controllers\Admin\WorkshopPresetController;
 use App\Http\Controllers\AdminSettingController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\CutterWorkerDashboardController;
@@ -145,6 +146,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post  ('workshops/{workshop}/item-coeffs',         [WorkshopController::class, 'updateItemCoeff'])->name('workshops.update-item-coeff');
         Route::post  ('workshops/{workshop}/refresh-item-coeffs', [WorkshopController::class, 'refreshItemCoeffs'])->name('workshops.refresh-item-coeffs');
         Route::get   ('api/workers/{worker}/default-production-store', [WorkshopController::class, 'getDefaultStoreJson'])->name('api.worker.default-production-store');
+        Route::get   ('api/departments/{department}/workshop-presets', [WorkshopController::class, 'getPresetsJson'])->name('api.department.workshop-presets');
     });
 
     // Партии сырья — операция raw-batches
@@ -178,6 +180,16 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
         Route::patch('/departments/{department}/operations', [DepartmentController::class, 'updateOperations'])->name('departments.operations.update');
         Route::resource('departments', DepartmentController::class)->only(['create', 'store', 'show', 'update', 'destroy']);
+
+        // Пресеты цеха отдела
+        Route::scopeBindings()->group(function () {
+            Route::get   ('/departments/{department}/presets/create',        [WorkshopPresetController::class, 'create'])->name('departments.presets.create');
+            Route::post  ('/departments/{department}/presets',               [WorkshopPresetController::class, 'store'])->name('departments.presets.store');
+            Route::get   ('/departments/{department}/presets/{preset}/edit', [WorkshopPresetController::class, 'edit'])->name('departments.presets.edit');
+            Route::patch ('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'update'])->name('departments.presets.update');
+            Route::delete('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'destroy'])->name('departments.presets.destroy');
+            Route::post  ('/departments/{department}/presets/{preset}/copy', [WorkshopPresetController::class, 'copy'])->name('departments.presets.copy');
+        });
 
         Route::get ('/order-statuses', [OrderStatusSettingController::class, 'index'])->name('order-statuses.index');
         Route::post('/order-statuses', [OrderStatusSettingController::class, 'update'])->name('order-statuses.update');
