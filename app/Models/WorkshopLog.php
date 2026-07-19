@@ -4,13 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PackagingLog extends Model
+class WorkshopLog extends Model
 {
     const TYPE_CREATED = 'created';
     const TYPE_UPDATED = 'updated';
 
     protected $fillable = [
-        'packaging_id',
+        'workshop_id',
         'packer_id',
         'receiver_id',
         'type',
@@ -25,9 +25,9 @@ class PackagingLog extends Model
         'created_at'                => 'datetime',
     ];
 
-    public function packaging()
+    public function workshop()
     {
-        return $this->belongsTo(Packaging::class);
+        return $this->belongsTo(Workshop::class);
     }
 
     public function packer()
@@ -42,6 +42,6 @@ class PackagingLog extends Model
 
     public function items()
     {
-        return $this->hasMany(PackagingLogItem::class);
+        return $this->hasMany(WorkshopLogItem::class);
     }
 }

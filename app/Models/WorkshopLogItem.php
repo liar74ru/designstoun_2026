@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PackagingLogItem extends Model
+class WorkshopLogItem extends Model
 {
     protected $fillable = [
-        'packaging_log_id',
+        'workshop_log_id',
         'product_id',
+        'role',
         'quantity_delta',
     ];
 
@@ -16,9 +17,9 @@ class PackagingLogItem extends Model
         'quantity_delta' => 'decimal:3',
     ];
 
-    public function packagingLog()
+    public function workshopLog()
     {
-        return $this->belongsTo(PackagingLog::class);
+        return $this->belongsTo(WorkshopLog::class);
     }
 
     public function product()

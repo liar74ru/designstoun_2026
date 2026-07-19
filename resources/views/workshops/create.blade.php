@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Новая упаковка')
+@section('title', 'Новая операция цеха')
 
 @section('content')
 @php $userDeptId = auth()->user()?->worker?->department_id; @endphp
@@ -7,11 +7,12 @@
 <style>
 /* Компактные по высоте селекты (склады, работник) */
 .compact-select{padding-top:.15rem;padding-bottom:.15rem;min-height:0;height:auto;line-height:1.25}
-/* Конвейер упаковки: сырьё + тара → продукт */
+/* Конвейер цеха: сырьё + тара → продукт */
 .pack-flow{
     --pf-raw:#2f6df6;  --pf-raw-bg:#eef4ff;  --pf-raw-bd:#cfe0ff;
     --pf-pack:#d9820e; --pf-pack-bg:#fdf3e3; --pf-pack-bd:#f4dcae;
     --pf-prod:#0f9e6a; --pf-prod-bg:#e8f7f0; --pf-prod-bd:#bfe9d5;
+    --pf-cost:#6f42c1; --pf-cost-bg:#f3eefc; --pf-cost-bd:#ddccf5;
     --pf-line:#dee2e6;
     display:flex;flex-direction:column;gap:.5rem;
 }
@@ -19,29 +20,30 @@
 .pf-node.raw{background:var(--pf-raw-bg);border-color:var(--pf-raw-bd)}
 .pf-node.pack{background:var(--pf-pack-bg);border-color:var(--pf-pack-bd)}
 .pf-node.prod{background:var(--pf-prod-bg);border-color:var(--pf-prod);box-shadow:0 .35rem 1.1rem rgba(15,158,106,.15)}
+.pf-node.cost{background:var(--pf-cost-bg);border-color:var(--pf-cost-bd)}
 .pf-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap}
 .pf-title{display:flex;align-items:center;gap:.4rem;font-size:.78rem;font-weight:650;text-transform:uppercase;letter-spacing:.02em;margin:0}
 .pf-node.raw .pf-title{color:var(--pf-raw)}
 .pf-node.pack .pf-title{color:var(--pf-pack)}
 .pf-node.prod .pf-title{color:var(--pf-prod)}
+.pf-node.cost .pf-title{color:var(--pf-cost)}
 .pf-step{width:1.35rem;height:1.35rem;border-radius:50%;display:inline-grid;place-items:center;font-size:.72rem;font-weight:700;color:#fff;flex:none}
 .pf-node.raw .pf-step{background:var(--pf-raw)}
 .pf-node.pack .pf-step{background:var(--pf-pack)}
 .pf-node.prod .pf-step{background:var(--pf-prod)}
+.pf-node.cost .pf-step{background:var(--pf-cost)}
 .pf-badge{font-size:.72rem;font-weight:600;padding:.15rem .5rem;border-radius:.4rem;background:#fff}
 .pf-node.raw .pf-badge{color:var(--pf-raw)}
-.pf-node.pack .pf-badge{color:var(--pf-pack)}
 .pf-node.prod .pf-badge{color:var(--pf-prod)}
-.pf-result-line{display:flex;align-items:center;gap:.4rem;margin-top:.6rem;padding-top:.55rem;border-top:1px dashed var(--pf-prod-bd);color:var(--pf-prod);font-size:.8rem;font-weight:600}
 </style>
 
 <div class="container py-3 py-md-4" style="max-width:980px">
 
-    <x-page-header title="Новая упаковка" :back-url="route('packagings.index')" mobileTitle="Упаковка" />
+    <x-page-header title="Новая операция цеха" :back-url="route('workshops.index')" mobileTitle="Цех" />
 
     @include('partials.alerts')
 
-    <form method="POST" action="{{ route('packagings.store') }}" id="packagingForm">
+    <form method="POST" action="{{ route('workshops.store') }}" id="workshopForm">
         @csrf
 
         <div class="row g-3">
@@ -176,96 +178,79 @@
                     </div>
                 </div>
 
-                {{-- Конвейер: Сырьё · продукты  +  Тара · упаковка  →  Продукт · результат --}}
+                {{-- Конвейер: Сырьё → Упаковка → Продукт → Затраты --}}
                 <div class="pack-flow mb-2">
 
-                    {{-- ① Сырьё · продукты --}}
+                    {{-- ① Сырьё --}}
                     <div class="pf-node raw">
                         <div class="pf-head">
-                            <span class="pf-title"><span class="pf-step">1</span><i class="bi bi-box"></i> Сырьё · продукты <span class="text-danger">*</span></span>
-                            <span class="pf-badge">Итого: <strong id="totalQty">0</strong> <span id="totalQtyUnit">м²</span></span>
+                            <span class="pf-title"><span class="pf-step">1</span><i class="bi bi-box"></i> Сырьё <span class="text-danger">*</span></span>
+                            <span class="pf-badge">Итого: <strong id="rawTotalQty">0</strong> <span id="rawTotalQtyUnit">м²</span></span>
+                        </div>
+
+                        <div id="rawContainer"></div>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-1" data-add="raw">
+                            <i class="bi bi-plus-circle"></i> Добавить сырьё
+                        </button>
+                    </div>
+
+                    {{-- ② Упаковка --}}
+                    <div class="pf-node pack">
+                        <div class="pf-head">
+                            <span class="pf-title"><span class="pf-step">2</span><i class="bi bi-box-seam"></i> Упаковка <span class="text-muted fw-normal text-lowercase">(опционально)</span></span>
+                        </div>
+
+                        <div id="packagesContainer"></div>
+
+                        <button type="button" class="btn btn-sm btn-outline-warning mt-1" data-add="package">
+                            <i class="bi bi-plus-circle"></i> Добавить упаковку
+                        </button>
+                    </div>
+
+                    {{-- ③ Продукт --}}
+                    <div class="pf-node prod">
+                        <div class="pf-head">
+                            <span class="pf-title"><span class="pf-step">3</span><i class="bi bi-check2-circle"></i> Продукт <span class="text-danger">*</span></span>
+                            <span class="pf-badge">Итого: <strong id="prodTotalQty">0</strong></span>
                         </div>
 
                         <div id="productsContainer"></div>
 
-                        <button type="button" class="btn btn-sm btn-outline-primary mt-1" id="addProductBtn">
+                        <button type="button" class="btn btn-sm btn-outline-success mt-1" data-add="product">
                             <i class="bi bi-plus-circle"></i> Добавить продукт
                         </button>
                     </div>
 
-                    {{-- ② Тара · упаковка --}}
-                    <div class="pf-node pack">
+                    {{-- ④ Затраты на производство --}}
+                    <div class="pf-node cost">
                         <div class="pf-head">
-                            <span class="pf-title"><span class="pf-step">2</span><i class="bi bi-box-seam"></i> Тара · упаковка <span class="text-danger">*</span></span>
+                            <span class="pf-title"><span class="pf-step">4</span><i class="bi bi-cash-coin"></i> Затраты на производство</span>
                         </div>
 
-                        <div class="row g-2">
-                            <div class="col-12 col-sm-8">
-                                <label class="form-label small text-muted mb-1">Вариант упаковки</label>
-                                @include('partials.product-picker', [
-                                    'id'          => 'package',
-                                    'name'        => 'package_product_id',
-                                    'value'       => old('package_product_id'),
-                                    'label'       => '',
-                                    'placeholder' => 'Введите вариант упаковки...',
-                                    'skuPrefix'   => '07-03',
-                                    'showTree'    => true,
-                                    'required'    => true,
-                                ])
-                            </div>
-                            <div class="col-12 col-sm-4">
-                                <label class="form-label small text-muted mb-1">Количество, шт</label>
-                                <input type="number" name="package_quantity" step="0.001" min="0.001" required
-                                       class="form-control form-control-sm" style="border-radius:.4rem"
-                                       value="{{ old('package_quantity', 1) }}">
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- ③ Продукт · результат --}}
-                    <div class="pf-node prod">
-                        <div class="pf-head">
-                            <span class="pf-title"><span class="pf-step">3</span><i class="bi bi-check2-circle"></i> Продукт · результат <span class="text-muted fw-normal text-lowercase">(опционально)</span></span>
-                        </div>
-
-                        @include('partials.product-picker', [
-                            'id'          => 'result',
-                            'name'        => 'result_product_id',
-                            'value'       => old('result_product_id'),
-                            'label'       => old('result_product_name', ''),
-                            'placeholder' => 'Введите название товара-результата...',
-                            'showTree'    => true,
-                            'showClear'   => true,
-                            'required'    => false,
-                        ])
-                        <div class="form-text" style="font-size:.7rem">
-                            Пусто — приходуются те же продукты, что упакованы.
-                            Если задан — в МойСклад приходуется этот товар в указанном ниже количестве, а продукты и тара уходят в материалы.
-                        </div>
-                        @error('result_product_id')
-                            <div class="text-danger small mt-1">{{ $message }}</div>
-                        @enderror
-
-                        {{-- Количество результата (по умолчанию = кол-во тары, редактируется) --}}
-                        <div class="row g-2 mt-1" id="resultQtyWrap" style="display:none">
-                            <div class="col-12 col-sm-5">
-                                <label class="form-label small text-muted mb-1">Количество результата</label>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small text-muted mb-1">Себестоимость производства, ₽ за единицу продукта</label>
                                 <div class="input-group input-group-sm">
-                                    <span class="input-group-text" id="resultUnit">шт</span>
-                                    <input type="number" name="result_quantity" id="resultQty"
-                                           step="0.001" min="0.001"
-                                           class="form-control @error('result_quantity') is-invalid @enderror"
-                                           style="border-radius:0 .4rem .4rem 0"
-                                           value="{{ old('result_quantity') }}">
+                                    <input type="number" name="manual_processing_sum" id="manualProcessingSum"
+                                           step="0.01" min="0"
+                                           class="form-control @error('manual_processing_sum') is-invalid @enderror"
+                                           style="border-radius:.4rem 0 0 .4rem"
+                                           placeholder="0.00"
+                                           value="{{ old('manual_processing_sum') }}">
+                                    <span class="input-group-text">₽/ед</span>
                                 </div>
-                                @error('result_quantity')
-                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                @error('manual_processing_sum')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
-                        </div>
-
-                        <div class="pf-result-line">
-                            <i class="bi bi-check2-circle"></i> На выходе — <strong id="resultQtyOut">1</strong>&nbsp;<span id="resultQtyOutUnit">шт</span> готового продукта
+                            <div class="col-12 col-sm-6">
+                                <div class="form-text mb-1" style="font-size:.72rem">
+                                    Уходит в МойСклад (processingSum) и влияет на себестоимость продукта.
+                                    Оставьте пустым — рассчитается автоматически по зарплате работника.
+                                    <span id="costSuggestHint" class="d-block text-muted"></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -288,7 +273,7 @@
                         <label class="form-label small fw-semibold mb-1">Имя техоперации</label>
                         <input type="text" name="processing_name" id="processingNameInput" readonly
                                class="form-control form-control-sm" style="border-radius:.4rem"
-                               placeholder="Сформируется автоматически: 26-XX-УПАК-NN">
+                               placeholder="Сформируется автоматически: 26-XX-ЦЕХ-NN">
                         <div class="form-check mt-2">
                             <input class="form-check-input" type="checkbox" id="manualProcessingName">
                             <label class="form-check-label small" for="manualProcessingName">Задать имя вручную</label>
@@ -302,10 +287,10 @@
                 {{-- Кнопки --}}
                 <div class="d-flex flex-column flex-sm-row gap-2 mt-3">
                     <button type="submit" class="btn btn-primary btn-sm flex-fill">
-                        <i class="bi bi-save"></i> Сохранить упаковку
+                        <i class="bi bi-save"></i> Сохранить операцию
                     </button>
-                    <button type="submit" name="close_packaging" value="1" class="btn btn-warning btn-sm flex-fill">
-                        <i class="bi bi-check2-circle"></i> Сохранить + Закрыть упаковку
+                    <button type="submit" name="close_workshop" value="1" class="btn btn-warning btn-sm flex-fill">
+                        <i class="bi bi-check2-circle"></i> Сохранить + Закрыть операцию
                     </button>
                 </div>
             </div>
@@ -317,12 +302,13 @@
                     </div>
                     <div class="card-body small text-muted">
                         <ol class="ps-3 mb-0">
-                            <li>Выберите упаковщика и мастера.</li>
+                            <li>Выберите работника и мастера.</li>
                             <li>Склады подставляются из настроек отдела — при необходимости выберите вручную в блоке «Склады».</li>
-                            <li>Добавьте продукт упаковки и его количество (м²).</li>
-                            <li>Выберите вариант упаковки (07-03-xx) и количество тары (шт).</li>
-                            <li>Если на выходе другой товар (коробка с плиткой) — задайте «Товар-результат»: он оприходуется в количестве тары, а продукты и тара спишутся.</li>
-                            <li>Сохраните: создастся техоперация в МойСклад с префиксом УПАК.</li>
+                            <li><b>Сырьё</b> — материалы на входе (можно несколько позиций).</li>
+                            <li><b>Упаковка</b> — тара (07-03-xx), тоже несколько позиций; списывается со склада сырья.</li>
+                            <li><b>Продукт</b> — готовая продукция на выходе (можно несколько позиций).</li>
+                            <li><b>Затраты</b> — себестоимость производства ₽ за единицу продукта. Пусто — считается автоматически.</li>
+                            <li>Сохраните: создастся техоперация в МойСклад (префикс ЦЕХ): материалы = сырьё + упаковка, продукты = продукт.</li>
                         </ol>
                     </div>
                 </div>
@@ -331,12 +317,39 @@
     </form>
 </div>
 
-{{-- Шаблон строки продукта --}}
-<template id="pickerRowTemplate">
+{{-- Шаблоны строк --}}
+<template id="tplRaw">
     @include('partials.product-picker-row', [
+        'name'        => 'raw_materials',
         'index'       => '__IDX__',
-        'placeholder' => 'Введите название...',
+        'placeholder' => 'Введите название сырья...',
         'unit'        => 'м²',
+        'dynamicUnit' => true,
+        'qtyWidth'    => '120px',
+        'qtyMode'     => 'simple',
+        'showRemove'  => true,
+    ])
+</template>
+
+<template id="tplPackage">
+    @include('partials.product-picker-row', [
+        'name'        => 'packages',
+        'index'       => '__IDX__',
+        'placeholder' => 'Введите вариант упаковки...',
+        'unit'        => 'шт',
+        'qtyWidth'    => '120px',
+        'qtyMode'     => 'simple',
+        'skuPrefix'   => '07-03',
+        'showRemove'  => true,
+    ])
+</template>
+
+<template id="tplProduct">
+    @include('partials.product-picker-row', [
+        'name'        => 'products',
+        'index'       => '__IDX__',
+        'placeholder' => 'Введите название продукта...',
+        'unit'        => 'шт',
         'dynamicUnit' => true,
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
@@ -350,62 +363,34 @@
 @vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
 <script>
 (function () {
-    const container     = document.getElementById('productsContainer');
-    const addBtn        = document.getElementById('addProductBtn');
-    const totalQtyEl    = document.getElementById('totalQty');
-    const totalQtyUnit  = document.getElementById('totalQtyUnit');
-    const resultPickerRow = document.getElementById('result_hidden')?.closest('.product-picker-row');
+    const PACKAGING_PROD_COST = {{ (float) \App\Models\Setting::get('PACKAGING_PROD_COST', 0) }};
+    const PACKAGING_COST      = {{ (float) \App\Models\Setting::get('PACKAGING_COST', 0) }};
 
-    // Склады — объявлены заранее, т.к. addRow проставляет sourceStoreId на строки сырья.
     const departmentSelect   = document.getElementById('departmentSelect');
     const rawStoreSelect     = document.getElementById('rawStoreSelect');
     const productStoreSelect = document.getElementById('productStoreSelect');
+
+    const blocks = {
+        raw:     { container: document.getElementById('rawContainer'),      tpl: 'tplRaw',     store: () => rawStoreSelect.value },
+        package: { container: document.getElementById('packagesContainer'), tpl: 'tplPackage', store: () => rawStoreSelect.value },
+        product: { container: document.getElementById('productsContainer'), tpl: 'tplProduct', store: () => productStoreSelect.value },
+    };
 
     // Карта остатков товаров — бейджи остатка в выпадающем списке пикера.
     fetch('/api/products/stocks', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(r => r.json())
         .then(data => { window.ProductPickerStockMap = data; });
 
-    // Одиночные пикеры тары и результата: тара — со склада сырья, результат — со склада продукта.
-    const packageRow = document.getElementById('package_hidden')?.closest('.product-picker-row');
-    const resultRow  = document.getElementById('result_hidden')?.closest('.product-picker-row');
-    function applyPackageStore() { if (packageRow && rawStoreSelect.value) packageRow.dataset.sourceStoreId = rawStoreSelect.value; }
-    function applyResultStore()  { if (resultRow && productStoreSelect.value) resultRow.dataset.sourceStoreId = productStoreSelect.value; }
-    function applyRawStoreToRows() {
-        container.querySelectorAll('.product-picker-row').forEach(row => {
-            if (rawStoreSelect.value) row.dataset.sourceStoreId = rawStoreSelect.value;
-            else delete row.dataset.sourceStoreId;
-        });
-        applyPackageStore();
-    }
-
+    // Единый счётчик индексов строк — уникальные id/name по всем блокам.
     let rowIndex = 0;
 
-    function updateTotal() {
-        let sum = 0;
-        container.querySelectorAll('.product-picker-qty').forEach(el => sum += parseFloat(el.value) || 0);
-        totalQtyEl.textContent = sum.toFixed(2);
-    }
-
-    // При выборе товара сырья: единица «Итого» (uom) + маска SKU для пикера результата.
-    document.addEventListener('product-picker:selected', (e) => {
-        const row = e.detail?.row;
-        if (row && container.contains(row)) {
-            if (totalQtyUnit) totalQtyUnit.textContent = e.detail.unit || 'м²';
-            // Маска результата: SKU сырья без последнего символа (02-03-11 → префикс 02-03-1).
-            // Поиск в пикере результата фильтруется по префиксу; иной товар — через дерево.
-            if (resultPickerRow && e.detail.sku) {
-                resultPickerRow.dataset.skuPrefix = e.detail.sku.slice(0, -1);
-            }
-        }
-    });
-
-    function addRow(productId = '', productLabel = '', quantity = '') {
-        const tpl   = document.getElementById('pickerRowTemplate');
+    function addRow(type, { productId = '', label = '', quantity = '' } = {}) {
+        const block = blocks[type];
+        const tpl   = document.getElementById(block.tpl);
         const clone = tpl.content.cloneNode(true);
 
-        clone.querySelectorAll('*').forEach(el => {
-            ['id','name','for','data-hidden-id','data-search-id','data-modal'].forEach(attr => {
+        clone.querySelectorAll('[data-tpl-index]').forEach(el => {
+            ['id', 'name', 'for', 'data-hidden-id', 'data-search-id', 'data-modal'].forEach(attr => {
                 if (el.hasAttribute(attr)) {
                     el.setAttribute(attr, el.getAttribute(attr).replace('__IDX__', rowIndex));
                 }
@@ -416,38 +401,123 @@
         const hidden = clone.querySelector('input[type="hidden"]');
         const qty    = clone.querySelector('.product-picker-qty');
 
-        if (productLabel) search.value = productLabel;
-        if (productId)    hidden.value = productId;
-        if (quantity)     qty.value    = quantity;
+        if (label)     search.value = label;
+        if (productId) hidden.value = productId;
+        if (quantity)  qty.value    = quantity;
 
         const row = clone.querySelector('.product-picker-row');
-        if (rawStoreSelect.value) row.dataset.sourceStoreId = rawStoreSelect.value;
-        container.appendChild(clone);
+        const storeId = block.store();
+        if (storeId) row.dataset.sourceStoreId = storeId;
+
+        block.container.appendChild(clone);
         if (window.ProductPicker) window.ProductPicker.initRow(row);
 
         rowIndex++;
-        updateTotal();
+        updateTotals();
+        recomputeSuggestedCost();
     }
 
-    addBtn.addEventListener('click', () => addRow());
-    document.addEventListener('product-picker:removed', updateTotal);
-    container.addEventListener('input', e => {
-        if (e.target.classList.contains('product-picker-qty')) updateTotal();
+    // ── Итоги по блокам ──────────────────────────────────────────────────────
+    const rawTotalEl  = document.getElementById('rawTotalQty');
+    const rawUnitEl   = document.getElementById('rawTotalQtyUnit');
+    const prodTotalEl = document.getElementById('prodTotalQty');
+
+    function sumQty(container) {
+        let sum = 0;
+        container.querySelectorAll('.product-picker-qty').forEach(el => sum += parseFloat(el.value) || 0);
+        return sum;
+    }
+    function updateTotals() {
+        rawTotalEl.textContent  = sumQty(blocks.raw.container).toFixed(2);
+        prodTotalEl.textContent = sumQty(blocks.product.container).toFixed(2);
+    }
+
+    // Единица «Итого» сырья — по выбранному товару.
+    document.addEventListener('product-picker:selected', (e) => {
+        const row = e.detail?.row;
+        if (row && blocks.raw.container.contains(row) && rawUnitEl) {
+            rawUnitEl.textContent = e.detail.unit || 'м²';
+        }
     });
 
-    addRow();
+    // ── Автоподсказка затрат (₽/ед продукта) ─────────────────────────────────
+    const costInput = document.getElementById('manualProcessingSum');
+    const costHint  = document.getElementById('costSuggestHint');
+    let costTouched = costInput.value !== '';
+    costInput.addEventListener('input', () => { costTouched = true; });
 
-    // Склады по умолчанию — из настроек выбранного отдела.
-    // Ручной выбор склада (событие change) больше не перетирается.
-    // (departmentSelect / rawStoreSelect / productStoreSelect объявлены выше.)
-    rawStoreSelect.addEventListener('change', () => {
-        rawStoreSelect.dataset.touched = '1';
-        applyRawStoreToRows();
+    const coeffCache = {};
+    async function fetchCoeff(productId) {
+        if (!productId) return 0;
+        if (coeffCache[productId] !== undefined) return coeffCache[productId];
+        try {
+            const res = await fetch(`/api/products/${productId}/coeff`);
+            if (!res.ok) return 0;
+            const data = await res.json();
+            coeffCache[productId] = parseFloat(data.prod_cost_coeff) || 0;
+            return coeffCache[productId];
+        } catch { return 0; }
+    }
+
+    function rowsData(container) {
+        return Array.from(container.querySelectorAll('.product-picker-row')).map(row => ({
+            productId: row.querySelector('input[type="hidden"]')?.value || '',
+            qty:       parseFloat(row.querySelector('.product-picker-qty')?.value) || 0,
+        })).filter(r => r.productId && r.qty > 0);
+    }
+
+    async function recomputeSuggestedCost() {
+        const raws     = rowsData(blocks.raw.container);
+        const packages = rowsData(blocks.package.container);
+        const totalProduct = sumQty(blocks.product.container);
+
+        if (!raws.length || totalProduct <= 0) {
+            if (costHint) costHint.textContent = '';
+            return;
+        }
+
+        // Коэффициент тары — по первой позиции упаковки.
+        const packageCoeff = packages.length ? await fetchCoeff(packages[0].productId) : 0;
+
+        let salaryTotal = 0;
+        for (const r of raws) {
+            const coeff = await fetchCoeff(r.productId);
+            const workerCost = PACKAGING_PROD_COST * coeff + PACKAGING_COST * packageCoeff;
+            salaryTotal += workerCost * r.qty;
+        }
+
+        const suggested = Math.round((salaryTotal / totalProduct) * 100) / 100;
+        if (costHint) costHint.textContent = suggested > 0 ? `Авторасчёт: ${suggested.toFixed(2)} ₽/ед` : '';
+        if (!costTouched) costInput.value = suggested > 0 ? suggested.toFixed(2) : '';
+    }
+
+    // ── Обработчики контейнеров ──────────────────────────────────────────────
+    Object.values(blocks).forEach(({ container }) => {
+        container.addEventListener('input', e => {
+            if (e.target.classList.contains('product-picker-qty')) {
+                updateTotals();
+                recomputeSuggestedCost();
+            }
+        });
     });
-    productStoreSelect.addEventListener('change', () => {
-        productStoreSelect.dataset.touched = '1';
-        applyResultStore();
+    document.addEventListener('product-picker:selected', () => { updateTotals(); recomputeSuggestedCost(); });
+    document.addEventListener('product-picker:removed', () => { updateTotals(); recomputeSuggestedCost(); });
+
+    document.querySelectorAll('[data-add]').forEach(btn => {
+        btn.addEventListener('click', () => addRow(btn.dataset.add));
     });
+
+    // ── Склады строк по блокам ───────────────────────────────────────────────
+    function applyStores() {
+        [['raw', rawStoreSelect], ['package', rawStoreSelect], ['product', productStoreSelect]].forEach(([type, sel]) => {
+            blocks[type].container.querySelectorAll('.product-picker-row').forEach(row => {
+                if (sel.value) row.dataset.sourceStoreId = sel.value;
+                else delete row.dataset.sourceStoreId;
+            });
+        });
+    }
+    rawStoreSelect.addEventListener('change', () => { rawStoreSelect.dataset.touched = '1'; applyStores(); });
+    productStoreSelect.addEventListener('change', () => { productStoreSelect.dataset.touched = '1'; applyStores(); });
 
     function syncStoresFromDepartment() {
         const opt = departmentSelect.options[departmentSelect.selectedIndex];
@@ -458,20 +528,19 @@
         if (!productStoreSelect.dataset.touched && opt.dataset.productStoreId) {
             productStoreSelect.value = opt.dataset.productStoreId;
         }
-        // Программная смена .value не шлёт change — обновляем строки вручную.
-        applyRawStoreToRows();
-        applyResultStore();
+        applyStores();
     }
     departmentSelect.addEventListener('change', syncStoresFromDepartment);
-    // Начальные склады уже подставлены из отдела в blade — проставляем на одиночные пикеры.
-    applyPackageStore();
-    applyResultStore();
     @if(old('store_id') || old('product_store_id'))
         rawStoreSelect.dataset.touched = '1';
         productStoreSelect.dataset.touched = '1';
     @endif
 
-    // Тоггл блока МойСклад
+    // Начальные строки.
+    addRow('raw');
+    addRow('product');
+
+    // ── Тоггл блока МойСклад ──────────────────────────────────────────────────
     const msToggle  = document.getElementById('msToggle');
     const msBody    = document.getElementById('msBody');
     const msChevron = document.getElementById('msChevron');
@@ -481,7 +550,7 @@
         msChevron.className  = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
     });
 
-    // Тоггл блока «Отдел» (раскрыт при ошибке валидации)
+    // ── Тоггл блока «Отдел» (раскрыт при ошибке валидации) ───────────────────
     const deptToggle  = document.getElementById('deptToggle');
     const deptBody    = document.getElementById('deptBody');
     const deptChevron = document.getElementById('deptChevron');
@@ -501,64 +570,18 @@
         procName.readOnly = !manualCb.checked;
     });
 
-    // Блок результата: количество по умолчанию = кол-во тары, но редактируется вручную.
-    const pkgQtyInput      = document.querySelector('input[name="package_quantity"]');
-    const resultQty        = document.getElementById('resultQty');
-    const resultUnit       = document.getElementById('resultUnit');
-    const resultQtyWrap    = document.getElementById('resultQtyWrap');
-    const resultHidden     = document.getElementById('result_hidden');
-    const resultQtyOut     = document.getElementById('resultQtyOut');
-    const resultQtyOutUnit = document.getElementById('resultQtyOutUnit');
-    let resultQtyTouched   = false;
+    // ── Валидация перед отправкой ─────────────────────────────────────────────
+    document.getElementById('workshopForm').addEventListener('submit', function (e) {
+        const rawRows  = blocks.raw.container.querySelectorAll('.product-picker-row');
+        const prodRows = blocks.product.container.querySelectorAll('.product-picker-row');
 
-    function fmtQty(v) {
-        return Number.isInteger(v) ? String(v) : v.toFixed(3).replace(/\.?0+$/, '');
-    }
-
-    function updateIndicator() {
-        if (!resultQtyOut) return;
-        const hasResult = resultHidden && resultHidden.value;
-        const v = hasResult
-            ? (parseFloat(resultQty?.value) || 0)
-            : (parseFloat(pkgQtyInput?.value) || 0);
-        resultQtyOut.textContent = fmtQty(v);
-        if (resultQtyOutUnit) resultQtyOutUnit.textContent = hasResult ? (resultUnit?.textContent || 'шт') : 'шт';
-    }
-
-    function mirrorPackageQty() {
-        if (resultQty && !resultQtyTouched) resultQty.value = pkgQtyInput?.value || '';
-    }
-
-    // Выбор товара-результата → показать поле, подставить единицу и кол-во тары
-    document.addEventListener('product-picker:selected', (e) => {
-        const row = e.detail?.row;
-        if (!row || !row.querySelector('input[name="result_product_id"]')) return;
-        if (resultQtyWrap) resultQtyWrap.style.display = '';
-        if (resultUnit) resultUnit.textContent = e.detail.unit || 'шт';
-        resultQtyTouched = false;
-        mirrorPackageQty();
-        updateIndicator();
-    });
-
-    // Сброс товара-результата (кнопка очистки) → скрыть поле
-    document.addEventListener('product-picker:removed', () => {
-        if (resultHidden && !resultHidden.value) {
-            if (resultQtyWrap) resultQtyWrap.style.display = 'none';
-            resultQtyTouched = false;
-            if (resultQty) resultQty.value = '';
+        if (!rowsData(blocks.raw.container).length) {
+            alert('Добавьте хотя бы одну позицию сырья'); e.preventDefault(); return;
         }
-        updateIndicator();
+        if (!rowsData(blocks.product.container).length) {
+            alert('Добавьте хотя бы один продукт на выходе'); e.preventDefault(); return;
+        }
     });
-
-    pkgQtyInput?.addEventListener('input', () => { mirrorPackageQty(); updateIndicator(); });
-    resultQty?.addEventListener('input', () => { resultQtyTouched = true; updateIndicator(); });
-
-    // Восстановление после ошибки валидации: результат уже выбран — показать блок
-    if (resultHidden && resultHidden.value) {
-        if (resultQtyWrap) resultQtyWrap.style.display = '';
-        if (resultQty && resultQty.value) resultQtyTouched = true;
-    }
-    updateIndicator();
 })();
 </script>
 @endpush

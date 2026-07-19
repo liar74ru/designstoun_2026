@@ -1,15 +1,15 @@
 <?php
 
 use App\Models\Department;
-use App\Models\Packaging;
-use App\Models\PackagingItem;
+use App\Models\Workshop;
+use App\Models\WorkshopItem;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Worker;
 use Illuminate\Support\Str;
 use Tests\Helpers\ReceptionTestHelper as H;
 
-function makePackagingInDept(?Department $dept, string $tag): Packaging
+function makeWorkshopInDept(?Department $dept, string $tag): Workshop
 {
     $store    = H::store('Склад ' . $tag);
     $packer   = Worker::create([
@@ -33,29 +33,35 @@ function makePackagingInDept(?Department $dept, string $tag): Packaging
         'moysklad_id' => (string) Str::uuid(),
     ]);
 
-    $packaging = Packaging::create([
-        'packer_id'          => $packer->id,
-        'receiver_id'        => $receiver->id,
-        'store_id'           => $store->id,
-        'department_id'      => $dept?->id,
-        'package_product_id' => $packageProduct->id,
-        'package_quantity'   => 1.0,
-        'status'             => Packaging::STATUS_ACTIVE,
+    $workshop = Workshop::create([
+        'packer_id'     => $packer->id,
+        'receiver_id'   => $receiver->id,
+        'store_id'      => $store->id,
+        'department_id' => $dept?->id,
+        'status'        => Workshop::STATUS_ACTIVE,
     ]);
 
-    PackagingItem::create([
-        'packaging_id' => $packaging->id,
-        'product_id'   => $product->id,
-        'quantity'     => 1.0,
+    WorkshopItem::create([
+        'workshop_id' => $workshop->id,
+        'product_id'  => $product->id,
+        'role'        => WorkshopItem::ROLE_RAW,
+        'quantity'    => 1.0,
     ]);
 
-    return $packaging;
+    WorkshopItem::create([
+        'workshop_id' => $workshop->id,
+        'product_id'  => $packageProduct->id,
+        'role'        => WorkshopItem::ROLE_PACKAGE,
+        'quantity'    => 1.0,
+    ]);
+
+    return $workshop;
 }
 
 function makeMasterPkg(Department $dept, string $name = 'Мастер PKG'): User
 {
     \App\Models\DepartmentOperationSetting::updateOrCreate(
-        ['department_id' => $dept->id, 'operation_key' => 'packagings'],
+        ['department_id' => $dept->id, 'operation_key' => 'workshops'],
         ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
     );
     $dept->forgetOperationsCache();
@@ -81,66 +87,66 @@ function makeMasterPkgNoDept(): User
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-test('мастер видит только упаковки своего отдела', function () {
+test('мастер видит только операции своего отдела', function () {
     $deptA = Department::create(['name' => 'Цех',     'code' => 'TSEH']);
     $deptB = Department::create(['name' => 'Галтовка', 'code' => 'GALT']);
 
-    makePackagingInDept($deptA, 'PKG-OWN');
-    makePackagingInDept($deptB, 'PKG-FOREIGN');
+    makeWorkshopInDept($deptA, 'PKG-OWN');
+    makeWorkshopInDept($deptB, 'PKG-FOREIGN');
 
     $this->actingAs(makeMasterPkg($deptA))
-        ->get(route('packagings.index'))
+        ->get(route('workshops.index'))
         ->assertStatus(200)
         ->assertSee('Продукт PKG-OWN')
         ->assertDontSee('Продукт PKG-FOREIGN');
 });
 
-test('мастер без отдела не имеет доступа к упаковке — 403', function () {
+test('мастер без отдела не имеет доступа к цеху — 403', function () {
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
-    makePackagingInDept($deptA, 'PKG-ANY');
+    makeWorkshopInDept($deptA, 'PKG-ANY');
 
     $this->actingAs(makeMasterPkgNoDept())
-        ->get(route('packagings.index'))
+        ->get(route('workshops.index'))
         ->assertForbidden();
 });
 
-test('мастер может через фильтр увидеть упаковки чужого отдела', function () {
+test('мастер может через фильтр увидеть операции чужого отдела', function () {
     $deptA = Department::create(['name' => 'Цех',     'code' => 'TSEH']);
     $deptB = Department::create(['name' => 'Галтовка', 'code' => 'GALT']);
 
-    makePackagingInDept($deptA, 'PKG-MINE');
-    makePackagingInDept($deptB, 'PKG-OTHER');
+    makeWorkshopInDept($deptA, 'PKG-MINE');
+    makeWorkshopInDept($deptB, 'PKG-OTHER');
 
     $this->actingAs(makeMasterPkg($deptA))
-        ->get(route('packagings.index', ['filter' => ['department_id' => [$deptB->id]]]))
+        ->get(route('workshops.index', ['filter' => ['department_id' => [$deptB->id]]]))
         ->assertStatus(200)
         ->assertSee('Продукт PKG-OTHER')
         ->assertDontSee('Продукт PKG-MINE');
 });
 
-test('админ видит все упаковки независимо от отдела', function () {
+test('админ видит все операции независимо от отдела', function () {
     $deptA = Department::create(['name' => 'Цех',     'code' => 'TSEH']);
     $deptB = Department::create(['name' => 'Галтовка', 'code' => 'GALT']);
 
-    makePackagingInDept($deptA, 'PKG-A');
-    makePackagingInDept($deptB, 'PKG-B');
-    makePackagingInDept(null,   'PKG-NULL');
+    makeWorkshopInDept($deptA, 'PKG-A');
+    makeWorkshopInDept($deptB, 'PKG-B');
+    makeWorkshopInDept(null,   'PKG-NULL');
 
     $this->actingAs(H::adminUser())
-        ->get(route('packagings.index'))
+        ->get(route('workshops.index'))
         ->assertStatus(200)
         ->assertSee('Продукт PKG-A')
         ->assertSee('Продукт PKG-B')
         ->assertSee('Продукт PKG-NULL');
 });
 
-test('упаковка с department_id=NULL невидима мастеру', function () {
+test('операция с department_id=NULL невидима мастеру', function () {
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
 
-    makePackagingInDept(null, 'PKG-HIDDEN-NULL');
+    makeWorkshopInDept(null, 'PKG-HIDDEN-NULL');
 
     $this->actingAs(makeMasterPkg($deptA))
-        ->get(route('packagings.index'))
+        ->get(route('workshops.index'))
         ->assertStatus(200)
         ->assertDontSee('Продукт PKG-HIDDEN-NULL');
 });

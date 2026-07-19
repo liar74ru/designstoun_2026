@@ -4,13 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PackagingItem extends Model
+class WorkshopItem extends Model
 {
-    protected $table = 'packaging_items';
+    protected $table = 'workshop_items';
+
+    const ROLE_RAW     = 'raw';      // сырьё (вход)
+    const ROLE_PACKAGE = 'package';  // упаковка/тара
+    const ROLE_PRODUCT = 'product';  // продукт (выход)
 
     protected $fillable = [
-        'packaging_id',
+        'workshop_id',
         'product_id',
+        'role',
         'quantity',
         'effective_cost_coeff',
         'is_undercut',
@@ -30,14 +35,29 @@ class PackagingItem extends Model
         'master_cost_per_m2'   => 'decimal:2',
     ];
 
-    public function packaging()
+    public function workshop()
     {
-        return $this->belongsTo(Packaging::class);
+        return $this->belongsTo(Workshop::class);
     }
 
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function scopeRaw($query)
+    {
+        return $query->where('role', self::ROLE_RAW);
+    }
+
+    public function scopePackage($query)
+    {
+        return $query->where('role', self::ROLE_PACKAGE);
+    }
+
+    public function scopeProduct($query)
+    {
+        return $query->where('role', self::ROLE_PRODUCT);
     }
 
     public function getBaseCoeffAttribute(): float
@@ -50,7 +70,7 @@ class PackagingItem extends Model
     }
 
     /**
-     * Зарплата упаковщика за единицу продукции, зафиксированная при создании позиции.
+     * Зарплата работника за единицу продукции, зафиксированная при создании позиции.
      */
     public function effectiveProdCost(): float
     {
@@ -58,7 +78,7 @@ class PackagingItem extends Model
     }
 
     /**
-     * Зарплата упаковщика за 1 м² = PACKAGING_PROD_COST × коэф продукта (04-XX)
+     * Зарплата работника за 1 м² = PACKAGING_PROD_COST × коэф продукта (04-XX)
      *                             + PACKAGING_COST      × коэф тары    (07-03-XX).
      */
     public static function computePackerCost(?float $productCoeff, ?float $packageCoeff): float

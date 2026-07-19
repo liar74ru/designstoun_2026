@@ -32,7 +32,7 @@ $table->timestamp('synced_at')->nullable();                 // Время пос
 ```php
 use App\Models\Concerns\HasMoyskladSync;
 
-class Packaging extends Model
+class Workshop extends Model
 {
     use HasMoyskladSync;
     // ...
@@ -188,7 +188,7 @@ return ['success' => true, 'message' => 'Приёмка завершена.'];
 
 ## Trait `HandlesProcessingSync` для sync-сервисов техопераций
 
-Сервисы, работающие с техоперациями МойСклад (`PackagingSyncService`, `StoneReceptionSyncService`), используют общий трейт `App\Services\Moysklad\Concerns\HandlesProcessingSync`. Он наследуется поверх `MoySkladBaseService` и предоставляет:
+Сервисы, работающие с техоперациями МойСклад (`WorkshopSyncService`, `StoneReceptionSyncService`), используют общий трейт `App\Services\Moysklad\Concerns\HandlesProcessingSync`. Он наследуется поверх `MoySkladBaseService` и предоставляет:
 
 | Метод | Назначение |
 |---|---|
@@ -211,6 +211,6 @@ return ['success' => true, 'message' => 'Приёмка завершена.'];
 | Модель | Статус |
 |---|---|
 | `StoneReception` | Реализован |
-| `Packaging` | Реализован |
+| `Workshop` | Реализован |
 | `RawMaterialBatch` | Реализован (синхронизация через перемещения, не техоперацию; trait моделей и UI-компонент общие, серверный trait `HandlesProcessingSync` неприменим) |
 | `SupplierOrder` | Использует свой паттерн (заказ + приёмка через `MoySkladPurchaseOrderService` + `MoySkladSupplyService`); общий trait/компонент **не применяется** |

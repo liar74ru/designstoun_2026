@@ -16,7 +16,7 @@
       $qtyMin          — string (default: '0.001')
       $qtyWidth        — string (default: '130px')
       $qtyMode         — 'simple' | 'delta' | 'none' (default: 'simple')
-                         simple — input qty (как в stone-receptions/create, supplier-orders, packagings)
+                         simple — input qty (как в stone-receptions/create, supplier-orders, workshops)
                          delta  — UI «0 + delta = result» с .js-new-delta/.js-new-result/.js-new-qty-out (для stone-receptions/edit)
                          none   — qty не рендерится (потребитель сам добавит)
       $showUndercut    — bool (default: false) — чекбокс «80% подкол»

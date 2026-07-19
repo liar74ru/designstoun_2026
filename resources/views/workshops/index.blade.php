@@ -1,21 +1,21 @@
 @extends('layouts.app')
-@section('title', 'Упаковка')
+@section('title', 'Цех')
 
 @section('content')
 <div class="container py-3 py-md-4">
 
-    <x-page-header title="📦 Упаковка" :hide-mobile="true">
+    <x-page-header title="🏭 Цех" :hide-mobile="true">
         <x-slot:actions>
-            <a href="{{ route('packagings.create') }}" class="btn btn-success btn-lg px-4">
-                <i class="bi bi-plus-circle"></i> Новая упаковка
+            <a href="{{ route('workshops.create') }}" class="btn btn-success btn-lg px-4">
+                <i class="bi bi-plus-circle"></i> Новая операция
             </a>
         </x-slot:actions>
     </x-page-header>
 
     @include('partials.alerts')
 
-    <a href="{{ route('packagings.create') }}" class="btn btn-success d-md-none w-100 mb-3">
-        <i class="bi bi-plus-circle"></i> Новая упаковка
+    <a href="{{ route('workshops.create') }}" class="btn btn-success d-md-none w-100 mb-3">
+        <i class="bi bi-plus-circle"></i> Новая операция
     </a>
 
     {{-- ═══════════════════════ ФИЛЬТРЫ ═══════════════════════ --}}
@@ -42,9 +42,9 @@
 
                 <div class="row g-2">
                     <div class="col-12 col-sm-6 col-lg-4">
-                        <label class="form-label small text-muted mb-1">Упаковщик</label>
+                        <label class="form-label small text-muted mb-1">Работник</label>
                         <select name="filter[packer_id]" class="form-select" style="border-radius:.4rem">
-                            <option value="">Все упаковщики</option>
+                            <option value="">Все работники</option>
                             @foreach($filterPackers as $w)
                                 <option value="{{ $w->id }}" {{ request('filter.packer_id') == $w->id ? 'selected' : '' }}>{{ $w->name }}</option>
                             @endforeach
@@ -120,10 +120,10 @@
     </form>
 
     {{-- ═══════════════════════ ТАБЛИЦА ═══════════════════════ --}}
-    @if($packagings->count() > 0)
+    @if($workshops->count() > 0)
         <div class="card shadow-sm">
             <div class="card-header bg-white d-flex justify-content-end align-items-center py-2">
-                <span class="text-muted small">Найдено: {{ $packagings->total() }}</span>
+                <span class="text-muted small">Найдено: {{ $workshops->total() }}</span>
             </div>
 
             {{-- ─── ДЕСКТОП ─── --}}
@@ -134,11 +134,11 @@
                             <tr>
                                 <th>#</th>
                                 <th>Дата</th>
-                                <th>Упаковано</th>
+                                <th>Сырьё</th>
                                 <th>Итого</th>
-                                <th>Тара</th>
+                                <th>Упаковка</th>
                                 <th>Шт</th>
-                                <th>Упаковщик</th>
+                                <th>Работник</th>
                                 <th>Отдел</th>
                                 <th>Склад</th>
                                 <th>Статус</th>
@@ -146,12 +146,16 @@
                             </tr>
                         </thead>
                         <tbody>
-                        @foreach($packagings as $packaging)
-                            <tr class="{{ $packaging->status === 'completed' ? 'table-warning' : ($packaging->status === 'error' ? 'table-danger' : '') }}">
-                                <td>{{ $packaging->id }}</td>
-                                <td class="text-nowrap">{{ $packaging->created_at->format('d.m.Y H:i') }}</td>
+                        @foreach($workshops as $workshop)
+                            <tr class="{{ $workshop->status === 'completed' ? 'table-warning' : ($workshop->status === 'error' ? 'table-danger' : '') }}">
+                                <td>{{ $workshop->id }}</td>
+                                <td class="text-nowrap">{{ $workshop->created_at->format('d.m.Y H:i') }}</td>
+                                @php
+                                    $rawItems     = $workshop->items->where('role', \App\Models\WorkshopItem::ROLE_RAW);
+                                    $packageItems = $workshop->items->where('role', \App\Models\WorkshopItem::ROLE_PACKAGE);
+                                @endphp
                                 <td>
-                                    @foreach($packaging->items as $item)
+                                    @foreach($rawItems as $item)
                                         <div class="{{ !$loop->last ? 'mb-1 pb-1 border-bottom' : '' }}">
                                             <strong>{{ $item->product->name }}</strong><br>
                                             <small class="text-muted">{{ $item->product->sku }}</small>
@@ -159,63 +163,65 @@
                                         </div>
                                     @endforeach
                                 </td>
-                                <td><span class="badge bg-primary">{{ number_format($packaging->total_quantity, 3) }}</span></td>
+                                <td><span class="badge bg-primary">{{ number_format($workshop->total_quantity, 3) }}</span></td>
                                 <td>
-                                    @if($packaging->packageProduct)
-                                        {{ $packaging->packageProduct->name }}<br>
-                                        <small class="text-muted">{{ $packaging->packageProduct->sku }}</small>
-                                    @else
+                                    @forelse($packageItems as $item)
+                                        <div class="{{ !$loop->last ? 'mb-1' : '' }}">
+                                            {{ $item->product->name }}<br>
+                                            <small class="text-muted">{{ $item->product->sku }}</small>
+                                        </div>
+                                    @empty
                                         <span class="text-muted">—</span>
-                                    @endif
+                                    @endforelse
                                 </td>
-                                <td><span class="badge bg-warning text-dark">{{ number_format($packaging->package_quantity, 0) }}</span></td>
-                                <td>{{ $packaging->packer->name ?? '—' }}</td>
-                                <td class="small text-muted">{{ $packaging->department?->name ?? '—' }}</td>
-                                <td>{{ $packaging->store->name ?? '—' }}</td>
+                                <td><span class="badge bg-warning text-dark">{{ number_format($packageItems->sum('quantity'), 0) }}</span></td>
+                                <td>{{ $workshop->packer->name ?? '—' }}</td>
+                                <td class="small text-muted">{{ $workshop->department?->name ?? '—' }}</td>
+                                <td>{{ $workshop->store->name ?? '—' }}</td>
                                 <td>
-                                    @if($packaging->status === 'active')
+                                    @if($workshop->status === 'active')
                                         <span class="badge bg-success">Активна</span>
-                                    @elseif($packaging->status === 'completed')
+                                    @elseif($workshop->status === 'completed')
                                         <span class="badge bg-warning text-dark">Закрыта</span>
                                     @else
                                         <span class="badge bg-danger">Ошибка</span>
                                     @endif
-                                    @if($packaging->moysklad_sync_status && !$packaging->isSynced())
-                                        <br><span class="badge {{ $packaging->syncStatusBadgeClass() }} mt-1">{{ $packaging->syncStatusLabel() }}</span>
+                                    @if($workshop->moysklad_sync_status && !$workshop->isSynced())
+                                        <br><span class="badge {{ $workshop->syncStatusBadgeClass() }} mt-1">{{ $workshop->syncStatusLabel() }}</span>
                                     @endif
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1 justify-content-end">
-                                        @if($packaging->status === 'active')
-                                            <a href="{{ route('packagings.edit', $packaging) }}" class="btn btn-sm btn-success" title="Редактировать">
+                                        @if($workshop->status === 'active')
+                                            <a href="{{ route('workshops.edit', $workshop) }}" class="btn btn-sm btn-success" title="Редактировать">
                                                 <i class="bi bi-plus-lg"></i>
                                             </a>
-                                            <form method="POST" action="{{ route('packagings.mark-completed', $packaging) }}" class="d-inline" onsubmit="return confirm('Закрыть упаковку?')">
+                                            <form method="POST" action="{{ route('workshops.mark-completed', $workshop) }}" class="d-inline" onsubmit="return confirm('Закрыть операцию?')">
                                                 @csrf @method('PATCH')
-                                                <button type="submit" class="btn btn-sm btn-warning" title="Закрыть упаковку">
+                                                <button type="submit" class="btn btn-sm btn-warning" title="Закрыть операцию">
                                                     <i class="bi bi-check2-circle"></i>
                                                 </button>
                                             </form>
                                         @endif
-                                        <form action="{{ route('packagings.copy', $packaging) }}" method="POST" class="d-inline">
+                                        <form action="{{ route('workshops.copy', $workshop) }}" method="POST" class="d-inline">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-outline-info" title="Копировать">
                                                 <i class="bi bi-copy"></i>
                                             </button>
                                         </form>
-                                        <a href="{{ route('packagings.show', $packaging) }}" class="btn btn-sm btn-outline-secondary" title="Просмотр">
+                                        <a href="{{ route('workshops.show', $workshop) }}" class="btn btn-sm btn-outline-secondary" title="Просмотр">
                                             <i class="bi bi-eye"></i>
                                         </a>
-                                        @if($packaging->status !== 'active')
-                                            <form action="{{ route('packagings.reset-status', $packaging) }}" method="POST" class="d-inline" onsubmit="return confirm('Сбросить статус?')">
+                                        @if($workshop->status !== 'active')
+                                            <form action="{{ route('workshops.reset-status', $workshop) }}" method="POST" class="d-inline" onsubmit="return confirm('Сбросить статус?')">
                                                 @csrf @method('PATCH')
                                                 <button type="submit" class="btn btn-sm btn-outline-warning" title="Сбросить статус">
                                                     <i class="bi bi-arrow-counterclockwise"></i>
                                                 </button>
                                             </form>
                                         @endif
-                                        @if($packaging->status === 'active')
-                                            <form action="{{ route('packagings.destroy', $packaging) }}" method="POST" class="d-inline" onsubmit="return confirm('Удалить упаковку?')">
+                                        @if($workshop->status === 'active')
+                                            <form action="{{ route('workshops.destroy', $workshop) }}" method="POST" class="d-inline" onsubmit="return confirm('Удалить операцию?')">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
                                                     <i class="bi bi-trash"></i>
@@ -233,18 +239,18 @@
 
             {{-- ─── МОБИЛЬНЫЙ ─── --}}
             <div class="d-md-none" style="padding:.25rem">
-                @foreach($packagings as $packaging)
+                @foreach($workshops as $workshop)
                     <div class="card mb-2 shadow-sm" style="border-radius:.4rem">
                         <div class="card-body p-2">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <div class="small text-muted">{{ $packaging->created_at->format('d.m H:i') }} · #{{ $packaging->id }}</div>
-                                    <div class="fw-semibold">{{ $packaging->packer->name ?? '—' }}</div>
+                                    <div class="small text-muted">{{ $workshop->created_at->format('d.m H:i') }} · #{{ $workshop->id }}</div>
+                                    <div class="fw-semibold">{{ $workshop->packer->name ?? '—' }}</div>
                                 </div>
                                 <div>
-                                    @if($packaging->status === 'active')
+                                    @if($workshop->status === 'active')
                                         <span class="badge bg-success">Активна</span>
-                                    @elseif($packaging->status === 'completed')
+                                    @elseif($workshop->status === 'completed')
                                         <span class="badge bg-warning text-dark">Закрыта</span>
                                     @else
                                         <span class="badge bg-danger">Ошибка</span>
@@ -252,25 +258,29 @@
                                 </div>
                             </div>
 
-                            @foreach($packaging->items as $item)
+                            @php
+                                $rawItems     = $workshop->items->where('role', \App\Models\WorkshopItem::ROLE_RAW);
+                                $packageItems = $workshop->items->where('role', \App\Models\WorkshopItem::ROLE_PACKAGE);
+                            @endphp
+                            @foreach($rawItems as $item)
                                 <div class="small mt-1">
                                     {{ $item->product->name }}: <strong>{{ number_format($item->quantity, 3) }}</strong>
                                 </div>
                             @endforeach
 
-                            @if($packaging->packageProduct)
+                            @foreach($packageItems as $item)
                                 <div class="small mt-1">
-                                    Тара: {{ $packaging->packageProduct->name }} × <strong>{{ number_format($packaging->package_quantity, 0) }}</strong>
+                                    Упаковка: {{ $item->product->name }} × <strong>{{ number_format($item->quantity, 0) }}</strong>
                                 </div>
-                            @endif
+                            @endforeach
 
                             <div class="d-flex gap-1 mt-2">
-                                @if($packaging->status === 'active')
-                                    <a href="{{ route('packagings.edit', $packaging) }}" class="btn btn-sm btn-success flex-fill">
+                                @if($workshop->status === 'active')
+                                    <a href="{{ route('workshops.edit', $workshop) }}" class="btn btn-sm btn-success flex-fill">
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                 @endif
-                                <a href="{{ route('packagings.show', $packaging) }}" class="btn btn-sm btn-outline-secondary flex-fill">
+                                <a href="{{ route('workshops.show', $workshop) }}" class="btn btn-sm btn-outline-secondary flex-fill">
                                     <i class="bi bi-eye"></i>
                                 </a>
                             </div>
@@ -282,9 +292,9 @@
             {{-- Пагинация --}}
             <div class="d-flex justify-content-between align-items-center p-2 p-md-3 border-top">
                 <span class="text-muted small">
-                    Показано {{ $packagings->firstItem() }}–{{ $packagings->lastItem() }} из {{ $packagings->total() }}
+                    Показано {{ $workshops->firstItem() }}–{{ $workshops->lastItem() }} из {{ $workshops->total() }}
                 </span>
-                {{ $packagings->links() }}
+                {{ $workshops->links() }}
             </div>
         </div>
     @else

@@ -76,13 +76,13 @@ processingSum = round(totalRubles × 100 / totalQty)
 
 ---
 
-## Упаковка (`PackagingSyncService`)
+## Цех (`WorkshopSyncService`)
 
-Для техоперации **упаковки** (`Packaging`) формула отличается:
+Для техоперации **цеха** (`Workshop`) формула отличается:
 
 - Накладных нет: `manualCostPerUnit = 0`.
-- `workerSalaryTotal = Σ (PackagingItem::effectiveProdCost × quantity)`, где `effectiveProdCost` — заранее вычисленный `worker_cost_per_m2` упаковщика.
-- `worker_cost_per_m2` рассчитывается через `PackagingItem::computePackerCost($productCoeff, $packageCoeff)`:
+- `workerSalaryTotal = Σ (WorkshopItem::effectiveProdCost × quantity)`, где `effectiveProdCost` — заранее вычисленный `worker_cost_per_m2` работника.
+- `worker_cost_per_m2` рассчитывается через `WorkshopItem::computePackerCost($productCoeff, $packageCoeff)`:
   ```
   packerCostPerM2 = PACKAGING_PROD_COST × product.prod_cost_coeff
                   + PACKAGING_COST      × packageProduct.prod_cost_coeff
@@ -103,6 +103,6 @@ processingSum = round(totalRubles × 100 / totalQty)
 | `result_product_id = NULL` (цех) | упакованные продукты (те же SKU) | продукты + тара | Σ количеств позиций |
 | `result_product_id` задан (отдел упаковки) | товар-результат, кол-во = `package_quantity` | продукты + тара | `package_quantity` |
 
-Зарплата упаковщика в обоих режимах считается одинаково — по позициям упаковки (`PackagingItem`). В режиме товара-результата делителем `calcProcessingSum` становится `package_quantity`, чтобы МойСклад, умножив копейки/ед. на `quantity` техоперации, получил ту же итоговую сумму.
+Зарплата работника в обоих режимах считается одинаково — по позициям операции (`WorkshopItem`). В режиме товара-результата делителем `calcProcessingSum` становится `package_quantity`, чтобы МойСклад, умножив копейки/ед. на `quantity` техоперации, получил ту же итоговую сумму.
 
 После успешной синхронизации остатки затронутых товаров (продукты, тара, товар-результат) подтягиваются из МойСклад в `product_stocks` (`StockSyncService::updateProductStocksByMoyskladId`).

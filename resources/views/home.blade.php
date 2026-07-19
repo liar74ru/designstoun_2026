@@ -50,14 +50,14 @@
                 </a>
             </div>
 
-            <!-- Плитка Упаковка -->
+            <!-- Плитка Цех -->
             <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                <a href="{{ route('packagings.index') }}" class="text-decoration-none">
+                <a href="{{ route('workshops.index') }}" class="text-decoration-none">
                     <div class="card h-100 shadow-sm hover-shadow transition">
                         <div class="card-body text-center p-4">
-                            <div class="display-1 mb-3">🎁</div>
-                            <h5 class="card-title fw-bold">Упаковка</h5>
-                            <p class="card-text text-muted small">Упаковка готовой продукции</p>
+                            <div class="display-1 mb-3">🏭</div>
+                            <h5 class="card-title fw-bold">Цех</h5>
+                            <p class="card-text text-muted small">Операции цеха</p>
                         </div>
                     </div>
                 </a>

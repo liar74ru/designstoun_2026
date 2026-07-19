@@ -183,18 +183,18 @@
 
         {{-- Упаковка --}}
         @php
-            $packagingKeys     = ['PACKAGING_PROD_COST', 'PACKAGING_COST'];
-            $packagingSettings = $settings->filter(fn($s) => in_array($s->key, $packagingKeys));
+            $workshopKeys     = ['PACKAGING_PROD_COST', 'PACKAGING_COST'];
+            $workshopSettings = $settings->filter(fn($s) => in_array($s->key, $workshopKeys));
         @endphp
-        @if($packagingSettings->isNotEmpty())
+        @if($workshopSettings->isNotEmpty())
         <div class="card shadow-sm mb-3">
             <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
                  role="button"
-                 data-block-id="packaging">
-                <span>Упаковка</span>
+                 data-block-id="workshop">
+                <span>Цех</span>
                 <i class="bi bi-chevron-down collapse-icon"></i>
             </div>
-            <div class="collapse-content" id="block-packaging" style="display: none;">
+            <div class="collapse-content" id="block-workshop" style="display: none;">
                 <div class="card-body">
                     <div class="alert alert-info py-2 px-3 mb-3 small">
                         <i class="bi bi-info-circle"></i>
@@ -202,9 +202,9 @@
                         ставка за тару × коэффициент тары (07-03-XX). Коэффициенты берутся из карточки товара.
                     </div>
 
-                    @foreach($packagingKeys as $key)
+                    @foreach($workshopKeys as $key)
                         @php
-                            $setting = $packagingSettings->firstWhere('key', $key);
+                            $setting = $workshopSettings->firstWhere('key', $key);
                             $i       = $settings->search(fn($s) => $s->key === $key);
                         @endphp
                         @if($setting)

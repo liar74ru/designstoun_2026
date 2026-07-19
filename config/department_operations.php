@@ -38,11 +38,11 @@ return [
         'route_pattern'          => 'stone-receptions.*',
         'configurable_positions' => ['Мастер', 'Помощник мастера'],
     ],
-    'packagings' => [
-        'label'                  => 'Упак.',
+    'workshops' => [
+        'label'                  => 'Цех',
         'icon'                   => 'bi-box-seam',
-        'route'                  => 'packagings.index',
-        'route_pattern'          => 'packagings.*',
+        'route'                  => 'workshops.index',
+        'route_pattern'          => 'workshops.*',
         'configurable_positions' => ['Мастер', 'Помощник мастера'],
     ],
     'raw-batches' => [

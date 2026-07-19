@@ -4,7 +4,7 @@ use App\Http\Controllers\CounterpartyController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RawMaterialBatchController;
-use App\Http\Controllers\PackagingController;
+use App\Http\Controllers\WorkshopController;
 use App\Http\Controllers\StoneReceptionController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\SupplierOrderController;
@@ -134,16 +134,17 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/api/batches/{batch}/active-reception', [StoneReceptionController::class, 'getActiveReceptionByBatchJson'])->name('api.batch.active-reception');
     });
 
-    // Упаковка — операция packagings
-    Route::middleware('can:see-packagings')->group(function () {
-        Route::resource('packagings', PackagingController::class);
-        Route::post  ('packagings/{packaging}/copy',                [PackagingController::class, 'copy'])->name('packagings.copy');
-        Route::patch ('packagings/{packaging}/reset-status',        [PackagingController::class, 'resetStatus'])->name('packagings.reset-status');
-        Route::patch ('packagings/{packaging}/mark-completed',      [PackagingController::class, 'markCompleted'])->name('packagings.mark-completed');
-        Route::post  ('packagings/{packaging}/sync',                [PackagingController::class, 'syncToProcessing'])->name('packagings.sync');
-        Route::post  ('packagings/{packaging}/item-coeffs',         [PackagingController::class, 'updateItemCoeff'])->name('packagings.update-item-coeff');
-        Route::post  ('packagings/{packaging}/refresh-item-coeffs', [PackagingController::class, 'refreshItemCoeffs'])->name('packagings.refresh-item-coeffs');
-        Route::get   ('api/workers/{worker}/default-production-store', [PackagingController::class, 'getDefaultStoreJson'])->name('api.worker.default-production-store');
+    // Цех — операция workshops
+    Route::redirect('/packagings', '/workshops');
+    Route::middleware('can:see-workshops')->group(function () {
+        Route::resource('workshops', WorkshopController::class);
+        Route::post  ('workshops/{workshop}/copy',                [WorkshopController::class, 'copy'])->name('workshops.copy');
+        Route::patch ('workshops/{workshop}/reset-status',        [WorkshopController::class, 'resetStatus'])->name('workshops.reset-status');
+        Route::patch ('workshops/{workshop}/mark-completed',      [WorkshopController::class, 'markCompleted'])->name('workshops.mark-completed');
+        Route::post  ('workshops/{workshop}/sync',                [WorkshopController::class, 'syncToProcessing'])->name('workshops.sync');
+        Route::post  ('workshops/{workshop}/item-coeffs',         [WorkshopController::class, 'updateItemCoeff'])->name('workshops.update-item-coeff');
+        Route::post  ('workshops/{workshop}/refresh-item-coeffs', [WorkshopController::class, 'refreshItemCoeffs'])->name('workshops.refresh-item-coeffs');
+        Route::get   ('api/workers/{worker}/default-production-store', [WorkshopController::class, 'getDefaultStoreJson'])->name('api.worker.default-production-store');
     });
 
     // Партии сырья — операция raw-batches
