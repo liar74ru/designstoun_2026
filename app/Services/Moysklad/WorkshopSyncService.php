@@ -391,7 +391,7 @@ class WorkshopSyncService extends MoySkladBaseService
 
     /**
      * processingSum (копейки/ед): ручные затраты (₽/ед × 100) либо авто-fallback
-     * по зафиксированной зарплате сырья, поделённой на количество продукта.
+     * по зафиксированной зарплате продукта, поделённой на количество продукта.
      */
     private function computeProcessingSum(Workshop $workshop, float $totalQuantity): int
     {
@@ -400,7 +400,7 @@ class WorkshopSyncService extends MoySkladBaseService
         }
 
         $workerSalaryTotal = 0;
-        foreach ($workshop->items->where('role', WorkshopItem::ROLE_RAW) as $item) {
+        foreach ($workshop->items->where('role', WorkshopItem::ROLE_PRODUCT) as $item) {
             $workerSalaryTotal += $item->effectiveProdCost() * (float) $item->quantity;
         }
 

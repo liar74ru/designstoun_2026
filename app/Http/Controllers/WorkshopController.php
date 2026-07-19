@@ -47,6 +47,20 @@ class WorkshopController extends Controller
     {
         $data = $this->service->getFormOptions();
         $data['selectedPackerId'] = $request->input('packer_id');
+        $data['lastWorkshops']    = $this->service->getLastWorkshops($request);
+
+        $copyItems = [];
+        if ($copyFromId = $request->input('copy_from')) {
+            $copyFrom = Workshop::with('items.product')->find($copyFromId);
+            if ($copyFrom) {
+                $copyItems = $copyFrom->items->map(fn($item) => [
+                    'role'          => $item->role,
+                    'product_id'    => $item->product_id,
+                    'product_label' => $item->product?->name ?? '',
+                ])->values()->toArray();
+            }
+        }
+        $data['copyItems'] = $copyItems;
 
         return view('workshops.create', $data);
     }

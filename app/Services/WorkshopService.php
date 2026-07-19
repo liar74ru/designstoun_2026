@@ -134,6 +134,22 @@ class WorkshopService
             ->withQueryString();
     }
 
+    /**
+     * Последние операции цеха для панели копирования в create-форме.
+     * Скоуп — по доступным пользователю отделам (как в getFilteredWorkshops).
+     */
+    public function getLastWorkshops(?Request $request = null, int $limit = 15): \Illuminate\Support\Collection
+    {
+        $accessible = $request?->user()?->accessibleDepartmentIds();
+
+        return Workshop::query()
+            ->with(['packer', 'items.product'])
+            ->when($accessible !== null, fn($q) => $q->whereIn('department_id', $accessible ?: [-1]))
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
+    }
+
     public function getDefaultStoreForPacker(?Worker $packer): ?Store
     {
         if (!$packer) {
@@ -154,7 +170,7 @@ class WorkshopService
         DB::transaction(function () use ($data, &$workshop) {
             $workshop = Workshop::create($this->prepareWorkshopData($data));
 
-            // Порядок: сначала упаковка (её коэффициент нужен для расчёта зарплаты сырья).
+            // Порядок: сначала упаковка (её коэффициент нужен для расчёта зарплаты продукта).
             $this->createWorkshopItems($workshop, $data['packages'] ?? [], WorkshopItem::ROLE_PACKAGE);
             $this->createWorkshopItems($workshop, $data['raw_materials'], WorkshopItem::ROLE_RAW);
             $this->createWorkshopItems($workshop, $data['products'], WorkshopItem::ROLE_PRODUCT);
@@ -207,7 +223,7 @@ class WorkshopService
 
             $workshop->update($this->prepareWorkshopData($data, false));
 
-            // Порядок: упаковка → сырьё (коэффициент тары) → продукт.
+            // Порядок: упаковка (коэффициент тары) → сырьё → продукт.
             $this->syncRoleItems($workshop, $data['packages'] ?? [], WorkshopItem::ROLE_PACKAGE);
             $this->syncRoleItems($workshop, $data['raw_materials'], WorkshopItem::ROLE_RAW);
             $this->syncRoleItems($workshop, $data['products'], WorkshopItem::ROLE_PRODUCT);
@@ -368,7 +384,7 @@ class WorkshopService
 
         DB::transaction(function () use ($workshop, $validated, $packageCoeff) {
             foreach ($validated['items'] as $row) {
-                $item = $workshop->rawItems()->with('product')->findOrFail($row['item_id']);
+                $item = $workshop->productItems()->with('product')->findOrFail($row['item_id']);
 
                 $isUndercut   = !empty($row['is_undercut']);
                 $isEdging     = !empty($row['is_edging']);
@@ -394,7 +410,7 @@ class WorkshopService
         $packageCoeff = $this->firstPackageCoeff($workshop);
 
         DB::transaction(function () use ($workshop, $packageCoeff) {
-            foreach ($workshop->rawItems()->with('product')->get() as $item) {
+            foreach ($workshop->productItems()->with('product')->get() as $item) {
                 if (!$item->product || $item->product->prod_cost_coeff === null) {
                     continue;
                 }
@@ -444,7 +460,7 @@ class WorkshopService
         return $prepared;
     }
 
-    /** Коэффициент первой позиции тары — для расчёта зарплаты сырья (fallback). */
+    /** Коэффициент первой позиции тары — для расчёта зарплаты продукта (fallback). */
     private function firstPackageCoeff(Workshop $workshop): float
     {
         $item = $workshop->packageItems()->with('product')->first();
@@ -453,8 +469,8 @@ class WorkshopService
 
     /**
      * Создать строки одной роли. Себестоимостные поля (зарплата/коэффициенты)
-     * заполняются только для сырья (role=raw) — они нужны лишь для авто-fallback
-     * processingSum. Для упаковки и продукта пишем только product_id/quantity.
+     * заполняются только для продукта (role=product) — они нужны лишь для авто-fallback
+     * processingSum. Для сырья и упаковки пишем только product_id/quantity.
      */
     private function createWorkshopItems(Workshop $workshop, array $rows, string $role): void
     {
@@ -463,7 +479,7 @@ class WorkshopService
             return;
         }
 
-        if ($role !== WorkshopItem::ROLE_RAW) {
+        if ($role !== WorkshopItem::ROLE_PRODUCT) {
             foreach ($rows as $row) {
                 $workshop->items()->create([
                     'product_id' => $row['product_id'],
@@ -479,13 +495,13 @@ class WorkshopService
 
         foreach ($rows as $row) {
             $workshop->items()->create(
-                $this->rawItemAttributes($row['product_id'], $row['quantity'], $productMap->get($row['product_id']), $packageCoeff)
+                $this->productItemAttributes($row['product_id'], $row['quantity'], $productMap->get($row['product_id']), $packageCoeff)
             );
         }
     }
 
-    /** Атрибуты строки сырья с зафиксированной зарплатой. */
-    private function rawItemAttributes(int $productId, $quantity, ?Product $prod, float $packageCoeff): array
+    /** Атрибуты строки продукта с зафиксированной зарплатой. */
+    private function productItemAttributes(int $productId, $quantity, ?Product $prod, float $packageCoeff): array
     {
         $productCoeff = (float) ($prod?->prod_cost_coeff ?? 0);
         $isSmallTile  = StoneReceptionItem::skuIsSmallTile($prod?->sku);
@@ -493,7 +509,7 @@ class WorkshopService
 
         return [
             'product_id'           => $productId,
-            'role'                 => WorkshopItem::ROLE_RAW,
+            'role'                 => WorkshopItem::ROLE_PRODUCT,
             'quantity'             => $quantity,
             'effective_cost_coeff' => $effCoeff,
             'is_undercut'          => false,
@@ -516,10 +532,10 @@ class WorkshopService
         $newProductIds = array_column($rows, 'product_id');
 
         $newIds     = array_diff($newProductIds, $existing->keys()->toArray());
-        $productMap = ($role === WorkshopItem::ROLE_RAW && $newIds)
+        $productMap = ($role === WorkshopItem::ROLE_PRODUCT && $newIds)
             ? Product::whereIn('id', $newIds)->get()->keyBy('id')
             : collect();
-        $packageCoeff = $role === WorkshopItem::ROLE_RAW ? $this->firstPackageCoeff($workshop) : 0.0;
+        $packageCoeff = $role === WorkshopItem::ROLE_PRODUCT ? $this->firstPackageCoeff($workshop) : 0.0;
 
         foreach ($rows as $row) {
             $productId = $row['product_id'];
@@ -529,9 +545,9 @@ class WorkshopService
                 continue;
             }
 
-            if ($role === WorkshopItem::ROLE_RAW) {
+            if ($role === WorkshopItem::ROLE_PRODUCT) {
                 $workshop->items()->create(
-                    $this->rawItemAttributes($productId, $row['quantity'], $productMap->get($productId), $packageCoeff)
+                    $this->productItemAttributes($productId, $row['quantity'], $productMap->get($productId), $packageCoeff)
                 );
             } else {
                 $workshop->items()->create([

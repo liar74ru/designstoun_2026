@@ -297,19 +297,65 @@
 
             <div class="col-12 col-lg-5 d-none d-lg-block">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-white py-2">
-                        <span class="small fw-semibold text-muted">Подсказка</span>
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                        <span class="fw-semibold small">
+                            <i class="bi bi-clock-history me-1"></i> Последние операции
+                        </span>
+                        <span class="badge bg-secondary">{{ $lastWorkshops->count() }}</span>
                     </div>
-                    <div class="card-body small text-muted">
-                        <ol class="ps-3 mb-0">
-                            <li>Выберите работника и мастера.</li>
-                            <li>Склады подставляются из настроек отдела — при необходимости выберите вручную в блоке «Склады».</li>
-                            <li><b>Сырьё</b> — материалы на входе (можно несколько позиций).</li>
-                            <li><b>Упаковка</b> — тара (07-03-xx), тоже несколько позиций; списывается со склада сырья.</li>
-                            <li><b>Продукт</b> — готовая продукция на выходе (можно несколько позиций).</li>
-                            <li><b>Затраты</b> — себестоимость производства ₽ за единицу продукта. Пусто — считается автоматически.</li>
-                            <li>Сохраните: создастся техоперация в МойСклад (префикс ЦЕХ): материалы = сырьё + упаковка, продукты = продукт.</li>
-                        </ol>
+
+                    <div class="list-group list-group-flush">
+                        @forelse($lastWorkshops as $w)
+                            @php
+                                $wRaw     = $w->items->where('role', \App\Models\WorkshopItem::ROLE_RAW);
+                                $wProduct = $w->items->where('role', \App\Models\WorkshopItem::ROLE_PRODUCT);
+                                $copyData = $w->items->map(fn($i) => [
+                                    'role'          => $i->role,
+                                    'product_id'    => $i->product_id,
+                                    'product_label' => $i->product?->name ?? '',
+                                ])->toJson(JSON_UNESCAPED_UNICODE);
+                            @endphp
+                            <div class="list-group-item px-2 py-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1 me-2">
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span class="fw-semibold small">#{{ $w->id }}</span>
+                                            <span class="text-muted" style="font-size:.72rem">
+                                                {{ $w->created_at->format('d.m H:i') }}
+                                            </span>
+                                        </div>
+                                        @foreach($wRaw as $item)
+                                            <div class="text-muted" style="font-size:.75rem">
+                                                {{ $item->product?->name }}
+                                                <span class="text-dark">× {{ number_format($item->quantity, 2) }}</span>
+                                            </div>
+                                        @endforeach
+                                        @foreach($wProduct as $item)
+                                            <div class="text-success-emphasis" style="font-size:.75rem">
+                                                <i class="bi bi-arrow-return-right me-1"></i>{{ $item->product?->name }}
+                                            </div>
+                                        @endforeach
+                                        @if($w->packer)
+                                            <div class="text-muted mt-1" style="font-size:.72rem">
+                                                <i class="bi bi-person me-1"></i>{{ $w->packer->name }}
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary copy-workshop-btn flex-shrink-0"
+                                            data-items="{{ $copyData }}"
+                                            style="width:28px;height:28px;padding:0;font-size:.75rem"
+                                            title="Скопировать позиции">
+                                        <i class="bi bi-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                                Нет операций
+                            </div>
+                        @endforelse
                     </div>
                 </div>
             </div>
@@ -467,11 +513,11 @@
     }
 
     async function recomputeSuggestedCost() {
-        const raws     = rowsData(blocks.raw.container);
+        const products = rowsData(blocks.product.container);
         const packages = rowsData(blocks.package.container);
         const totalProduct = sumQty(blocks.product.container);
 
-        if (!raws.length || totalProduct <= 0) {
+        if (!products.length || totalProduct <= 0) {
             if (costHint) costHint.textContent = '';
             return;
         }
@@ -480,10 +526,10 @@
         const packageCoeff = packages.length ? await fetchCoeff(packages[0].productId) : 0;
 
         let salaryTotal = 0;
-        for (const r of raws) {
-            const coeff = await fetchCoeff(r.productId);
+        for (const p of products) {
+            const coeff = await fetchCoeff(p.productId);
             const workerCost = PACKAGING_PROD_COST * coeff + PACKAGING_COST * packageCoeff;
-            salaryTotal += workerCost * r.qty;
+            salaryTotal += workerCost * p.qty;
         }
 
         const suggested = Math.round((salaryTotal / totalProduct) * 100) / 100;
@@ -505,6 +551,31 @@
 
     document.querySelectorAll('[data-add]').forEach(btn => {
         btn.addEventListener('click', () => addRow(btn.dataset.add));
+    });
+
+    // ── Копирование позиций (из списка операций / панели «Последние операции») ─
+    // Роль позиции (raw/package/product) совпадает с типом блока 1:1.
+    function copyItemsIntoForm(items) {
+        ['raw', 'package', 'product'].forEach(t => { blocks[t].container.innerHTML = ''; });
+        rowIndex = 0;
+        items.forEach(it => {
+            if (!blocks[it.role]) return;
+            addRow(it.role, { productId: it.product_id, label: it.product_label });
+        });
+        updateTotals();
+    }
+
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.copy-workshop-btn');
+        if (!btn) return;
+        try {
+            const items = JSON.parse(btn.dataset.items || '[]');
+            if (!items.length) return;
+            copyItemsIntoForm(items);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (err) {
+            console.error('copy-workshop-btn parse error', err);
+        }
     });
 
     // ── Склады строк по блокам ───────────────────────────────────────────────
@@ -536,9 +607,14 @@
         productStoreSelect.dataset.touched = '1';
     @endif
 
-    // Начальные строки.
-    addRow('raw');
-    addRow('product');
+    // Начальные строки: копия операции (copy_from) либо две пустые строки.
+    const copyItems = @json($copyItems ?? []);
+    if (copyItems.length) {
+        copyItemsIntoForm(copyItems);
+    } else {
+        addRow('raw');
+        addRow('product');
+    }
 
     // ── Тоггл блока МойСклад ──────────────────────────────────────────────────
     const msToggle  = document.getElementById('msToggle');

@@ -71,12 +71,12 @@ describe('WorkshopService::create()', function () {
             ->and((float) $workshop->productItems()->first()->quantity)->toBe(1.0);
     });
 
-    test('сохраняет worker_cost_per_m2 сырья по формуле работника', function () {
+    test('сохраняет worker_cost_per_m2 продукта по формуле работника', function () {
         $service  = new WorkshopService($this->mockSync);
         $workshop = $service->create(basePayload($this), false);
 
-        // 100 × 1.5 (коэф сырья) + 30 × 2.0 (коэф тары) = 210
-        expect((float) $workshop->rawItems()->first()->worker_cost_per_m2)->toBe(210.0);
+        // 100 × 1.0 (коэф продукта) + 30 × 2.0 (коэф тары) = 160
+        expect((float) $workshop->productItems()->first()->worker_cost_per_m2)->toBe(160.0);
     });
 
     test('worker_cost_per_m2 учитывает коэффициент упаковочной тары', function () {
@@ -87,8 +87,8 @@ describe('WorkshopService::create()', function () {
         $service  = new WorkshopService($this->mockSync);
         $workshop = $service->create(basePayload($this), false);
 
-        // 0 × 1.5 + 50 × 3.5 = 175
-        expect((float) $workshop->rawItems()->first()->worker_cost_per_m2)->toBe(175.0);
+        // 0 × 1.0 + 50 × 3.5 = 175
+        expect((float) $workshop->productItems()->first()->worker_cost_per_m2)->toBe(175.0);
     });
 
     test('сохраняет manual_processing_sum и явно переданный department_id', function () {
@@ -256,7 +256,7 @@ describe('WorkshopService: склады', function () {
 
 describe('WorkshopService::refreshItemCoeffs()', function () {
 
-    test('пересчитывает worker_cost_per_m2 сырья после изменения настроек', function () {
+    test('пересчитывает worker_cost_per_m2 продукта после изменения настроек', function () {
         $service  = new WorkshopService($this->mockSync);
         $workshop = $service->create(basePayload($this), false);
 
@@ -265,7 +265,7 @@ describe('WorkshopService::refreshItemCoeffs()', function () {
 
         $service->refreshItemCoeffs($workshop);
 
-        // 200 × 1.5 + 60 × 2.0 = 420
-        expect((float) $workshop->rawItems()->first()->fresh()->worker_cost_per_m2)->toBe(420.0);
+        // 200 × 1.0 + 60 × 2.0 = 320
+        expect((float) $workshop->productItems()->first()->fresh()->worker_cost_per_m2)->toBe(320.0);
     });
 });

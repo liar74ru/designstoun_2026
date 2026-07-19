@@ -99,10 +99,10 @@ describe('WorkshopSyncService::createProcessingForWorkshop()', function () {
         });
     });
 
-    test('автоматический processingSum = round(зарплата сырья × 100 / кол-во продукта)', function () {
-        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 5.0, 210.0);
+    test('автоматический processingSum = round(зарплата продукта × 100 / кол-во продукта)', function () {
+        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 5.0);
         wsItem($this->workshop, $this->packageProduct, WorkshopItem::ROLE_PACKAGE, 1.0);
-        wsItem($this->workshop, $this->outProduct, WorkshopItem::ROLE_PRODUCT, 5.0);
+        wsItem($this->workshop, $this->outProduct, WorkshopItem::ROLE_PRODUCT, 5.0, 210.0);
 
         fakeMoyskladForWorkshop();
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop);
@@ -113,10 +113,10 @@ describe('WorkshopSyncService::createProcessingForWorkshop()', function () {
             && ($r->data()['processingSum'] ?? null) === 21000);
     });
 
-    test('зарплата считается только по сырью (упаковка/продукт не участвуют)', function () {
-        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 10.0, 0.0);
+    test('зарплата считается только по продукту (сырьё/упаковка не участвуют)', function () {
+        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 10.0, 999.0);
         wsItem($this->workshop, $this->packageProduct, WorkshopItem::ROLE_PACKAGE, 1.0, 999.0);
-        wsItem($this->workshop, $this->outProduct, WorkshopItem::ROLE_PRODUCT, 10.0, 999.0);
+        wsItem($this->workshop, $this->outProduct, WorkshopItem::ROLE_PRODUCT, 10.0, 0.0);
 
         fakeMoyskladForWorkshop();
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop);
