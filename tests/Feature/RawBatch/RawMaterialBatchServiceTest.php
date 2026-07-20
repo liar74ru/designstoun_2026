@@ -155,6 +155,8 @@ describe('RawMaterialBatchService::adjust()', function () {
         $batch->refresh();
         expect((float) $batch->remaining_quantity)->toBe(60.0);
         expect((float) $batch->initial_quantity)->toBe(60.0);
+        expect($result['movement']->movement_type)->toBe('adjust_increase');
+        expect((float) $result['movement']->quantity)->toBe(10.0);
     });
 
     test('уменьшает количество партии', function () {
@@ -176,6 +178,8 @@ describe('RawMaterialBatchService::adjust()', function () {
 
         $batch->refresh();
         expect((float) $batch->remaining_quantity)->toBe(45.0);
+        expect($result['movement']->movement_type)->toBe('adjust_decrease');
+        expect((float) $result['movement']->quantity)->toBe(5.0);
     });
 });
 

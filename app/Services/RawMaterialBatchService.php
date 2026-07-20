@@ -39,8 +39,8 @@ class RawMaterialBatchService
                 AllowedFilter::callback('department_id', fn($q, $v) =>
                     $q->whereIn('raw_material_batches.department_id', (array) $v)),
             ])
-            ->defaultSort('-created_at')
-            ->allowedSorts(['batch_number', 'created_at', 'quantity']);
+            ->defaultSort('-updated_at')
+            ->allowedSorts(['batch_number', 'created_at', 'updated_at', 'quantity']);
 
         if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
@@ -277,7 +277,7 @@ class RawMaterialBatchService
                 'from_worker_id' => null,
                 'to_worker_id'   => null,
                 'moved_by'       => auth()->user()?->worker_id ?? null,
-                'movement_type'  => $delta > 0 ? 'create' : 'use',
+                'movement_type'  => $delta > 0 ? 'adjust_increase' : 'adjust_decrease',
                 'quantity'       => abs($delta),
                 'created_at'     => $createdAt,
                 'updated_at'     => $createdAt,
@@ -399,9 +399,22 @@ class RawMaterialBatchService
         $newMovement  = null;
 
         DB::transaction(function () use ($batch, $data, $qty, $toStoreId, $fromStoreId, $targetWorker, &$newBatch, &$newMovement) {
+            $fromWorkerId = $batch->current_worker_id;
+
             $batch->update([
                 'initial_quantity'   => (float) $batch->initial_quantity - $qty,
                 'remaining_quantity' => (float) $batch->remaining_quantity - $qty,
+            ]);
+
+            RawMaterialMovement::create([
+                'batch_id'       => $batch->id,
+                'from_store_id'  => $fromStoreId,
+                'to_store_id'    => $toStoreId,
+                'from_worker_id' => $fromWorkerId,
+                'to_worker_id'   => $data['to_worker_id'],
+                'moved_by'       => auth()->user()?->worker_id ?? null,
+                'movement_type'  => 'transfer_to_worker',
+                'quantity'       => $qty,
             ]);
 
             $newBatch = RawMaterialBatch::create([
@@ -451,6 +464,17 @@ class RawMaterialBatchService
                 ? RawMaterialBatch::STATUS_CONFIRMED
                 : RawMaterialBatch::STATUS_IN_WORK;
             $batch->save();
+
+            RawMaterialMovement::create([
+                'batch_id'       => $batch->id,
+                'from_store_id'  => $oldStore,
+                'to_store_id'    => $data['to_store_id'],
+                'from_worker_id' => $oldWorker,
+                'to_worker_id'   => null,
+                'moved_by'       => auth()->user()?->worker_id ?? null,
+                'movement_type'  => 'return_to_store',
+                'quantity'       => $qty,
+            ]);
 
             $newBatch = RawMaterialBatch::create([
                 'product_id'         => $batch->product_id,

@@ -43,6 +43,15 @@ describe('Передача партии пильщику [transfer()]', function
         expect($movement)->not->toBeNull();
         expect($movement->from_worker_id)->toBe($cutter1->id);
         expect($movement->to_worker_id)->toBe($cutter2->id);
+
+        // Движение передачи записано и на исходную партию (для истории изменений)
+        $parentMovement = RawMaterialMovement::where('batch_id', $batch->id)
+            ->where('movement_type', 'transfer_to_worker')
+            ->first();
+        expect($parentMovement)->not->toBeNull();
+        expect($parentMovement->from_worker_id)->toBe($cutter1->id);
+        expect($parentMovement->to_worker_id)->toBe($cutter2->id);
+        expect((float) $parentMovement->quantity)->toBe(8.0);
     });
 
     test('успешно передаёт партию со статусом new', function () {
@@ -152,6 +161,15 @@ describe('Возврат партии на склад [return()]', function () {
         // Движение записано на новую партию
         expect(RawMaterialMovement::where('batch_id', $returnedBatch->id)
             ->where('movement_type', 'return_to_store')->exists())->toBeTrue();
+
+        // Движение возврата записано и на исходную партию (для истории изменений)
+        $parentMovement = RawMaterialMovement::where('batch_id', $batch->id)
+            ->where('movement_type', 'return_to_store')
+            ->first();
+        expect($parentMovement)->not->toBeNull();
+        expect($parentMovement->from_store_id)->toBe($fromStore->id);
+        expect($parentMovement->to_store_id)->toBe($toStore->id);
+        expect((float) $parentMovement->quantity)->toBe(10.0);
     });
 
     test('нельзя вернуть неактивную партию', function () {

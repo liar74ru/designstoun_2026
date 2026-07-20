@@ -41,7 +41,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Изначальное кол-во:</th>
+                                <th>Количество:</th>
                                 <td>{{ number_format($batch->initial_quantity, 3) }} м²</td>
                             </tr>
                             <tr>
@@ -268,10 +268,10 @@
                     </div>
                 </div>
 
-                <!-- История перемещений -->
+                <!-- История изменений -->
                 <div class="card shadow-sm">
                     <div class="card-header bg-white">
-                        <h5 class="mb-0">История перемещений</h5>
+                        <h5 class="mb-0">История изменений</h5>
                     </div>
                     <div class="card-body p-0">
                         @if($batch->movements && $batch->movements->count() > 0)
@@ -309,6 +309,16 @@
                                                     <i class="bi bi-scissors text-primary"></i>
                                                     Списано при производстве:
                                                     <strong>{{ $movement->quantity }}</strong> м²
+                                                    @break
+                                                @case('adjust_increase')
+                                                    <i class="bi bi-plus-circle text-success"></i>
+                                                    Корректировка:
+                                                    <strong>+{{ number_format($movement->quantity, 3) }}</strong> м²
+                                                    @break
+                                                @case('adjust_decrease')
+                                                    <i class="bi bi-dash-circle text-danger"></i>
+                                                    Корректировка:
+                                                    <strong>−{{ number_format($movement->quantity, 3) }}</strong> м²
                                                     @break
                                             @endswitch
                                         </div>

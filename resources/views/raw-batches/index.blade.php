@@ -52,7 +52,7 @@
                             <th>Текущий склад</th>
                             <th>Работник</th>
                             <th>Отдел</th>
-                            <th>Дата создания</th>
+                            <th>Дата изменения</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -82,7 +82,7 @@
                             <td>{{ $batch->currentStore->name ?? '—' }}</td>
                             <td>{{ $batch->currentWorker->name ?? '—' }}</td>
                             <td class="small text-muted">{{ $batch->department?->name ?? '—' }}</td>
-                            <td>{{ $batch->created_at->format('d.m.Y H:i') }}</td>
+                            <td>{{ $batch->updated_at->format('d.m.Y H:i') }}</td>
                             <td>
                                 <div class="d-flex gap-1 flex-wrap">
                                     <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-sm btn-outline-info" title="Просмотр">
@@ -168,13 +168,13 @@
                                     <span class="fw-semibold">{{ $batch->currentWorker?->name ?? '—' }}</span>
                                 </div>
                                 <div class="small text-muted mb-1">
-                                    <i class="bi bi-calendar me-1"></i>{{ $batch->created_at->format('d.m.Y') }}
+                                    <i class="bi bi-calendar me-1"></i>{{ $batch->updated_at->format('d.m.Y') }}
                                 </div>
                             </div>
                             <div class="d-flex flex-column gap-1 mt-1">
                                 <div>
                                     <span class="badge rounded-pill bg-primary">
-                                        перемещ.: {{ $batch->latestMovement?->quantity ? $fmt($batch->latestMovement->quantity).' м³' : '—' }}
+                                        всего: {{ $fmt($batch->initial_quantity) }} м³
                                     </span>
                                 </div>
                                 <div>
