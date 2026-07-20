@@ -214,6 +214,18 @@
     @vite(['resources/js/product-picker.js'])
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // ── Фильтр свёрнут по умолчанию (переопределяем авто-раскрытие partial'а) ──
+            (function () {
+                const collapse = document.getElementById('filter-collapse');
+                const chevron  = document.getElementById('filter-chevron');
+                if (!collapse) return;
+                const KEY = 'filter_collapsed_' + window.location.pathname.replace(/\//g, '_');
+                if (localStorage.getItem(KEY) !== 'open') {
+                    collapse.style.display = 'none';
+                    if (chevron) chevron.className = 'bi bi-chevron-down';
+                }
+            })();
+
             // ── Переключатель вкладок «Плитка / Сырьё» ────────────────────────────
             (function () {
                 const STORAGE_KEY = 'enterprise_dashboard_active_tab';
