@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Department;
+use App\Models\Product;
 use App\Models\RawMaterialBatch;
+use App\Models\RawMaterialMovement;
 use App\Models\ReceptionLog;
 use App\Models\Setting;
 use App\Models\StoneReception;
@@ -93,14 +96,22 @@ class WorkerDashboardService
      * Общий дашборд предприятия: агрегация всего производства за период по всем приёмкам,
      * с группировкой по отделам (внутри — сводка по продуктам). Только для админа.
      */
-    public function getEnterpriseDashboardData(Carbon $dateFrom, Carbon $dateTo): array
-    {
+    public function getEnterpriseDashboardData(
+        ?Carbon $dateFrom,
+        ?Carbon $dateTo,
+        array $departmentIds = [],
+        $rawProductId = null
+    ): array {
         $logs = ReceptionLog::with([
                 'items.product',
                 'stoneReception.items',
                 'stoneReception.department',
             ])
-            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
+            ->when($departmentIds, fn ($q) => $q->whereHas('stoneReception',
+                fn ($q2) => $q2->whereIn('department_id', $departmentIds)))
+            ->when($rawProductId, fn ($q) => $q->whereHas('rawMaterialBatch',
+                fn ($q2) => $q2->where('product_id', $rawProductId)))
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -124,14 +135,57 @@ class WorkerDashboardService
             ->sortBy(fn($row) => $row['department']?->name ?? "\u{FFFF}")
             ->values();
 
+        $incomingRaw = $this->buildIncomingRawSummary($dateFrom, $dateTo, $departmentIds, $rawProductId);
+
         return [
-            'departments'    => $departments,
-            'grandQuantity'  => $departments->sum('totalQuantity'),
-            'grandPay'       => $departments->sum('totalPay'),
-            'grandMasterPay' => $departments->sum('totalMasterPay'),
-            'dateFrom'       => $dateFrom,
-            'dateTo'         => $dateTo,
+            'departments'       => $departments,
+            'grandQuantity'     => $departments->sum('totalQuantity'),
+            'grandPay'          => $departments->sum('totalPay'),
+            'grandMasterPay'    => $departments->sum('totalMasterPay'),
+            'incomingRaw'       => $incomingRaw,
+            'incomingRawTotal'  => $incomingRaw->sum('quantity'),
+            'filterDepartments' => Department::orderBy('name')->get(),
+            'filterRawProducts' => Product::whereIn('id',
+                    RawMaterialBatch::query()->distinct()->pluck('product_id'))
+                ->orderBy('name')->get(),
+            'dateFrom'          => $dateFrom,
+            'dateTo'            => $dateTo,
         ];
+    }
+
+    /**
+     * Входящее сырьё за период: первичные поступления (движения 'create'),
+     * сгруппированные по продукту (камню). Только 'create', чтобы не задваивать
+     * объём дочерними партиями от передач/разделения.
+     */
+    private function buildIncomingRawSummary(
+        ?Carbon $dateFrom,
+        ?Carbon $dateTo,
+        array $departmentIds = [],
+        $rawProductId = null
+    ): Collection {
+        return RawMaterialMovement::query()
+            ->where('movement_type', 'create')
+            ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
+            ->when($departmentIds, fn ($q) => $q->whereHas('batch',
+                fn ($q2) => $q2->whereIn('department_id', $departmentIds)))
+            ->when($rawProductId, fn ($q) => $q->whereHas('batch',
+                fn ($q2) => $q2->where('product_id', $rawProductId)))
+            ->with('batch.product')
+            ->get()
+            ->groupBy(fn ($m) => $m->batch?->product_id)
+            ->map(function ($movements) {
+                $product = $movements->first()?->batch?->product;
+
+                return [
+                    'product'  => $product,
+                    'uom'      => $product?->uom ?: 'м³',
+                    'quantity' => $movements->sum(fn ($m) => (float) $m->quantity),
+                ];
+            })
+            ->filter(fn ($row) => $row['quantity'] > 0)
+            ->sortByDesc('quantity')
+            ->values();
     }
 
     private function buildProductSummary(Collection $logs): Collection

@@ -12,17 +12,29 @@ class EnterpriseDashboardController extends Controller
 
     public function index(Request $request)
     {
-        [$defaultFrom, $defaultTo] = $this->service->getDefaultWeekRange();
+        // Первый заход без параметров → редирект на текущую неделю,
+        // чтобы даты в фильтре совпадали с данными (и работала кнопка «Всё время»).
+        if (empty($request->query())) {
+            [$f, $t] = $this->service->getDefaultWeekRange();
+
+            return redirect()->to(url()->current() . '?' . http_build_query([
+                'date_from' => $f->format('Y-m-d'),
+                'date_to'   => $t->format('Y-m-d'),
+            ]));
+        }
 
         $dateFrom = $request->filled('date_from')
             ? Carbon::parse($request->input('date_from'))->startOfDay()
-            : $defaultFrom;
+            : null;
 
         $dateTo = $request->filled('date_to')
             ? Carbon::parse($request->input('date_to'))->endOfDay()
-            : $defaultTo;
+            : null;
 
-        $data = $this->service->getEnterpriseDashboardData($dateFrom, $dateTo);
+        $departmentIds = array_filter((array) $request->input('filter.department_id', []));
+        $rawProductId  = $request->input('filter.product_id') ?: null;
+
+        $data = $this->service->getEnterpriseDashboardData($dateFrom, $dateTo, $departmentIds, $rawProductId);
 
         return view('admin.enterprise-dashboard', $data);
     }
