@@ -7,10 +7,12 @@ use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Models\ReceptionLog;
+use App\Models\ReceptionLogItem;
 use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
+use App\Models\WorkshopLogItem;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -102,7 +104,8 @@ class WorkerDashboardService
         ?Carbon $dateFrom,
         ?Carbon $dateTo,
         array $departmentIds = [],
-        $rawProductId = null
+        $rawProductId = null,
+        $productId = null
     ): array {
         $logs = ReceptionLog::with([
                 'items.product',
@@ -142,7 +145,7 @@ class WorkerDashboardService
         $departments = $stoneByDept->keys()
             ->merge($workshopByDept->keys())
             ->unique()
-            ->map(function ($deptId) use ($stoneByDept, $workshopByDept) {
+            ->map(function ($deptId) use ($stoneByDept, $workshopByDept, $productId) {
                 $deptStoneLogs    = $stoneByDept->get($deptId, collect());
                 $deptWorkshopLogs = $workshopByDept->get($deptId, collect());
 
@@ -150,6 +153,11 @@ class WorkerDashboardService
                     $this->buildProductSummary($deptStoneLogs),
                     $this->buildWorkshopProductSummary($deptWorkshopLogs),
                 );
+
+                // Фильтр по продукту (плитке): оставляем только строки выбранного товара.
+                if ($productId) {
+                    $summary = $summary->filter(fn($row) => $row['product']?->id == $productId)->values();
+                }
 
                 return [
                     'department'     => $deptStoneLogs->first()?->stoneReception?->department
@@ -164,6 +172,7 @@ class WorkerDashboardService
             ->sortBy(fn($row) => $row['department']?->name ?? "\u{FFFF}")
             ->values();
 
+        // Вкладка «Сырьё»: движения сырья не связаны с плиткой — фильтр $productId не применяется.
         $incomingRaw = $this->buildIncomingRawSummary($dateFrom, $dateTo, $departmentIds, $rawProductId);
 
         return [
@@ -176,6 +185,11 @@ class WorkerDashboardService
             'filterDepartments' => Department::orderBy('name')->get(),
             'filterRawProducts' => Product::whereIn('id',
                     RawMaterialBatch::query()->distinct()->pluck('product_id'))
+                ->orderBy('name')->get(),
+            'filterProducts'    => Product::whereIn('id',
+                    ReceptionLogItem::query()->distinct()->pluck('product_id')
+                        ->merge(WorkshopLogItem::where('role', WorkshopItem::ROLE_PRODUCT)
+                            ->distinct()->pluck('product_id')))
                 ->orderBy('name')->get(),
             'dateFrom'          => $dateFrom,
             'dateTo'            => $dateTo,

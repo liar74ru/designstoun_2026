@@ -32,9 +32,10 @@ class EnterpriseDashboardController extends Controller
             : null;
 
         $departmentIds = array_filter((array) $request->input('filter.department_id', []));
-        $rawProductId  = $request->input('filter.product_id') ?: null;
+        $rawProductId  = $request->input('filter.raw_product_id') ?: null;
+        $productId     = $request->input('filter.product_id') ?: null;
 
-        $data = $this->service->getEnterpriseDashboardData($dateFrom, $dateTo, $departmentIds, $rawProductId);
+        $data = $this->service->getEnterpriseDashboardData($dateFrom, $dateTo, $departmentIds, $rawProductId, $productId);
 
         return view('admin.enterprise-dashboard', $data);
     }

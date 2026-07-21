@@ -180,7 +180,7 @@ test('фильтр по камню отбирает цеха по сырьевы
     $admin = User::factory()->create(['is_admin' => true]);
 
     $response = $this->actingAs($admin)
-        ->get(route('admin.enterprise-dashboard', ['filter' => ['product_id' => $stoneA->id]]));
+        ->get(route('admin.enterprise-dashboard', ['filter' => ['raw_product_id' => $stoneA->id]]));
 
     $response->assertStatus(200);
 
@@ -188,6 +188,36 @@ test('фильтр по камню отбирает цеха по сырьевы
     expect($departments)->toHaveCount(1)
         ->and($departments->first()['department']->name)->toBe('Отдел камня А')
         ->and((float) $departments->first()['totalQuantity'])->toEqual(3.0);
+});
+
+test('фильтр по продукту оставляет только строки выбранной плитки', function () {
+    $deptA = Department::create(['name' => 'Отдел плитки А', 'is_active' => true]);
+    $deptB = Department::create(['name' => 'Отдел плитки Б', 'is_active' => true]);
+
+    $tileA = Product::factory()->create(['prod_cost_coeff' => 1.0]);
+    $tileB = Product::factory()->create(['prod_cost_coeff' => 1.0]);
+
+    makeEnterpriseReception($deptA, 'Приёмщик ПА', 10.0, $tileA);
+    makeEnterpriseWorkshop($deptA, 'ПА', 5.0, null, $tileB);
+    makeEnterpriseReception($deptB, 'Приёмщик ПБ', 4.0, $tileB);
+
+    $admin = User::factory()->create(['is_admin' => true]);
+
+    $response = $this->actingAs($admin)
+        ->get(route('admin.enterprise-dashboard', ['filter' => ['product_id' => $tileA->id]]));
+
+    $response->assertStatus(200);
+
+    $departments = $response->viewData('departments');
+    expect($departments)->toHaveCount(1)
+        ->and($departments->first()['department']->name)->toBe('Отдел плитки А')
+        ->and((float) $departments->first()['totalQuantity'])->toEqual(10.0);
+
+    $summary = $departments->first()['summary'];
+    expect($summary)->toHaveCount(1)
+        ->and($summary->first()['product']->id)->toBe($tileA->id);
+
+    expect((float) $response->viewData('grandQuantity'))->toEqual(10.0);
 });
 
 test('строки одного товара из приёмки и цеха объединяются в одну', function () {

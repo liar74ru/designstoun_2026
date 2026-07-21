@@ -12,12 +12,13 @@
 
         @include('partials.alerts')
 
-        {{-- Фильтры: период + отдел + камень/сырьё (универсальный partial) --}}
+        {{-- Фильтры: период + отдел + камень/сырьё + продукт (универсальный partial) --}}
         @include('partials.filters', [
             'filterDepartments'  => $filterDepartments,
             'departmentDefaults' => [],
             'filterRawProducts'  => $filterRawProducts,
-            'rawProductParam'    => 'product_id',
+            'rawProductParam'    => 'raw_product_id',
+            'filterProducts'     => $filterProducts,
         ])
 
         {{-- Переключатель вкладок «Плитка / Сырьё» --}}
