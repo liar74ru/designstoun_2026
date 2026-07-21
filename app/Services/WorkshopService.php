@@ -33,12 +33,12 @@ class WorkshopService
         $keep = $workshop ? array_filter([$workshop->packer_id, $workshop->receiver_id]) : [];
 
         $packers = Worker::with('departments')
-            ->whereIn('position', ['Мастер', 'Администратор'])
+            ->whereIn('position', Worker::MASTER_POSITIONS)
             ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
 
         $masterWorkers = Worker::with('departments')
-            ->whereIn('position', ['Мастер', 'Администратор'])
+            ->whereIn('position', Worker::MASTER_POSITIONS)
             ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
 

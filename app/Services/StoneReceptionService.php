@@ -319,13 +319,13 @@ class StoneReceptionService
     }
 
     /**
-     * Список мастеров/администраторов для выбора приёмщика.
+     * Список мастеров/помощников/администраторов для выбора приёмщика.
      * $keep — id, которые нужно сохранить в списке, даже если работник в архиве.
      */
     public function getMasterWorkers(array $keep = []): Collection
     {
         return Worker::with('departments')
-            ->whereIn('position', ['Мастер', 'Администратор'])
+            ->whereIn('position', Worker::MASTER_POSITIONS)
             ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
     }

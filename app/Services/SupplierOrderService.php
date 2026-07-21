@@ -51,7 +51,7 @@ class SupplierOrderService
     {
         $stores = Store::where('archived', false)->orderBy('name')->get();
         $counterparties = Counterparty::orderBy('name')->get();
-        $receivers = Worker::whereIn('position', ['Администратор', 'Мастер'])
+        $receivers = Worker::whereIn('position', Worker::MASTER_POSITIONS)
             ->orderBy('name')->get();
 
         return compact('stores', 'counterparties', 'receivers');
