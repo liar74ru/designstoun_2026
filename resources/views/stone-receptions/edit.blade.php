@@ -484,6 +484,8 @@
 
             const closeBatchInput   = document.getElementById('closeBatchInput');
             const saveCloseBatchBtn = document.getElementById('saveCloseBatchBtn');
+            const submitBtn         = document.querySelector('#receptionForm button[type="submit"]');
+            let isSubmitting = false;
 
             function updateCloseBatchBtn(hasBatch) {
                 if (!saveCloseBatchBtn) return;
@@ -517,10 +519,14 @@
                 }
             }
 
+            // Обычное сохранение не должно закрывать партию, даже если прошлый submit «+закрыть» прервала валидация
+            submitBtn?.addEventListener('click', () => { if (closeBatchInput) closeBatchInput.value = '0'; });
+
             saveCloseBatchBtn?.addEventListener('click', function () {
                 if (!confirm('Сохранить приёмку и закрыть партию?\nСвязанная приёмка будет переведена в статус «Завершена».')) return;
                 if (closeBatchInput) closeBatchInput.value = '1';
-                document.getElementById('receptionForm').submit();
+                // requestSubmit (а не submit) — чтобы сработала валидация в обработчике submit
+                document.getElementById('receptionForm').requestSubmit();
             });
 
             rawDeltaInput?.addEventListener('input', () => {
@@ -830,9 +836,11 @@
 
             // ── Валидация ────────────────────────────────────────────────────────────
             document.getElementById('receptionForm').addEventListener('submit', function (e) {
+                if (isSubmitting) { e.preventDefault(); return; }
                 const delta = parseFloat(rawDeltaInput?.value) || 0;
                 if (currentRaw + delta < 0) {
                     e.preventDefault();
+                    if (closeBatchInput) closeBatchInput.value = '0';
                     alert('Итоговый расход сырья не может быть отрицательным');
                     return;
                 }
@@ -847,7 +855,29 @@
                         row.classList.remove('border', 'border-danger', 'rounded', 'p-1');
                     }
                 });
-                if (!ok) { e.preventDefault(); alert('Для новых продуктов: выберите продукт и укажите количество > 0'); }
+                if (!ok) {
+                    e.preventDefault();
+                    if (closeBatchInput) closeBatchInput.value = '0';
+                    alert('Для новых продуктов: выберите продукт и укажите количество > 0');
+                    return;
+                }
+
+                // Индикация: страница ждёт синхронизацию с МойСклад, блокируем повторную отправку
+                isSubmitting = true;
+                const activeBtn = closeBatchInput?.value === '1' ? saveCloseBatchBtn : submitBtn;
+                if (activeBtn) activeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Сохранение…';
+                if (submitBtn) submitBtn.disabled = true;
+                if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = true;
+            });
+
+            // Возврат по «Назад» из bfcache — вернуть кнопкам исходное состояние
+            window.addEventListener('pageshow', function (e) {
+                if (!e.persisted) return;
+                isSubmitting = false;
+                if (closeBatchInput) closeBatchInput.value = '0';
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="bi bi-save"></i> Сохранить'; }
+                if (saveCloseBatchBtn) saveCloseBatchBtn.innerHTML = '<i class="bi bi-check2-circle"></i> Сохранить + Закрыть партию';
+                updateRaw(parseFloat(rawDeltaInput?.value) || 0);
             });
         });
     </script>

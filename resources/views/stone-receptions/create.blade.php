@@ -455,6 +455,8 @@
 
             const saveCloseBatchBtn = document.getElementById('saveCloseBatchBtn');
             const closeBatchInput   = document.getElementById('closeBatchInput');
+            const submitBtn         = document.querySelector('#receptionForm button[type="submit"]');
+            let isSubmitting = false;
 
             // ── Остаток партии ───────────────────────────────────────────────────────
             function updateRemainingIndicator() {
@@ -474,10 +476,14 @@
                 }
             }
 
+            // Обычное сохранение не должно закрывать партию, даже если прошлый submit «+закрыть» прервала валидация
+            submitBtn?.addEventListener('click', () => { closeBatchInput.value = '0'; });
+
             saveCloseBatchBtn?.addEventListener('click', function () {
                 if (!confirm('Сохранить приёмку и закрыть партию?\nСвязанная приёмка будет переведена в статус «Завершена».')) return;
                 closeBatchInput.value = '1';
-                document.getElementById('receptionForm').submit();
+                // requestSubmit (а не submit) — чтобы сработала валидация в обработчике submit
+                document.getElementById('receptionForm').requestSubmit();
             });
 
             // ── Последние приёмки по партии ─────────────────────────────────────────
@@ -880,12 +886,13 @@
 
             // ── Валидация перед отправкой ────────────────────────────────────────────
             document.getElementById('receptionForm').addEventListener('submit', function (e) {
+                if (isSubmitting) { e.preventDefault(); return; }
                 let ok = true;
                 const rows = container.querySelectorAll('.product-picker-row');
 
                 if (!rows.length) {
                     alert('Добавьте хотя бы один продукт');
-                    e.preventDefault(); return;
+                    e.preventDefault(); closeBatchInput.value = '0'; return;
                 }
 
                 rows.forEach(row => {
@@ -899,7 +906,7 @@
                     }
                 });
 
-                if (!ok) { alert('Заполните все поля продуктов'); e.preventDefault(); return; }
+                if (!ok) { alert('Заполните все поля продуктов'); e.preventDefault(); closeBatchInput.value = '0'; return; }
 
                 const opt = batchSelect.options[batchSelect.selectedIndex];
                 if (opt?.value) {
@@ -907,9 +914,26 @@
                     const used = parseFloat(rawQtyInput.value) || 0;
                     if (used > rem) {
                         alert('Расход сырья превышает остаток в партии');
-                        e.preventDefault();
+                        e.preventDefault(); closeBatchInput.value = '0'; return;
                     }
                 }
+
+                // Индикация: страница ждёт синхронизацию с МойСклад, блокируем повторную отправку
+                isSubmitting = true;
+                const activeBtn = closeBatchInput.value === '1' ? saveCloseBatchBtn : submitBtn;
+                if (activeBtn) activeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Сохранение…';
+                if (submitBtn) submitBtn.disabled = true;
+                if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = true;
+            });
+
+            // Возврат по «Назад» из bfcache — вернуть кнопкам исходное состояние
+            window.addEventListener('pageshow', function (e) {
+                if (!e.persisted) return;
+                isSubmitting = false;
+                closeBatchInput.value = '0';
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="bi bi-save"></i> Сохранить приёмку'; }
+                if (saveCloseBatchBtn) saveCloseBatchBtn.innerHTML = '<i class="bi bi-check2-circle"></i> Сохранить + Закрыть партию';
+                updateRemainingIndicator();
             });
 
             // ── Техоперация МойСклад: коллапс + переключатель «Вручную» ─────────────
