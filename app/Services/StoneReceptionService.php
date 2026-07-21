@@ -43,7 +43,7 @@ class StoneReceptionService
 
         $data = [
             'masterWorkers' => $this->getMasterWorkers($keep),
-            'workers'      => Worker::where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
+            'workers'      => Worker::with('departments')->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
                 ->orderBy('name')->get(),
             'products'     => Product::orderBy('name')->get(),
             'stores'       => Store::orderBy('name')->get(),
@@ -324,7 +324,8 @@ class StoneReceptionService
      */
     public function getMasterWorkers(array $keep = []): Collection
     {
-        return Worker::whereIn('position', ['Мастер', 'Администратор'])
+        return Worker::with('departments')
+            ->whereIn('position', ['Мастер', 'Администратор'])
             ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
     }

@@ -33,6 +33,20 @@ class Worker extends Model
         ];
     }
 
+    /**
+     * Инвариант: основной отдел всегда присутствует среди отделов работника.
+     * Держим pivot в актуальном состоянии при любой записи department_id.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (Worker $worker) {
+            if ($worker->department_id && ($worker->wasRecentlyCreated || $worker->wasChanged('department_id'))) {
+                $worker->departments()->syncWithoutDetaching([$worker->department_id]);
+                $worker->unsetRelation('departments');
+            }
+        });
+    }
+
     /** Активные (не уволенные) работники */
     public function scopeActive($query)
     {
@@ -67,9 +81,38 @@ class Worker extends Model
         return $this->hasOne(User::class);
     }
 
+    /** Основной отдел (дефолты форм, наследование department_id в документах) */
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /** Все отделы, в которых задействован работник (включая основной) */
+    public function departments()
+    {
+        return $this->belongsToMany(Department::class, 'department_worker')->withTimestamps();
+    }
+
+    /**
+     * Идентификаторы всех отделов работника.
+     * Основной отдел добавляется явно — страховка на случай рассинхрона pivot.
+     *
+     * @return int[]
+     */
+    public function departmentIds(): array
+    {
+        $ids = $this->departments->pluck('id')->all();
+
+        if ($this->department_id) {
+            $ids[] = $this->department_id;
+        }
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    public function belongsToDepartment(int $departmentId): bool
+    {
+        return in_array($departmentId, $this->departmentIds(), true);
     }
 
     public function receptionsAsCutter()

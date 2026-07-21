@@ -24,7 +24,7 @@ class WorkerPolicy
      * Доступ к дашборду конкретного работника.
      * - Админ: любой.
      * - Сам работник: свой.
-     * - Мастер с отделом: работники его отдела.
+     * - Мастер с отделами: работники любого из его отделов.
      */
     public function viewDashboard(User $user, Worker $worker): bool
     {
@@ -34,8 +34,8 @@ class WorkerPolicy
         if ($user->worker_id === $worker->id) {
             return true;
         }
-        if ($user->isMaster() && $user->worker?->department_id) {
-            return $worker->department_id === $user->worker->department_id;
+        if ($user->isMaster() && $user->worker) {
+            return array_intersect($worker->departmentIds(), $user->worker->departmentIds()) !== [];
         }
         return false;
     }

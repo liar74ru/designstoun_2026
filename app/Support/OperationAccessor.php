@@ -38,11 +38,14 @@ class OperationAccessor
             return false;
         }
 
-        $deptId = $user->worker?->department_id;
-        if (! $deptId) {
-            return false;
+        // Работник может состоять в нескольких отделах — доступ есть,
+        // если должность разрешена хотя бы в одном из них.
+        foreach ($user->worker?->departmentIds() ?? [] as $deptId) {
+            if (Department::positionAllowedFor($deptId, $operationKey, $position)) {
+                return true;
+            }
         }
 
-        return Department::positionAllowedFor((int) $deptId, $operationKey, $position);
+        return false;
     }
 }

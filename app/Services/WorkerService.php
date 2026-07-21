@@ -11,7 +11,7 @@ class WorkerService
 {
     public function buildIndexQuery(array $filters, $authUser): Builder
     {
-        $query = Worker::with('department');
+        $query = Worker::with('department', 'departments');
 
         // Статус: active (по умолчанию) / archived / all
         $status = $filters['status'] ?? 'active';
@@ -21,8 +21,10 @@ class WorkerService
             $query->active();
         }
 
-        if ($authUser->isMaster() && $authUser->worker?->department_id) {
-            $query->where('department_id', $authUser->worker->department_id);
+        // Мастер видит работников всех своих отделов
+        if ($authUser->isMaster() && $authUser->worker) {
+            $masterDepartmentIds = $authUser->worker->departmentIds();
+            $query->whereHas('departments', fn($q) => $q->whereIn('departments.id', $masterDepartmentIds ?: [-1]));
         }
 
         if (!empty($filters['position'])) {
@@ -30,7 +32,7 @@ class WorkerService
         }
 
         if (!empty($filters['department_id'])) {
-            $query->where('department_id', $filters['department_id']);
+            $query->whereHas('departments', fn($q) => $q->where('departments.id', $filters['department_id']));
         }
 
         if (isset($filters['has_account'])) {
@@ -42,6 +44,28 @@ class WorkerService
         }
 
         return $query->orderByRaw($this->positionSortSql())->orderBy('id');
+    }
+
+    /**
+     * Синхронизировать отделы работника.
+     * Инвариант: основной отдел всегда присутствует в pivot; если основной не задан,
+     * им становится первый из выбранных.
+     *
+     * @param int[]|string[] $departmentIds
+     */
+    public function syncDepartments(Worker $worker, array $departmentIds, ?int $primaryId = null): void
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $departmentIds))));
+
+        if ($primaryId && !in_array($primaryId, $ids, true)) {
+            $ids[] = $primaryId;
+        }
+        if (!$primaryId) {
+            $primaryId = $ids[0] ?? null;
+        }
+
+        $worker->departments()->sync($ids);
+        $worker->update(['department_id' => $primaryId]);
     }
 
     public function syncPhoneToUser(Worker $worker, ?string $newPhone): void

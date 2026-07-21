@@ -3,7 +3,10 @@
 @section('title', 'Редактирование приёмки #{{ $stoneReception->id }}')
 
 @section('content')
-    @php $userDeptId = auth()->user()?->worker?->department_id; @endphp
+    @php
+    $userDeptId  = auth()->user()?->primaryDepartmentId();
+    $userDeptIds = implode(',', auth()->user()?->worker?->departmentIds() ?? []);
+@endphp
     <div class="container py-3 py-md-4">
 
         <x-page-header
@@ -56,13 +59,13 @@
                                                     <select name="receiver_id"
                                                             class="form-select form-select-sm worker-picker @error('receiver_id') is-invalid @enderror"
                                                             style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
-                                                            data-user-dept-id="{{ $userDeptId }}"
+                                                            data-user-dept-ids="{{ $userDeptIds }}"
                                                             data-toggle-id="allWorkersReceiverEdit"
                                                             required>
                                                         <option value="">— приёмщик —</option>
                                                         @foreach($masterWorkers as $worker)
                                                             <option value="{{ $worker->id }}"
-                                                                data-department-id="{{ $worker->department_id }}"
+                                                                data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
                                                                 {{ old('receiver_id', auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
                                                                 {{ $worker->name }}
                                                             </option>

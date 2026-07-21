@@ -110,6 +110,9 @@
                                 @else
                                     <span class="text-muted">—</span>
                                 @endif
+                                @foreach($worker->departments->where('id', '!=', $worker->department_id) as $extraDepartment)
+                                    <span class="badge bg-light text-secondary border">{{ $extraDepartment->name }}</span>
+                                @endforeach
                             </td>
                             <td>
                                 @if($worker->phone)
@@ -209,6 +212,9 @@
                                         @if($worker->department->code)
                                             <span class="ms-1">{{ $worker->department->code }}</span>
                                         @endif
+                                        @foreach($worker->departments->where('id', '!=', $worker->department_id) as $extraDepartment)
+                                            <span class="badge bg-light text-secondary border ms-1">{{ $extraDepartment->name }}</span>
+                                        @endforeach
                                     </div>
                                 @endif
                                 @if($worker->phone)

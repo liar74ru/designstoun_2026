@@ -12,7 +12,8 @@
             ?: (($defaultToStore ?? null)?->id
                 ?? $stores->first(fn($s) => mb_stripos($s->name, 'цех') !== false)?->id
                 ?? '');
-        $userDeptId = auth()->user()?->worker?->department_id;
+        $userDeptId  = auth()->user()?->primaryDepartmentId();
+        $userDeptIds = implode(',', auth()->user()?->worker?->departmentIds() ?? []);
     @endphp
     <div class="container py-3 py-md-4">
 
@@ -62,14 +63,14 @@
                                     <select name="worker_id"
                                             id="workerSelect"
                                             class="form-select worker-picker @error('worker_id') is-invalid @enderror"
-                                            data-user-dept-id="{{ $userDeptId }}"
+                                            data-user-dept-ids="{{ $userDeptIds }}"
                                             data-dept-select-id="departmentSelect"
                                             data-toggle-id="allWorkersWorker"
                                             required>
                                         <option value="">— Выберите пильщика —</option>
                                         @foreach($workers as $worker)
                                             <option value="{{ $worker->id }}"
-                                                data-department-id="{{ $worker->department_id }}"
+                                                data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
                                                 {{ old('worker_id', request('copy_worker')) == $worker->id ? 'selected' : '' }}>
                                                 {{ $worker->name }}
                                             </option>

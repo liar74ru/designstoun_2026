@@ -82,7 +82,7 @@ class RawMaterialBatchService
 
         $products = Product::orderBy('name')->get();
         $stores   = Store::orderBy('name')->get();
-        $workers  = Worker::active()->orderBy('name')->get();
+        $workers  = Worker::with('departments')->active()->orderBy('name')->get();
 
         $recentBatches = RawMaterialBatch::with([
             'product',

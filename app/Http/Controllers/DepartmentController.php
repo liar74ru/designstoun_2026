@@ -34,7 +34,7 @@ class DepartmentController extends Controller
 
     public function show(Department $department, WorkshopPresetService $presetService)
     {
-        $workers           = $department->activeWorkers()->get();
+        $workers           = $department->allWorkers()->orderBy('name')->get();
         $stores            = Store::where('archived', false)->orderBy('name')->get();
         $allWorkers        = Worker::orderBy('name')->get();
         $operations        = config('department_operations');
@@ -101,7 +101,7 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department)
     {
-        if ($department->workers()->exists()) {
+        if ($department->workers()->exists() || $department->allWorkers()->exists()) {
             return redirect()
                 ->route('admin.settings.index')
                 ->with('error', 'Нельзя удалить отдел: в нём есть работники.');

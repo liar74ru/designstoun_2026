@@ -3,7 +3,10 @@
 @section('title', 'Передача партии')
 
 @section('content')
-@php $userDeptId = auth()->user()?->worker?->department_id; @endphp
+@php
+    $userDeptId  = auth()->user()?->primaryDepartmentId();
+    $userDeptIds = implode(',', auth()->user()?->worker?->departmentIds() ?? []);
+@endphp
 <div class="container py-3">
 
     <x-page-header
@@ -59,13 +62,13 @@
                             </div>
                             <select name="to_worker_id"
                                     class="form-select worker-picker @error('to_worker_id') is-invalid @enderror"
-                                    data-user-dept-id="{{ $userDeptId }}"
+                                    data-user-dept-ids="{{ $userDeptIds }}"
                                     data-toggle-id="allWorkersToWorker"
                                     required>
                                 <option value="">— Выберите пильщика —</option>
                                 @foreach($workers as $worker)
                                     <option value="{{ $worker->id }}"
-                                        data-department-id="{{ $worker->department_id }}"
+                                        data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
                                         {{ old('to_worker_id') == $worker->id ? 'selected' : '' }}>
                                         {{ $worker->name }}
                                     </option>

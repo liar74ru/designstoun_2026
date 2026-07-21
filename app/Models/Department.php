@@ -33,6 +33,12 @@ class Department extends Model
         return $this->hasMany(Worker::class)->orderBy('name');
     }
 
+    /** Все работники отдела (включая тех, для кого он не основной) */
+    public function allWorkers()
+    {
+        return $this->belongsToMany(Worker::class, 'department_worker')->withTimestamps();
+    }
+
     public function manager()
     {
         return $this->belongsTo(Worker::class, 'manager_id');

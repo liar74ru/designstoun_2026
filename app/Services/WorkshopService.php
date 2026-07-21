@@ -32,21 +32,27 @@ class WorkshopService
         // даже если они переведены в архив (иначе <select> потеряет значение).
         $keep = $workshop ? array_filter([$workshop->packer_id, $workshop->receiver_id]) : [];
 
-        $packers = Worker::whereIn('position', ['Мастер', 'Администратор'])
+        $packers = Worker::with('departments')
+            ->whereIn('position', ['Мастер', 'Администратор'])
             ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
 
-        $masterWorkers = Worker::whereIn('position', ['Мастер', 'Администратор'])
+        $masterWorkers = Worker::with('departments')
+            ->whereIn('position', ['Мастер', 'Администратор'])
             ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
 
         $userDepartment = auth()->user()?->worker?->department;
         $userDepartment?->loadMissing('defaultProductionStore', 'defaultProductStore');
 
+        // Не-админ выбирает только среди своих отделов
+        $accessibleDepartmentIds = auth()->user()?->accessibleDepartmentIds();
+
         $data = [
             'packers'             => $packers,
             'masterWorkers'       => $masterWorkers,
-            'workers'             => Worker::where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
+            'workers'             => Worker::with('departments')
+                ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
                 ->orderBy('name')->get(),
             'products'            => Product::orderBy('name')->get(),
             'packageProducts'     => Product::where('sku', 'like', '07-03%')->orderBy('name')->get(),
@@ -54,6 +60,8 @@ class WorkshopService
             'defaultStore'        => $userDepartment?->defaultProductionStore ?? Store::getDefault(),
             'defaultProductStore' => $userDepartment?->defaultProductStore ?? Store::getDefault(),
             'departments'         => Department::where('is_active', true)
+                ->when($accessibleDepartmentIds !== null,
+                    fn($q) => $q->whereIn('id', $accessibleDepartmentIds ?: [-1]))
                 ->with('defaultProductionStore', 'defaultProductStore')
                 ->orderBy('name')->get(),
         ];

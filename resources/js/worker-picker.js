@@ -1,25 +1,38 @@
+function parseIds(value) {
+    return String(value || '')
+        .split(',')
+        .map(id => id.trim())
+        .filter(Boolean);
+}
+
 function initWorkerPicker(select) {
     const toggleId   = select.dataset.toggleId;
     const toggle     = toggleId ? document.getElementById(toggleId) : null;
 
-    // Отдел, по которому фильтруем: либо живое значение связанного селекта отдела
-    // (data-dept-select-id), либо статический data-user-dept-id (фолбэк).
+    // Отделы, по которым фильтруем: либо живое значение связанного селекта отдела
+    // (data-dept-select-id), либо статический список отделов пользователя
+    // (data-user-dept-ids, работник может состоять в нескольких отделах).
     const deptSelectId = select.dataset.deptSelectId;
     const deptSelect   = deptSelectId ? document.getElementById(deptSelectId) : null;
 
-    function currentDept() {
-        return deptSelect ? deptSelect.value : (select.dataset.userDeptId || '');
+    function currentDepts() {
+        return deptSelect
+            ? parseIds(deptSelect.value)
+            : parseIds(select.dataset.userDeptIds);
+    }
+
+    function inDepts(opt, depts) {
+        return parseIds(opt.dataset.departmentIds).some(id => depts.includes(id));
     }
 
     function apply() {
-        const dept    = currentDept();
-        const showAll = !dept || (toggle?.checked ?? false);
+        const depts   = currentDepts();
+        const showAll = depts.length === 0 || (toggle?.checked ?? false);
         Array.from(select.options).forEach(opt => {
             if (!opt.value) return;
-            const optDept = opt.dataset.departmentId || '';
             // data-always-visible (например, администраторы) — не фильтруется по отделу
             const visible = showAll || opt.hasAttribute('data-always-visible')
-                || String(optDept) === String(dept);
+                || inDepts(opt, depts);
             opt.hidden = !visible;
             opt.disabled = !visible;
             if (!visible && opt.selected) {
@@ -30,11 +43,11 @@ function initWorkerPicker(select) {
         });
     }
 
-    const initialDept = currentDept();
-    if (initialDept && select.value && toggle) {
+    const initialDepts = currentDepts();
+    if (initialDepts.length && select.value && toggle) {
         const selOpt = select.options[select.selectedIndex];
         if (selOpt && !selOpt.hasAttribute('data-always-visible')
-            && String(selOpt.dataset.departmentId || '') !== String(initialDept)) {
+            && !inDepts(selOpt, initialDepts)) {
             toggle.checked = true;
         }
     }

@@ -65,7 +65,12 @@ class RawMaterialBatchController extends Controller
             : null;
 
         // Отделы для селекта + карта складов-дефолтов по отделу (для клиентской подстановки).
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        // Не-админ выбирает только среди своих отделов.
+        $accessibleDepartmentIds = auth()->user()?->accessibleDepartmentIds();
+        $departments = Department::where('is_active', true)
+            ->when($accessibleDepartmentIds !== null,
+                fn($q) => $q->whereIn('id', $accessibleDepartmentIds ?: [-1]))
+            ->orderBy('name')->get();
         $departmentStoreDefaults = $departments->mapWithKeys(fn($d) => [
             $d->id => [
                 'from' => $d->default_raw_store_id,
@@ -367,7 +372,7 @@ class RawMaterialBatchController extends Controller
                 ->with('error', 'Передать можно только новую или уточнённую партию с ненулевым остатком.');
         }
 
-        $workers = Worker::orderBy('name')->get();
+        $workers = Worker::with('departments')->orderBy('name')->get();
         $backUrl = back_url(route('raw-batches.index'));
 
         return view('raw-batches.transfer', compact('batch', 'workers', 'backUrl'));

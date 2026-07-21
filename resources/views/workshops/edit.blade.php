@@ -3,8 +3,9 @@
 
 @section('content')
 @php
-    $userDeptId = auth()->user()?->worker?->department_id;
-    $rawItems     = $workshop->items->where('role', \App\Models\WorkshopItem::ROLE_RAW)->values();
+    $userDeptId  = auth()->user()?->primaryDepartmentId();
+    $userDeptIds = implode(',', auth()->user()?->worker?->departmentIds() ?? []);
+    $rawItems     =$workshop->items->where('role', \App\Models\WorkshopItem::ROLE_RAW)->values();
     $packageItems = $workshop->items->where('role', \App\Models\WorkshopItem::ROLE_PACKAGE)->values();
     $productItems = $workshop->items->where('role', \App\Models\WorkshopItem::ROLE_PRODUCT)->values();
     $ri = 0; // сквозной индекс строк для уникальных id/name
@@ -75,12 +76,12 @@
                             <select name="receiver_id"
                                     class="form-select form-select-sm worker-picker"
                                     style="border-radius:.4rem"
-                                    data-user-dept-id="{{ $userDeptId }}"
+                                    data-user-dept-ids="{{ $userDeptIds }}"
                                     data-toggle-id="allWorkersReceiverPackEdit"
                                     required>
                                 @foreach($masterWorkers as $worker)
                                     <option value="{{ $worker->id }}"
-                                        data-department-id="{{ $worker->department_id }}"
+                                        data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
                                         @if($worker->position === 'Администратор') data-always-visible @endif
                                         {{ old('receiver_id', $workshop->receiver_id) == $worker->id ? 'selected' : '' }}>
                                         {{ $worker->name }}

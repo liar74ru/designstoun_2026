@@ -64,7 +64,7 @@ class User extends Authenticatable
      * Идентификаторы отделов, чьи записи доступны пользователю на index-страницах.
      * - null  — без ограничения (только админ)
      * - []    — не-админ без отдела: ничего не видит
-     * - [...] — отдел не-админа
+     * - [...] — все отделы не-админа
      *
      * @return int[]|null
      */
@@ -74,7 +74,15 @@ class User extends Authenticatable
             return null;
         }
 
+        return $this->worker?->departmentIds() ?? [];
+    }
+
+    /**
+     * Основной отдел пользователя — дефолт для селектов отдела в формах операций.
+     */
+    public function primaryDepartmentId(): ?int
+    {
         $deptId = $this->worker?->department_id;
-        return $deptId ? [(int) $deptId] : [];
+        return $deptId ? (int) $deptId : null;
     }
 }

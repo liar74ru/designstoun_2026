@@ -2,7 +2,10 @@
 @section('title', 'Новая операция цеха')
 
 @section('content')
-@php $userDeptId = auth()->user()?->worker?->department_id; @endphp
+@php
+    $userDeptId  = auth()->user()?->primaryDepartmentId();
+    $userDeptIds = implode(',', auth()->user()?->worker?->departmentIds() ?? []);
+@endphp
 
 <style>
 /* Компактные по высоте селекты (склады, работник) */
@@ -85,13 +88,13 @@
                                 <select name="receiver_id"
                                         class="form-select form-select-sm worker-picker"
                                         style="border-radius:.4rem"
-                                        data-user-dept-id="{{ $userDeptId }}"
+                                        data-user-dept-ids="{{ $userDeptIds }}"
                                         data-dept-select-id="departmentSelect"
                                         data-toggle-id="allWorkersParticipantsPack"
                                         required>
                                     @foreach($masterWorkers as $worker)
                                         <option value="{{ $worker->id }}"
-                                            data-department-id="{{ $worker->department_id }}"
+                                            data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
                                             @if($worker->position === 'Администратор') data-always-visible @endif
                                             {{ old('receiver_id', auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
                                             {{ $worker->name }}
@@ -200,14 +203,14 @@
                         <select name="packer_id" id="packerSelect"
                                 class="form-select form-select-sm worker-picker compact-select"
                                 style="border-radius:.4rem"
-                                data-user-dept-id="{{ $userDeptId }}"
+                                data-user-dept-ids="{{ $userDeptIds }}"
                                 data-dept-select-id="departmentSelect"
                                 data-toggle-id="allWorkersParticipantsPack"
                                 required>
                             <option value="">— работник —</option>
                             @foreach($packers as $worker)
                                 <option value="{{ $worker->id }}"
-                                    data-department-id="{{ $worker->department_id }}"
+                                    data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
                                     @if($worker->position === 'Администратор') data-always-visible @endif
                                     {{ old('packer_id', $selectedPackerId ?? '') == $worker->id ? 'selected' : '' }}>
                                     {{ $worker->name }}
