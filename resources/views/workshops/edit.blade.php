@@ -49,18 +49,41 @@
         @method('PUT')
 
         {{-- Блок: Участники (свёрнутый) --}}
+        @php $peopleOpen = $errors->has('packer_id') || $errors->has('receiver_id'); @endphp
         <div class="card shadow-sm mb-2">
             <div class="card-header bg-white py-2" role="button" id="peopleToggle">
                 <span class="small fw-semibold text-muted"><i class="bi bi-people me-1"></i> Участники</span>
-                <i class="bi bi-chevron-down float-end" id="peopleChevron"></i>
+                <i class="bi {{ $peopleOpen ? 'bi-chevron-up' : 'bi-chevron-down' }} float-end" id="peopleChevron"></i>
             </div>
-            <div class="card-body" id="peopleBody" style="display:none">
+            <div class="card-body" id="peopleBody" @if(!$peopleOpen) style="display:none" @endif>
                 <div class="row g-2">
                     <div class="col-12 col-sm-6">
-                        <label class="form-label small fw-semibold mb-1">Работник</label>
-                        <input type="text" class="form-control form-control-sm" style="border-radius:.4rem" readonly
-                               value="{{ $workshop->packer->name ?? '—' }}">
-                        <input type="hidden" name="packer_id" value="{{ $workshop->packer_id }}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label for="packerSelect" class="form-label small fw-semibold mb-1">Работник <span class="text-danger">*</span></label>
+                            @if($userDeptIds)
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="checkbox" id="allWorkersPackerPackEdit">
+                                    <label class="form-check-label small text-muted" for="allWorkersPackerPackEdit">все</label>
+                                </div>
+                            @endif
+                        </div>
+                        <select name="packer_id" id="packerSelect"
+                                class="form-select form-select-sm worker-picker @error('packer_id') is-invalid @enderror"
+                                style="border-radius:.4rem"
+                                data-user-dept-ids="{{ $userDeptIds }}"
+                                data-toggle-id="allWorkersPackerPackEdit"
+                                required>
+                            <option value="">— работник —</option>
+                            @foreach($packers as $worker)
+                                <option value="{{ $worker->id }}"
+                                    data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
+                                    @if($worker->position === 'Администратор') data-always-visible @endif
+                                    {{ old('packer_id', $workshop->packer_id) == $worker->id ? 'selected' : '' }}>
+                                    {{ $worker->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('packer_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-12 col-sm-6">
                         <div class="d-flex justify-content-between align-items-center">

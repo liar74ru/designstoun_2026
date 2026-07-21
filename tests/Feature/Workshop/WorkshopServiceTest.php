@@ -147,6 +147,27 @@ describe('WorkshopService::update()', function () {
         expect($workshop->fresh()->productItems()->count())->toBe(1);
     });
 
+    test('меняет работника (packer_id) и отдел следует за ним', function () {
+        $deptA = Department::create(['name' => 'Цех А', 'code' => 'CEHA']);
+        $deptB = Department::create(['name' => 'Цех Б', 'code' => 'CEHB']);
+
+        $this->packer->update(['department_id' => $deptA->id]);
+        $newPacker = Worker::create([
+            'name'          => 'Другой работник',
+            'position'      => 'Мастер',
+            'department_id' => $deptB->id,
+        ]);
+
+        $service  = new WorkshopService($this->mockSync);
+        $workshop = $service->create(basePayload($this), false);
+        expect($workshop->packer_id)->toBe($this->packer->id);
+
+        $service->update($workshop, basePayload($this, ['packer_id' => $newPacker->id]), false);
+
+        expect($workshop->fresh()->packer_id)->toBe($newPacker->id);
+        expect($workshop->fresh()->department_id)->toBe($deptB->id);
+    });
+
     test('обновляет manual_processing_sum', function () {
         $service  = new WorkshopService($this->mockSync);
         $workshop = $service->create(basePayload($this), false);
