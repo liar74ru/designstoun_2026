@@ -49,14 +49,35 @@
         @method('PUT')
 
         {{-- Блок: Участники (свёрнутый) --}}
-        @php $peopleOpen = $errors->has('packer_id') || $errors->has('receiver_id'); @endphp
+        @php $peopleOpen = $errors->has('packer_id') || $errors->has('receiver_id') || $errors->has('department_id'); @endphp
         <div class="card shadow-sm mb-2">
             <div class="card-header bg-white py-2" role="button" id="peopleToggle">
-                <span class="small fw-semibold text-muted"><i class="bi bi-people me-1"></i> Участники</span>
+                <span class="small fw-semibold text-muted"><i class="bi bi-people me-1"></i> Отдел и участники</span>
                 <i class="bi {{ $peopleOpen ? 'bi-chevron-up' : 'bi-chevron-down' }} float-end" id="peopleChevron"></i>
             </div>
             <div class="card-body" id="peopleBody" @if(!$peopleOpen) style="display:none" @endif>
                 <div class="row g-2">
+                    <div class="col-12 col-sm-6">
+                        <label for="departmentSelect" class="form-label small fw-semibold mb-1">Отдел</label>
+                        <select name="department_id"
+                                id="departmentSelect"
+                                class="form-select form-select-sm @error('department_id') is-invalid @enderror"
+                                style="border-radius:.4rem">
+                            <option value="">— Не задан —</option>
+                            @foreach($departments as $department)
+                                <option value="{{ $department->id }}"
+                                    {{ (string) old('department_id', $workshop->department_id) === (string) $department->id ? 'selected' : '' }}>
+                                    {{ $department->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text" style="font-size:.7rem">Смена отдела перефильтрует списки работников.</div>
+                        @error('department_id')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+                <div class="row g-2 mt-0">
                     <div class="col-12 col-sm-6">
                         <div class="d-flex justify-content-between align-items-center">
                             <label for="packerSelect" class="form-label small fw-semibold mb-1">Работник <span class="text-danger">*</span></label>
@@ -71,6 +92,7 @@
                                 class="form-select form-select-sm worker-picker @error('packer_id') is-invalid @enderror"
                                 style="border-radius:.4rem"
                                 data-user-dept-ids="{{ $userDeptIds }}"
+                                data-dept-select-id="departmentSelect"
                                 data-toggle-id="allWorkersPackerPackEdit"
                                 required>
                             <option value="">— работник —</option>
@@ -100,6 +122,7 @@
                                     class="form-select form-select-sm worker-picker"
                                     style="border-radius:.4rem"
                                     data-user-dept-ids="{{ $userDeptIds }}"
+                                    data-dept-select-id="departmentSelect"
                                     data-toggle-id="allWorkersReceiverPackEdit"
                                     required>
                                 @foreach($masterWorkers as $worker)
