@@ -49,6 +49,19 @@ class WorkerDashboardService
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Производство цеха: работник — packer_id, мастер-приёмщик — receiver_id.
+        $workshopWorkerField = $isMaster ? 'receiver_id' : 'packer_id';
+
+        $workshopLogs = WorkshopLog::with([
+                'items.product',
+                'workshop.items',
+            ])
+            ->where($workshopWorkerField, $workerId)
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->get();
+
+        $workshopLogs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('workshopLog', $log)));
+
         $stoneReceptionIds = $logs->pluck('stone_reception_id')->filter()->unique();
         $stoneReceptions = StoneReception::with([
                 'items.product',
@@ -75,7 +88,10 @@ class WorkerDashboardService
             ->orderByDesc('updated_at')
             ->get();
 
-        $summary        = $this->buildProductSummary($logs);
+        $summary        = $this->mergeProductSummaries(
+            $this->buildProductSummary($logs),
+            $this->buildWorkshopProductSummary($workshopLogs),
+        );
         $totalPay       = $isMaster ? null : $summary->sum('pay');
         $totalMasterPay = $isMaster ? $summary->sum('masterPay') : null;
         $rates          = $isMaster ? [
