@@ -30,6 +30,7 @@ class StoneReceptionController extends Controller
     {
         $receptions = $this->service->getFilteredReceptions($request);
         $logs       = $this->service->getFilteredLogs($request);
+        $batchesWithoutReceptions = $this->service->getBatchesWithoutReceptions($request);
         [
             'filterRawProducts' => $filterRawProducts,
             'filterProducts'    => $filterProducts,
@@ -40,7 +41,7 @@ class StoneReceptionController extends Controller
         $departmentDefaults = $request->user()?->accessibleDepartmentIds() ?? [];
 
         return view('stone-receptions.index', compact(
-            'receptions', 'logs',
+            'receptions', 'logs', 'batchesWithoutReceptions',
             'filterRawProducts', 'filterProducts', 'filterCutters',
             'filterDepartments', 'departmentDefaults'
         ));

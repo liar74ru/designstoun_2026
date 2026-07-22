@@ -64,12 +64,21 @@ class StoneReceptionService
 
     public function getFilterData(): array
     {
-        $filterRawProducts = Product::whereIn('id',
-            RawMaterialBatch::whereIn('id',
-                StoneReception::whereNotNull('raw_material_batch_id')
-                    ->distinct()->pluck('raw_material_batch_id')
-            )->distinct()->pluck('product_id')
-        )->orderBy('name')->get();
+        // Продукты-сырьё из партий, у которых есть приёмки, плюс из «рабочих» партий без приёмок
+        // (чтобы фильтр по сырью работал и для новых партий, показанных в разделе «По партиям»).
+        $rawProductIds = RawMaterialBatch::whereIn('id',
+            StoneReception::whereNotNull('raw_material_batch_id')
+                ->distinct()->pluck('raw_material_batch_id')
+        )->distinct()->pluck('product_id')
+            ->merge(
+                RawMaterialBatch::whereIn('status', [
+                    RawMaterialBatch::STATUS_NEW,
+                    RawMaterialBatch::STATUS_IN_WORK,
+                    RawMaterialBatch::STATUS_CONFIRMED,
+                ])->whereDoesntHave('receptions')->distinct()->pluck('product_id')
+            )->unique();
+
+        $filterRawProducts = Product::whereIn('id', $rawProductIds)->orderBy('name')->get();
 
         $filterProducts = Product::whereIn('id',
             StoneReceptionItem::distinct()->pluck('product_id')
@@ -143,6 +152,36 @@ class StoneReceptionService
             ->orderBy('created_at', 'desc')
             ->paginate(20)
             ->withQueryString();
+    }
+
+    /**
+     * «Рабочие» партии сырья, у которых ещё нет ни одной приёмки.
+     * Показываются отдельной группой в разделе «По партиям» как единая точка входа
+     * для оформления приёмки от такой партии.
+     */
+    public function getBatchesWithoutReceptions(Request $request): Collection
+    {
+        $accessible = $request->user()?->accessibleDepartmentIds();
+        $filter     = $request->input('filter', []);
+
+        return RawMaterialBatch::query()
+            ->whereDoesntHave('receptions')
+            ->whereIn('status', [
+                RawMaterialBatch::STATUS_NEW,
+                RawMaterialBatch::STATUS_IN_WORK,
+                RawMaterialBatch::STATUS_CONFIRMED,
+            ])
+            ->when(!empty($filter['raw_product_id']), fn($q) =>
+                $q->where('product_id', $filter['raw_product_id']))
+            ->when(array_key_exists('department_id', $filter), fn($q) =>
+                $q->whereIn('raw_material_batches.department_id', (array) $filter['department_id']))
+            ->when(
+                $accessible !== null && !array_key_exists('department_id', $filter),
+                fn($q) => $q->whereIn('raw_material_batches.department_id', $accessible ?: [-1])
+            )
+            ->with(['product', 'currentWorker', 'currentStore', 'department'])
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     public function getFilteredLogs(Request $request): LengthAwarePaginator

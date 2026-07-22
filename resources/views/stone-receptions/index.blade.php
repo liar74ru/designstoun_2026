@@ -50,11 +50,11 @@
 
         {{-- ═══════════════════════ ПО ПАРТИЯМ ═══════════════════════ --}}
         <div id="view-batches">
-            @if($receptions->count() > 0)
+            @if($receptions->count() > 0 || $batchesWithoutReceptions->count() > 0)
 
                 <div class="card shadow-sm">
                     <div class="card-header bg-white d-flex justify-content-end align-items-center py-2">
-                        <span class="text-muted small">Найдено: {{ $receptions->total() }}</span>
+                        <span class="text-muted small">Найдено: {{ $receptions->total() }}@if($batchesWithoutReceptions->count() > 0) <span class="text-info">(+{{ $batchesWithoutReceptions->count() }} без приёмок)</span>@endif</span>
                     </div>
 
                     {{-- ─── ДЕСКТОП: таблица ─── --}}
@@ -78,6 +78,9 @@
                                 </tr>
                                 </thead>
                                 <tbody>
+                                @foreach($batchesWithoutReceptions as $batch)
+                                    @include('stone-receptions._batch-row', ['batch' => $batch])
+                                @endforeach
                                 @foreach($receptions as $reception)
                                     <tr class="{{ $reception->status == 'processed' ? 'table-success' : ($reception->status == 'completed' ? 'table-warning' : ($reception->status == 'error' ? 'table-danger' : '')) }}">
                                         <td>{{ $reception->id }}</td>
@@ -194,6 +197,9 @@
 
                     {{-- ─── МОБИЛЬНЫЙ: карточки ─── --}}
                     <div class="d-md-none" style="padding:.25rem">
+                        @foreach($batchesWithoutReceptions as $batch)
+                            @include('stone-receptions._batch-card', ['batch' => $batch])
+                        @endforeach
                         @foreach($receptions as $reception)
                             @include('partials.reception-card', [
                                 'reception'   => $reception,
@@ -203,12 +209,14 @@
                     </div>
 
                     {{-- Пагинация --}}
-                    <div class="d-flex justify-content-between align-items-center p-2 p-md-3 border-top">
-                        <span class="text-muted small">
-                            Показано {{ $receptions->firstItem() }}–{{ $receptions->lastItem() }} из {{ $receptions->total() }}
-                        </span>
-                        {{ $receptions->links() }}
-                    </div>
+                    @if($receptions->total() > 0)
+                        <div class="d-flex justify-content-between align-items-center p-2 p-md-3 border-top">
+                            <span class="text-muted small">
+                                Показано {{ $receptions->firstItem() }}–{{ $receptions->lastItem() }} из {{ $receptions->total() }}
+                            </span>
+                            {{ $receptions->links() }}
+                        </div>
+                    @endif
 
                 </div>
 
