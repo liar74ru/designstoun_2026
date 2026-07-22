@@ -156,38 +156,6 @@
                     </div>
                 </div>
 
-                {{-- Блок: Шаблоны (пресеты отдела) --}}
-                <div class="card shadow-sm mb-2">
-                    <div class="card-header bg-white py-2" role="button" id="presetToggle">
-                        <span class="small fw-semibold text-muted"><i class="bi bi-collection me-1"></i> Шаблоны</span>
-                        <i class="bi bi-chevron-down float-end" id="presetChevron"></i>
-                    </div>
-                    <div class="card-body py-2" id="presetBody" style="display:none">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-12 col-sm-6">
-                                <label for="presetSelect" class="form-label small text-muted mb-1">Шаблон</label>
-                                <select id="presetSelect" class="form-select form-select-sm compact-select" style="border-radius:.4rem">
-                                    <option value="">— выберите шаблон —</option>
-                                </select>
-                            </div>
-                            <div class="col-6 col-sm-3">
-                                <label for="presetCount" class="form-label small text-muted mb-1">Кол-во продукции</label>
-                                <input type="number" id="presetCount" class="form-control form-control-sm"
-                                       style="border-radius:.4rem" step="0.001" min="0.001" value="1">
-                            </div>
-                            <div class="col-6 col-sm-3">
-                                <button type="button" id="presetApplyBtn" class="btn btn-sm btn-primary w-100" disabled>
-                                    Применить
-                                </button>
-                            </div>
-                        </div>
-                        <div class="form-text" style="font-size:.7rem">
-                            Заполнит сырьё, тару и продукт: количество = норма из шаблона × кол-во продукции.
-                            Текущие строки будут заменены.
-                        </div>
-                    </div>
-                </div>
-
                 {{-- Блок: Работник --}}
                 <div class="card shadow-sm mb-2">
                     <div class="card-body py-2">
@@ -212,11 +180,43 @@
                                 <option value="{{ $worker->id }}"
                                     data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
                                     @if($worker->position === 'Администратор') data-always-visible @endif
-                                    {{ old('packer_id', $selectedPackerId ?? '') == $worker->id ? 'selected' : '' }}>
+                                    {{ old('packer_id', $selectedPackerId ?? auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
                                     {{ $worker->name }}
                                 </option>
                             @endforeach
                         </select>
+                    </div>
+                </div>
+
+                {{-- Блок: Шаблоны (пресеты отдела) --}}
+                <div class="card shadow-sm mb-2">
+                    <div class="card-header bg-white py-2" role="button" id="presetToggle">
+                        <span class="small fw-semibold text-muted"><i class="bi bi-collection me-1"></i> Шаблоны</span>
+                        <i class="bi bi-chevron-up float-end" id="presetChevron"></i>
+                    </div>
+                    <div class="card-body py-2" id="presetBody">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-sm-6">
+                                <label for="presetSelect" class="form-label small text-muted mb-1">Шаблон</label>
+                                <select id="presetSelect" class="form-select form-select-sm compact-select" style="border-radius:.4rem">
+                                    <option value="">— выберите шаблон —</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <label for="presetCount" class="form-label small text-muted mb-1">Кол-во продукции</label>
+                                <input type="number" id="presetCount" class="form-control form-control-sm"
+                                       style="border-radius:.4rem" step="0.001" min="0.001" value="1">
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <button type="button" id="presetApplyBtn" class="btn btn-sm btn-primary w-100" disabled>
+                                    Применить
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-text" style="font-size:.7rem">
+                            Заполнит сырьё, тару и продукт: количество = норма из шаблона × кол-во продукции.
+                            Текущие строки будут заменены.
+                        </div>
                     </div>
                 </div>
 
