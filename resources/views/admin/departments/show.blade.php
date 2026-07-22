@@ -362,8 +362,12 @@
                     $rawCount     = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_RAW)->count();
                     $packageCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PACKAGE)->count();
                     $productCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PRODUCT)->count();
+                    $prodItem     = $preset->items->firstWhere('role', \App\Models\WorkshopItem::ROLE_PRODUCT);
+                    $skuColor     = \App\Models\Product::getColorBySku($prodItem?->product?->sku);
+                    $skuBg        = $skuColor === '#FFFFFF' ? '' : $skuColor . '18';
                 @endphp
-                <div class="px-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                <div class="px-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }}"
+                     style="border-left:4px solid {{ $skuColor }};{{ $skuBg ? 'background:'.$skuBg.';' : '' }}">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div class="me-2">
                             <div class="fw-semibold small">{{ $preset->name }}</div>

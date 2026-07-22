@@ -78,6 +78,9 @@ class WorkshopPresetService
         return $this->getForDepartment($department)->map(fn($preset) => [
             'id'    => $preset->id,
             'name'  => $preset->name,
+            'color' => Product::getColorBySku(
+                $preset->items->firstWhere('role', WorkshopItem::ROLE_PRODUCT)?->product?->sku
+            ),
             'items' => $preset->items->map(fn($item) => [
                 'role'          => $item->role,
                 'product_id'    => $item->product_id,

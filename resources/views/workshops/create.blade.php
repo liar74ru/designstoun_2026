@@ -626,6 +626,12 @@
         presetApplyBtn.disabled = !presetsById[presetSelect.value];
     }
 
+    // Цвет выбранного шаблона по типу плитки (продукта) — на самом селекте.
+    function applyPresetColor() {
+        const color = presetsById[presetSelect.value]?.color;
+        presetSelect.style.backgroundColor = (color && color !== '#FFFFFF') ? color + '18' : '';
+    }
+
     async function loadPresets() {
         presetSelect.innerHTML = '<option value="">— выберите шаблон —</option>';
         presetsById = {};
@@ -638,11 +644,14 @@
             if (!res.ok) return;
             (await res.json()).forEach(p => {
                 presetsById[p.id] = p;
-                presetSelect.add(new Option(p.name, p.id));
+                const opt = new Option(p.name, p.id);
+                if (p.color && p.color !== '#FFFFFF') opt.style.backgroundColor = p.color + '18';
+                presetSelect.add(opt);
             });
         } catch (err) {
             console.error('loadPresets', err);
         }
+        applyPresetColor();
     }
 
     function applyPreset() {
@@ -659,7 +668,7 @@
     }
 
     presetApplyBtn.addEventListener('click', applyPreset);
-    presetSelect.addEventListener('change', updatePresetApplyState);
+    presetSelect.addEventListener('change', () => { updatePresetApplyState(); applyPresetColor(); });
     departmentSelect.addEventListener('change', loadPresets);
     loadPresets();
 
