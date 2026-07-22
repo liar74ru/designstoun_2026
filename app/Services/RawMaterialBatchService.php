@@ -527,4 +527,21 @@ class RawMaterialBatchService
 
         return "{$year}-{$week}-{$name}-" . str_pad($count + 1, 2, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * Рабочая партия пильщика по продукту (статусы new/in_work/confirmed).
+     * Используется формой создания, чтобы предложить дополнить существующую партию.
+     */
+    public function findWorkerBatchByProduct(Worker $worker, int $productId): ?RawMaterialBatch
+    {
+        return RawMaterialBatch::whereIn('status', [
+                RawMaterialBatch::STATUS_NEW,
+                RawMaterialBatch::STATUS_IN_WORK,
+                RawMaterialBatch::STATUS_CONFIRMED,
+            ])
+            ->where('current_worker_id', $worker->id)
+            ->where('product_id', $productId)
+            ->latest('id')
+            ->first();
+    }
 }

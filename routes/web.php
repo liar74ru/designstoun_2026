@@ -165,6 +165,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('raw-batches/{batch}/mark-in-work', [RawMaterialBatchController::class, 'markAsInWork'])->name('raw-batches.mark-in-work');
         Route::post('raw-batches/{batch}/sync', [RawMaterialBatchController::class, 'syncBatch'])->name('raw-batches.sync');
         Route::get('/api/workers/{worker}/next-batch-number', [RawMaterialBatchController::class, 'nextBatchNumber'])->name('api.worker.next-batch-number');
+        Route::get('/api/workers/{worker}/batch-by-product', [RawMaterialBatchController::class, 'workerBatchByProduct'])->name('api.worker.batch-by-product');
     });
 
     // AJAX-эндпоинты товаров — для всех с правами на работу с товарами/приёмками

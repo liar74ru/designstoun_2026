@@ -94,6 +94,27 @@ class RawMaterialBatchController extends Controller
         ]);
     }
 
+    public function workerBatchByProduct(Request $request, Worker $worker): JsonResponse
+    {
+        $productId = (int) $request->query('product_id');
+        if (!$productId) {
+            return response()->json(null);
+        }
+
+        $batch = $this->service->findWorkerBatchByProduct($worker, $productId);
+        if (!$batch) {
+            return response()->json(null);
+        }
+
+        return response()->json([
+            'batch_id'           => $batch->id,
+            'batch_number'       => $batch->batch_number,
+            'initial_quantity'   => (float) $batch->initial_quantity,   // итоговое кол-во сырья в партии
+            'remaining_quantity' => (float) $batch->remaining_quantity,
+            'adjust_url'         => route('raw-batches.adjust.form', $batch),
+        ]);
+    }
+
     public function copy(RawMaterialBatch $batch): RedirectResponse
     {
         $firstMovement = $batch->movements()->orderBy('created_at')->first();

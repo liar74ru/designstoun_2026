@@ -107,6 +107,12 @@
                                     @error('product_id')
                                         <div class="text-danger small mt-1">{{ $message }}</div>
                                     @enderror
+                                    {{-- Блок: у пильщика уже есть рабочая партия этого сырья --}}
+                                    <div id="existingBatchAlert" class="mt-2 p-2 rounded bg-info bg-opacity-10 border border-info small" style="display:none">
+                                        <i class="bi bi-info-circle me-1 text-info"></i>
+                                        У пильщика уже есть партия этого сырья<span id="existingBatchInfo"></span>.
+                                        <a id="existingBatchLink" href="#" class="fw-semibold">Дополнить количество</a>
+                                    </div>
                                 </div>
                             </div>
 
@@ -454,6 +460,39 @@
             if (workerSelect?.value && !batchInput.value) {
                 fetchBatchNumber(workerSelect.value);
             }
+
+            // ── Предложение дополнить существующую партию пильщика ──────────────────
+            (function () {
+                const alertBox = document.getElementById('existingBatchAlert');
+                const link     = document.getElementById('existingBatchLink');
+                const info     = document.getElementById('existingBatchInfo');
+                if (!alertBox || !row) return;
+
+                function checkExistingBatch() {
+                    alertBox.style.display = 'none';
+                    const workerId  = workerSelect?.value;
+                    const productId = row.querySelector('input[type="hidden"][name="product_id"]')?.value;
+                    if (!workerId || !productId) return;
+
+                    fetch(`/api/workers/${workerId}/batch-by-product?product_id=${productId}`,
+                          { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (!data || !data.adjust_url) return;
+                            const num = data.batch_number ? ` №${data.batch_number}` : '';
+                            // итоговое количество сырья в партии + остаток
+                            const qty = ` (всего: ${data.initial_quantity} м³, остаток: ${data.remaining_quantity} м³)`;
+                            info.textContent = num + qty;
+                            link.href = data.adjust_url;
+                            alertBox.style.display = '';
+                        })
+                        .catch(() => {});
+                }
+
+                workerSelect?.addEventListener('change', checkExistingBatch);
+                document.addEventListener('product-picker:selected', checkExistingBatch);
+                checkExistingBatch(); // при загрузке (copy/old значения)
+            })();
 
             // ── Блок «Номер партии и склады» (скрыт по умолчанию) ───────────────────
             (function () {
