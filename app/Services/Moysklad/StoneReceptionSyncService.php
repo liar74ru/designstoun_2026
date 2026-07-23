@@ -376,7 +376,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
             $receptionDate = $reception->created_at ?? now();
             $weekPrefix = DocumentNaming::weekPrefix('ТО', $receptionDate);
             $sequence = DocumentNaming::nextSequence(
-                RawMaterialBatch::where('moysklad_processing_name', 'like', $weekPrefix . '%')
+                StoneReception::where('moysklad_processing_name', 'like', $weekPrefix . '%')
                     ->pluck('moysklad_processing_name'),
                 $weekPrefix
             );
