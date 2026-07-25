@@ -121,8 +121,20 @@ class WorkerDashboardService
         ?Carbon $dateTo,
         array $departmentIds = [],
         $rawProductId = null,
-        $productId = null
+        $productId = null,
+        ?array $restrictDepartmentIds = null
     ): array {
+        // Не-админ: жёстко ограничиваем выборку доступными отделами.
+        // null — без ограничения (админ); [] — работник без отдела (ничего не видит).
+        if ($restrictDepartmentIds !== null) {
+            $departmentIds = $departmentIds
+                ? array_values(array_intersect($departmentIds, $restrictDepartmentIds))
+                : $restrictDepartmentIds;
+            if (empty($departmentIds)) {
+                $departmentIds = [-1]; // нет доступных отделов → пустой результат, не «все»
+            }
+        }
+
         $logs = ReceptionLog::with([
                 'items.product',
                 'stoneReception.items',
@@ -198,7 +210,9 @@ class WorkerDashboardService
             'grandMasterPay'    => $departments->sum('totalMasterPay'),
             'incomingRaw'       => $incomingRaw,
             'incomingRawTotal'  => $incomingRaw->sum('quantity'),
-            'filterDepartments' => Department::orderBy('name')->get(),
+            'filterDepartments' => $restrictDepartmentIds !== null
+                ? Department::whereIn('id', $restrictDepartmentIds)->orderBy('name')->get()
+                : Department::orderBy('name')->get(),
             'filterRawProducts' => Product::whereIn('id',
                     RawMaterialBatch::query()->distinct()->pluck('product_id'))
                 ->orderBy('name')->get(),

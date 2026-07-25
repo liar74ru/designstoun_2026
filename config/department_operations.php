@@ -9,11 +9,11 @@ return [
         'admin_only'    => true,
     ],
     'enterprise-dashboard' => [
-        'label'         => 'Итоги',
-        'icon'          => 'bi-graph-up',
-        'route'         => 'admin.enterprise-dashboard',
-        'route_pattern' => 'admin.enterprise-dashboard',
-        'admin_only'    => true,
+        'label'                  => 'Итоги',
+        'icon'                   => 'bi-graph-up',
+        'route'                  => 'admin.enterprise-dashboard',
+        'route_pattern'          => 'admin.enterprise-dashboard',
+        'configurable_positions' => ['Мастер', 'Помощник мастера'],
     ],
     'master-dashboard' => [
         'label'                    => 'Дашборд',

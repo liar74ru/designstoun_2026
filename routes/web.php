@@ -173,9 +173,15 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/products/stocks', [ProductController::class, 'stocksJson'])->name('api.products.stocks');
     Route::get('/api/products/{product}/coeff', [ProductController::class, 'getCoeff'])->name('api.products.coeff');
 
+    // «Итоги» — настраивается per-department (мастер видит только свой отдел, см. контроллер)
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/enterprise-dashboard', [EnterpriseDashboardController::class, 'index'])
+            ->name('enterprise-dashboard')
+            ->middleware('can:see-enterprise-dashboard');
+    });
+
     // Настройки системы — только админ (через can:manage-admin на группе)
     Route::prefix('admin')->name('admin.')->middleware('can:manage-admin')->group(function () {
-        Route::get('/enterprise-dashboard', [EnterpriseDashboardController::class, 'index'])->name('enterprise-dashboard');
         Route::get('/settings',  [AdminSettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
