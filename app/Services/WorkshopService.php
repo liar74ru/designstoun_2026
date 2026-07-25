@@ -436,6 +436,16 @@ class WorkshopService
         });
     }
 
+    /**
+     * Отдел документа: явно выбранный → отдел создателя (админ — null) → отдел упаковщика.
+     */
+    public function resolveDepartmentId(array $data): ?int
+    {
+        return $data['department_id']
+            ?? auth()->user()?->primaryDepartmentId()
+            ?? Worker::find($data['packer_id'] ?? null)?->department_id;
+    }
+
     private function prepareWorkshopData(array $data, bool $forCreate = true): array
     {
         $departmentId = $data['department_id']

@@ -601,6 +601,16 @@ class StoneReceptionService
         return $batches;
     }
 
+    /**
+     * Отдел документа: явно выбранный → отдел создателя (админ — null) → отдел работника.
+     */
+    public function resolveDepartmentId(array $data): ?int
+    {
+        return $data['department_id']
+            ?? auth()->user()?->primaryDepartmentId()
+            ?? Worker::find($data['cutter_id'] ?? $data['receiver_id'] ?? null)?->department_id;
+    }
+
     private function prepareReceptionData(array $data, bool $forCreate = true): array
     {
         $departmentId = $data['department_id']

@@ -71,6 +71,13 @@ class WorkshopController extends Controller
     {
         $data = $request->validated();
 
+        $data['department_id'] = $this->service->resolveDepartmentId($data);
+        if (! $data['department_id']) {
+            return back()->withErrors(['error' =>
+                'Не удалось определить отдел операции. Выберите отдел или упаковщика с отделом.'])
+                ->withInput();
+        }
+
         try {
             $workshop = $this->service->create(
                 $data,

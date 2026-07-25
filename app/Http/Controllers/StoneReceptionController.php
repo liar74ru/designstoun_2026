@@ -104,6 +104,13 @@ class StoneReceptionController extends Controller
             return back()->withErrors(['raw_quantity_used' => 'Недостаточно сырья'])->withInput();
         }
 
+        $data['department_id'] = $this->service->resolveDepartmentId($data);
+        if (! $data['department_id']) {
+            return back()->withErrors(['error' =>
+                'Не удалось определить отдел приёмки. Назначьте отдел пильщику или приёмщику.'])
+                ->withInput();
+        }
+
         try {
             $reception = $this->service->create(
                 $data,

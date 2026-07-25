@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Department;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
@@ -17,6 +18,7 @@ describe('Создание приёмки [store()]', function () {
         $user     = H::adminUser();
         $receiver = H::worker();
         $cutter   = H::cutter();
+        $cutter->update(['department_id' => Department::create(['name' => 'Цех'])->id]);
         $store    = H::store();
         $rawProd  = H::product(['name' => 'Гранит сырой']);
         $product  = H::product(['name' => 'Плитка']);
@@ -48,6 +50,7 @@ describe('Создание приёмки [store()]', function () {
         $user     = H::adminUser();
         $receiver = H::worker();
         $cutter   = H::cutter();
+        $cutter->update(['department_id' => Department::create(['name' => 'Цех'])->id]);
         $store    = H::store();
         $rawProd  = H::product();
         $product  = H::product();

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Department;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
@@ -96,6 +97,7 @@ describe('Переход статуса new → in_work', function () {
         $user     = H::adminUser();
         $receiver = H::worker();
         $cutter   = H::cutter();
+        $cutter->update(['department_id' => Department::create(['name' => 'Цех'])->id]);
         $store    = H::store();
         $rawProd  = H::product();
         $product  = H::product();
@@ -122,6 +124,7 @@ describe('Переход статуса new → in_work', function () {
         $user     = H::adminUser();
         $receiver = H::worker();
         $cutter   = H::cutter();
+        $cutter->update(['department_id' => Department::create(['name' => 'Цех'])->id]);
         $store    = H::store();
         $rawProd  = H::product();
         $product  = H::product();
@@ -147,6 +150,7 @@ describe('Переход статуса new → in_work', function () {
         $user     = H::adminUser();
         $receiver = H::worker();
         $cutter   = H::cutter();
+        $cutter->update(['department_id' => Department::create(['name' => 'Цех'])->id]);
         $store    = H::store();
         $rawProd  = H::product();
         $product  = H::product();
