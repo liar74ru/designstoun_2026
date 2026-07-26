@@ -100,6 +100,39 @@
                             </div>
                         </div>
 
+                        {{-- Отдел --}}
+                        <div class="info-block">
+                            <div class="info-block-header">
+                                <span class="small fw-semibold text-muted">Отдел</span>
+                            </div>
+                            <div class="info-block-body">
+                                @if(auth()->user()->isAdmin())
+                                    <form method="POST"
+                                          action="{{ route('stone-receptions.update-department', $stoneReception) }}"
+                                          class="d-flex gap-2 align-items-center">
+                                        @csrf
+                                        @method('PATCH')
+                                        <select name="department_id"
+                                                class="form-select form-select-sm"
+                                                style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
+                                                required>
+                                            @foreach($departments as $department)
+                                                <option value="{{ $department->id }}"
+                                                    {{ $stoneReception->department_id == $department->id ? 'selected' : '' }}>
+                                                    {{ $department->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-primary" style="flex-shrink:0">
+                                            <i class="bi bi-save"></i>
+                                        </button>
+                                    </form>
+                                @else
+                                    <span class="small">{{ $stoneReception->department?->name ?? '—' }}</span>
+                                @endif
+                            </div>
+                        </div>
+
                         {{-- Партия сырья --}}
                         <div class="info-block">
                             <div class="info-block-header">

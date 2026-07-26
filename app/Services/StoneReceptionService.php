@@ -471,6 +471,11 @@ class StoneReceptionService
         $reception->update(['store_id' => $storeId]);
     }
 
+    public function updateDepartment(StoneReception $reception, int $departmentId): void
+    {
+        $reception->update(['department_id' => $departmentId]);
+    }
+
     public function resetStatus(StoneReception $reception): bool|string
     {
         if ($reception->raw_material_batch_id) {
@@ -613,19 +618,18 @@ class StoneReceptionService
 
     private function prepareReceptionData(array $data, bool $forCreate = true): array
     {
-        $departmentId = $data['department_id']
-            ?? Worker::find($data['cutter_id'] ?? $data['receiver_id'] ?? null)?->department_id;
-
         $prepared = [
             'cutter_id'             => $data['cutter_id'] ?? null,
             'store_id'              => $data['store_id'],
-            'department_id'         => $departmentId,
             'raw_material_batch_id' => $data['raw_material_batch_id'],
             'raw_quantity_used'     => $data['raw_quantity_used'],
             'notes'                 => $data['notes'] ?? null,
         ];
 
         if ($forCreate) {
+            // Отдел фиксируется при создании; менять его можно только на show-странице (updateDepartment)
+            $prepared['department_id'] = $data['department_id']
+                ?? Worker::find($data['cutter_id'] ?? $data['receiver_id'] ?? null)?->department_id;
             $prepared['receiver_id'] = $data['receiver_id'];
             $prepared['created_at']  = $data['manual_created_at'] ?? now();
             $prepared['updated_at']  = $data['manual_created_at'] ?? now();

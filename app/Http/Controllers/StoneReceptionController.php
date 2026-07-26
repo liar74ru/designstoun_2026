@@ -141,6 +141,7 @@ class StoneReceptionController extends Controller
             'receiver',
             'cutter',
             'store',
+            'department',
             'items.product',
             'rawMaterialBatch.product',
             'receptionLogs' => fn($q) => $q->orderBy('created_at', 'asc'),
@@ -151,9 +152,10 @@ class StoneReceptionController extends Controller
 
         $backUrl       = back_url(route('stone-receptions.index'));
         $stores        = \App\Models\Store::orderBy('name')->get();
+        $departments   = \App\Models\Department::orderBy('name')->get();
         $masterWorkers = $this->service->getMasterWorkers();
 
-        return view('stone-receptions.show', compact('stoneReception', 'backUrl', 'stores', 'masterWorkers'));
+        return view('stone-receptions.show', compact('stoneReception', 'backUrl', 'stores', 'departments', 'masterWorkers'));
     }
 
     public function edit(Request $request, StoneReception $stoneReception): View
@@ -282,6 +284,17 @@ class StoneReceptionController extends Controller
         $this->service->updateStore($stoneReception, $validated['store_id']);
 
         return back()->with('success', 'Склад приёмки обновлён.');
+    }
+
+    public function updateDepartment(Request $request, StoneReception $stoneReception): RedirectResponse
+    {
+        $validated = $request->validate([
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
+        ]);
+
+        $this->service->updateDepartment($stoneReception, (int) $validated['department_id']);
+
+        return back()->with('success', 'Отдел приёмки обновлён.');
     }
 
     public function updateItemCoeff(Request $request, StoneReception $stoneReception): RedirectResponse
