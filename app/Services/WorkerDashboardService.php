@@ -41,6 +41,7 @@ class WorkerDashboardService
                 'items.product',
                 'stoneReception.store',
                 'stoneReception.items',
+                'stoneReception.department',
                 'rawMaterialBatch.product',
                 $isMaster ? 'cutter' : 'receiver',
             ])
@@ -49,12 +50,15 @@ class WorkerDashboardService
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $logs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('receptionLog', $log)));
+
         // Производство цеха: работник — packer_id, мастер-приёмщик — receiver_id.
         $workshopWorkerField = $isMaster ? 'receiver_id' : 'packer_id';
 
         $workshopLogs = WorkshopLog::with([
                 'items.product',
                 'workshop.items',
+                'workshop.department',
             ])
             ->where($workshopWorkerField, $workerId)
             ->whereBetween('created_at', [$dateFrom, $dateTo])
@@ -101,15 +105,65 @@ class WorkerDashboardService
             'smallTile' => (float) Setting::get('MASTER_SMALL_TILE_RATE', 50),
         ] : null;
 
+        // Мастер принимает в нескольких отделах — сводка выводится отдельной таблицей на отдел.
+        $summaryByDepartment = $isMaster
+            ? $this->buildSummaryByDepartment($logs, $workshopLogs)
+            : null;
+
         return compact(
             'logs',
             'stoneReceptions',
             'rawBatches',
             'summary',
+            'summaryByDepartment',
             'totalPay',
             'totalMasterPay',
             'rates',
         );
+    }
+
+    /**
+     * Группировка логов приёмок и цеха по отделу документа: на каждый отдел —
+     * сводка по продуктам и итоги. Отсортировано по имени отдела.
+     *
+     * @param  callable|null  $filterSummary  доп. фильтр строк сводки внутри отдела
+     */
+    private function buildSummaryByDepartment(
+        Collection $logs,
+        Collection $workshopLogs,
+        ?callable $filterSummary = null
+    ): Collection {
+        $stoneByDept    = $logs->groupBy(fn($log) => $log->stoneReception?->department_id);
+        $workshopByDept = $workshopLogs->groupBy(fn($log) => $log->workshop?->department_id);
+
+        return $stoneByDept->keys()
+            ->merge($workshopByDept->keys())
+            ->unique()
+            ->map(function ($deptId) use ($stoneByDept, $workshopByDept, $filterSummary) {
+                $deptStoneLogs    = $stoneByDept->get($deptId, collect());
+                $deptWorkshopLogs = $workshopByDept->get($deptId, collect());
+
+                $summary = $this->mergeProductSummaries(
+                    $this->buildProductSummary($deptStoneLogs),
+                    $this->buildWorkshopProductSummary($deptWorkshopLogs),
+                );
+
+                if ($filterSummary) {
+                    $summary = $summary->filter($filterSummary)->values();
+                }
+
+                return [
+                    'department'     => $deptStoneLogs->first()?->stoneReception?->department
+                        ?? $deptWorkshopLogs->first()?->workshop?->department,
+                    'summary'        => $summary,
+                    'totalQuantity'  => $summary->sum('quantity'),
+                    'totalPay'       => $summary->sum('pay'),
+                    'totalMasterPay' => $summary->sum('masterPay'),
+                ];
+            })
+            ->filter(fn($row) => $row['summary']->isNotEmpty())
+            ->sortBy(fn($row) => $row['department']?->name ?? "\u{FFFF}")
+            ->values();
     }
 
     /**
@@ -167,38 +221,12 @@ class WorkerDashboardService
 
         $workshopLogs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('workshopLog', $log)));
 
-        $stoneByDept    = $logs->groupBy(fn($log) => $log->stoneReception?->department_id);
-        $workshopByDept = $workshopLogs->groupBy(fn($log) => $log->workshop?->department_id);
-
-        $departments = $stoneByDept->keys()
-            ->merge($workshopByDept->keys())
-            ->unique()
-            ->map(function ($deptId) use ($stoneByDept, $workshopByDept, $productId) {
-                $deptStoneLogs    = $stoneByDept->get($deptId, collect());
-                $deptWorkshopLogs = $workshopByDept->get($deptId, collect());
-
-                $summary = $this->mergeProductSummaries(
-                    $this->buildProductSummary($deptStoneLogs),
-                    $this->buildWorkshopProductSummary($deptWorkshopLogs),
-                );
-
-                // Фильтр по продукту (плитке): оставляем только строки выбранного товара.
-                if ($productId) {
-                    $summary = $summary->filter(fn($row) => $row['product']?->id == $productId)->values();
-                }
-
-                return [
-                    'department'     => $deptStoneLogs->first()?->stoneReception?->department
-                        ?? $deptWorkshopLogs->first()?->workshop?->department,
-                    'summary'        => $summary,
-                    'totalQuantity'  => $summary->sum('quantity'),
-                    'totalPay'       => $summary->sum('pay'),
-                    'totalMasterPay' => $summary->sum('masterPay'),
-                ];
-            })
-            ->filter(fn($row) => $row['summary']->isNotEmpty())
-            ->sortBy(fn($row) => $row['department']?->name ?? "\u{FFFF}")
-            ->values();
+        // Фильтр по продукту (плитке): оставляем только строки выбранного товара.
+        $departments = $this->buildSummaryByDepartment(
+            $logs,
+            $workshopLogs,
+            $productId ? fn($row) => $row['product']?->id == $productId : null,
+        );
 
         // Вкладка «Сырьё»: движения сырья не связаны с плиткой — фильтр $productId не применяется.
         $incomingRaw = $this->buildIncomingRawSummary($dateFrom, $dateTo, $departmentIds, $rawProductId);
