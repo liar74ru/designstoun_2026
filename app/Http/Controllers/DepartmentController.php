@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\DepartmentOperationSetting;
+use App\Models\DepartmentSetting;
+use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
+use App\Services\DepartmentExpenseService;
 use App\Services\WorkshopPresetService;
+use App\Support\DepartmentSettings;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -41,11 +45,72 @@ class DepartmentController extends Controller
         $allowedPositions  = $department->allowedPositionsByOperation();
         $presets           = $presetService->getForDepartment($department);
         $allDepartments    = Department::where('is_active', true)->orderBy('name')->get();
+        $costGroups        = config('department_settings');
+        $costSettings      = $department->settings()->pluck('value', 'key')->all();
+        $globalDefaults    = Setting::whereIn('key', DepartmentSettings::keys())->pluck('value', 'key')->all();
+        $expenses          = $department->expenses()->get(['id', 'name', 'amount']);
 
         return view('admin.departments.show', compact(
             'department', 'workers', 'stores', 'allWorkers', 'operations', 'allowedPositions',
-            'presets', 'allDepartments'
+            'presets', 'allDepartments', 'costGroups', 'costSettings', 'globalDefaults', 'expenses'
         ));
+    }
+
+    /**
+     * Сохранить список накладных расходов отдела (полная замена).
+     */
+    public function updateExpenses(
+        Request $request,
+        Department $department,
+        DepartmentExpenseService $service
+    ) {
+        $request->validate([
+            'expenses'          => ['array'],
+            'expenses.*.name'   => ['nullable', 'string', 'max:100'],
+            'expenses.*.amount' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $service->sync($department, $request->input('expenses', []));
+
+        return redirect()
+            ->route('admin.departments.show', $department)
+            ->with('success', 'Накладные расходы отдела обновлены.');
+    }
+
+    /**
+     * Сохранить переопределения ставок мастера для отдела.
+     * Пустое поле — удаление строки, значение наследуется от глобальной настройки.
+     */
+    public function updateCostSettings(Request $request, Department $department)
+    {
+        $request->validate([
+            'settings'   => ['array'],
+            'settings.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $payload = $request->input('settings', []);
+
+        foreach (DepartmentSettings::keys() as $key) {
+            $value = $payload[$key] ?? null;
+
+            if ($value === null || $value === '') {
+                DepartmentSetting::where('department_id', $department->id)
+                    ->where('key', $key)
+                    ->delete();
+                continue;
+            }
+
+            DepartmentSetting::updateOrCreate(
+                ['department_id' => $department->id, 'key' => $key],
+                ['value' => (string) $value],
+            );
+        }
+
+        $department->forgetSettingsCache();
+
+        return redirect()
+            ->route('admin.departments.show', $department)
+            ->with('success', 'Ставки мастера обновлены.');
     }
 
     public function updateOperations(Request $request, Department $department)

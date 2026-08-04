@@ -7,13 +7,13 @@ use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
 use App\Models\ReceptionLogItem;
-use App\Models\Setting;
 use App\Models\Store;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
 use App\Models\Worker;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\Moysklad\StoneReceptionSyncService;
+use App\Support\DepartmentSettings;
 use App\Traits\HandlesBatchStock;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
@@ -532,7 +532,11 @@ class StoneReceptionService
                     'is_edging'            => $isEdging,
                     'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
+                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
+                        $isUndercut,
+                        $reception->department_id,
+                        $item->product
+                    ),
                 ]);
             }
 
@@ -560,7 +564,11 @@ class StoneReceptionService
                     'effective_cost_coeff' => $effCoeff,
                     'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $item->product->prodCost($effCoeff),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
+                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
+                        $isUndercut,
+                        $reception->department_id,
+                        $item->product
+                    ),
                 ]);
             }
 
@@ -662,7 +670,11 @@ class StoneReceptionService
                 'is_edging'            => $isEdging,
                 'is_small_tile'        => $isSmallTile,
                 'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
-                'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
+                'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
+                    $isUndercut,
+                    $reception->department_id,
+                    $prod
+                ),
             ]);
         }
 
@@ -702,7 +714,11 @@ class StoneReceptionService
                     'is_edging'            => $isEdging,
                     'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
+                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
+                        $isUndercut,
+                        $reception->department_id,
+                        $prod
+                    ),
                 ]);
             }
         }
@@ -717,11 +733,7 @@ class StoneReceptionService
             return;
         }
 
-        $keys = ['BLADE_WEAR', 'RECEPTION_COST', 'WASTE_REMOVAL',
-                 'ELECTRICITY', 'PPE_COST', 'FORKLIFT_COST', 'MACHINE_COST', 'RENT_COST', 'OTHER_COSTS'];
-        $processingSum = (float) array_sum(array_map(
-            fn($key) => (float) Setting::get($key, 0), $keys
-        ));
+        $processingSum = DepartmentSettings::overheadPerUnit($reception->effectiveDepartmentId());
 
         $reception->rawMaterialBatch?->update(['processing_sum' => $processingSum]);
     }

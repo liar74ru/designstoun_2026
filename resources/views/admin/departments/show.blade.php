@@ -186,7 +186,126 @@
         </div>
     </div>
 
-    {{-- 3. Список сотрудников --}}
+    {{-- 3. Накладные расходы отдела --}}
+    @php
+        $expenseRows = old('expenses', $expenses->map(fn($e) => [
+            'name'   => $e->name,
+            'amount' => (float) $e->amount,
+        ])->values()->all());
+    @endphp
+    <div class="card shadow-sm mb-3" x-data="{
+            rows: {{ json_encode(array_values($expenseRows)) }},
+            get total() {
+                return this.rows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
+            }
+         }">
+        <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+            <span>Накладные расходы отдела</span>
+            <span class="text-muted fw-normal" style="font-size:.75rem">
+                Итого: <span x-text="total.toLocaleString('ru-RU')"></span> ₽/м²
+            </span>
+        </div>
+        <div class="card-body p-2 p-md-3">
+            <form method="POST" action="{{ route('admin.departments.expenses.update', $department) }}">
+                @csrf
+                @method('PATCH')
+
+                <p class="text-muted small mb-3">
+                    Сумма всех строк входит в себестоимость производства (processingSum техоперации МойСклад).
+                    Пустое имя сохранится как «Расход №N».
+                </p>
+
+                <template x-for="(row, i) in rows" :key="i">
+                    <div class="input-group input-group-sm mb-2">
+                        <input type="text" class="form-control"
+                               :name="'expenses[' + i + '][name]'"
+                               x-model="row.name"
+                               maxlength="100"
+                               placeholder="Название расхода">
+                        <input type="number" step="0.01" min="0" class="form-control"
+                               style="max-width:110px"
+                               :name="'expenses[' + i + '][amount]'"
+                               x-model="row.amount"
+                               placeholder="0">
+                        <span class="input-group-text d-none d-sm-inline">₽/м²</span>
+                        <button type="button" class="btn btn-outline-danger" @click="rows.splice(i, 1)"
+                                title="Удалить расход">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </template>
+
+                <div x-show="rows.length === 0" class="text-muted small mb-2">
+                    Расходы не заданы — накладные отдела равны 0.
+                </div>
+
+                @error('expenses.*')
+                    <div class="text-danger small mb-2">{{ $message }}</div>
+                @enderror
+
+                <div class="mt-3 d-flex justify-content-between">
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            @click="rows.push({ name: '', amount: '' })">
+                        <i class="bi bi-plus-circle"></i> Добавить расход
+                    </button>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg"></i> Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- 4. Ставки мастера --}}
+    <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold py-2">Ставки мастера</div>
+        <div class="card-body p-2 p-md-3">
+            <form method="POST" action="{{ route('admin.departments.cost-settings.update', $department) }}">
+                @csrf
+                @method('PATCH')
+
+                <p class="text-muted small mb-3">
+                    Пустое поле — значение наследуется из общих настроек
+                    (<a href="{{ route('admin.settings.index') }}">Настройки системы</a>).
+                </p>
+
+                @foreach($costGroups as $groupKey => $group)
+                    <div class="mb-3">
+                        <div class="fw-semibold small mb-1">{{ $group['label'] }}</div>
+                        @if(! empty($group['hint']))
+                            <div class="text-muted mb-2" style="font-size:.75rem">{{ $group['hint'] }}</div>
+                        @endif
+
+                        <div class="row g-2">
+                            @foreach($group['keys'] as $key => $meta)
+                                @php
+                                    $globalValue = $globalDefaults[$key] ?? $meta['default'] ?? 0;
+                                @endphp
+                                <div class="col-12 col-md-6 col-lg-4">
+                                    <label class="form-label small mb-1" for="cost-{{ $key }}">{{ $meta['label'] }}</label>
+                                    <input type="number" step="0.01" min="0"
+                                           class="form-control form-control-sm"
+                                           id="cost-{{ $key }}"
+                                           name="settings[{{ $key }}]"
+                                           value="{{ old('settings.' . $key, $costSettings[$key] ?? '') }}"
+                                           placeholder="{{ $globalValue }}">
+                                    <div class="form-text" style="font-size:.7rem">Общее: {{ $globalValue }} ₽</div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+
+                <div class="mt-3 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg"></i> Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- 5. Список сотрудников --}}
     <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold py-2">
             Сотрудники ({{ $workers->count() }})
@@ -240,7 +359,7 @@
         </div>
     </div>
 
-    {{-- 4. Склады по умолчанию --}}
+    {{-- 6. Склады по умолчанию --}}
     <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold py-2">Склады по умолчанию</div>
         <div class="card-body">
@@ -347,7 +466,7 @@
         </div>
     </div>
 
-    {{-- 5. Пресеты цеха --}}
+    {{-- 7. Пресеты цеха --}}
     <div class="card shadow-sm mb-3">
         <div class="card-header d-flex justify-content-between align-items-center py-2">
             <span class="fw-semibold">Пресеты цеха ({{ $presets->count() }})</span>

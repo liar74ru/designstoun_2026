@@ -421,8 +421,9 @@
                 @php
                     $costTotalQty   = $stoneReception->items->sum('quantity');
                     $costWorkerPay  = $stoneReception->items->sum(fn($i) => $i->calculateWorkerPay());
-                    $costBatch      = $stoneReception->rawMaterialBatch;
-                    $costReception  = round((float)($costBatch?->processing_sum ?? 0) * $costTotalQty);
+                    // Накладные считаем по отделу приёмки — тем же правилом, что уходит в МойСклад
+                    $costPerUnit    = \App\Support\DepartmentSettings::overheadPerUnit($stoneReception->effectiveDepartmentId());
+                    $costReception  = round($costPerUnit * $costTotalQty);
                     $costOther      = 0;
                     $costGrandTotal = $costWorkerPay + $costReception + $costOther;
                 @endphp

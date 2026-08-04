@@ -129,61 +129,9 @@
         </div>
         @endif
 
-        {{-- Себестоимость производства --}}
-        @php
-            $costKeys = ['BLADE_WEAR', 'RECEPTION_COST', 'WASTE_REMOVAL',
-                         'ELECTRICITY', 'PPE_COST', 'FORKLIFT_COST', 'MACHINE_COST', 'RENT_COST', 'OTHER_COSTS'];
-            $costSettings = $settings->filter(fn($s) => in_array($s->key, $costKeys));
-            $manualTotal = $costSettings->sum(fn($s) => (float) $s->value);
-        @endphp
-        <div class="card shadow-sm mb-3">
-            <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
-                 role="button"
-                 data-block-id="costs">
-                <span>Себестоимость производства</span>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted small fw-normal">ручные затраты: <strong>{{ number_format($manualTotal, 0, ',', ' ') }} ₽/м²</strong></span>
-                    <i class="bi bi-chevron-down collapse-icon"></i>
-                </div>
-            </div>
-            <div class="collapse-content" id="block-costs" style="display: none;">
-                <div class="card-body">
-                    <div class="alert alert-info py-2 px-3 mb-3 small">
-                        <i class="bi bi-info-circle"></i>
-                        Зарплата пильщика рассчитывается автоматически по коэффициенту продукта и вынесена в блок «Расчёт зарплаты» выше.
-                        Остальные компоненты вводятся вручную:
-                    </div>
-
-                    @foreach($costSettings as $i => $setting)
-                    <div class="mb-3">
-                        <label for="setting_{{ $setting->key }}" class="form-label fw-semibold mb-1">
-                            {{ $setting->label ?? $setting->key }}
-                        </label>
-                        @if($setting->description)
-                            <div class="text-muted small mb-1">{{ $setting->description }}</div>
-                        @endif
-                        <input
-                            type="number"
-                            step="any"
-                            id="setting_{{ $setting->key }}"
-                            name="settings[{{ $i }}][value]"
-                            value="{{ old('settings.' . $i . '.value', $setting->value) }}"
-                            class="form-control @error('settings.' . $i . '.value') is-invalid @enderror"
-                            required
-                        >
-                        <input type="hidden" name="settings[{{ $i }}][key]" value="{{ $setting->key }}">
-                        @error('settings.' . $i . '.value')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-
         {{-- Ставки мастера --}}
         @php
-            $masterKeys     = ['MASTER_BASE_RATE', 'MASTER_UNDERCUT_RATE', 'MASTER_PACKAGING_RATE', 'MASTER_SMALL_TILE_RATE'];
+            $masterKeys     = ['MASTER_BASE_RATE', 'MASTER_UNDERCUT_RATE'];
             $masterSettings = $settings->filter(fn($s) => in_array($s->key, $masterKeys));
         @endphp
         @if($masterSettings->isNotEmpty())
@@ -196,6 +144,11 @@
             </div>
             <div class="collapse-content" id="block-master-rates" style="display: none;">
                 <div class="card-body">
+                    <div class="alert alert-warning py-2 px-3 mb-3 small">
+                        <i class="bi bi-diagram-3"></i>
+                        Значения по умолчанию. Каждый отдел может переопределить их в своей карточке
+                        (Настройки → отдел → «Ставки мастера»).
+                    </div>
                     @foreach($masterSettings as $setting)
                         @php $i = $settings->search(fn($s) => $s->key === $setting->key); @endphp
                         <div class="mb-3">

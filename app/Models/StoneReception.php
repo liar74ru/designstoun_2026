@@ -85,6 +85,21 @@ class StoneReception extends Model
     }
 
     /**
+     * Отдел для расчёта себестоимости: свой → отдел партии → отдел пильщика.
+     *
+     * Накладные расходы живут в `department_expenses` и не наследуются
+     * из глобальных настроек, поэтому у документа без отдела они были бы
+     * нулевыми. Цепочка закрывает исторические документы, у которых
+     * department_id остался пустым.
+     */
+    public function effectiveDepartmentId(): ?int
+    {
+        return $this->department_id
+            ?? $this->rawMaterialBatch?->department_id
+            ?? $this->cutter?->department_id;
+    }
+
+    /**
      * Журнал изменений приёмки
      */
     public function receptionLogs()

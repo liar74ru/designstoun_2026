@@ -189,6 +189,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
         Route::patch('/departments/{department}/operations', [DepartmentController::class, 'updateOperations'])->name('departments.operations.update');
+        Route::patch('/departments/{department}/cost-settings', [DepartmentController::class, 'updateCostSettings'])->name('departments.cost-settings.update');
+        Route::patch('/departments/{department}/expenses', [DepartmentController::class, 'updateExpenses'])->name('departments.expenses.update');
         Route::resource('departments', DepartmentController::class)->only(['create', 'store', 'show', 'update', 'destroy']);
 
         // Пресеты цеха отдела

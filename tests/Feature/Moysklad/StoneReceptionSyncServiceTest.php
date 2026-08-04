@@ -1,66 +1,62 @@
 <?php
 
-use App\Models\Setting;
+use App\Models\Department;
+use App\Models\DepartmentExpense;
 use App\Services\Moysklad\StoneReceptionSyncService;
+use Illuminate\Support\Facades\Cache;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // StoneReceptionSyncService — manualCostPerUnit()
 // ══════════════════════════════════════════════════════════════════════════════
 
+beforeEach(fn () => Cache::flush());
+
 describe('StoneReceptionSyncService::manualCostPerUnit()', function () {
 
-    test('суммирует все накладные расходы (без PACKAGING_COST — он учитывается в техоперации упаковки)', function () {
-        Setting::set('BLADE_WEAR', 100);
-        Setting::set('RECEPTION_COST', 50);
-        Setting::set('PACKAGING_COST', 30); // не входит в формулу приёмки
-        Setting::set('WASTE_REMOVAL', 20);
-        Setting::set('ELECTRICITY', 80);
-        Setting::set('PPE_COST', 40);
-        Setting::set('FORKLIFT_COST', 60);
-        Setting::set('MACHINE_COST', 70);
-        Setting::set('RENT_COST', 90);
-        Setting::set('OTHER_COSTS', 10);
+    test('суммирует строки накладных расходов отдела', function () {
+        $dept = Department::create(['name' => 'Отдел накладных', 'is_active' => true]);
+        DepartmentExpense::insert([
+            ['department_id' => $dept->id, 'name' => 'Расход пилы',   'amount' => 100],
+            ['department_id' => $dept->id, 'name' => 'Приёмка',       'amount' => 50],
+            ['department_id' => $dept->id, 'name' => 'Электричество', 'amount' => 80],
+        ]);
 
-        $service = app(StoneReceptionSyncService::class);
-        $result = $service->manualCostPerUnit();
-
-        // 100 + 50 + 20 + 80 + 40 + 60 + 70 + 90 + 10 = 520 (без PACKAGING_COST 30)
-        expect($result)->toBe(520.0);
+        expect(app(StoneReceptionSyncService::class)->manualCostPerUnit($dept->id))->toBe(230.0);
     });
 
-    test('возвращает 0 когда ничего не задано', function () {
-        Setting::whereIn('key', [
-            'BLADE_WEAR', 'RECEPTION_COST', 'PACKAGING_COST', 'WASTE_REMOVAL',
-            'ELECTRICITY', 'PPE_COST', 'FORKLIFT_COST', 'MACHINE_COST',
-            'RENT_COST', 'OTHER_COSTS',
-        ])->delete();
+    test('отдел без расходов → 0', function () {
+        $dept = Department::create(['name' => 'Пустой отдел', 'is_active' => true]);
 
-        $service = app(StoneReceptionSyncService::class);
-        $result = $service->manualCostPerUnit();
-
-        expect($result)->toBe(0.0);
+        expect(app(StoneReceptionSyncService::class)->manualCostPerUnit($dept->id))->toBe(0.0);
     });
 
-    test('корректно обрабатывает строковые значения', function () {
-        Setting::set('BLADE_WEAR', '100.50');
-        Setting::set('RECEPTION_COST', '200.25');
-
-        $service = app(StoneReceptionSyncService::class);
-        $result = $service->manualCostPerUnit();
-
-        expect($result)->toBe(300.75);
+    test('документ без отдела → 0, глобального фолбэка больше нет', function () {
+        expect(app(StoneReceptionSyncService::class)->manualCostPerUnit())->toBe(0.0);
     });
 
-    test('использует значения по умолчанию для отсутствующих ключей', function () {
-        Setting::whereIn('key', [
-            'BLADE_WEAR', 'RECEPTION_COST', 'PACKAGING_COST', 'WASTE_REMOVAL',
-            'ELECTRICITY', 'PPE_COST', 'FORKLIFT_COST', 'MACHINE_COST',
-            'RENT_COST', 'OTHER_COSTS',
-        ])->delete();
+    test('дробные суммы складываются без потерь', function () {
+        $dept = Department::create(['name' => 'Отдел дробей', 'is_active' => true]);
+        DepartmentExpense::insert([
+            ['department_id' => $dept->id, 'name' => 'Расход пилы', 'amount' => 100.50],
+            ['department_id' => $dept->id, 'name' => 'Приёмка',     'amount' => 200.25],
+        ]);
+
+        expect(app(StoneReceptionSyncService::class)->manualCostPerUnit($dept->id))->toBe(300.75);
+    });
+
+    test('у каждого отдела свой набор расходов', function () {
+        $cutting = Department::create(['name' => 'Резка', 'is_active' => true]);
+        $quarry  = Department::create(['name' => 'Карьер', 'is_active' => true]);
+
+        DepartmentExpense::insert([
+            ['department_id' => $cutting->id, 'name' => 'Расход пилы', 'amount' => 100],
+            ['department_id' => $cutting->id, 'name' => 'Аренда цеха', 'amount' => 35],
+            ['department_id' => $quarry->id,  'name' => 'Экскаватор',  'amount' => 500],
+        ]);
 
         $service = app(StoneReceptionSyncService::class);
-        $result = $service->manualCostPerUnit();
 
-        expect($result)->toBe(0.0);
+        expect($service->manualCostPerUnit($cutting->id))->toBe(135.0);
+        expect($service->manualCostPerUnit($quarry->id))->toBe(500.0);
     });
 });

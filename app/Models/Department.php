@@ -64,6 +64,18 @@ class Department extends Model
         return $this->hasMany(DepartmentOperationSetting::class);
     }
 
+    /** Переопределения настроек себестоимости для этого отдела */
+    public function settings(): HasMany
+    {
+        return $this->hasMany(DepartmentSetting::class);
+    }
+
+    /** Произвольные строки накладных расходов отдела (₽/м²) */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(DepartmentExpense::class)->orderBy('id');
+    }
+
     public function presets(): HasMany
     {
         return $this->hasMany(WorkshopPreset::class);
@@ -119,6 +131,23 @@ class Department extends Model
             }
         );
         return in_array($position, $positions, true);
+    }
+
+    public static function settingsCacheKey(int $departmentId): string
+    {
+        return "dept.{$departmentId}.settings";
+    }
+
+    public static function expensesCacheKey(int $departmentId): string
+    {
+        return "dept.{$departmentId}.expenses";
+    }
+
+    /** Единая точка сброса кэша себестоимости отдела: и ставки, и расходы. */
+    public function forgetSettingsCache(): void
+    {
+        Cache::forget(self::settingsCacheKey($this->id));
+        Cache::forget(self::expensesCacheKey($this->id));
     }
 
     public function forgetOperationsCache(): void
