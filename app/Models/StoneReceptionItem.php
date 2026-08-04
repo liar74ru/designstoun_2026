@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Setting;
+use App\Support\DepartmentSettings;
+use App\Support\RateFormula;
 use Illuminate\Database\Eloquent\Model;
 
 class StoneReceptionItem extends Model
@@ -103,6 +105,10 @@ class StoneReceptionItem extends Model
 
     /**
      * Проверяет, является ли SKU плиткой < 50мм (маска 04-хх-30).
+     *
+     * Флаг is_small_tile — только UI-индикатор и признак группировки в сводках.
+     * На master_cost_per_m2 он больше не влияет: надбавка за мелкую плитку
+     * кодируется через products.master_cost_coeff конкретного SKU.
      */
     public static function skuIsSmallTile(?string $sku): bool
     {
@@ -122,13 +128,31 @@ class StoneReceptionItem extends Model
     }
 
     /**
-     * Ставка мастера за м² по набору флагов.
+     * Ставка мастера за м².
+     *
+     * Базовая ставка отдела масштабируется коэффициентом продукта
+     * (атрибут masterCostCoeff МойСклад) по той же ступенчатой формуле,
+     * что и зарплата пильщика: ОКРУГЛВНИЗ((ставка + ставка×17%×коэф)/10)×10.
+     * Коэффициент 0 (в т.ч. когда атрибут не заполнен) → базовая ставка.
+     *
+     * Надбавка за подкол — флаг-чекбокс, не зависит от SKU,
+     * поэтому прибавляется поверх, уже ПОСЛЕ округления по 10.
+     *
+     * @param int|null $departmentId Отдел документа; null → глобальные настройки
      */
-    public static function computeMasterCost(bool $isUndercut, bool $isSmallTile): float
-    {
-        return (float) Setting::get('MASTER_BASE_RATE', 100)
-            + ($isUndercut  ? (float) Setting::get('MASTER_UNDERCUT_RATE',   50) : 0)
-            + ($isSmallTile ? (float) Setting::get('MASTER_SMALL_TILE_RATE', 50) : 0);
+    public static function computeMasterCost(
+        bool $isUndercut,
+        ?int $departmentId = null,
+        ?Product $product = null
+    ): float {
+        $rate = RateFormula::stepped(
+            DepartmentSettings::masterBaseRate($departmentId),
+            (float) ($product?->master_cost_coeff ?? 0)
+        );
+
+        return $isUndercut
+            ? $rate + DepartmentSettings::masterUndercutRate($departmentId)
+            : $rate;
     }
 
     /**

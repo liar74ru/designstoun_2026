@@ -206,13 +206,14 @@ class ProductController extends Controller
     }
 
     /**
-     * AJAX: возвращает prod_cost_coeff продукта (используется в форме приёмки
+     * AJAX: возвращает коэффициенты продукта (используется в форме приёмки
      * для отображения/пересчёта коэффициента при выборе продукта).
      */
     public function getCoeff(Product $product)
     {
         return response()->json([
-            'prod_cost_coeff' => (float) $product->prod_cost_coeff,
+            'prod_cost_coeff'   => (float) $product->prod_cost_coeff,
+            'master_cost_coeff' => (float) $product->master_cost_coeff,
         ]);
     }
 

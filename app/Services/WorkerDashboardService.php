@@ -8,11 +8,11 @@ use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Models\ReceptionLog;
 use App\Models\ReceptionLogItem;
-use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
+use App\Support\DepartmentSettings;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -98,14 +98,8 @@ class WorkerDashboardService
         );
         $totalPay       = $isMaster ? null : $summary->sum('pay');
         $totalMasterPay = $isMaster ? $summary->sum('masterPay') : null;
-        $rates          = $isMaster ? [
-            'base'      => (float) Setting::get('MASTER_BASE_RATE', 100),
-            'undercut'  => (float) Setting::get('MASTER_UNDERCUT_RATE', 50),
-            'packaging' => (float) Setting::get('MASTER_PACKAGING_RATE', 30),
-            'smallTile' => (float) Setting::get('MASTER_SMALL_TILE_RATE', 50),
-        ] : null;
-
         // Мастер принимает в нескольких отделах — сводка выводится отдельной таблицей на отдел.
+        // Ставки настраиваются per-department, поэтому показываются внутри таблицы отдела.
         $summaryByDepartment = $isMaster
             ? $this->buildSummaryByDepartment($logs, $workshopLogs)
             : null;
@@ -118,7 +112,6 @@ class WorkerDashboardService
             'summaryByDepartment',
             'totalPay',
             'totalMasterPay',
-            'rates',
         );
     }
 
@@ -159,6 +152,10 @@ class WorkerDashboardService
                     'totalQuantity'  => $summary->sum('quantity'),
                     'totalPay'       => $summary->sum('pay'),
                     'totalMasterPay' => $summary->sum('masterPay'),
+                    'rates'          => [
+                        'base'     => DepartmentSettings::masterBaseRate($deptId),
+                        'undercut' => DepartmentSettings::masterUndercutRate($deptId),
+                    ],
                 ];
             })
             ->filter(fn($row) => $row['summary']->isNotEmpty())

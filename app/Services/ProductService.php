@@ -38,6 +38,8 @@ class ProductService
                 'price'           => $price,
                 'old_price'       => $oldPrice,
                 'prod_cost_coeff' => $this->moySkladService->extractAttributePublic($item, 'prodCostCoeff'),
+                // Атрибут не заведён или не заполнен → 0 (мастер получает базовую ставку)
+                'master_cost_coeff' => $this->moySkladService->extractAttributePublic($item, 'masterCostCoeff') ?? 0,
                 'attributes'      => json_encode([
                     'code'      => $item['code'] ?? null,
                     'article'   => $item['article'] ?? null,

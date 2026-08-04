@@ -404,7 +404,11 @@ class WorkshopService
                     'is_edging'            => $isEdging,
                     'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
+                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
+                        $isUndercut,
+                        $workshop->department_id,
+                        $item->product
+                    ),
                 ]);
             }
         });
@@ -430,7 +434,11 @@ class WorkshopService
                     'effective_cost_coeff' => $effCoeff,
                     'is_small_tile'        => $isSmallTile,
                     'worker_cost_per_m2'   => $item->product->prodCost($effCoeff),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost($isUndercut, $isSmallTile),
+                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
+                        $isUndercut,
+                        $workshop->department_id,
+                        $item->product
+                    ),
                 ]);
             }
         });
@@ -502,13 +510,18 @@ class WorkshopService
 
         foreach ($rows as $row) {
             $workshop->items()->create(
-                $this->productItemAttributes($row['product_id'], $row['quantity'], $productMap->get($row['product_id']))
+                $this->productItemAttributes(
+                    $row['product_id'],
+                    $row['quantity'],
+                    $productMap->get($row['product_id']),
+                    $workshop->department_id
+                )
             );
         }
     }
 
     /** Атрибуты строки продукта с зафиксированной зарплатой. */
-    private function productItemAttributes(int $productId, $quantity, ?Product $prod): array
+    private function productItemAttributes(int $productId, $quantity, ?Product $prod, ?int $departmentId = null): array
     {
         $productCoeff = (float) ($prod?->prod_cost_coeff ?? 0);
         $isSmallTile  = StoneReceptionItem::skuIsSmallTile($prod?->sku);
@@ -523,7 +536,7 @@ class WorkshopService
             'is_edging'            => false,
             'is_small_tile'        => $isSmallTile,
             'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
-            'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(false, $isSmallTile),
+            'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(false, $departmentId, $prod),
         ];
     }
 
@@ -553,7 +566,12 @@ class WorkshopService
 
             if ($role === WorkshopItem::ROLE_PRODUCT) {
                 $workshop->items()->create(
-                    $this->productItemAttributes($productId, $row['quantity'], $productMap->get($productId))
+                    $this->productItemAttributes(
+                        $productId,
+                        $row['quantity'],
+                        $productMap->get($productId),
+                        $workshop->department_id
+                    )
                 );
             } else {
                 $workshop->items()->create([

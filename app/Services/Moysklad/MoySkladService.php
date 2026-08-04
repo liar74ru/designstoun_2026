@@ -414,8 +414,10 @@ class MoySkladService extends MoySkladBaseService
             $result['synced']++;
         }
 
-        // Извлекаем коэффициент стоимости производства из кастомных атрибутов МойСклад
-        $prodCostCoeff = $this->extractAttribute($productData, 'prodCostCoeff');
+        // Извлекаем коэффициенты стоимости производства из кастомных атрибутов МойСклад.
+        // Атрибут не заведён или не заполнен → 0 (мастер получает базовую ставку).
+        $prodCostCoeff   = $this->extractAttribute($productData, 'prodCostCoeff');
+        $masterCostCoeff = $this->extractAttribute($productData, 'masterCostCoeff') ?? 0;
 
         // Сохранение
         Product::updateOrCreate(
@@ -432,6 +434,7 @@ class MoySkladService extends MoySkladBaseService
                 'min_price' => $minPrice,
                 'buy_price' => $buyPrice,
                 'prod_cost_coeff' => $prodCostCoeff,
+                'master_cost_coeff' => $masterCostCoeff,
                 'quantity' => $productData['stock'] ?? 0,
                 'is_active' => true,
                 'attributes' => json_encode([

@@ -365,6 +365,55 @@ describe('MoySkladService::syncProducts()', function () {
         $product = Product::where('moysklad_id', 'product-001')->first();
         expect((float) $product->prod_cost_coeff)->toBe(1.5);
     });
+
+    test('извлекает masterCostCoeff из атрибутов', function () {
+        config()->set('services.moysklad.token', 'test-token');
+
+        Http::fake([
+            '*' => Http::response([
+                'rows' => [
+                    [
+                        'id' => 'product-002',
+                        'name' => 'Товар с коэффициентом мастера',
+                        'attributes' => [
+                            ['name' => 'prodCostCoeff', 'value' => 1.5],
+                            ['name' => 'masterCostCoeff', 'value' => 3],
+                        ],
+                    ],
+                ],
+                'meta' => ['size' => 1],
+            ], 200),
+        ]);
+
+        (new MoySkladService())->syncProducts();
+
+        $product = Product::where('moysklad_id', 'product-002')->first();
+        expect((float) $product->master_cost_coeff)->toBe(3.0);
+    });
+
+    test('атрибут masterCostCoeff отсутствует → коэффициент 0', function () {
+        config()->set('services.moysklad.token', 'test-token');
+
+        Http::fake([
+            '*' => Http::response([
+                'rows' => [
+                    [
+                        'id' => 'product-003',
+                        'name' => 'Товар без атрибута мастера',
+                        'attributes' => [
+                            ['name' => 'prodCostCoeff', 'value' => 1.5],
+                        ],
+                    ],
+                ],
+                'meta' => ['size' => 1],
+            ], 200),
+        ]);
+
+        (new MoySkladService())->syncProducts();
+
+        $product = Product::where('moysklad_id', 'product-003')->first();
+        expect((float) $product->master_cost_coeff)->toBe(0.0);
+    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════

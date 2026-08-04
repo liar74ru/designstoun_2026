@@ -14,6 +14,7 @@ class ProductFactory extends Factory
             'sku'             => strtoupper(Str::random(8)),
             'price'           => fake()->randomFloat(2, 100, 10000),
             'prod_cost_coeff' => fake()->randomFloat(2, 0.5, 3.0),
+            'master_cost_coeff' => 0,
             'moysklad_id'     => (string) Str::uuid(),
             'is_active'       => true,
         ];

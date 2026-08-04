@@ -79,26 +79,7 @@
         @else
 
             @if($isMaster)
-                {{-- Ставки мастера --}}
-                <div class="row g-2 mb-3">
-                    @foreach([
-                        ['label' => 'Базовая ставка',  'value' => $rates['base']],
-                        ['label' => 'Подкол > 80%',    'value' => $rates['undercut']],
-                        ['label' => 'Фасовка в ящик',  'value' => $rates['packaging']],
-                        ['label' => 'Плитка < 50мм',   'value' => $rates['smallTile']],
-                    ] as $rate)
-                    <div class="col-6 col-md-3">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body py-2 px-3">
-                                <div class="text-muted small mb-1">{{ $rate['label'] }}</div>
-                                <div class="fs-5 fw-bold">
-                                    {{ number_format($rate['value'], 0, ',', ' ') }} <span class="text-muted small fw-normal">₽/м²</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
+                {{-- Ставки настраиваются per-department и показаны в шапке каждой таблицы отдела --}}
                 <div class="card border-0 shadow-sm mb-3">
                     <div class="card-body py-2 px-3">
                         <div class="text-muted small mb-1">Итого к выплате</div>
@@ -145,6 +126,11 @@
                                 <span class="me-2">{{ number_format($dept['totalQuantity'], 3, ',', ' ') }} м²</span>
                                 <span class="text-success">{{ number_format($dept['totalMasterPay'], 0, ',', ' ') }} ₽</span>
                             </span>
+                        </div>
+                        <div class="px-3 py-1 border-bottom text-muted" style="font-size:.75rem">
+                            Ставки отдела: база {{ number_format($dept['rates']['base'], 0, ',', ' ') }} ₽/м²
+                            (без коэффициента продукта),
+                            подкол > 80% +{{ number_format($dept['rates']['undercut'], 0, ',', ' ') }} ₽/м²
                         </div>
                         <div class="table-responsive">
                             @include('partials.dashboard-master-summary-table', [

@@ -456,7 +456,7 @@ describe('ProductController refresh()', function () {
                 'stock' => 100,
             ]);
         $mock->shouldReceive('extractAttributePublic')
-            ->once()
+            ->twice() // prodCostCoeff + masterCostCoeff
             ->andReturn(null);
 
         app()->instance(MoySkladService::class, $mock);
@@ -489,7 +489,7 @@ describe('ProductController refresh()', function () {
                 'stock' => 0,
             ]);
         $mock->shouldReceive('extractAttributePublic')
-            ->once()
+            ->twice() // prodCostCoeff + masterCostCoeff
             ->andReturn(null);
 
         app()->instance(MoySkladService::class, $mock);
@@ -519,7 +519,7 @@ describe('ProductController refresh()', function () {
                 'salePrices' => [['value' => 100000]],
             ]);
         $mock->shouldReceive('extractAttributePublic')
-            ->once()
+            ->twice() // prodCostCoeff + masterCostCoeff
             ->andReturn(null);
 
         app()->instance(MoySkladService::class, $mock);
@@ -841,6 +841,16 @@ describe('ProductController getCoeff()', function () {
 
         $data = $response->json();
         expect((float) $data['prod_cost_coeff'])->toBe(0.0);
+    });
+
+    test('возвращает коэффициент ставки мастера', function () {
+        $product = makeProduct(['prod_cost_coeff' => 2.5, 'master_cost_coeff' => 3]);
+
+        $response = $this->actingAs(adminUser())
+            ->get(route('api.products.coeff', $product))
+            ->assertStatus(200);
+
+        expect((float) $response->json('master_cost_coeff'))->toBe(3.0);
     });
 
     test('недоступен без авторизации', function () {

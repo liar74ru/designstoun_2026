@@ -3,8 +3,14 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use App\Models\Setting;
 use App\Models\StoneReceptionItem;
 
+/**
+ * Формула ставки мастера заинлайнена намеренно: миграция фиксирует расчёт,
+ * действовавший на момент её написания, и не должна ломаться при эволюции
+ * StoneReceptionItem::computeMasterCost().
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -18,10 +24,9 @@ return new class extends Migration
             foreach ($items as $item) {
                 $isSmallTile = StoneReceptionItem::skuIsSmallTile($item->product?->sku);
                 $item->is_small_tile      = $isSmallTile;
-                $item->master_cost_per_m2 = StoneReceptionItem::computeMasterCost(
-                    (bool) $item->is_undercut,
-                    $isSmallTile,
-                );
+                $item->master_cost_per_m2 = (float) Setting::get('MASTER_BASE_RATE', 100)
+                    + ($item->is_undercut ? (float) Setting::get('MASTER_UNDERCUT_RATE', 50) : 0)
+                    + ($isSmallTile ? (float) Setting::get('MASTER_SMALL_TILE_RATE', 50) : 0);
                 $item->saveQuietly();
             }
         });

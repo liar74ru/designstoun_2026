@@ -14,15 +14,12 @@ use Illuminate\Support\Facades\Cache;
  *   UNDERCUT_PENALTY       — штраф коэффициента при флаге «подкол > 80%» (StoneReceptionItem)
  *   EDGING_COEFF           — коэффициент «Торцовка»: полностью заменяет prod_cost_coeff (доступен для партий 04-XX); может быть отрицательным
  *
- * Себестоимость производства (₽/м²):
- *   BLADE_WEAR, RECEPTION_COST, WASTE_REMOVAL,
- *   ELECTRICITY, PPE_COST, FORKLIFT_COST, MACHINE_COST, RENT_COST, OTHER_COSTS
+ * Накладные расходы здесь НЕ хранятся: у каждого отдела свой произвольный
+ * набор строк в таблице `department_expenses` (см. App\Support\DepartmentSettings).
  *
- * Ставки мастера (₽/м²):
- *   MASTER_BASE_RATE       — базовая ставка за м²
+ * Ставки мастера (₽/м²) — значения по умолчанию, переопределяются в отделе:
+ *   MASTER_BASE_RATE       — базовая ставка за м² (масштабируется products.master_cost_coeff)
  *   MASTER_UNDERCUT_RATE   — надбавка за подкол > 80%
- *   MASTER_PACKAGING_RATE  — надбавка за фасовку в ящик
- *   MASTER_SMALL_TILE_RATE — надбавка за мелкую плитку < 50 мм
  *
  * МойСклад (строки):
  *   MOYSKLAD_IN_WORK_STATE — имя статуса «в работе» техоперации

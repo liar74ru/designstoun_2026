@@ -23,6 +23,7 @@ class Product extends Model
         'min_price',
         'buy_price',
         'prod_cost_coeff',
+        'master_cost_coeff',
         'is_active',
         'attributes',
     ];
@@ -33,6 +34,9 @@ class Product extends Model
         'min_price'       => 'decimal:2',
         'buy_price'       => 'decimal:2',
         'prod_cost_coeff' => 'decimal:4',
+        // Коэффициент ставки мастера (атрибут masterCostCoeff МойСклад).
+        // 0 (в т.ч. когда атрибут не заведён или не заполнен) = базовая ставка без надбавки.
+        'master_cost_coeff' => 'decimal:4',
         'is_active'       => 'boolean',
         'attributes'      => 'array',
     ];
@@ -181,12 +185,9 @@ class Product extends Model
 //        }
 
         // ОКРУГЛВНИЗ((PIECE_RATE + PIECE_RATE*17% * coeff) / 10; 0) * 10
-        $coeff   = $coeffCustom ?? (float)$this->prod_cost_coeff ?? 0;
-        $rate    = self::pieceRate();
-        $perUnit = $rate + ($rate * 0.17) * $coeff;
-        $rounded = floor($perUnit / 10) * 10;
+        $coeff = $coeffCustom ?? (float)$this->prod_cost_coeff ?? 0;
 
-        return $rounded;
+        return \App\Support\RateFormula::stepped(self::pieceRate(), (float) $coeff);
     }
     public function calculateWorkerPay(float $quantity): float
     {
