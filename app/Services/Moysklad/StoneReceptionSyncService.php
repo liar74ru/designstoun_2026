@@ -4,6 +4,7 @@ namespace App\Services\Moysklad;
 
 use App\Models\Setting;
 use App\Services\Moysklad\Concerns\HandlesProcessingSync;
+use App\Support\DepartmentSettings;
 use App\Support\DocumentNaming;
 use Illuminate\Support\Facades\Log;
 use App\Models\RawMaterialBatch;
@@ -17,257 +18,21 @@ class StoneReceptionSyncService extends MoySkladBaseService
 {
     use HandlesProcessingSync;
 
-    private float $processingSum;
-
     public function __construct(
         private StockSyncService $stockSyncService,
     ) {
         parent::__construct();
-        $this->processingSum = $this->manualCostPerUnit();
-    }
-
-    public function manualCostPerUnit(): float
-    {
-        $keys = [
-            'BLADE_WEAR', 'RECEPTION_COST', 'WASTE_REMOVAL',
-            'ELECTRICITY', 'PPE_COST', 'FORKLIFT_COST', 'MACHINE_COST',
-            'RENT_COST', 'OTHER_COSTS',
-        ];
-        return array_sum(array_map(
-            fn ($key) => (float) \App\Models\Setting::get($key, 0),
-            $keys
-        ));
     }
 
     /**
-     * Подготовить продукты для техоперации
+     * Накладные расходы на единицу продукции для отдела документа —
+     * сумма строк `department_expenses`. Наследования из глобальных настроек
+     * нет, поэтому без отдела возвращается 0; вызывающий должен передавать
+     * StoneReception::effectiveDepartmentId().
      */
-    private function prepareProducts(array $receptions): array
+    public function manualCostPerUnit(?int $departmentId = null): float
     {
-        $products = [];
-        $totalQuantity = 0;
-
-        foreach ($receptions as $reception) {
-            foreach ($reception->items as $item) {
-                $product = $item->product;
-
-                if (!$product->moysklad_id) {
-                    Log::warning('Товар не синхронизирован с МойСклад', [
-                        'product_id'   => $product->id,
-                        'reception_id' => $reception->id,
-                    ]);
-                    continue;
-                }
-
-                $productMeta = $this->getEntityMeta('product', $product->moysklad_id);
-                if (!$productMeta) {
-                    Log::warning('Не удалось получить метаданные товара', [
-                        'product_id'  => $product->id,
-                        'moysklad_id' => $product->moysklad_id,
-                    ]);
-                    continue;
-                }
-
-                $products[] = [
-                    'quantity'   => (float) $item->quantity,
-                    'assortment' => ['meta' => $productMeta],
-                ];
-
-                $totalQuantity += $item->quantity;
-            }
-        }
-
-        return [
-            'products'       => $products,
-            'total_quantity' => $totalQuantity,
-        ];
-    }
-
-    /**
-     * Создать техоперацию в МойСклад
-     *
-     * @param array       $receptions Массив приемок (как массивы, не объекты)
-     * @param string      $storeId    ID склада
-     * @param string|null $name       Имя документа; если не передано — генерируется автоматически
-     * @return array ['success', 'processing_id', 'code', 'message']
-     */
-    public function createProcessing(array $receptions, string $storeId, ?string $name = null): array
-    {
-        $result = [
-            'success'       => false,
-            'processing_id' => null,
-            'code'          => '',
-            'message'       => '',
-            'receptions'    => $receptions,
-        ];
-
-        try {
-            Log::info('StoneReceptionSyncService: начало создания техоперации', [
-                'receptions_count' => count($receptions),
-                'store_id'         => $storeId,
-            ]);
-
-            if (!$this->hasCredentials()) {
-                throw new \Exception('MoySklad токен не установлен');
-            }
-
-            $organizationMeta = $this->getOrganizationMeta();
-            if (!$organizationMeta) {
-                throw new \Exception('Не удалось получить данные организации');
-            }
-
-            $storeMeta = $this->getEntityMeta('store', $storeId);
-            if (!$storeMeta) {
-                throw new \Exception('Не удалось получить данные склада');
-            }
-
-            $productsGrouped  = [];
-            $materialsGrouped = [];
-            $totalQuantity    = 0;
-            $totalRawQuantity = 0;
-
-            foreach ($receptions as $reception) {
-                if (!isset($reception['items']) || !is_array($reception['items'])) {
-                    Log::warning('Приемка без items', ['reception_id' => $reception['id'] ?? 'unknown']);
-                    continue;
-                }
-
-                foreach ($reception['items'] as $item) {
-                    if (!isset($item['product']) || !isset($item['product']['moysklad_id'])) {
-                        Log::warning('Товар без moysklad_id', ['item' => $item]);
-                        continue;
-                    }
-
-                    $moyskladId = $item['product']['moysklad_id'];
-                    $quantity   = (float) $item['quantity'];
-
-                    if (isset($productsGrouped[$moyskladId])) {
-                        $productsGrouped[$moyskladId]['quantity'] += $quantity;
-                        Log::info('Суммируем продукт', [
-                            'moysklad_id'  => $moyskladId,
-                            'new_quantity' => $productsGrouped[$moyskladId]['quantity'],
-                        ]);
-                    } else {
-                        $productMeta = $this->getEntityMeta('product', $moyskladId);
-                        if (!$productMeta) {
-                            Log::warning('Не удалось получить метаданные товара', ['moysklad_id' => $moyskladId]);
-                            continue;
-                        }
-
-                        $productsGrouped[$moyskladId] = [
-                            'quantity'   => $quantity,
-                            'assortment' => ['meta' => $productMeta],
-                        ];
-                    }
-
-                    $totalQuantity += $quantity;
-                }
-
-                if (isset($reception['raw_material_batch']) && isset($reception['raw_material_batch']['product'])) {
-                    $rawProduct = $reception['raw_material_batch']['product'];
-
-                    if (isset($rawProduct['moysklad_id'])) {
-                        $rawMoyskladId = $rawProduct['moysklad_id'];
-                        $rawQuantity   = (float) $reception['raw_quantity_used'];
-
-                        if (isset($materialsGrouped[$rawMoyskladId])) {
-                            $materialsGrouped[$rawMoyskladId]['quantity'] += $rawQuantity;
-                            Log::info('Суммируем сырье', [
-                                'moysklad_id'  => $rawMoyskladId,
-                                'new_quantity' => $materialsGrouped[$rawMoyskladId]['quantity'],
-                            ]);
-                        } else {
-                            $rawProductMeta = $this->getEntityMeta('product', $rawMoyskladId);
-                            if ($rawProductMeta) {
-                                $materialsGrouped[$rawMoyskladId] = [
-                                    'quantity'   => $rawQuantity,
-                                    'assortment' => ['meta' => $rawProductMeta],
-                                ];
-                            } else {
-                                Log::warning('Не удалось получить метаданные сырья', ['moysklad_id' => $rawMoyskladId]);
-                            }
-                        }
-
-                        $totalRawQuantity += $rawQuantity;
-                    }
-                }
-            }
-
-            if (empty($productsGrouped)) {
-                throw new \Exception('Нет продуктов для отправки');
-            }
-
-            if (empty($materialsGrouped)) {
-                throw new \Exception('Нет материалов (сырья) для отправки');
-            }
-
-            $products       = array_values($productsGrouped);
-            $materials      = array_values($materialsGrouped);
-            $processingSum  = $this->calcProcessingSum($totalQuantity * $this->processingSum, $totalQuantity);
-
-            $processingData = [
-                'organization'  => ['meta' => $organizationMeta],
-                'productsStore' => ['meta' => $storeMeta],
-                'materialsStore'=> ['meta' => $storeMeta],
-                'processingSum' => $processingSum,
-                'products'      => $products,
-                'materials'     => $materials,
-                'name'          => $name ?? DocumentNaming::weeklyName('ТО', 1),
-                'quantity'      => $totalQuantity,
-            ];
-
-            Log::info('Отправка запроса в МойСклад', [
-                'products_count'    => count($products),
-                'products_details'  => array_map(fn($p) => ['quantity' => $p['quantity']], $products),
-                'materials_count'   => count($materials),
-                'materials_details' => array_map(fn($m) => ['quantity' => $m['quantity']], $materials),
-                'total_quantity'    => $totalQuantity,
-                'total_raw_quantity'=> $totalRawQuantity,
-                'processing_sum'    => $processingSum,
-            ]);
-
-            $response = $this->post('/entity/processing', $processingData);
-
-            if (!$response->successful()) {
-                $body   = $response->json();
-                $errors = $body['errors'] ?? [];
-
-                Log::error('Ошибка API МойСклад', [
-                    'status'       => $response->status(),
-                    'response'     => $body,
-                    'request_data' => $processingData,
-                ]);
-
-                $result['code']    = DocumentNaming::isDuplicateName($errors) ? 'duplicate_name' : 'api_error';
-                $result['message'] = 'Ошибка МойСклад: ' . $this->extractApiError($body);
-                return $result;
-            }
-
-            $processingResponse = $response->json();
-
-            $result['success']       = true;
-            $result['processing_id'] = $processingResponse['id'] ?? null;
-            $result['message']       = 'Техоперация успешно создана';
-
-            Log::info('Техоперация создана', [
-                'processing_id'      => $result['processing_id'],
-                'products_count'     => count($products),
-                'materials_count'    => count($materials),
-                'total_quantity'     => $totalQuantity,
-                'total_raw_quantity' => $totalRawQuantity,
-            ]);
-
-            return $result;
-
-        } catch (\Exception $e) {
-            Log::error('Исключение при создании техоперации', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
-            return $result;
-        }
+        return DepartmentSettings::overheadPerUnit($departmentId);
     }
 
     /**
@@ -391,7 +156,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 $masterSalaryTotal += (float) ($item->master_cost_per_m2 ?? 0) * (float) $item->quantity;
             }
             $totalProcessingSum = $this->calcProcessingSum(
-                $workerSalaryTotal + $masterSalaryTotal + $this->processingSum * $totalQuantity,
+                $workerSalaryTotal + $masterSalaryTotal
+                    + $this->manualCostPerUnit($reception->effectiveDepartmentId()) * $totalQuantity,
                 $totalQuantity
             );
 
@@ -483,6 +249,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
      * @param  string             $storeId            UUID склада
      * @param  float|null         $materialQuantity   Новое кол-во сырья (null = не менять материал)
      * @param  string|null        $materialMoyskladId moysklad_id товара-сырья
+     * @param  int|null           $departmentId       Отдел документа — источник накладных расходов
      * @return array ['success', 'code', 'message']
      */
     public function updateProcessingProducts(
@@ -491,7 +258,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
         string $storeId,
         ?float $materialQuantity = null,
         ?string $materialMoyskladId = null,
-        ?string $description = null
+        ?string $description = null,
+        ?int $departmentId = null
     ): array {
         $result = ['success' => false, 'code' => '', 'message' => ''];
 
@@ -561,7 +329,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 'productsStore'  => ['meta' => $storeMeta],
                 'materialsStore' => ['meta' => $storeMeta],
                 'processingSum'  => $this->calcProcessingSum(
-                    $workerSalaryTotal + $masterSalaryTotal + $totalQuantity * $this->processingSum,
+                    $workerSalaryTotal + $masterSalaryTotal
+                        + $totalQuantity * $this->manualCostPerUnit($departmentId),
                     $totalQuantity
                 ),
                 'products'  => $products,
@@ -646,7 +415,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
                     $reception->store_id ?? '',
                     (float) $reception->raw_quantity_used,
                     $batch->product->moysklad_id ?? '',
-                    $description ?: null
+                    $description ?: null,
+                    $reception->effectiveDepartmentId()
                 );
 
                 if ($result['success']) {
@@ -705,8 +475,10 @@ class StoneReceptionSyncService extends MoySkladBaseService
             ->with('items.product')
             ->get();
 
+        $costSummary = $this->buildCostSummary($reception);
+
         if ($logs->isEmpty()) {
-            return $batchName;
+            return trim($batchName . "\n___\n" . $costSummary, "\n");
         }
 
         $undercutMap = $reception->items->keyBy('product_id')->map(fn($i) => (bool) $i->is_undercut);
@@ -733,7 +505,44 @@ class StoneReceptionSyncService extends MoySkladBaseService
             return implode("\n", $lines);
         });
 
-        return trim($batchName . "\n" . $blocks->join("\n") . "\n___", "\n");
+        return trim($batchName . "\n" . $blocks->join("\n") . "\n___\n" . $costSummary, "\n");
+    }
+
+    /**
+     * Расшифровка себестоимости за единицу продукции для примечания техоперации.
+     *
+     * Зарплаты — средние за м² по всей приёмке (итог / общее количество),
+     * поэтому три строки в сумме дают ровно тот processingSum, который уходит
+     * в МойСклад, и его можно проверить глазами.
+     */
+    private function buildCostSummary(StoneReception $reception): string
+    {
+        $reception->loadMissing('items.product');
+
+        $totalQuantity = (float) $reception->items->sum('quantity');
+        $workerTotal   = 0.0;
+        $masterTotal   = 0.0;
+
+        foreach ($reception->items as $item) {
+            $workerTotal += $item->effectiveProdCost() * (float) $item->quantity;
+            $masterTotal += (float) ($item->master_cost_per_m2 ?? 0) * (float) $item->quantity;
+        }
+
+        $overhead = $this->manualCostPerUnit($reception->effectiveDepartmentId());
+        $worker   = $totalQuantity > 0 ? $workerTotal / $totalQuantity : 0.0;
+        $master   = $totalQuantity > 0 ? $masterTotal / $totalQuantity : 0.0;
+
+        return implode("\n", [
+            'Накладные расходы отдела: ' . $this->formatMoney($overhead) . ' ₽/м²',
+            'Зарплата пильщика (средн.): ' . $this->formatMoney($worker) . ' ₽/м²',
+            'Зарплата мастера (средн.): ' . $this->formatMoney($master) . ' ₽/м²',
+        ]);
+    }
+
+    /** Сумма без лишних нулей в дробной части: 430, 430.5, 430.55 */
+    private function formatMoney(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 2, '.', ' '), '0'), '.');
     }
 
     /**
