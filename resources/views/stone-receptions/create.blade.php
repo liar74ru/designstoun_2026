@@ -34,6 +34,38 @@
                                 </div>
                             @endif
 
+                            {{-- Отдел (скрытый блок) --}}
+                            <div class="info-block">
+                                <div class="info-block-header d-flex justify-content-between align-items-center"
+                                     id="deptToggle" style="cursor:pointer" role="button">
+                                    <span class="small fw-semibold text-muted">Отдел</span>
+                                    <i class="bi bi-chevron-down" id="deptChevron"></i>
+                                </div>
+                                <div id="deptBody" style="display:none">
+                                    <div class="info-block-body">
+                                        <select name="department_id"
+                                                id="departmentSelect"
+                                                class="form-select form-select-sm @error('department_id') is-invalid @enderror"
+                                                style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem">
+                                            <option value="">— Не задан —</option>
+                                            @foreach($departments as $department)
+                                                <option value="{{ $department->id }}"
+                                                    data-production-store-id="{{ $department->defaultProductionStore?->id }}"
+                                                    {{ (string) old('department_id', $userDeptId) === (string) $department->id ? 'selected' : '' }}>
+                                                    {{ $department->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <div class="form-text text-muted small">
+                                            По умолчанию — ваш отдел. Смена отдела перефильтрует списки работников и подставит склад приёмки отдела.
+                                        </div>
+                                        @error('department_id')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+
                             {{-- Блок 1: Участники --}}
                             <div class="info-block">
                                 <div class="info-block-header d-flex justify-content-between align-items-center">
@@ -55,6 +87,7 @@
                                                     class="form-select form-select-sm worker-picker @error('cutter_id') is-invalid @enderror"
                                                     style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
                                                     data-user-dept-ids="{{ $userDeptIds }}"
+                                                    data-dept-select-id="departmentSelect"
                                                     data-toggle-id="allWorkersParticipants">
                                                 <option value="">— пильщик —</option>
                                                 @foreach($workers as $worker)
@@ -77,6 +110,7 @@
                                                     class="form-select form-select-sm worker-picker @error('receiver_id') is-invalid @enderror" required
                                                     style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
                                                     data-user-dept-ids="{{ $userDeptIds }}"
+                                                    data-dept-select-id="departmentSelect"
                                                     data-toggle-id="allWorkersParticipants">
                                                 <option value="">— приёмщик —</option>
                                                 @foreach($masterWorkers as $worker)
@@ -711,12 +745,30 @@
                 .then(data => { window.ProductPickerStockMap = data; });
 
             // При смене склада — обновляем sourceStoreId на всех существующих строках продуктов
-            storeHidden?.addEventListener('change', function () {
+            function applyStoreToRows() {
                 container.querySelectorAll('.product-picker-row').forEach(row => {
-                    if (this.value) row.dataset.sourceStoreId = this.value;
+                    if (storeHidden.value) row.dataset.sourceStoreId = storeHidden.value;
                     else delete row.dataset.sourceStoreId;
                 });
+            }
+            storeHidden?.addEventListener('change', function () {
+                this.dataset.touched = '1';
+                applyStoreToRows();
             });
+
+            // Смена отдела → склад приёмки отдела, если склад не выбран вручную
+            const departmentSelect = document.getElementById('departmentSelect');
+            departmentSelect?.addEventListener('change', function () {
+                const opt = this.options[this.selectedIndex];
+                if (!opt || !opt.value || !storeHidden) return;
+                if (!storeHidden.dataset.touched && opt.dataset.productionStoreId) {
+                    storeHidden.value = opt.dataset.productionStoreId;
+                    applyStoreToRows();
+                }
+            });
+            @if(old('store_id'))
+                if (storeHidden) storeHidden.dataset.touched = '1';
+            @endif
 
             // ── Данные продуктов (коэффициенты) ─────────────────────────────────────
             const productCoeffCache = {};
@@ -942,6 +994,24 @@
                 nameSwitch.addEventListener('change', function () {
                     nameInput.readOnly = !this.checked;
                     if (!this.checked) nameInput.value = '';
+                });
+            })();
+
+            // ── Тоггл блока «Отдел» (раскрыт при ошибке валидации) ──────────────────
+            (function () {
+                const toggle  = document.getElementById('deptToggle');
+                const body    = document.getElementById('deptBody');
+                const chevron = document.getElementById('deptChevron');
+
+                @if($errors->has('department_id'))
+                    body.style.display = '';
+                    chevron.className  = 'bi bi-chevron-up';
+                @endif
+
+                toggle.addEventListener('click', function () {
+                    const open = body.style.display === 'none';
+                    body.style.display = open ? '' : 'none';
+                    chevron.className  = open ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
                 });
             })();
         });

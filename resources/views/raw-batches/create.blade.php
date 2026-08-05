@@ -46,6 +46,36 @@
                                 </div>
                             @endif
 
+                            {{-- Отдел (скрытый блок) --}}
+                            <div class="info-block">
+                                <div class="info-block-header d-flex justify-content-between align-items-center"
+                                     id="deptToggle" style="cursor:pointer" role="button">
+                                    <span class="small fw-semibold text-muted">Отдел</span>
+                                    <i class="bi bi-chevron-down" id="deptChevron"></i>
+                                </div>
+                                <div id="deptBody" style="display:none">
+                                    <div class="info-block-body">
+                                        <select name="department_id"
+                                                id="departmentSelect"
+                                                class="form-select @error('department_id') is-invalid @enderror">
+                                            <option value="">— Не задан —</option>
+                                            @foreach($departments as $department)
+                                                <option value="{{ $department->id }}"
+                                                    {{ (string) old('department_id', $userDeptId) === (string) $department->id ? 'selected' : '' }}>
+                                                    {{ $department->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <div class="form-text text-muted small">
+                                            По умолчанию — ваш отдел. Смена отдела перефильтрует список работников и подставит склады отдела.
+                                        </div>
+                                        @error('department_id')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+
                             {{-- Работник --}}
                             <div class="info-block">
                                 <div class="info-block-header d-flex justify-content-between align-items-center">
@@ -130,36 +160,6 @@
                                     @error('quantity')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
-                                </div>
-                            </div>
-
-                            {{-- Отдел (скрытый блок) --}}
-                            <div class="info-block">
-                                <div class="info-block-header d-flex justify-content-between align-items-center"
-                                     id="deptToggle" style="cursor:pointer" role="button">
-                                    <span class="small fw-semibold text-muted">Отдел</span>
-                                    <i class="bi bi-chevron-down" id="deptChevron"></i>
-                                </div>
-                                <div id="deptBody" style="display:none">
-                                    <div class="info-block-body">
-                                        <select name="department_id"
-                                                id="departmentSelect"
-                                                class="form-select @error('department_id') is-invalid @enderror">
-                                            <option value="">— Не задан —</option>
-                                            @foreach($departments as $department)
-                                                <option value="{{ $department->id }}"
-                                                    {{ (string) old('department_id', $userDeptId) === (string) $department->id ? 'selected' : '' }}>
-                                                    {{ $department->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <div class="form-text text-muted small">
-                                            По умолчанию — ваш отдел. Смена отдела перефильтрует список работников и подставит склады отдела.
-                                        </div>
-                                        @error('department_id')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
                                 </div>
                             </div>
 

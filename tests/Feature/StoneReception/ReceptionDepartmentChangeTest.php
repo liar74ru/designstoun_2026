@@ -118,6 +118,102 @@ describe('StoneReceptionController updateDepartment()', function () {
 
         expect($reception->fresh()->department_id)->toBe($deptA->id);
     });
+
+    test('смена отдела приёмки меняет отдел связанной партии сырья', function () {
+        $deptA = Department::create(['name' => 'Цех',      'code' => 'TSEH']);
+        $deptB = Department::create(['name' => 'Галтовка', 'code' => 'GALT']);
+
+        $reception = makeReceptionForDeptChange($deptA);
+        $reception->rawMaterialBatch->update(['department_id' => $deptA->id]);
+
+        $this->actingAs(H::adminUser())
+            ->patch(route('stone-receptions.update-department', $reception), [
+                'department_id' => $deptB->id,
+            ])
+            ->assertRedirect();
+
+        $reception->refresh();
+        expect($reception->department_id)->toBe($deptB->id);
+        expect($reception->rawMaterialBatch->department_id)->toBe($deptB->id);
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// store() — отдел из формы создания ведёт за собой отдел партии
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Создание приёмки [store()] — выбор отдела', function () {
+
+    test('явный department_id сохраняется в приёмке и меняет отдел партии', function () {
+        $deptA = Department::create(['name' => 'Цех',      'code' => 'TSEH']);
+        $deptB = Department::create(['name' => 'Галтовка', 'code' => 'GALT']);
+
+        $store    = H::store();
+        $cutter   = H::cutter();
+        $cutter->update(['department_id' => $deptA->id]);
+        $receiver = H::worker();
+        $rawProd  = H::product();
+        $batch    = H::batch($rawProd, $store, $cutter, 50.0, ['department_id' => $deptA->id]);
+
+        $this->actingAs(H::adminUser())
+            ->post('/stone-receptions', H::receptionPostData($receiver, $cutter, $store, $batch) + [
+                'department_id' => $deptB->id,
+            ])
+            ->assertRedirect();
+
+        $reception = StoneReception::first();
+        expect($reception->department_id)->toBe($deptB->id);
+        expect($batch->fresh()->department_id)->toBe($deptB->id);
+    });
+
+    test('без department_id действует прежний фолбэк, отдел партии не трогается', function () {
+        $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
+
+        $store    = H::store();
+        $cutter   = H::cutter();
+        $cutter->update(['department_id' => $deptA->id]);
+        $receiver = H::worker();
+        $rawProd  = H::product();
+        $batch    = H::batch($rawProd, $store, $cutter, 50.0, ['department_id' => $deptA->id]);
+
+        $this->actingAs(H::adminUser())
+            ->post('/stone-receptions', H::receptionPostData($receiver, $cutter, $store, $batch))
+            ->assertRedirect();
+
+        $reception = StoneReception::first();
+        expect($reception->department_id)->toBe($deptA->id);
+        expect($batch->fresh()->department_id)->toBe($deptA->id);
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// create() — список отделов для селекта
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Форма создания [create()] — селект отдела', function () {
+
+    test('админ видит все активные отделы', function () {
+        $deptA = Department::create(['name' => 'Цех',      'code' => 'TSEH']);
+        $deptB = Department::create(['name' => 'Галтовка', 'code' => 'GALT']);
+
+        $this->actingAs(H::adminUser())
+            ->get(route('stone-receptions.create'))
+            ->assertStatus(200)
+            ->assertViewHas('departments', fn($departments) =>
+                $departments->pluck('id')->contains($deptA->id)
+                && $departments->pluck('id')->contains($deptB->id));
+    });
+
+    test('не-админ видит только свои отделы', function () {
+        $deptA = Department::create(['name' => 'Цех',      'code' => 'TSEH']);
+        $deptB = Department::create(['name' => 'Галтовка', 'code' => 'GALT']);
+
+        $this->actingAs(makeMasterForDeptChange($deptA))
+            ->get(route('stone-receptions.create'))
+            ->assertStatus(200)
+            ->assertViewHas('departments', fn($departments) =>
+                $departments->pluck('id')->all() === [$deptA->id]);
+    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

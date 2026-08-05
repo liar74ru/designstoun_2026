@@ -41,6 +41,8 @@ class StoneReceptionService
         // даже если они переведены в архив (иначе <select> потеряет значение).
         $keep = $reception ? array_filter([$reception->cutter_id, $reception->receiver_id]) : [];
 
+        $accessibleDepartmentIds = auth()->user()?->accessibleDepartmentIds();
+
         $data = [
             'masterWorkers' => $this->getMasterWorkers($keep),
             'workers'      => Worker::with('departments')->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
@@ -48,6 +50,11 @@ class StoneReceptionService
             'products'     => Product::orderBy('name')->get(),
             'stores'       => Store::orderBy('name')->get(),
             'defaultStore' => Store::getDefault(),
+            'departments'  => Department::where('is_active', true)
+                ->when($accessibleDepartmentIds !== null,
+                    fn($q) => $q->whereIn('id', $accessibleDepartmentIds ?: [-1]))
+                ->with('defaultProductionStore')
+                ->orderBy('name')->get(),
             'activeBatches' => collect(),
         ];
 
@@ -257,9 +264,14 @@ class StoneReceptionService
             $data['manual_created_at'] = Carbon::parse($data['manual_created_at']);
         }
 
-        DB::transaction(function () use ($data, $batchSnapshotBefore, &$reception) {
+        DB::transaction(function () use ($data, $batch, $batchSnapshotBefore, &$reception) {
             $reception = StoneReception::create($this->prepareReceptionData($data));
             $this->createReceptionItems($reception, $data['products']);
+
+            // Отдел приёмки ведёт за собой отдел партии сырья
+            if ($reception->department_id && $batch->department_id !== $reception->department_id) {
+                $batch->update(['department_id' => $reception->department_id]);
+            }
 
             $reception->load('items');
             $itemDeltas = $reception->items
@@ -488,6 +500,7 @@ class StoneReceptionService
     public function updateDepartment(StoneReception $reception, int $departmentId): void
     {
         $reception->update(['department_id' => $departmentId]);
+        $reception->rawMaterialBatch?->update(['department_id' => $departmentId]);
     }
 
     public function resetStatus(StoneReception $reception): bool|string
@@ -649,7 +662,7 @@ class StoneReceptionService
         ];
 
         if ($forCreate) {
-            // Отдел фиксируется при создании; менять его можно только на show-странице (updateDepartment)
+            // Отдел задаётся в форме создания; позже его меняет только show-страница (updateDepartment)
             $prepared['department_id'] = $data['department_id']
                 ?? Worker::find($data['cutter_id'] ?? $data['receiver_id'] ?? null)?->department_id;
             $prepared['receiver_id'] = $data['receiver_id'];
