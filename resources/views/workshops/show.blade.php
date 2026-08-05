@@ -110,7 +110,8 @@
 
                             <form method="POST"
                                   action="{{ route('workshops.mark-completed', $workshop) }}"
-                                  onsubmit="return confirm('Закрыть операцию?')">
+                                  onsubmit="return confirm('Закрыть операцию?')"
+                                  data-submit-guard>
                                 @csrf
                                 @method('PATCH')
                                 <button type="submit" class="btn btn-warning w-100">
@@ -120,7 +121,8 @@
                         @else
                             <form method="POST"
                                   action="{{ route('workshops.reset-status', $workshop) }}"
-                                  onsubmit="return confirm('Сбросить статус?')">
+                                  onsubmit="return confirm('Сбросить статус?')"
+                                  data-submit-guard>
                                 @csrf
                                 @method('PATCH')
                                 <button type="submit" class="btn btn-success w-100">
@@ -129,7 +131,7 @@
                             </form>
                         @endif
 
-                        <form method="POST" action="{{ route('workshops.copy', $workshop) }}">
+                        <form method="POST" action="{{ route('workshops.copy', $workshop) }}" data-submit-guard>
                             @csrf
                             <button type="submit" class="btn btn-outline-info w-100">
                                 <i class="bi bi-copy"></i> Копировать
@@ -138,7 +140,8 @@
 
                         <form method="POST"
                               action="{{ route('workshops.destroy', $workshop) }}"
-                              onsubmit="return confirm('Удалить операцию Цех #{{ $workshop->id }}? Тара будет возвращена на склад.')">
+                              onsubmit="return confirm('Удалить операцию Цех #{{ $workshop->id }}? Тара будет возвращена на склад.')"
+                              data-submit-guard>
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-danger w-100">
@@ -230,7 +233,8 @@
                         <div class="d-flex gap-1">
                             <form method="POST"
                                   action="{{ route('workshops.refresh-item-coeffs', $workshop) }}"
-                                  onsubmit="return confirm('Обновить коэффициенты из справочника товаров?\nЗначения effective_cost_coeff будут пересчитаны по текущим prod_cost_coeff.')">
+                                  onsubmit="return confirm('Обновить коэффициенты из справочника товаров?\nЗначения effective_cost_coeff будут пересчитаны по текущим prod_cost_coeff.')"
+                                  data-submit-guard>
                                 @csrf
                                 <button type="submit"
                                         class="btn btn-sm btn-outline-secondary"
@@ -320,7 +324,8 @@
                         </div>
                         <form method="POST"
                               action="{{ route('workshops.update-item-coeff', $workshop) }}"
-                              id="coeffEditForm">
+                              id="coeffEditForm"
+                              data-submit-guard>
                             @csrf
                             <div style="overflow-x:auto">
                                 <table class="table table-sm mb-2" style="min-width:440px">

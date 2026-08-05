@@ -46,7 +46,7 @@
 
     @include('partials.alerts')
 
-    <form method="POST" action="{{ route('workshops.store') }}" id="workshopForm">
+    <form method="POST" action="{{ route('workshops.store') }}" id="workshopForm" data-submit-guard>
         @csrf
 
         <div class="row g-3">

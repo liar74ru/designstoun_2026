@@ -190,14 +190,14 @@
                                         <a href="{{ route('workshops.edit', $workshop) }}" class="btn btn-sm btn-success" style="min-width:110px">
                                             <i class="bi bi-pencil"></i> Изменить
                                         </a>
-                                        <form method="POST" action="{{ route('workshops.mark-completed', $workshop) }}" onsubmit="return confirm('Закрыть операцию?')">
+                                        <form method="POST" action="{{ route('workshops.mark-completed', $workshop) }}" onsubmit="return confirm('Закрыть операцию?')" data-submit-guard>
                                             @csrf @method('PATCH')
                                             <button type="submit" class="btn btn-sm btn-warning w-100" style="min-width:110px">
                                                 <i class="bi bi-check2-circle"></i> Закрыть
                                             </button>
                                         </form>
                                     @endif
-                                    <form action="{{ route('workshops.copy', $workshop) }}" method="POST">
+                                    <form action="{{ route('workshops.copy', $workshop) }}" method="POST" data-submit-guard>
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-outline-info w-100" style="min-width:110px">
                                             <i class="bi bi-copy"></i> Копия
@@ -207,14 +207,14 @@
                                         <i class="bi bi-eye"></i> Просмотр
                                     </a>
                                     @if($workshop->status === 'active')
-                                        <form action="{{ route('workshops.destroy', $workshop) }}" method="POST" onsubmit="return confirm('Удалить операцию?')">
+                                        <form action="{{ route('workshops.destroy', $workshop) }}" method="POST" onsubmit="return confirm('Удалить операцию?')" data-submit-guard>
                                             @csrf @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger w-100" style="min-width:110px">
                                                 <i class="bi bi-trash"></i> Удалить
                                             </button>
                                         </form>
                                     @else
-                                        <form action="{{ route('workshops.reset-status', $workshop) }}" method="POST" onsubmit="return confirm('Сбросить статус?')">
+                                        <form action="{{ route('workshops.reset-status', $workshop) }}" method="POST" onsubmit="return confirm('Сбросить статус?')" data-submit-guard>
                                             @csrf @method('PATCH')
                                             <button type="submit" class="btn btn-sm btn-outline-warning w-100" style="min-width:110px">
                                                 <i class="bi bi-arrow-counterclockwise"></i> Сбросить

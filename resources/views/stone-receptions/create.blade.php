@@ -22,7 +22,7 @@
             <div class="col-12 col-lg-7">
                 <div class="card shadow-sm">
                     <div class="info-block-body">
-                        <form method="POST" action="{{ route('stone-receptions.store') }}" id="receptionForm">
+                        <form method="POST" action="{{ route('stone-receptions.store') }}" id="receptionForm" data-submit-guard>
                             @csrf
 
                             {{-- Ошибки --}}
@@ -266,7 +266,7 @@
                                 <button type="submit" class="btn btn-primary btn-sm flex-fill">
                                     <i class="bi bi-save"></i> Сохранить приёмку
                                 </button>
-                                <button type="button" class="btn btn-warning btn-sm flex-fill" id="saveCloseBatchBtn"
+                                <button type="submit" class="btn btn-warning btn-sm flex-fill" id="saveCloseBatchBtn"
                                         title="Сохранить приёмку и завершить её" disabled>
                                     <i class="bi bi-check2-circle"></i> Сохранить + Закрыть партию
                                 </button>
@@ -456,7 +456,6 @@
             const saveCloseBatchBtn = document.getElementById('saveCloseBatchBtn');
             const closeBatchInput   = document.getElementById('closeBatchInput');
             const submitBtn         = document.querySelector('#receptionForm button[type="submit"]');
-            let isSubmitting = false;
 
             // ── Остаток партии ───────────────────────────────────────────────────────
             function updateRemainingIndicator() {
@@ -479,11 +478,12 @@
             // Обычное сохранение не должно закрывать партию, даже если прошлый submit «+закрыть» прервала валидация
             submitBtn?.addEventListener('click', () => { closeBatchInput.value = '0'; });
 
-            saveCloseBatchBtn?.addEventListener('click', function () {
-                if (!confirm('Сохранить приёмку и закрыть партию?\nСвязанная приёмка будет переведена в статус «Завершена».')) return;
+            saveCloseBatchBtn?.addEventListener('click', function (e) {
+                if (!confirm('Сохранить приёмку и закрыть партию?\nСвязанная приёмка будет переведена в статус «Завершена».')) {
+                    e.preventDefault();
+                    return;
+                }
                 closeBatchInput.value = '1';
-                // requestSubmit (а не submit) — чтобы сработала валидация в обработчике submit
-                document.getElementById('receptionForm').requestSubmit();
             });
 
             // ── Последние приёмки по партии ─────────────────────────────────────────
@@ -886,7 +886,6 @@
 
             // ── Валидация перед отправкой ────────────────────────────────────────────
             document.getElementById('receptionForm').addEventListener('submit', function (e) {
-                if (isSubmitting) { e.preventDefault(); return; }
                 let ok = true;
                 const rows = container.querySelectorAll('.product-picker-row');
 
@@ -917,22 +916,12 @@
                         e.preventDefault(); closeBatchInput.value = '0'; return;
                     }
                 }
-
-                // Индикация: страница ждёт синхронизацию с МойСклад, блокируем повторную отправку
-                isSubmitting = true;
-                const activeBtn = closeBatchInput.value === '1' ? saveCloseBatchBtn : submitBtn;
-                if (activeBtn) activeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Сохранение…';
-                if (submitBtn) submitBtn.disabled = true;
-                if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = true;
             });
 
-            // Возврат по «Назад» из bfcache — вернуть кнопкам исходное состояние
+            // Возврат по «Назад» из bfcache (кнопки восстанавливает form-submit-guard)
             window.addEventListener('pageshow', function (e) {
                 if (!e.persisted) return;
-                isSubmitting = false;
                 closeBatchInput.value = '0';
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="bi bi-save"></i> Сохранить приёмку'; }
-                if (saveCloseBatchBtn) saveCloseBatchBtn.innerHTML = '<i class="bi bi-check2-circle"></i> Сохранить + Закрыть партию';
                 updateRemainingIndicator();
             });
 

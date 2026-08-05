@@ -1,4 +1,5 @@
 import './bootstrap';
+import './form-submit-guard';
 
 import Alpine from 'alpinejs';
 
