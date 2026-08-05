@@ -330,6 +330,7 @@ class StoneReceptionController extends Controller
             'product_sku'        => $b->product->sku ?? '',
             'status'             => $b->status,
             'batch_number'       => $b->batch_number,
+            'department_id'      => $b->department_id,
         ]);
 
         return response()->json($batches);

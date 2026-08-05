@@ -178,6 +178,7 @@
                                                             data-remaining="{{ $batch->remaining_quantity }}"
                                                             data-product-sku="{{ $batch->product->sku ?? '' }}"
                                                             data-status="{{ $batch->status }}"
+                                                            data-department-id="{{ $batch->department_id }}"
                                                         {{ old('raw_material_batch_id', request('raw_material_batch_id')) == $batch->id ? 'selected' : '' }}>
                                                         @if((float)$batch->remaining_quantity <= 0) ⚠ @endif{{ $batch->product->name }}
                                                         (ост: {{ number_format($batch->remaining_quantity, 2) }} м³)
@@ -478,9 +479,10 @@
                         batches.forEach(b => {
                             const opt = document.createElement('option');
                             opt.value = b.id;
-                            opt.dataset.remaining  = b.remaining_quantity;
-                            opt.dataset.productSku = b.product_sku || '';
-                            opt.dataset.status     = b.status || '';
+                            opt.dataset.remaining    = b.remaining_quantity;
+                            opt.dataset.productSku   = b.product_sku || '';
+                            opt.dataset.status       = b.status || '';
+                            opt.dataset.departmentId = b.department_id ?? '';
                             opt.textContent = (b.remaining_quantity <= 0 ? '⚠ ' : '') + b.label;
                             batchSelect.appendChild(opt);
                         });
@@ -758,7 +760,8 @@
 
             // Смена отдела → склад приёмки отдела, если склад не выбран вручную
             const departmentSelect = document.getElementById('departmentSelect');
-            departmentSelect?.addEventListener('change', function () {
+            departmentSelect?.addEventListener('change', function (e) {
+                if (e.isTrusted) this.dataset.touched = '1';
                 const opt = this.options[this.selectedIndex];
                 if (!opt || !opt.value || !storeHidden) return;
                 if (!storeHidden.dataset.touched && opt.dataset.productionStoreId) {
@@ -769,6 +772,22 @@
             @if(old('store_id'))
                 if (storeHidden) storeHidden.dataset.touched = '1';
             @endif
+            @if(old('department_id'))
+                if (departmentSelect) departmentSelect.dataset.touched = '1';
+            @endif
+
+            // Выбор партии → отдел партии, если отдел не выбран вручную
+            function syncDeptFromBatch() {
+                if (!departmentSelect || departmentSelect.dataset.touched) return;
+                const opt    = batchSelect.options[batchSelect.selectedIndex];
+                const deptId = opt?.dataset.departmentId;
+                if (!deptId || departmentSelect.value === deptId) return;
+                if (!departmentSelect.querySelector(`option[value="${deptId}"]`)) return;
+                departmentSelect.value = deptId;
+                departmentSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            batchSelect.addEventListener('change', syncDeptFromBatch);
+            syncDeptFromBatch();
 
             // ── Данные продуктов (коэффициенты) ─────────────────────────────────────
             const productCoeffCache = {};

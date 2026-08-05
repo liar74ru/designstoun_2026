@@ -166,6 +166,56 @@ describe('Создание приёмки [store()] — выбор отдела'
         expect($batch->fresh()->department_id)->toBe($deptB->id);
     });
 
+    test('без department_id отдел берётся от партии, а не от пильщика', function () {
+        $deptA = Department::create(['name' => 'Цех',      'code' => 'TSEH']);
+        $deptB = Department::create(['name' => 'Галтовка', 'code' => 'GALT']);
+
+        $store    = H::store();
+        $cutter   = H::cutter();
+        $cutter->update(['department_id' => $deptA->id]);
+        $receiver = H::worker();
+        $rawProd  = H::product();
+        $batch    = H::batch($rawProd, $store, $cutter, 50.0, ['department_id' => $deptB->id]);
+
+        $this->actingAs(H::adminUser())
+            ->post('/stone-receptions', H::receptionPostData($receiver, $cutter, $store, $batch))
+            ->assertRedirect();
+
+        $reception = StoneReception::first();
+        expect($reception->department_id)->toBe($deptB->id);
+        expect($batch->fresh()->department_id)->toBe($deptB->id);
+    });
+
+    test('без department_id и у партии без отдела действует фолбэк на пильщика', function () {
+        $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
+
+        $store    = H::store();
+        $cutter   = H::cutter();
+        $cutter->update(['department_id' => $deptA->id]);
+        $receiver = H::worker();
+        $rawProd  = H::product();
+        $batch    = H::batch($rawProd, $store, $cutter, 50.0);
+
+        $this->actingAs(H::adminUser())
+            ->post('/stone-receptions', H::receptionPostData($receiver, $cutter, $store, $batch))
+            ->assertRedirect();
+
+        expect(StoneReception::first()->department_id)->toBe($deptA->id);
+    });
+
+    test('api.worker.batches отдаёт department_id партии', function () {
+        $deptA  = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
+        $store  = H::store();
+        $cutter = H::cutter();
+        $cutter->update(['department_id' => $deptA->id]);
+        $batch  = H::batch(H::product(), $store, $cutter, 50.0, ['department_id' => $deptA->id]);
+
+        $this->actingAs(H::adminUser())
+            ->getJson(route('api.worker.batches', $cutter))
+            ->assertStatus(200)
+            ->assertJsonFragment(['id' => $batch->id, 'department_id' => $deptA->id]);
+    });
+
     test('без department_id действует прежний фолбэк, отдел партии не трогается', function () {
         $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
 
