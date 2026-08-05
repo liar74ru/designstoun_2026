@@ -70,6 +70,7 @@ describe('Создание партии — статус new', function () {
         $fromStore = H::store('Главный склад');
         $toStore   = H::store('Цех');
         $worker    = H::cutter();
+        $worker->update(['department_id' => Department::create(['name' => 'Цех отдел'])->id]);
 
         H::stock($product, $fromStore, 50.0);
 

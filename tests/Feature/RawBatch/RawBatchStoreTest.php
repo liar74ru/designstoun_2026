@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Department;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
@@ -21,6 +22,8 @@ describe('Создание партии [store()]', function () {
         $fromStore = H::store('Главный склад');
         $toStore   = H::store('Цех');
         $worker    = H::cutter();
+        $dept      = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
+        $worker->update(['department_id' => $dept->id]);
 
         H::stock($product, $fromStore, 50.0);
 
@@ -39,6 +42,7 @@ describe('Создание партии [store()]', function () {
         expect((float) $batch->remaining_quantity)->toBe(10.0);
         expect($batch->status)->toBe('new');
         expect($batch->batch_number)->toBe('26-12-Тест-01');
+        expect($batch->department_id)->toBe($dept->id);
 
         // Остатки обновлены
         expect((float) ProductStock::where('product_id', $product->id)

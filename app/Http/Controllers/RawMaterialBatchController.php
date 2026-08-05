@@ -42,7 +42,20 @@ class RawMaterialBatchController extends Controller
 
         $backUrl = back_url(route('raw-batches.index'));
 
-        return view('raw-batches.show', compact('batch', 'backUrl'));
+        $departments = Department::orderBy('name')->get();
+
+        return view('raw-batches.show', compact('batch', 'backUrl', 'departments'));
+    }
+
+    public function updateDepartment(Request $request, RawMaterialBatch $batch): RedirectResponse
+    {
+        $validated = $request->validate([
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
+        ]);
+
+        $this->service->updateDepartment($batch, (int) $validated['department_id']);
+
+        return back()->with('success', 'Отдел партии обновлён.');
     }
 
     public function create(Request $request): View
@@ -161,6 +174,13 @@ class RawMaterialBatchController extends Controller
                     ->withErrors(['quantity' => 'Недостаточно сырья на складе-источнике.'])
                     ->withInput();
             }
+        }
+
+        $data['department_id'] = $this->service->resolveDepartmentId($data);
+        if (! $data['department_id']) {
+            return back()
+                ->withErrors(['department_id' => 'Не удалось определить отдел партии. Выберите отдел или работника с отделом.'])
+                ->withInput();
         }
 
         ['batch' => $batch, 'movement' => $movement] = $this->service->create(

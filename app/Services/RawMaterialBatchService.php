@@ -114,8 +114,7 @@ class RawMaterialBatchService
         $batch    = null;
         $movement = null;
 
-        $departmentId = $data['department_id']
-            ?? Worker::find($data['worker_id'] ?? null)?->department_id;
+        $departmentId = $this->resolveDepartmentId($data);
 
         DB::transaction(function () use ($data, $createdAt, $movedBy, $departmentId, &$batch, &$movement) {
             $batch = RawMaterialBatch::create([
@@ -149,6 +148,20 @@ class RawMaterialBatchService
         });
 
         return ['batch' => $batch, 'movement' => $movement];
+    }
+
+    /**
+     * Отдел партии: явно выбранный → отдел работника.
+     */
+    public function resolveDepartmentId(array $data): ?int
+    {
+        return $data['department_id']
+            ?? Worker::find($data['worker_id'] ?? null)?->department_id;
+    }
+
+    public function updateDepartment(RawMaterialBatch $batch, int $departmentId): void
+    {
+        $batch->update(['department_id' => $departmentId]);
     }
 
     /**

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Department;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
@@ -31,6 +32,7 @@ describe('RawMaterialMovementController store()', function () {
         $from    = H::store('Главный склад');
         $to      = H::store('Цех');
         $cutter  = H::cutter();
+        $cutter->update(['department_id' => Department::create(['name' => 'Цех движений'])->id]);
         H::stock($product, $from, 50.0);
 
         $this->actingAs($user)->post(route('raw-batches.store'), [
@@ -141,6 +143,7 @@ describe('RawMaterialMovementController store()', function () {
         $from    = H::store();
         $to      = H::store();
         $cutter  = H::cutter();
+        $cutter->update(['department_id' => Department::create(['name' => 'Цех движений'])->id]);
         H::stock($product, $from, 20.0);
 
         $this->actingAs($user)->post(route('raw-batches.store'), [
@@ -166,6 +169,7 @@ describe('RawMaterialMovementController store()', function () {
         $from    = H::store();
         $to      = H::store();
         $cutter  = H::cutter();
+        $cutter->update(['department_id' => Department::create(['name' => 'Цех движений'])->id]);
         H::stock($product, $from, 20.0);
 
         $this->actingAs($user)->post(route('raw-batches.store'), [

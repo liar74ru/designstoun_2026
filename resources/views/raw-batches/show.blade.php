@@ -69,6 +69,39 @@
                                 <td>{{ $batch->currentWorker->name ?? '—' }}</td>
                             </tr>
                             <tr>
+                                <th>Отдел:</th>
+                                <td>
+                                    @if(auth()->user()->isAdmin())
+                                        <form method="POST"
+                                              action="{{ route('raw-batches.update-department', $batch) }}"
+                                              class="d-flex gap-2 align-items-center"
+                                              data-submit-guard>
+                                            @csrf
+                                            @method('PATCH')
+                                            <select name="department_id"
+                                                    class="form-select form-select-sm"
+                                                    style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem;max-width:220px"
+                                                    required>
+                                                @if(!$batch->department_id)
+                                                    <option value="" selected disabled>— Не задан —</option>
+                                                @endif
+                                                @foreach($departments as $department)
+                                                    <option value="{{ $department->id }}"
+                                                        {{ $batch->department_id == $department->id ? 'selected' : '' }}>
+                                                        {{ $department->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <button type="submit" class="btn btn-sm btn-primary" style="flex-shrink:0">
+                                                <i class="bi bi-save"></i>
+                                            </button>
+                                        </form>
+                                    @else
+                                        {{ $batch->department?->name ?? '—' }}
+                                    @endif
+                                </td>
+                            </tr>
+                            <tr>
                                 <th>Дата создания:</th>
                                 <td>{{ $batch->created_at ? $batch->created_at->format('d.m.Y H:i:s') : '—' }}</td>
                             </tr>

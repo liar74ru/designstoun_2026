@@ -167,6 +167,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('raw-batches/{batch}/mark-used', [RawMaterialBatchController::class, 'markAsUsed'])->name('raw-batches.mark-used');
         Route::post('raw-batches/{batch}/mark-in-work', [RawMaterialBatchController::class, 'markAsInWork'])->name('raw-batches.mark-in-work');
         Route::post('raw-batches/{batch}/sync', [RawMaterialBatchController::class, 'syncBatch'])->name('raw-batches.sync');
+        Route::patch('raw-batches/{batch}/update-department', [RawMaterialBatchController::class, 'updateDepartment'])
+            ->name('raw-batches.update-department')
+            ->middleware('can:manage-admin');
         Route::get('/api/workers/{worker}/next-batch-number', [RawMaterialBatchController::class, 'nextBatchNumber'])->name('api.worker.next-batch-number');
         Route::get('/api/workers/{worker}/batch-by-product', [RawMaterialBatchController::class, 'workerBatchByProduct'])->name('api.worker.batch-by-product');
     });
