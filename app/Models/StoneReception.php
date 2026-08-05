@@ -297,9 +297,10 @@ class StoneReception extends Model
         });
 
         static::deleted(function ($reception) {
-            // Остатки готовой продукции в product_stocks не откатываем: локальное
-            // удаление приёмки не удаляет техоперацию в МойСклад, поэтому остаток
-            // в МойСклад не меняется, и его зеркало трогать нельзя.
+            // Остатки готовой продукции в product_stocks локально не откатываем:
+            // техоперацию в МойСклад удаляет StoneReceptionService::delete(), после
+            // чего актуальные остатки подтягиваются из МойСклад
+            // (StoneReceptionSyncService::deleteProcessingForReception).
 
             // Возвращаем сырье обратно в партию
             if ($reception->rawMaterialBatch) {

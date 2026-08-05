@@ -354,7 +354,21 @@ class StoneReceptionService
 
     public function delete(StoneReception $reception): void
     {
+        // Отношения нужны в памяти: после cascade-удаления строк по ним
+        // подтягиваются остатки затронутых товаров из МойСклад.
+        $reception->loadMissing('items.product', 'rawMaterialBatch.product');
+
         DB::transaction(fn() => $reception->delete());
+
+        $result = $this->syncService->deleteProcessingForReception($reception);
+
+        if (!$result['success']) {
+            Log::warning('Не удалось удалить техоперацию в МойСклад при удалении приёмки', [
+                'reception_id'  => $reception->id,
+                'processing_id' => $reception->moysklad_processing_id,
+                'error'         => $result['message'],
+            ]);
+        }
     }
 
     /**

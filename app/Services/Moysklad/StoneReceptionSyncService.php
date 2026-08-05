@@ -556,4 +556,26 @@ class StoneReceptionSyncService extends MoySkladBaseService
 
         return $this->get('/entity/processing/' . $processingId);
     }
+
+    /**
+     * Удалить техоперацию приёмки в МойСклад и подтянуть остатки затронутых
+     * товаров. Вызывается после локального удаления приёмки — отношения
+     * (items.product, rawMaterialBatch.product) должны быть загружены заранее.
+     *
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function deleteProcessingForReception(StoneReception $reception): array
+    {
+        if (!$reception->moysklad_processing_id) {
+            return ['success' => true, 'message' => 'Техоперация не синхронизирована'];
+        }
+
+        $result = $this->deleteProcessing($reception->moysklad_processing_id);
+
+        if ($result['success']) {
+            $this->refreshAffectedStocks($reception);
+        }
+
+        return $result;
+    }
 }

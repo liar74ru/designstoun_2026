@@ -349,7 +349,81 @@ describe('StoneReceptionService::delete()', function () {
         ]);
 
         $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        
+        $mockSync->shouldReceive('deleteProcessingForReception')
+            ->once()
+            ->andReturn(['success' => true, 'message' => 'Техоперация не синхронизирована']);
+
+        $service = makeStoneReceptionService($mockSync);
+        $service->delete($reception);
+
+        expect(StoneReception::find($reception->id))->toBeNull();
+    });
+
+    test('удаляет техоперацию в МойСклад при наличии moysklad_processing_id', function () {
+        $rawProduct = Product::factory()->create(['name' => 'Гранит']);
+        $store = Store::factory()->create();
+        $cutter = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
+        $batch = RawMaterialBatch::create([
+            'product_id' => $rawProduct->id,
+            'initial_quantity' => 100.0,
+            'remaining_quantity' => 100.0,
+            'current_store_id' => $store->id,
+            'current_worker_id' => $cutter->id,
+            'status' => RawMaterialBatch::STATUS_IN_WORK,
+        ]);
+
+        $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
+        $reception = StoneReception::create([
+            'receiver_id' => $receiver->id,
+            'cutter_id' => $cutter->id,
+            'store_id' => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_used' => 5.0,
+            'status' => StoneReception::STATUS_ACTIVE,
+            'moysklad_processing_id' => 'ms-uuid-1',
+        ]);
+
+        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
+        $mockSync->shouldReceive('deleteProcessingForReception')
+            ->once()
+            ->with(\Mockery::on(fn($r) => $r->id === $reception->id))
+            ->andReturn(['success' => true, 'message' => 'Техоперация удалена']);
+
+        $service = makeStoneReceptionService($mockSync);
+        $service->delete($reception);
+
+        expect(StoneReception::find($reception->id))->toBeNull();
+    });
+
+    test('ошибка удаления в МойСклад не блокирует локальное удаление', function () {
+        $rawProduct = Product::factory()->create(['name' => 'Гранит']);
+        $store = Store::factory()->create();
+        $cutter = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
+        $batch = RawMaterialBatch::create([
+            'product_id' => $rawProduct->id,
+            'initial_quantity' => 100.0,
+            'remaining_quantity' => 100.0,
+            'current_store_id' => $store->id,
+            'current_worker_id' => $cutter->id,
+            'status' => RawMaterialBatch::STATUS_IN_WORK,
+        ]);
+
+        $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
+        $reception = StoneReception::create([
+            'receiver_id' => $receiver->id,
+            'cutter_id' => $cutter->id,
+            'store_id' => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_used' => 5.0,
+            'status' => StoneReception::STATUS_ACTIVE,
+            'moysklad_processing_id' => 'ms-uuid-2',
+        ]);
+
+        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
+        $mockSync->shouldReceive('deleteProcessingForReception')
+            ->once()
+            ->andReturn(['success' => false, 'message' => 'Ошибка API МойСклад']);
+
         $service = makeStoneReceptionService($mockSync);
         $service->delete($reception);
 
