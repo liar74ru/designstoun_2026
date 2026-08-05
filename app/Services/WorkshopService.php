@@ -32,11 +32,6 @@ class WorkshopService
         // даже если они переведены в архив (иначе <select> потеряет значение).
         $keep = $workshop ? array_filter([$workshop->packer_id, $workshop->receiver_id]) : [];
 
-        $packers = Worker::with('departments')
-            ->whereIn('position', Worker::MASTER_POSITIONS)
-            ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
-            ->orderBy('name')->get();
-
         $masterWorkers = Worker::with('departments')
             ->whereIn('position', Worker::MASTER_POSITIONS)
             ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
@@ -49,7 +44,6 @@ class WorkshopService
         $accessibleDepartmentIds = auth()->user()?->accessibleDepartmentIds();
 
         $data = [
-            'packers'             => $packers,
             'masterWorkers'       => $masterWorkers,
             'workers'             => Worker::with('departments')
                 ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))

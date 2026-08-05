@@ -176,7 +176,7 @@
                                 data-toggle-id="allWorkersParticipantsPack"
                                 required>
                             <option value="">— работник —</option>
-                            @foreach($packers as $worker)
+                            @foreach($workers as $worker)
                                 <option value="{{ $worker->id }}"
                                     data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
                                     @if($worker->position === 'Администратор') data-always-visible @endif
