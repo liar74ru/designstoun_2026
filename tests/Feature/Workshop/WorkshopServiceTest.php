@@ -269,6 +269,54 @@ describe('WorkshopService: склады', function () {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+// WorkshopService::delete()
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('WorkshopService::delete()', function () {
+
+    test('удаляет техоперацию в МойСклад при наличии moysklad_processing_id', function () {
+        $service  = new WorkshopService($this->mockSync);
+        $workshop = $service->create(basePayload($this), false);
+        $workshop->update(['moysklad_processing_id' => 'ms-uuid-1']);
+
+        $this->mockSync->shouldReceive('deleteProcessing')
+            ->once()
+            ->with('ms-uuid-1')
+            ->andReturn(['success' => true, 'message' => 'Техоперация удалена']);
+
+        $service->delete($workshop->fresh());
+
+        expect(Workshop::find($workshop->id))->toBeNull();
+    });
+
+    test('ошибка удаления в МойСклад не блокирует локальное удаление', function () {
+        $service  = new WorkshopService($this->mockSync);
+        $workshop = $service->create(basePayload($this), false);
+        $workshop->update(['moysklad_processing_id' => 'ms-uuid-2']);
+
+        $this->mockSync->shouldReceive('deleteProcessing')
+            ->once()
+            ->with('ms-uuid-2')
+            ->andReturn(['success' => false, 'message' => 'Ошибка API МойСклад']);
+
+        $service->delete($workshop->fresh());
+
+        expect(Workshop::find($workshop->id))->toBeNull();
+    });
+
+    test('без moysklad_processing_id запрос в МойСклад не отправляется', function () {
+        $service  = new WorkshopService($this->mockSync);
+        $workshop = $service->create(basePayload($this), false);
+
+        $this->mockSync->shouldNotReceive('deleteProcessing');
+
+        $service->delete($workshop);
+
+        expect(Workshop::find($workshop->id))->toBeNull();
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 // WorkshopService::refreshItemCoeffs()
 // ══════════════════════════════════════════════════════════════════════════════
 

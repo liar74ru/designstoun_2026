@@ -485,4 +485,46 @@ class WorkshopSyncService extends MoySkladBaseService
         }
         return $this->get('/entity/processing/' . $processingId);
     }
+
+    /**
+     * Удалить техоперацию в МойСклад.
+     *
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function deleteProcessing(string $processingId): array
+    {
+        $result = ['success' => false, 'message' => ''];
+
+        if (!$this->hasCredentials()) {
+            $result['message'] = 'MoySklad токен не установлен';
+            return $result;
+        }
+
+        try {
+            $response = $this->delete('/entity/processing/' . $processingId);
+
+            if ($response->status() === 200 || $response->status() === 204) {
+                $result['success'] = true;
+                $result['message'] = 'Техоперация удалена';
+                Log::info('Техоперация удалена в МойСклад', ['processing_id' => $processingId]);
+            } else {
+                $errors   = $response->json()['errors'] ?? [];
+                $errorMsg = $errors[0]['error'] ?? 'Неизвестная ошибка';
+                $result['message'] = 'Ошибка API МойСклад: ' . $errorMsg . ' (HTTP ' . $response->status() . ')';
+                Log::error('Ошибка удаления техоперации в МойСклад', [
+                    'processing_id' => $processingId,
+                    'status'        => $response->status(),
+                    'response'      => $response->json(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            $result['message'] = 'Ошибка: ' . $e->getMessage();
+            Log::error('Исключение при удалении техоперации в МойСклад', [
+                'processing_id' => $processingId,
+                'error'         => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
+    }
 }

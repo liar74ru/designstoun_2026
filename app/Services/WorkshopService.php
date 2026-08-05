@@ -312,7 +312,21 @@ class WorkshopService
 
     public function delete(Workshop $workshop): void
     {
+        $processingId = $workshop->moysklad_processing_id;
+
         DB::transaction(fn() => $workshop->delete());
+
+        if ($processingId) {
+            $result = $this->syncService->deleteProcessing($processingId);
+
+            if (!$result['success']) {
+                Log::warning('Не удалось удалить техоперацию в МойСклад при удалении операции цеха', [
+                    'workshop_id'   => $workshop->id,
+                    'processing_id' => $processingId,
+                    'error'         => $result['message'],
+                ]);
+            }
+        }
     }
 
     public function markCompleted(Workshop $workshop): array
