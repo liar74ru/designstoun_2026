@@ -42,6 +42,8 @@ class WorkerDashboardService
                 'stoneReception.store',
                 'stoneReception.items',
                 'stoneReception.department',
+                'stoneReception.rawMaterialBatch',
+                'stoneReception.cutter',
                 'rawMaterialBatch.product',
                 $isMaster ? 'cutter' : 'receiver',
             ])
@@ -59,6 +61,7 @@ class WorkerDashboardService
                 'items.product',
                 'workshop.items',
                 'workshop.department',
+                'workshop.packer',
             ])
             ->where($workshopWorkerField, $workerId)
             ->whereBetween('created_at', [$dateFrom, $dateTo])
@@ -116,7 +119,8 @@ class WorkerDashboardService
     }
 
     /**
-     * Группировка логов приёмок и цеха по отделу документа: на каждый отдел —
+     * Группировка логов приёмок и цеха по эффективному отделу документа
+     * (свой → отдел партии/упаковщика → отдел пильщика): на каждый отдел —
      * сводка по продуктам и итоги. Отсортировано по имени отдела.
      *
      * @param  callable|null  $filterSummary  доп. фильтр строк сводки внутри отдела
@@ -126,15 +130,25 @@ class WorkerDashboardService
         Collection $workshopLogs,
         ?callable $filterSummary = null
     ): Collection {
-        $stoneByDept    = $logs->groupBy(fn($log) => $log->stoneReception?->department_id);
-        $workshopByDept = $workshopLogs->groupBy(fn($log) => $log->workshop?->department_id);
+        // Ключ «отдел не определён» — 0: groupBy превращает null в пустую строку,
+        // а она не пройдёт в DepartmentSettings::*(?int).
+        $stoneByDept    = $logs->groupBy(fn($log) => $log->stoneReception?->effectiveDepartmentId() ?? 0);
+        $workshopByDept = $workshopLogs->groupBy(fn($log) => $log->workshop?->effectiveDepartmentId() ?? 0);
+
+        // Отдел может прийти от партии или работника, поэтому связь department
+        // самого документа не годится — берём отделы одним запросом.
+        $departments = Department::whereIn(
+            'id',
+            $stoneByDept->keys()->merge($workshopByDept->keys())->filter()->unique()
+        )->get()->keyBy('id');
 
         return $stoneByDept->keys()
             ->merge($workshopByDept->keys())
             ->unique()
-            ->map(function ($deptId) use ($stoneByDept, $workshopByDept, $filterSummary) {
+            ->map(function ($deptId) use ($stoneByDept, $workshopByDept, $filterSummary, $departments) {
                 $deptStoneLogs    = $stoneByDept->get($deptId, collect());
                 $deptWorkshopLogs = $workshopByDept->get($deptId, collect());
+                $deptId           = ((int) $deptId) ?: null;
 
                 $summary = $this->mergeProductSummaries(
                     $this->buildProductSummary($deptStoneLogs),
@@ -146,8 +160,7 @@ class WorkerDashboardService
                 }
 
                 return [
-                    'department'     => $deptStoneLogs->first()?->stoneReception?->department
-                        ?? $deptWorkshopLogs->first()?->workshop?->department,
+                    'department'     => $deptId ? $departments->get($deptId) : null,
                     'summary'        => $summary,
                     'totalQuantity'  => $summary->sum('quantity'),
                     'totalPay'       => $summary->sum('pay'),
@@ -165,7 +178,11 @@ class WorkerDashboardService
 
     /**
      * Общий дашборд предприятия: агрегация всего производства за период по всем приёмкам,
-     * с группировкой по отделам (внутри — сводка по продуктам). Только для админа.
+     * с группировкой по отделам (внутри — сводка по продуктам).
+     *
+     * Отдел документа берётся эффективный (свой → отдел партии/упаковщика → отдел
+     * работника): у документов, созданных админом, и у исторических записей
+     * колонка department_id бывает пустой, но отдел из связей известен.
      */
     public function getEnterpriseDashboardData(
         ?Carbon $dateFrom,
@@ -175,25 +192,31 @@ class WorkerDashboardService
         $productId = null,
         ?array $restrictDepartmentIds = null
     ): array {
-        // Не-админ: жёстко ограничиваем выборку доступными отделами.
-        // null — без ограничения (админ); [] — работник без отдела (ничего не видит).
-        if ($restrictDepartmentIds !== null) {
-            $departmentIds = $departmentIds
-                ? array_values(array_intersect($departmentIds, $restrictDepartmentIds))
-                : $restrictDepartmentIds;
-            if (empty($departmentIds)) {
-                $departmentIds = [-1]; // нет доступных отделов → пустой результат, не «все»
-            }
+        // Явный фильтр отделов из формы — строго выбранные отделы (у не-админа —
+        // пересечение с доступными). Без фильтра не-админ видит свои отделы плюс
+        // документы, отдел которых не определяется вообще; админ — всё.
+        $includeUndetermined = empty($departmentIds);
+
+        if ($departmentIds) {
+            $scopeIds = $restrictDepartmentIds === null
+                ? array_values($departmentIds)
+                : array_values(array_intersect($departmentIds, $restrictDepartmentIds));
+            $scopeIds = $scopeIds ?: [-1];
+        } else {
+            // null — без ограничения (админ); [] — работник без отдела (только «без отдела»).
+            $scopeIds = $restrictDepartmentIds === null ? null : ($restrictDepartmentIds ?: [-1]);
         }
 
         $logs = ReceptionLog::with([
                 'items.product',
                 'stoneReception.items',
                 'stoneReception.department',
+                'stoneReception.rawMaterialBatch',
+                'stoneReception.cutter',
             ])
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-            ->when($departmentIds, fn ($q) => $q->whereHas('stoneReception',
-                fn ($q2) => $q2->whereIn('department_id', $departmentIds)))
+            ->when($scopeIds !== null, fn ($q) => $q->whereHas('stoneReception',
+                fn ($q2) => $q2->inEffectiveDepartments($scopeIds, $includeUndetermined)))
             ->when($rawProductId, fn ($q) => $q->whereHas('rawMaterialBatch',
                 fn ($q2) => $q2->where('product_id', $rawProductId)))
             ->orderBy('created_at', 'desc')
@@ -208,10 +231,11 @@ class WorkerDashboardService
                 'items.product',
                 'workshop.items',
                 'workshop.department',
+                'workshop.packer',
             ])
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-            ->when($departmentIds, fn ($q) => $q->whereHas('workshop',
-                fn ($q2) => $q2->whereIn('department_id', $departmentIds)))
+            ->when($scopeIds !== null, fn ($q) => $q->whereHas('workshop',
+                fn ($q2) => $q2->inEffectiveDepartments($scopeIds, $includeUndetermined)))
             ->when($rawProductId, fn ($q) => $q->whereHas('workshop.items',
                 fn ($q2) => $q2->where('role', WorkshopItem::ROLE_RAW)->where('product_id', $rawProductId)))
             ->get();
@@ -226,7 +250,9 @@ class WorkerDashboardService
         );
 
         // Вкладка «Сырьё»: движения сырья не связаны с плиткой — фильтр $productId не применяется.
-        $incomingRaw = $this->buildIncomingRawSummary($dateFrom, $dateTo, $departmentIds, $rawProductId);
+        $incomingRaw = $this->buildIncomingRawSummary(
+            $dateFrom, $dateTo, $scopeIds, $rawProductId, $includeUndetermined
+        );
 
         return [
             'departments'       => $departments,
@@ -259,14 +285,23 @@ class WorkerDashboardService
     private function buildIncomingRawSummary(
         ?Carbon $dateFrom,
         ?Carbon $dateTo,
-        array $departmentIds = [],
-        $rawProductId = null
+        ?array $departmentIds = null,
+        $rawProductId = null,
+        bool $includeUndetermined = false
     ): Collection {
         return RawMaterialMovement::query()
             ->where('movement_type', 'create')
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-            ->when($departmentIds, fn ($q) => $q->whereHas('batch',
-                fn ($q2) => $q2->whereIn('department_id', $departmentIds)))
+            ->when($departmentIds !== null, fn ($q) => $q->where(
+                function ($q2) use ($departmentIds, $includeUndetermined) {
+                    $q2->whereHas('batch',
+                        fn ($q3) => $q3->inEffectiveDepartments($departmentIds, $includeUndetermined));
+
+                    if ($includeUndetermined) {
+                        $q2->orWhereDoesntHave('batch'); // движение без партии — тоже «без отдела»
+                    }
+                }
+            ))
             ->when($rawProductId, fn ($q) => $q->whereHas('batch',
                 fn ($q2) => $q2->where('product_id', $rawProductId)))
             ->with('batch.product')

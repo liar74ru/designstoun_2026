@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasEffectiveDepartment;
 use App\Models\Concerns\HasMoyskladSync;
 use Illuminate\Database\Eloquent\Model;
 
 class RawMaterialBatch extends Model
 {
     use HasMoyskladSync;
+    use HasEffectiveDepartment;
 
     // Статусы
     const STATUS_NEW       = 'new';       // Создана, без действий
@@ -62,6 +64,15 @@ class RawMaterialBatch extends Model
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Отдел партии — только собственный: current_worker_id меняется при
+     * передачах партии и как фолбэк исказил бы принадлежность.
+     */
+    public static function effectiveDepartmentChain(): array
+    {
+        return ['department_id'];
     }
 
     public function movements()

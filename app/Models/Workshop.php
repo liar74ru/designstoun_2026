@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasEffectiveDepartment;
 use App\Models\Concerns\HasMoyskladSync;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -9,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 class Workshop extends Model
 {
     use HasMoyskladSync;
+    use HasEffectiveDepartment;
 
     protected $table = 'workshops';
 
@@ -64,6 +66,15 @@ class Workshop extends Model
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Цепочка отдела: свой → отдел упаковщика. Закрывает операции без
+     * записанного department_id (создание админом, исторические записи).
+     */
+    public static function effectiveDepartmentChain(): array
+    {
+        return ['department_id', 'packer.department_id'];
     }
 
     public function items()

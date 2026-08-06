@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasEffectiveDepartment;
 use App\Models\Concerns\HasMoyskladSync;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,7 @@ use App\Models\RawMaterialBatch;
 class StoneReception extends Model
 {
     use HasMoyskladSync;
+    use HasEffectiveDepartment;
 
     protected $table = 'stone_receptions';
 
@@ -85,18 +87,17 @@ class StoneReception extends Model
     }
 
     /**
-     * Отдел для расчёта себестоимости: свой → отдел партии → отдел пильщика.
+     * Цепочка отдела: свой → отдел партии → отдел пильщика.
+     * Используется для расчёта себестоимости и для видимости документа по отделу.
      *
      * Накладные расходы живут в `department_expenses` и не наследуются
      * из глобальных настроек, поэтому у документа без отдела они были бы
      * нулевыми. Цепочка закрывает исторические документы, у которых
      * department_id остался пустым.
      */
-    public function effectiveDepartmentId(): ?int
+    public static function effectiveDepartmentChain(): array
     {
-        return $this->department_id
-            ?? $this->rawMaterialBatch?->department_id
-            ?? $this->cutter?->department_id;
+        return ['department_id', 'rawMaterialBatch.department_id', 'cutter.department_id'];
     }
 
     /**
