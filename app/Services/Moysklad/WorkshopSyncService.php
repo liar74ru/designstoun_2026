@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\Worker;
 use App\Services\Moysklad\Concerns\HandlesProcessingSync;
 use App\Support\DocumentNaming;
+use App\Support\MoyskladMoment;
 use Illuminate\Support\Facades\Log;
 
 class WorkshopSyncService extends MoySkladBaseService
@@ -86,7 +87,7 @@ class WorkshopSyncService extends MoySkladBaseService
                 'materials'      => $materials,
                 'name'           => $name,
                 'quantity'       => $totalQuantity,
-                'moment'         => $workshopDate->format('Y-m-d H:i:s'),
+                'moment'         => MoyskladMoment::format($workshopDate),
             ];
 
             if ($description !== null) {

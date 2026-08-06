@@ -3,6 +3,7 @@
 namespace App\Services\Moysklad;
 
 use App\Support\DocumentNaming;
+use App\Support\MoyskladMoment;
 use Illuminate\Support\Facades\Log;
 use App\Models\Store;
 use App\Models\Product;
@@ -67,7 +68,7 @@ class MoySkladMoveService extends MoySkladBaseService
             if (!empty($data['name']))        $moveData['name']         = $data['name'];
             if (!empty($data['description'])) $moveData['description']  = $data['description'];
             if (!empty($data['external_id'])) $moveData['externalCode'] = $data['external_id'];
-            if (!empty($data['created_at']))  $moveData['moment']       = \Carbon\Carbon::parse($data['created_at'])->format('Y-m-d H:i:s');
+            if (!empty($data['created_at']))  $moveData['moment']       = MoyskladMoment::format(\Carbon\Carbon::parse($data['created_at']));
 
             $response = $this->post('/entity/move', $moveData);
 
@@ -154,7 +155,7 @@ class MoySkladMoveService extends MoySkladBaseService
             if (!empty($data['name']))        $moveData['name']         = $data['name'];
             if (!empty($data['description'])) $moveData['description']  = $data['description'];
             if (!empty($data['external_id'])) $moveData['externalCode'] = $data['external_id'];
-            if (!empty($data['created_at']))  $moveData['moment']       = \Carbon\Carbon::parse($data['created_at'])->format('Y-m-d H:i:s');
+            if (!empty($data['created_at']))  $moveData['moment']       = MoyskladMoment::format(\Carbon\Carbon::parse($data['created_at']));
 
             $response = $this->put('/entity/move/' . $moveId, $moveData);
 

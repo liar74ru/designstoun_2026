@@ -4,6 +4,7 @@ namespace App\Services\Moysklad;
 
 use App\Models\SupplierOrder;
 use App\Support\DocumentNaming;
+use App\Support\MoyskladMoment;
 use Illuminate\Support\Facades\Log;
 
 class MoySkladSupplyService extends MoySkladBaseService
@@ -62,7 +63,7 @@ class MoySkladSupplyService extends MoySkladBaseService
                 'organization'  => ['meta' => $orgMeta],
                 'agent'         => ['meta' => $agentMeta],
                 'store'         => ['meta' => $storeMeta],
-                'moment'        => $order->created_at->format('Y-m-d H:i:s.000'),
+                'moment'        => MoyskladMoment::format($order->created_at, true),
                 'purchaseOrder' => [
                     'meta' => [
                         'href'      => $this->baseUrl . '/entity/purchaseorder/' . $order->moysklad_id,

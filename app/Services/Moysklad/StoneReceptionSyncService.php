@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Services\Moysklad\Concerns\HandlesProcessingSync;
 use App\Support\DepartmentSettings;
 use App\Support\DocumentNaming;
+use App\Support\MoyskladMoment;
 use Illuminate\Support\Facades\Log;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
@@ -173,7 +174,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 ]],
                 'name'           => $name,
                 'quantity'       => $totalQuantity,
-                'moment'         => $receptionDate->format('Y-m-d H:i:s'),
+                'moment'         => MoyskladMoment::format($receptionDate),
             ];
 
             if ($description !== null) {

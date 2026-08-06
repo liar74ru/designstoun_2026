@@ -4,6 +4,7 @@ namespace App\Services\Moysklad;
 
 use App\Models\SupplierOrder;
 use App\Support\DocumentNaming;
+use App\Support\MoyskladMoment;
 use Illuminate\Support\Facades\Log;
 
 class MoySkladPurchaseOrderService extends MoySkladBaseService
@@ -64,7 +65,7 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
                 'organization' => ['meta' => $orgMeta],
                 'agent'        => ['meta' => $agentMeta],
                 'store'        => ['meta' => $storeMeta],
-                'moment'       => $order->created_at->format('Y-m-d H:i:s.000'),
+                'moment'       => MoyskladMoment::format($order->created_at, true),
                 'positions'    => $positions,
             ];
 
