@@ -214,6 +214,9 @@ class ProductController extends Controller
         return response()->json([
             'prod_cost_coeff'   => (float) $product->prod_cost_coeff,
             'master_cost_coeff' => (float) $product->master_cost_coeff,
+            // SKU нужен превью в форме: от него зависит бонус плитки-маски,
+            // который иначе учитывался бы только на сервере.
+            'sku'               => $product->sku,
         ]);
     }
 

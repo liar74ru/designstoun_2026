@@ -392,6 +392,7 @@
 @endsection
 
 @push('scripts')
+    @include('partials.production-rates-js')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
@@ -595,7 +596,6 @@
 
             // Маппинг первой группы сырья → группа готовой продукции
             const SKU_GROUP_MAP = { '01': '04' };
-            const EDGING_COEFF  = {{ (float) \App\Models\Setting::get('EDGING_COEFF', -2.5) }};
 
             function localDerivePrefix(rawSku) {
                 if (!rawSku) return null;
@@ -792,6 +792,7 @@
             // ── Данные продуктов (коэффициенты) ─────────────────────────────────────
             const productCoeffCache = {};
 
+            // Возвращает { coeff, sku }: SKU нужен превью для бонуса плитки-маски.
             async function fetchProductCoeff(productId) {
                 if (!productId) return null;
                 if (productCoeffCache[productId] !== undefined) return productCoeffCache[productId];
@@ -799,7 +800,7 @@
                     const res = await fetch(`/api/products/${productId}/coeff`);
                     if (!res.ok) return null;
                     const data = await res.json();
-                    productCoeffCache[productId] = data.prod_cost_coeff ?? 0;
+                    productCoeffCache[productId] = { coeff: data.prod_cost_coeff ?? 0, sku: data.sku ?? null };
                     return productCoeffCache[productId];
                 } catch { return null; }
             }
@@ -815,18 +816,22 @@
 
                 const isUndercut = undercutCb?.checked || false;
                 const isEdging   = edgingCb?.checked   || false;
-                const source     = isEdging ? EDGING_COEFF : baseCoeff;
-                const effective  = isUndercut ? source - 1.5 : source;
+                const sku        = coeffDisplay.dataset.sku || null;
+                const penalty    = RateFormula.undercutPenalty();
+                const edging     = RateFormula.edgingCoeff();
+                // Источник — то же, что на сервере: с бонусом маски, если он есть
+                const source     = RateFormula.effectiveCoeff({ baseCoeff, isUndercut: false, isEdging, sku });
+                const effective  = RateFormula.effectiveCoeff({ baseCoeff, isUndercut, isEdging, sku });
 
                 let text;
                 if (isEdging && isUndercut) {
-                    text = `${EDGING_COEFF.toFixed(1)} − 1.5 = ${effective.toFixed(1)}`;
+                    text = `${edging.toFixed(1)} − ${penalty} = ${effective.toFixed(1)}`;
                 } else if (isEdging) {
-                    text = `${baseCoeff.toFixed(1)} → ${EDGING_COEFF.toFixed(1)}`;
+                    text = `${baseCoeff.toFixed(1)} → ${edging.toFixed(1)}`;
                 } else if (isUndercut) {
-                    text = `${baseCoeff.toFixed(1)} − 1.5 = ${effective.toFixed(1)}`;
+                    text = `${source.toFixed(1)} − ${penalty} = ${effective.toFixed(1)}`;
                 } else {
-                    text = baseCoeff.toFixed(1);
+                    text = source.toFixed(1);
                 }
                 coeffDisplay.textContent = text;
                 coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut && !isEdging);
@@ -841,9 +846,10 @@
 
                 const coeffDisplay = row.querySelector('.coeff-display');
                 if (coeffDisplay) {
-                    const coeff = await fetchProductCoeff(productId);
-                    if (coeff !== null) {
-                        coeffDisplay.dataset.baseCoeff = coeff;
+                    const data = await fetchProductCoeff(productId);
+                    if (data !== null) {
+                        coeffDisplay.dataset.baseCoeff = data.coeff;
+                        coeffDisplay.dataset.sku       = e.detail?.sku ?? data.sku ?? '';
                         updateRowCoeff(row);
                     }
                 }
@@ -918,9 +924,10 @@
                 if (productId) {
                     const coeffDisplay = row.querySelector('.coeff-display');
                     if (coeffDisplay) {
-                        fetchProductCoeff(productId).then(coeff => {
-                            if (coeff !== null) {
-                                coeffDisplay.dataset.baseCoeff = coeff;
+                        fetchProductCoeff(productId).then(data => {
+                            if (data !== null) {
+                                coeffDisplay.dataset.baseCoeff = data.coeff;
+                                coeffDisplay.dataset.sku       = data.sku ?? '';
                                 updateRowCoeff(row);
                             }
                         });

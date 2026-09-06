@@ -411,7 +411,7 @@ class WorkshopService
                     'is_undercut'          => $isUndercut,
                     'is_edging'            => $isEdging,
                     'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff),
+                    'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff, $workshop->department_id),
                     'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
                         $isUndercut,
                         $workshop->department_id,
@@ -441,7 +441,7 @@ class WorkshopService
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
                     'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $item->product->prodCost($effCoeff),
+                    'worker_cost_per_m2'   => $item->product->prodCost($effCoeff, $workshop->department_id),
                     'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
                         $isUndercut,
                         $workshop->department_id,
@@ -543,7 +543,7 @@ class WorkshopService
             'is_undercut'          => false,
             'is_edging'            => false,
             'is_small_tile'        => $isSmallTile,
-            'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
+            'worker_cost_per_m2'   => $prod?->prodCost($effCoeff, $departmentId),
             'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(false, $departmentId, $prod),
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ProductionRates;
 use Illuminate\Database\Eloquent\Model;
 
 class WorkshopItem extends Model
@@ -66,18 +67,22 @@ class WorkshopItem extends Model
             return (float) ($this->product?->prod_cost_coeff ?? 0);
         }
         $eff = (float) $this->effective_cost_coeff;
-        return $this->is_undercut ? $eff + (float) Setting::get('UNDERCUT_PENALTY', 1.5) : $eff;
+        return $this->is_undercut ? $eff + ProductionRates::undercutPenalty() : $eff;
     }
 
     /**
      * Зарплата работника за единицу продукции, зафиксированная при создании позиции.
-     * Фолбэк на prodCost по коэффициенту — как в приёмке (StoneReceptionItem).
+     * Фолбэк на prodCost по коэффициенту — как в приёмке (StoneReceptionItem),
+     * по ставке отдела операции.
      */
     public function effectiveProdCost(): float
     {
         return $this->worker_cost_per_m2 !== null
             ? (float) $this->worker_cost_per_m2
-            : $this->product->prodCost((float) $this->effective_cost_coeff);
+            : $this->product->prodCost(
+                (float) $this->effective_cost_coeff,
+                $this->workshop?->effectiveDepartmentId()
+            );
     }
 
     public function calculateWorkerPay(): float

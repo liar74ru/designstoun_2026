@@ -12,6 +12,7 @@ use App\Models\StoneReception;
 use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
+use App\Models\Worker;
 use App\Support\DepartmentSettings;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -107,6 +108,13 @@ class WorkerDashboardService
             ? $this->buildSummaryByDepartment($logs, $workshopLogs)
             : null;
 
+        // Ставка пильщика настраивается per-department: работнику показываем ставку
+        // его основного отдела, а не глобальную. У мастера ставки выводятся
+        // внутри таблицы каждого отдела (см. buildSummaryByDepartment).
+        $pieceRate = $isMaster
+            ? null
+            : DepartmentSettings::pieceRate(Worker::find($workerId)?->department_id);
+
         return compact(
             'logs',
             'stoneReceptions',
@@ -115,6 +123,7 @@ class WorkerDashboardService
             'summaryByDepartment',
             'totalPay',
             'totalMasterPay',
+            'pieceRate',
         );
     }
 
@@ -166,6 +175,7 @@ class WorkerDashboardService
                     'totalPay'       => $summary->sum('pay'),
                     'totalMasterPay' => $summary->sum('masterPay'),
                     'rates'          => [
+                        'piece'    => DepartmentSettings::pieceRate($deptId),
                         'base'     => DepartmentSettings::masterBaseRate($deptId),
                         'undercut' => DepartmentSettings::masterUndercutRate($deptId),
                     ],
@@ -355,7 +365,12 @@ class WorkerDashboardService
                         return $delta * $receptionItem->effectiveProdCost();
                     }
 
-                    return $product ? $product->calculateWorkerPay($delta) : 0.0;
+                    return $product
+                        ? $product->calculateWorkerPay(
+                            $delta,
+                            $logItem->receptionLog?->stoneReception?->effectiveDepartmentId()
+                        )
+                        : 0.0;
                 });
 
                 $effCoeffDisplay = $items
@@ -382,7 +397,10 @@ class WorkerDashboardService
                         ->map(fn($li) => $li->receptionLog?->stoneReception?->items
                             ->firstWhere('product_id', $li->product_id)?->worker_cost_per_m2)
                         ->filter()
-                        ->avg() ?? $product?->prodCost($effCoeffDisplay) ?? 0,
+                        ->avg() ?? $product?->prodCost(
+                            $effCoeffDisplay,
+                            $firstLogItem->receptionLog?->stoneReception?->effectiveDepartmentId()
+                        ) ?? 0,
                     'masterCost'    => $items
                         ->map(fn($li) => $li->receptionLog?->stoneReception?->items
                             ->firstWhere('product_id', $li->product_id)?->master_cost_per_m2)
@@ -435,7 +453,12 @@ class WorkerDashboardService
                         return $delta * $wsItem->effectiveProdCost();
                     }
 
-                    return $product ? $product->calculateWorkerPay($delta) : 0.0;
+                    return $product
+                        ? $product->calculateWorkerPay(
+                            $delta,
+                            $logItem->workshopLog?->workshop?->effectiveDepartmentId()
+                        )
+                        : 0.0;
                 });
 
                 $effCoeffDisplay = $items
@@ -460,7 +483,10 @@ class WorkerDashboardService
                     'prodCost'      => $items
                         ->map(fn($li) => $findWorkshopItem($li)?->worker_cost_per_m2)
                         ->filter()
-                        ->avg() ?? $product?->prodCost($effCoeffDisplay) ?? 0,
+                        ->avg() ?? $product?->prodCost(
+                            $effCoeffDisplay,
+                            $firstLogItem->workshopLog?->workshop?->effectiveDepartmentId()
+                        ) ?? 0,
                     'masterCost'    => $items
                         ->map(fn($li) => $findWorkshopItem($li)?->master_cost_per_m2)
                         ->filter()

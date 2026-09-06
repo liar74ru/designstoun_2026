@@ -12,9 +12,12 @@
     <form method="POST" action="{{ route('admin.settings.update') }}">
         @csrf
 
-        {{-- Ставка пильщика --}}
-        @php $pieceRateSetting = $settings->firstWhere('key', 'PIECE_RATE'); @endphp
-        @if($pieceRateSetting)
+        {{-- Ставки и коэффициенты себестоимости --}}
+        @php
+            $rateKeys     = array_merge(['PIECE_RATE'], \App\Support\ProductionRates::keys());
+            $rateSettings = $settings->filter(fn($s) => in_array($s->key, $rateKeys, true));
+        @endphp
+        @if($rateSettings->isNotEmpty())
         <div class="card shadow-sm mb-3">
             <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
                  role="button"
@@ -24,106 +27,37 @@
             </div>
             <div class="collapse-content" id="block-piece-rate" style="display: none;">
                 <div class="card-body">
-                    @php $i = $settings->search(fn($s) => $s->key === 'PIECE_RATE'); @endphp
-                    <div class="mb-0">
-                        <label for="setting_PIECE_RATE" class="form-label fw-semibold mb-1">
-                            {{ $pieceRateSetting->label }}
-                        </label>
-                        @if($pieceRateSetting->description)
-                            <div class="text-muted small mb-1">{{ $pieceRateSetting->description }}</div>
-                        @endif
-                        <input
-                            type="number"
-                            step="any"
-                            id="setting_PIECE_RATE"
-                            name="settings[{{ $i }}][value]"
-                            value="{{ old('settings.' . $i . '.value', $pieceRateSetting->value) }}"
-                            class="form-control @error('settings.' . $i . '.value') is-invalid @enderror"
-                            required
-                        >
-                        <input type="hidden" name="settings[{{ $i }}][key]" value="PIECE_RATE">
-                        @error('settings.' . $i . '.value')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                    <div class="alert alert-warning py-2 px-3 mb-3 small">
+                        <i class="bi bi-diagram-3"></i>
+                        Базовая ставка пильщика — значение по умолчанию: каждый отдел может
+                        переопределить её в своей карточке (Настройки → отдел → «Ставки себестоимости»).
+                        Остальные коэффициенты действуют одинаково во всех отделах.
                     </div>
 
-                    @php $undercutSetting = $settings->firstWhere('key', 'UNDERCUT_PENALTY'); @endphp
-                    @if($undercutSetting)
-                        @php $j = $settings->search(fn($s) => $s->key === 'UNDERCUT_PENALTY'); @endphp
-                        <div class="mb-0 mt-3">
-                            <label for="setting_UNDERCUT_PENALTY" class="form-label fw-semibold mb-1">
-                                {{ $undercutSetting->label }}
+                    @foreach($rateSettings as $setting)
+                        @php $i = $settings->search(fn($s) => $s->key === $setting->key); @endphp
+                        <div class="mb-0 @if(! $loop->first) mt-3 @endif">
+                            <label for="setting_{{ $setting->key }}" class="form-label fw-semibold mb-1">
+                                {{ $setting->label ?? $setting->key }}
                             </label>
-                            @if($undercutSetting->description)
-                                <div class="text-muted small mb-1">{{ $undercutSetting->description }}</div>
+                            @if($setting->description)
+                                <div class="text-muted small mb-1">{{ $setting->description }}</div>
                             @endif
                             <input
                                 type="number"
                                 step="any"
-                                id="setting_UNDERCUT_PENALTY"
-                                name="settings[{{ $j }}][value]"
-                                value="{{ old('settings.' . $j . '.value', $undercutSetting->value) }}"
-                                class="form-control @error('settings.' . $j . '.value') is-invalid @enderror"
+                                id="setting_{{ $setting->key }}"
+                                name="settings[{{ $i }}][value]"
+                                value="{{ old('settings.' . $i . '.value', $setting->value) }}"
+                                class="form-control @error('settings.' . $i . '.value') is-invalid @enderror"
                                 required
                             >
-                            <input type="hidden" name="settings[{{ $j }}][key]" value="UNDERCUT_PENALTY">
-                            @error('settings.' . $j . '.value')
+                            <input type="hidden" name="settings[{{ $i }}][key]" value="{{ $setting->key }}">
+                            @error('settings.' . $i . '.value')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
-                    @endif
-
-                    @php $edgingSetting = $settings->firstWhere('key', 'EDGING_COEFF'); @endphp
-                    @if($edgingSetting)
-                        @php $k = $settings->search(fn($s) => $s->key === 'EDGING_COEFF'); @endphp
-                        <div class="mb-0 mt-3">
-                            <label for="setting_EDGING_COEFF" class="form-label fw-semibold mb-1">
-                                {{ $edgingSetting->label }}
-                            </label>
-                            @if($edgingSetting->description)
-                                <div class="text-muted small mb-1">{{ $edgingSetting->description }}</div>
-                            @endif
-                            <input
-                                type="number"
-                                step="any"
-                                id="setting_EDGING_COEFF"
-                                name="settings[{{ $k }}][value]"
-                                value="{{ old('settings.' . $k . '.value', $edgingSetting->value) }}"
-                                class="form-control @error('settings.' . $k . '.value') is-invalid @enderror"
-                                required
-                            >
-                            <input type="hidden" name="settings[{{ $k }}][key]" value="EDGING_COEFF">
-                            @error('settings.' . $k . '.value')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    @endif
-
-                    @php $maskSetting = $settings->firstWhere('key', 'MASK_TILE_COEFF_BONUS'); @endphp
-                    @if($maskSetting)
-                        @php $m = $settings->search(fn($s) => $s->key === 'MASK_TILE_COEFF_BONUS'); @endphp
-                        <div class="mb-0 mt-3">
-                            <label for="setting_MASK_TILE_COEFF_BONUS" class="form-label fw-semibold mb-1">
-                                {{ $maskSetting->label }}
-                            </label>
-                            @if($maskSetting->description)
-                                <div class="text-muted small mb-1">{{ $maskSetting->description }}</div>
-                            @endif
-                            <input
-                                type="number"
-                                step="any"
-                                id="setting_MASK_TILE_COEFF_BONUS"
-                                name="settings[{{ $m }}][value]"
-                                value="{{ old('settings.' . $m . '.value', $maskSetting->value) }}"
-                                class="form-control @error('settings.' . $m . '.value') is-invalid @enderror"
-                                required
-                            >
-                            <input type="hidden" name="settings[{{ $m }}][key]" value="MASK_TILE_COEFF_BONUS">
-                            @error('settings.' . $m . '.value')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    @endif
+                    @endforeach
                 </div>
             </div>
         </div>

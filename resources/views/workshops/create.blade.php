@@ -448,11 +448,10 @@
 @endsection
 
 @push('scripts')
+@include('partials.production-rates-js')
 @vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
 <script>
 (function () {
-    const PIECE_RATE = {{ (float) \App\Models\Setting::get('PIECE_RATE', 390.0) }};
-
     const departmentSelect   = document.getElementById('departmentSelect');
     const rawStoreSelect     = document.getElementById('rawStoreSelect');
     const productStoreSelect = document.getElementById('productStoreSelect');
@@ -562,12 +561,14 @@
             return;
         }
 
+        // Ставка пильщика задаётся per-department, а отдел выбирается на этой же
+        // странице — берём ставку текущего выбранного отдела.
+        const departmentId = departmentSelect?.value || null;
+
         let salaryTotal = 0;
         for (const p of products) {
             const coeff = await fetchCoeff(p.productId);
-            // Зеркало Product::prodCost(): floor((PIECE_RATE + PIECE_RATE*17% * coeff) / 10) * 10.
-            const workerCost = Math.floor((PIECE_RATE + PIECE_RATE * 0.17 * coeff) / 10) * 10;
-            salaryTotal += workerCost * p.qty;
+            salaryTotal += RateFormula.prodCost(coeff, departmentId) * p.qty;
         }
 
         const suggested = Math.round((salaryTotal / totalProduct) * 100) / 100;
@@ -696,6 +697,8 @@
         applyStores();
     }
     departmentSelect.addEventListener('change', syncStoresFromDepartment);
+    // Ставка пильщика у отделов своя — авторасчёт затрат обязан пересчитаться
+    departmentSelect.addEventListener('change', recomputeSuggestedCost);
     @if(old('store_id') || old('product_store_id'))
         rawStoreSelect.dataset.touched = '1';
         productStoreSelect.dataset.touched = '1';

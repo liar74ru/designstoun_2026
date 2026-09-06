@@ -141,11 +141,11 @@ describe('DepartmentSettings — кэш', function () {
 
 describe('DepartmentSettings::keys()', function () {
 
-    test('содержит только ставки мастера — накладные больше не ключи настроек', function () {
+    test('содержит ставки пильщика и мастера — накладные больше не ключи настроек', function () {
         $keys = DepartmentSettings::keys();
 
-        expect($keys)->toHaveCount(2)
-            ->and($keys)->toContain('MASTER_BASE_RATE', 'MASTER_UNDERCUT_RATE')
-            ->and($keys)->not->toContain('BLADE_WEAR', 'OTHER_COSTS', 'PIECE_RATE');
+        expect($keys)->toHaveCount(3)
+            ->and($keys)->toContain('PIECE_RATE', 'MASTER_BASE_RATE', 'MASTER_UNDERCUT_RATE')
+            ->and($keys)->not->toContain('BLADE_WEAR', 'OTHER_COSTS');
     });
 });

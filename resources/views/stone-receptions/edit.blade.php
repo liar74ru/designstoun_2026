@@ -420,6 +420,7 @@
 @endsection
 
 @push('scripts')
+    @include('partials.production-rates-js')
     @vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -560,6 +561,7 @@
             // ── Коэффициенты новых продуктов ────────────────────────────────────────
             const productCoeffCache = {};
 
+            // Возвращает { coeff, sku }: SKU нужен превью для бонуса плитки-маски.
             async function fetchProductCoeff(productId) {
                 if (!productId) return null;
                 if (productCoeffCache[productId] !== undefined) return productCoeffCache[productId];
@@ -567,12 +569,10 @@
                     const res = await fetch(`/api/products/${productId}/coeff`);
                     if (!res.ok) return null;
                     const data = await res.json();
-                    productCoeffCache[productId] = data.prod_cost_coeff ?? 0;
+                    productCoeffCache[productId] = { coeff: data.prod_cost_coeff ?? 0, sku: data.sku ?? null };
                     return productCoeffCache[productId];
                 } catch { return null; }
             }
-
-            const EDGING_COEFF = {{ (float) \App\Models\Setting::get('EDGING_COEFF', -2.5) }};
 
             function updateNewRowCoeff(row) {
                 const undercutCb   = row.querySelector('.js-new-undercut');
@@ -583,18 +583,21 @@
                 if (isNaN(baseCoeff)) return;
                 const isUndercut = undercutCb?.checked || false;
                 const isEdging   = edgingCb?.checked   || false;
-                const source     = isEdging ? EDGING_COEFF : baseCoeff;
-                const effective  = isUndercut ? source - 1.5 : source;
+                const sku        = coeffDisplay.dataset.sku || null;
+                const penalty    = RateFormula.undercutPenalty();
+                const edging     = RateFormula.edgingCoeff();
+                const source     = RateFormula.effectiveCoeff({ baseCoeff, isUndercut: false, isEdging, sku });
+                const effective  = RateFormula.effectiveCoeff({ baseCoeff, isUndercut, isEdging, sku });
 
                 let text;
                 if (isEdging && isUndercut) {
-                    text = `${EDGING_COEFF.toFixed(4)} − 1.5 = ${effective.toFixed(4)}`;
+                    text = `${edging.toFixed(4)} − ${penalty} = ${effective.toFixed(4)}`;
                 } else if (isEdging) {
-                    text = `${baseCoeff.toFixed(4)} → ${EDGING_COEFF.toFixed(4)}`;
+                    text = `${baseCoeff.toFixed(4)} → ${edging.toFixed(4)}`;
                 } else if (isUndercut) {
-                    text = `${baseCoeff.toFixed(4)} − 1.5 = ${effective.toFixed(4)}`;
+                    text = `${source.toFixed(4)} − ${penalty} = ${effective.toFixed(4)}`;
                 } else {
-                    text = baseCoeff.toFixed(4);
+                    text = source.toFixed(4);
                 }
                 coeffDisplay.textContent = text;
                 coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut && !isEdging);
@@ -608,8 +611,12 @@
                 if (!row || !productId || !row.classList.contains('new-product-row')) return;
                 const coeffDisplay = row.querySelector('.js-new-coeff-display');
                 if (coeffDisplay) {
-                    const coeff = await fetchProductCoeff(productId);
-                    if (coeff !== null) { coeffDisplay.dataset.baseCoeff = coeff; updateNewRowCoeff(row); }
+                    const data = await fetchProductCoeff(productId);
+                    if (data !== null) {
+                        coeffDisplay.dataset.baseCoeff = data.coeff;
+                        coeffDisplay.dataset.sku       = e.detail?.sku ?? data.sku ?? '';
+                        updateNewRowCoeff(row);
+                    }
                 }
             });
 
@@ -698,11 +705,12 @@
                         const edgingCb = row.querySelector('.js-new-edging');
                         if (edgingCb) edgingCb.checked = true;
                     }
-                    fetchProductCoeff(productId).then(coeff => {
-                        if (coeff !== null) {
+                    fetchProductCoeff(productId).then(data => {
+                        if (data !== null) {
                             const coeffDisplay = row.querySelector('.js-new-coeff-display');
                             if (coeffDisplay) {
-                                coeffDisplay.dataset.baseCoeff = coeff;
+                                coeffDisplay.dataset.baseCoeff = data.coeff;
+                                coeffDisplay.dataset.sku       = data.sku ?? '';
                                 updateNewRowCoeff(row);
                             }
                         }

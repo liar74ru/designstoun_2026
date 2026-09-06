@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Models\Setting;
 use App\Support\DepartmentSettings;
+use App\Support\ProductionRates;
 use App\Support\RateFormula;
 use Illuminate\Database\Eloquent\Model;
 
@@ -64,7 +64,7 @@ class StoneReceptionItem extends Model
             return (float) ($this->product?->prod_cost_coeff ?? 0);
         }
         $eff = (float) $this->effective_cost_coeff;
-        return $this->is_undercut ? $eff + (float) Setting::get('UNDERCUT_PENALTY', 1.5) : $eff;
+        return $this->is_undercut ? $eff + ProductionRates::undercutPenalty() : $eff;
     }
 
     /**
@@ -76,10 +76,10 @@ class StoneReceptionItem extends Model
     public static function computeEffectiveCoeff(float $baseCoeff, bool $isUndercut, bool $isEdging = false, ?string $sku = null): float
     {
         $coeff = $isEdging
-            ? (float) Setting::get('EDGING_COEFF', -2.5)
-            : $baseCoeff + (self::skuIsMaskTile($sku) ? (float) Setting::get('MASK_TILE_COEFF_BONUS', 2.0) : 0.0);
+            ? ProductionRates::edgingCoeff()
+            : $baseCoeff + (self::skuIsMaskTile($sku) ? ProductionRates::maskTileBonus() : 0.0);
         if ($isUndercut) {
-            $coeff -= (float) Setting::get('UNDERCUT_PENALTY', 1.5);
+            $coeff -= ProductionRates::undercutPenalty();
         }
         return $coeff;
     }
@@ -87,12 +87,18 @@ class StoneReceptionItem extends Model
     /**
      * Стоимость единицы продукции для этой позиции,
      * рассчитанная по зафиксированному effective_cost_coeff.
+     *
+     * Фолбэк считается по ставке отдела приёмки: у позиций, созданных до
+     * появления снапшота, отдела в самой позиции нет.
      */
     public function effectiveProdCost(): float
     {
         return $this->worker_cost_per_m2 !== null
             ? (float) $this->worker_cost_per_m2
-            : $this->product->prodCost((float) $this->effective_cost_coeff);
+            : $this->product->prodCost(
+                (float) $this->effective_cost_coeff,
+                $this->reception?->effectiveDepartmentId()
+            );
     }
 
     /**

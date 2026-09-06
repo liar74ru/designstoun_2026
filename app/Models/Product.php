@@ -42,11 +42,12 @@ class Product extends Model
     ];
 
     /**
-     * Берем базовый коэффициент.
+     * Базовая ставка пильщика отдела (₽/ед).
+     * Отдел не передан или не задал свою ставку → глобальное значение.
      */
-    public static function pieceRate(): float
+    public static function pieceRate(?int $departmentId = null): float
     {
-        return (float) \App\Models\Setting::get('PIECE_RATE', 390.0);
+        return \App\Support\DepartmentSettings::pieceRate($departmentId);
     }
 
     /**
@@ -178,19 +179,21 @@ class Product extends Model
 
     // ─── Бизнес-логика ───────────────────────────────────────────────────────
 
-    public function prodCost($coeffCustom = null): float|int
+    /**
+     * Стоимость единицы продукции для пильщика (₽/ед).
+     *
+     * @param int|null $departmentId Отдел документа; null → глобальная ставка
+     */
+    public function prodCost($coeffCustom = null, ?int $departmentId = null): float|int
     {
-//        if ((float)($this->prod_cost_coeff ?? 0) === 0.0) {
-//            return 0.0;
-//        }
-
         // ОКРУГЛВНИЗ((PIECE_RATE + PIECE_RATE*17% * coeff) / 10; 0) * 10
         $coeff = $coeffCustom ?? (float)$this->prod_cost_coeff ?? 0;
 
-        return \App\Support\RateFormula::stepped(self::pieceRate(), (float) $coeff);
+        return \App\Support\RateFormula::stepped(self::pieceRate($departmentId), (float) $coeff);
     }
-    public function calculateWorkerPay(float $quantity): float
+
+    public function calculateWorkerPay(float $quantity, ?int $departmentId = null): float
     {
-        return $quantity * $this->prodCost();
+        return $quantity * $this->prodCost(null, $departmentId);
     }
 }

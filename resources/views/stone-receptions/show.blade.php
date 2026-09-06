@@ -488,6 +488,7 @@
 @endsection
 
 @push('scripts')
+@include('partials.production-rates-js')
 @if(auth()->user()->isAdmin())
     @include('partials.reception-log-receiver-script')
 @endif
@@ -513,8 +514,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     cancelBtn?.addEventListener('click', hideEdit);
 
-    const UNDERCUT_PENALTY = {{ (float) \App\Models\Setting::get('UNDERCUT_PENALTY', 1.5) }};
-
     function recalcRow(rowIdx) {
         const baseInput  = document.querySelector(`.coeff-base-input[data-row="${rowIdx}"]`);
         const undercutCb = document.querySelector(`.coeff-undercut-cb[data-row="${rowIdx}"]`);
@@ -523,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const base      = parseFloat(baseInput.value) || 0;
         const undercut  = undercutCb?.checked || false;
-        const effective = undercut ? base - UNDERCUT_PENALTY : base;
+        const effective = undercut ? base - RateFormula.undercutPenalty() : base;
 
         display.textContent = effective.toFixed(4);
         display.className   = display.className.replace(/bg-\w+/, undercut ? 'bg-warning' : 'bg-secondary');

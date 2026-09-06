@@ -1,5 +1,6 @@
 import './bootstrap';
 import './form-submit-guard';
+import './rate-formula';
 
 import Alpine from 'alpinejs';
 

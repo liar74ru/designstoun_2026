@@ -13,6 +13,13 @@
  * в resources/views/admin/departments/show.blade.php.
  */
 return [
+    'worker' => [
+        'label' => 'Ставки пильщика, ₽/ед',
+        'hint'  => 'Базовая ставка масштабируется коэффициентом продукта prod_cost_coeff.',
+        'keys'  => [
+            'PIECE_RATE' => ['label' => 'Базовая ставка', 'default' => 390],
+        ],
+    ],
     'master' => [
         'label' => 'Ставки мастера, ₽/м²',
         'hint'  => 'Базовая ставка масштабируется коэффициентом продукта master_cost_coeff.',

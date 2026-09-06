@@ -56,11 +56,22 @@ test('пустое поле удаляет переопределение — з
 test('ключ вне whitelist игнорируется (включая бывшие накладные)', function () {
     $this->actingAs(makeCostAdmin())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
-            'settings' => ['PIECE_RATE' => '500', 'ELECTRICITY' => '95', 'HACK_KEY' => '1'],
+            'settings' => ['BLADE_WEAR' => '500', 'ELECTRICITY' => '95', 'HACK_KEY' => '1'],
         ])
         ->assertRedirect(route('admin.departments.show', $this->dept));
 
     expect(DepartmentSetting::where('department_id', $this->dept->id)->count())->toBe(0);
+});
+
+test('PIECE_RATE сохраняется как настройка отдела', function () {
+    $this->actingAs(makeCostAdmin())
+        ->patch(route('admin.departments.cost-settings.update', $this->dept), [
+            'settings' => ['PIECE_RATE' => '420'],
+        ])
+        ->assertRedirect(route('admin.departments.show', $this->dept));
+
+    expect(DepartmentSetting::where('department_id', $this->dept->id)->where('key', 'PIECE_RATE')->value('value'))
+        ->toBe('420');
 });
 
 test('отрицательное значение отклоняется', function () {

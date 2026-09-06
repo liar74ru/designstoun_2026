@@ -9,17 +9,20 @@ use Illuminate\Support\Facades\Cache;
 /**
  * Ключи настроек приложения:
  *
- * Расчёт зарплаты:
- *   PIECE_RATE             — базовая ставка пильщика (₽, используется в Product::prodCost())
- *   UNDERCUT_PENALTY       — штраф коэффициента при флаге «подкол > 80%» (StoneReceptionItem)
+ * Коэффициенты-модификаторы (глобальные, реестр — config/production_rates.php,
+ * читать только через App\Support\ProductionRates):
+ *   UNDERCUT_PENALTY       — штраф коэффициента при флаге «подкол > 80%»
  *   EDGING_COEFF           — коэффициент «Торцовка»: полностью заменяет prod_cost_coeff (доступен для партий 04-XX); может быть отрицательным
+ *   MASK_TILE_COEFF_BONUS  — бонус коэффициента для SKU плитки-маски (04-07-XX)
  *
  * Накладные расходы здесь НЕ хранятся: у каждого отдела свой произвольный
  * набор строк в таблице `department_expenses` (см. App\Support\DepartmentSettings).
  *
- * Ставки мастера (₽/м²) — значения по умолчанию, переопределяются в отделе:
- *   MASTER_BASE_RATE       — базовая ставка за м² (масштабируется products.master_cost_coeff)
- *   MASTER_UNDERCUT_RATE   — надбавка за подкол > 80%
+ * Базовые ставки — значения по умолчанию, переопределяются в отделе
+ * (реестр — config/department_settings.php, читать через App\Support\DepartmentSettings):
+ *   PIECE_RATE             — базовая ставка пильщика (₽/ед)
+ *   MASTER_BASE_RATE       — базовая ставка мастера за м² (масштабируется products.master_cost_coeff)
+ *   MASTER_UNDERCUT_RATE   — надбавка мастеру за подкол > 80%
  *
  * МойСклад (строки):
  *   MOYSKLAD_IN_WORK_STATE — имя статуса «в работе» техоперации

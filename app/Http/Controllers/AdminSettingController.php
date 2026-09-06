@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Setting;
 use App\Models\Store;
+use App\Support\ProductionRates;
 use Illuminate\Http\Request;
 
 class AdminSettingController extends Controller
@@ -18,8 +19,6 @@ class AdminSettingController extends Controller
         return view('admin.settings.index', compact('settings', 'departments', 'stores'));
     }
 
-    private const ALLOW_NEGATIVE_KEYS = ['EDGING_COEFF'];
-
     public function update(Request $request)
     {
         $validated = $request->validate([
@@ -29,10 +28,12 @@ class AdminSettingController extends Controller
                 'required',
                 'string',
                 'max:500',
+                // Какие ключи допускают отрицательное значение — решает реестр
+                // config/production_rates.php, а не список в контроллере.
                 function ($attribute, $value, $fail) use ($request) {
                     $idx = explode('.', $attribute)[1] ?? null;
                     $key = $request->input("settings.{$idx}.key");
-                    if (in_array($key, self::ALLOW_NEGATIVE_KEYS, true)) {
+                    if ($key !== null && ProductionRates::allowsNegative($key)) {
                         return;
                     }
                     if (is_numeric($value) && (float) $value < 0) {

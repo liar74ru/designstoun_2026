@@ -558,7 +558,7 @@ class StoneReceptionService
                     'is_undercut'          => $isUndercut,
                     'is_edging'            => $isEdging,
                     'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff),
+                    'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff, $reception->department_id),
                     'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
                         $isUndercut,
                         $reception->department_id,
@@ -590,7 +590,7 @@ class StoneReceptionService
                 $item->update([
                     'effective_cost_coeff' => $effCoeff,
                     'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $item->product->prodCost($effCoeff),
+                    'worker_cost_per_m2'   => $item->product->prodCost($effCoeff, $reception->department_id),
                     'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
                         $isUndercut,
                         $reception->department_id,
@@ -698,7 +698,7 @@ class StoneReceptionService
                 'is_undercut'          => $isUndercut,
                 'is_edging'            => $isEdging,
                 'is_small_tile'        => $isSmallTile,
-                'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
+                'worker_cost_per_m2'   => $prod?->prodCost($effCoeff, $reception->department_id),
                 'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
                     $isUndercut,
                     $reception->department_id,
@@ -742,7 +742,7 @@ class StoneReceptionService
                     'is_undercut'          => $isUndercut,
                     'is_edging'            => $isEdging,
                     'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $prod?->prodCost($effCoeff),
+                    'worker_cost_per_m2'   => $prod?->prodCost($effCoeff, $reception->department_id),
                     'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
                         $isUndercut,
                         $reception->department_id,

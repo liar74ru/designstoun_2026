@@ -256,9 +256,9 @@
         </div>
     </div>
 
-    {{-- 4. Ставки мастера --}}
+    {{-- 4. Ставки себестоимости --}}
     <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold py-2">Ставки мастера</div>
+        <div class="card-header fw-semibold py-2">Ставки себестоимости</div>
         <div class="card-body p-2 p-md-3">
             <form method="POST" action="{{ route('admin.departments.cost-settings.update', $department) }}">
                 @csrf

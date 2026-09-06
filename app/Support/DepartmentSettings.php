@@ -86,6 +86,17 @@ class DepartmentSettings
         );
     }
 
+    /**
+     * Базовая ставка пильщика за единицу продукции (₽/ед).
+     *
+     * Каждый отдел задаёт её сам: подъём зарплаты не обязан быть одномоментным.
+     * Отдел не задал — наследуется глобальное значение.
+     */
+    public static function pieceRate(?int $departmentId): float
+    {
+        return self::float($departmentId, 'PIECE_RATE', 390);
+    }
+
     /** Базовая ставка мастера за единицу продукции (₽/м²). */
     public static function masterBaseRate(?int $departmentId): float
     {

@@ -458,6 +458,7 @@
 @endsection
 
 @push('scripts')
+@include('partials.production-rates-js')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const toggleBtn = document.getElementById('toggleCoeffEdit');
@@ -480,9 +481,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     cancelBtn?.addEventListener('click', hideEdit);
 
-    const UNDERCUT_PENALTY = {{ (float) \App\Models\Setting::get('UNDERCUT_PENALTY', 1.5) }};
-    const EDGING_COEFF     = {{ (float) \App\Models\Setting::get('EDGING_COEFF', -2.5) }};
-
     function recalcRow(rowIdx) {
         const baseInput  = document.querySelector(`.coeff-base-input[data-row="${rowIdx}"]`);
         const undercutCb = document.querySelector(`.coeff-undercut-cb[data-row="${rowIdx}"]`);
@@ -493,8 +491,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const base      = parseFloat(baseInput.value) || 0;
         const undercut  = undercutCb?.checked || false;
         const edging    = edgingCb?.checked || false;
-        let effective   = edging ? EDGING_COEFF : base;
-        if (undercut) effective -= UNDERCUT_PENALTY;
+        // SKU намеренно не передаём: база введена вручную и уже содержит бонус
+        // маски, повторное применение задвоило бы его (сервер здесь тоже не
+        // передаёт SKU — см. WorkshopService::updateItemCoeff)
+        const effective = RateFormula.effectiveCoeff({
+            baseCoeff: base,
+            isUndercut: undercut,
+            isEdging: edging,
+        });
 
         display.textContent = effective.toFixed(4);
         display.className   = display.className.replace(/bg-\w+/, (undercut || edging) ? 'bg-warning' : 'bg-secondary');
