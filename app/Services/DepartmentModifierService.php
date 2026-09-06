@@ -76,6 +76,24 @@ class DepartmentModifierService
         return $copied;
     }
 
+    /** Завести правило в отделе. */
+    public function create(Department $department, array $data): DepartmentModifier
+    {
+        $modifier = $department->modifiers()->create($data);
+
+        $department->forgetSettingsCache();
+
+        return $modifier;
+    }
+
+    /** Изменить правило. Ставки уже созданных позиций не меняются — они лежат в снапшоте. */
+    public function update(DepartmentModifier $modifier, array $data): void
+    {
+        $modifier->update($data);
+
+        $modifier->department?->forgetSettingsCache();
+    }
+
     /** Удалить правило и сбросить кэш отдела. */
     public function delete(DepartmentModifier $modifier): void
     {

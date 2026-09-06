@@ -49,10 +49,12 @@ class DepartmentController extends Controller
         $costSettings      = $department->settings()->pluck('value', 'key')->all();
         $globalDefaults    = Setting::whereIn('key', DepartmentSettings::keys())->pluck('value', 'key')->all();
         $expenses          = $department->expenses()->get(['id', 'name', 'amount']);
+        $modifiers         = $department->modifiers;
 
         return view('admin.departments.show', compact(
             'department', 'workers', 'stores', 'allWorkers', 'operations', 'allowedPositions',
-            'presets', 'allDepartments', 'costGroups', 'costSettings', 'globalDefaults', 'expenses'
+            'presets', 'allDepartments', 'costGroups', 'costSettings', 'globalDefaults', 'expenses',
+            'modifiers'
         ));
     }
 

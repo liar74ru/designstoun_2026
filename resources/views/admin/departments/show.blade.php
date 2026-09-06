@@ -305,7 +305,91 @@
         </div>
     </div>
 
-    {{-- 5. Список сотрудников --}}
+    {{-- 5. Правила себестоимости (бонусы и штрафы) --}}
+    <div class="card shadow-sm mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center py-2">
+            <span class="fw-semibold">Правила себестоимости ({{ $modifiers->count() }})</span>
+            <a href="{{ route('admin.departments.modifiers.create', $department) }}"
+               class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-plus-circle"></i> Добавить
+            </a>
+        </div>
+        <div class="card-body p-0">
+            @forelse($modifiers as $modifier)
+                @php
+                    $isSku = $modifier->trigger === \App\Models\DepartmentModifier::TRIGGER_SKU;
+
+                    $condition = $isSku
+                        ? 'SKU ' . $modifier->sku_pattern
+                        : 'вручную' . ($modifier->available_when_batch_sku
+                            ? ', партии ' . $modifier->available_when_batch_sku
+                            : '');
+
+                    if ($modifier->applies_to !== \App\Models\DepartmentModifier::SCOPE_BOTH) {
+                        $condition .= ' · только '
+                            . ($modifier->applies_to === \App\Models\DepartmentModifier::SCOPE_RECEPTION ? 'приёмка' : 'цех');
+                    }
+
+                    $effects = [];
+                    foreach (['worker' => 'пильщик', 'master' => 'мастер'] as $role => $roleLabel) {
+                        $delta   = $modifier->{$role . '_coeff_delta'};
+                        $replace = $modifier->{$role . '_coeff_replace'};
+
+                        if ($replace !== null) {
+                            $effects[] = $roleLabel . ' = ' . rtrim(rtrim((string) $replace, '0'), '.');
+                        } elseif ($delta !== null) {
+                            $value = rtrim(rtrim((string) $delta, '0'), '.');
+                            $effects[] = $roleLabel . ' ' . ($delta > 0 ? '+' . $value : $value);
+                        }
+                    }
+                @endphp
+                <div class="px-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }} {{ $modifier->is_active ? '' : 'opacity-50' }}"
+                     @if($modifier->color) style="border-left:4px solid {{ $modifier->color }}" @endif>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="me-2">
+                            <div class="fw-semibold small">
+                                {{ $modifier->name }}
+                                @unless($modifier->is_active)
+                                    <span class="badge bg-secondary" style="font-size:.6rem">выключено</span>
+                                @endunless
+                            </div>
+                            <div class="text-muted" style="font-size:.75rem">
+                                {{ $condition }}
+                                @if($effects)
+                                    · {{ implode(' · ', $effects) }}
+                                @else
+                                    · на ставки не влияет
+                                @endif
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <a href="{{ route('admin.departments.modifiers.edit', [$department, $modifier]) }}"
+                               class="btn btn-sm btn-outline-primary" title="Изменить">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ route('admin.departments.modifiers.destroy', [$department, $modifier]) }}"
+                                  onsubmit="return confirm('Удалить правило «{{ $modifier->name }}»?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            @empty
+                <div class="p-3">
+                    <div class="alert alert-warning mb-0 py-2 small">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Правила не заданы — надбавки и штрафы в этом отделе не применяются.
+                    </div>
+                </div>
+            @endforelse
+        </div>
+    </div>
+
+    {{-- 6. Список сотрудников --}}
     <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold py-2">
             Сотрудники ({{ $workers->count() }})
@@ -359,7 +443,7 @@
         </div>
     </div>
 
-    {{-- 6. Склады по умолчанию --}}
+    {{-- 7. Склады по умолчанию --}}
     <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold py-2">Склады по умолчанию</div>
         <div class="card-body">
@@ -466,7 +550,7 @@
         </div>
     </div>
 
-    {{-- 7. Пресеты цеха --}}
+    {{-- 8. Пресеты цеха --}}
     <div class="card shadow-sm mb-3">
         <div class="card-header d-flex justify-content-between align-items-center py-2">
             <span class="fw-semibold">Пресеты цеха ({{ $presets->count() }})</span>

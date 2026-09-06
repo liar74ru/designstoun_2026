@@ -29,6 +29,20 @@ class DepartmentModifier extends Model
     public const ROLE_WORKER = 'worker';
     public const ROLE_MASTER = 'master';
 
+    /**
+     * Палитра плашек — единственный источник и для формы, и для валидации.
+     * Значения совпадают с цветами Bootstrap, которыми бейджи красились раньше.
+     */
+    public const COLORS = [
+        '#FFC107' => 'Жёлтый',
+        '#0DCAF0' => 'Голубой',
+        '#DC3545' => 'Красный',
+        '#198754' => 'Зелёный',
+        '#0D6EFD' => 'Синий',
+        '#6F42C1' => 'Фиолетовый',
+        '#6C757D' => 'Серый',
+    ];
+
     protected $fillable = [
         'department_id',
         'key',

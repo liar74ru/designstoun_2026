@@ -10,6 +10,7 @@ use App\Http\Controllers\StoreController;
 use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
+use App\Http\Controllers\Admin\DepartmentModifierController;
 use App\Http\Controllers\Admin\OrderStatusSettingController;
 use App\Http\Controllers\Admin\WorkshopPresetController;
 use App\Http\Controllers\AdminSettingController;
@@ -207,6 +208,15 @@ Route::middleware(['auth'])->group(function () {
             Route::patch ('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'update'])->name('departments.presets.update');
             Route::delete('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'destroy'])->name('departments.presets.destroy');
             Route::post  ('/departments/{department}/presets/{preset}/copy', [WorkshopPresetController::class, 'copy'])->name('departments.presets.copy');
+        });
+
+        // Правила-модификаторы себестоимости отдела
+        Route::scopeBindings()->group(function () {
+            Route::get   ('/departments/{department}/modifiers/create',          [DepartmentModifierController::class, 'create'])->name('departments.modifiers.create');
+            Route::post  ('/departments/{department}/modifiers',                 [DepartmentModifierController::class, 'store'])->name('departments.modifiers.store');
+            Route::get   ('/departments/{department}/modifiers/{modifier}/edit', [DepartmentModifierController::class, 'edit'])->name('departments.modifiers.edit');
+            Route::patch ('/departments/{department}/modifiers/{modifier}',      [DepartmentModifierController::class, 'update'])->name('departments.modifiers.update');
+            Route::delete('/departments/{department}/modifiers/{modifier}',      [DepartmentModifierController::class, 'destroy'])->name('departments.modifiers.destroy');
         });
 
         Route::get ('/order-statuses', [OrderStatusSettingController::class, 'index'])->name('order-statuses.index');
