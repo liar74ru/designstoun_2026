@@ -8,6 +8,19 @@ use App\Models\User;
 class OperationAccessor
 {
     /**
+     * Операции, чьи формы используют AJAX-эндпоинты товаров:
+     * дерево групп (ProductPicker), остатки по складам, коэффициенты продукта.
+     * Основа составного gate `use-product-api` (см. AppServiceProvider).
+     */
+    public const PRODUCT_API_OPERATIONS = [
+        'products',
+        'stone-receptions',
+        'workshops',
+        'raw-batches',
+        'supplier-orders',
+    ];
+
+    /**
      * Может ли пользователь видеть/использовать операцию реестра
      * (одна точка истины для UI шапки и middleware can:see-{key}).
      */
@@ -42,6 +55,23 @@ class OperationAccessor
         // если должность разрешена хотя бы в одном из них.
         foreach ($user->worker?->departmentIds() ?? [] as $deptId) {
             if (Department::positionAllowedFor($deptId, $operationKey, $position)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Доступна ли пользователю хотя бы одна операция из списка.
+     * Для эндпоинтов, обслуживающих сразу несколько операций реестра.
+     *
+     * @param string[] $operationKeys
+     */
+    public static function canSeeAny(?User $user, array $operationKeys): bool
+    {
+        foreach ($operationKeys as $key) {
+            if (self::canSee($user, $key)) {
                 return true;
             }
         }

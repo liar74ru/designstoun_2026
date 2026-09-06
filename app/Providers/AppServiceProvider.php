@@ -29,6 +29,13 @@ class AppServiceProvider extends ServiceProvider
         }
         Gate::define('manage-admin', fn (?User $user) => (bool) $user?->isAdmin());
 
+        // AJAX-эндпоинты товаров обслуживают сразу несколько операций реестра,
+        // поэтому доступ — по составному gate, а не по одиночному see-{key}.
+        Gate::define(
+            'use-product-api',
+            fn (?User $user) => OperationAccessor::canSeeAny($user, OperationAccessor::PRODUCT_API_OPERATIONS),
+        );
+
         Gate::policy(Worker::class, WorkerPolicy::class);
 
         View::composer('layouts.partials.header', function ($view) {

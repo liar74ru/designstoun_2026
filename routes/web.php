@@ -174,10 +174,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/api/workers/{worker}/batch-by-product', [RawMaterialBatchController::class, 'workerBatchByProduct'])->name('api.worker.batch-by-product');
     });
 
-    // AJAX-эндпоинты товаров — для всех с правами на работу с товарами/приёмками
-    Route::get('/api/products/tree', [ProductController::class, 'groupsJson'])->name('api.products.tree');
-    Route::get('/api/products/stocks', [ProductController::class, 'stocksJson'])->name('api.products.stocks');
-    Route::get('/api/products/{product}/coeff', [ProductController::class, 'getCoeff'])->name('api.products.coeff');
+    // AJAX-эндпоинты товаров — для тех, у кого есть хотя бы одна операция,
+    // использующая ProductPicker (см. OperationAccessor::PRODUCT_API_OPERATIONS)
+    Route::middleware('can:use-product-api')->group(function () {
+        Route::get('/api/products/tree', [ProductController::class, 'groupsJson'])->name('api.products.tree');
+        Route::get('/api/products/stocks', [ProductController::class, 'stocksJson'])->name('api.products.stocks');
+        Route::get('/api/products/{product}/coeff', [ProductController::class, 'getCoeff'])->name('api.products.coeff');
+    });
 
     // «Итоги» — настраивается per-department (мастер видит только свой отдел, см. контроллер)
     Route::prefix('admin')->name('admin.')->group(function () {
