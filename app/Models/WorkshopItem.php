@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Support\ProductionRates;
 use Illuminate\Database\Eloquent\Model;
 
 class WorkshopItem extends Model
@@ -18,6 +17,7 @@ class WorkshopItem extends Model
         'product_id',
         'role',
         'quantity',
+        'base_cost_coeff',
         'effective_cost_coeff',
         'is_undercut',
         'is_edging',
@@ -28,6 +28,7 @@ class WorkshopItem extends Model
 
     protected $casts = [
         'quantity'             => 'decimal:3',
+        'base_cost_coeff'      => 'decimal:4',
         'effective_cost_coeff' => 'decimal:4',
         'is_undercut'          => 'boolean',
         'is_edging'            => 'boolean',
@@ -61,13 +62,22 @@ class WorkshopItem extends Model
         return $query->where('role', self::ROLE_PRODUCT);
     }
 
+    /** Правила, применённые к позиции (снапшот на момент создания). */
+    public function modifiers()
+    {
+        return $this->hasMany(ProductionItemModifier::class, 'workshop_item_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    /** Базовый коэффициент — чтение колонки, см. StoneReceptionItem::getBaseCoeffAttribute(). */
     public function getBaseCoeffAttribute(): float
     {
-        if ($this->is_edging) {
-            return (float) ($this->product?->prod_cost_coeff ?? 0);
+        if ($this->base_cost_coeff !== null) {
+            return (float) $this->base_cost_coeff;
         }
-        $eff = (float) $this->effective_cost_coeff;
-        return $this->is_undercut ? $eff + ProductionRates::undercutPenalty() : $eff;
+
+        return (float) ($this->product?->prod_cost_coeff ?? 0);
     }
 
     /**

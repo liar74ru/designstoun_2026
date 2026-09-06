@@ -2,6 +2,7 @@
 
 namespace Tests\Helpers;
 
+use App\Models\Department;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
@@ -9,6 +10,7 @@ use App\Models\Store;
 use App\Models\StoneReception;
 use App\Models\User;
 use App\Models\Worker;
+use App\Services\DepartmentModifierService;
 
 /**
  * Вспомогательные фабрики для тестов цепочки Партия → Приёмка → МойСклад.
@@ -46,6 +48,21 @@ class ReceptionTestHelper
     public static function store(string $name = 'Тестовый склад'): Store
     {
         return Store::factory()->create(['name' => $name]);
+    }
+
+    /**
+     * Отдел со стандартным набором правил себестоимости.
+     *
+     * Правила не наследуются: у отдела без них подкол, торцовка и бонус маски
+     * не применяются вовсе. Поэтому тесты, проверяющие коэффициенты, должны
+     * создавать отдел именно так.
+     */
+    public static function departmentWithModifiers(string $name = 'Тестовый отдел'): Department
+    {
+        $department = Department::create(['name' => $name, 'is_active' => true]);
+        app(DepartmentModifierService::class)->applyDefaults($department);
+
+        return $department;
     }
 
     /**

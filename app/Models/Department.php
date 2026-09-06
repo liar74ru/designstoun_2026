@@ -76,6 +76,15 @@ class Department extends Model
         return $this->hasMany(DepartmentExpense::class)->orderBy('id');
     }
 
+    /**
+     * Правила-модификаторы себестоимости отдела (бонусы и штрафы).
+     * Читать только через App\Support\ModifierEngine.
+     */
+    public function modifiers(): HasMany
+    {
+        return $this->hasMany(DepartmentModifier::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function presets(): HasMany
     {
         return $this->hasMany(WorkshopPreset::class);
@@ -143,11 +152,17 @@ class Department extends Model
         return "dept.{$departmentId}.expenses";
     }
 
-    /** Единая точка сброса кэша себестоимости отдела: и ставки, и расходы. */
+    public static function modifiersCacheKey(int $departmentId): string
+    {
+        return "dept.{$departmentId}.modifiers";
+    }
+
+    /** Единая точка сброса кэша себестоимости отдела: ставки, расходы и правила. */
     public function forgetSettingsCache(): void
     {
         Cache::forget(self::settingsCacheKey($this->id));
         Cache::forget(self::expensesCacheKey($this->id));
+        Cache::forget(self::modifiersCacheKey($this->id));
     }
 
     public function forgetOperationsCache(): void

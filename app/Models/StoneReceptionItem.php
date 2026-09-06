@@ -15,6 +15,7 @@ class StoneReceptionItem extends Model
         'stone_reception_id',
         'product_id',
         'quantity',
+        'base_cost_coeff',
         'effective_cost_coeff',
         'is_undercut',
         'is_edging',
@@ -25,6 +26,7 @@ class StoneReceptionItem extends Model
 
     protected $casts = [
         'quantity'             => 'decimal:3',
+        'base_cost_coeff'      => 'decimal:4',
         'effective_cost_coeff' => 'decimal:4',
         'is_undercut'          => 'boolean',
         'is_edging'            => 'boolean',
@@ -53,18 +55,32 @@ class StoneReceptionItem extends Model
 
     // ─── Бизнес-логика ───────────────────────────────────────────────────────
 
+    /** Правила, применённые к позиции (снапшот на момент создания). */
+    public function modifiers()
+    {
+        return $this->hasMany(ProductionItemModifier::class, 'stone_reception_item_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
     /**
-     * Базовый коэффициент приёмки (без поправок).
-     * Для is_edging «обратное» восстановление невозможно (полная замена),
-     * поэтому возвращаем коэффициент из справочника продукта.
+     * Базовый коэффициент позиции — простое чтение колонки.
+     *
+     * Раньше он восстанавливался обратным счётом из effective_cost_coeff, и
+     * бонус плитки-маски при этом не снимался: форма правки коэффициента
+     * отдавала значение с уже учтённым бонусом, сервер применял его повторно,
+     * и коэффициент рос на 2 при каждом сохранении. Теперь база хранится явно.
+     *
+     * Фолбэк на справочник продукта — для позиций, созданных до появления
+     * колонки, если бэкфил по ним не отработал.
      */
     public function getBaseCoeffAttribute(): float
     {
-        if ($this->is_edging) {
-            return (float) ($this->product?->prod_cost_coeff ?? 0);
+        if ($this->base_cost_coeff !== null) {
+            return (float) $this->base_cost_coeff;
         }
-        $eff = (float) $this->effective_cost_coeff;
-        return $this->is_undercut ? $eff + ProductionRates::undercutPenalty() : $eff;
+
+        return (float) ($this->product?->prod_cost_coeff ?? 0);
     }
 
     /**

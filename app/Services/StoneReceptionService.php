@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Department;
+use App\Models\DepartmentModifier;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
@@ -14,6 +15,8 @@ use App\Models\Worker;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Support\DepartmentSettings;
+use App\Support\ItemCost;
+use App\Support\ModifierEngine;
 use App\Traits\HandlesBatchStock;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
@@ -547,24 +550,22 @@ class StoneReceptionService
             foreach ($validated['items'] as $row) {
                 $item = $reception->items()->with('product')->findOrFail($row['item_id']);
 
-                $isUndercut  = !empty($row['is_undercut']);
-                $isEdging    = !empty($row['is_edging']);
-                $baseCoeff   = (float) $row['base_coeff'];
-                $isSmallTile = StoneReceptionItem::skuIsSmallTile($item->product?->sku);
-                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging, $item->product?->sku);
-
-                $item->update([
-                    'effective_cost_coeff' => $effCoeff,
-                    'is_undercut'          => $isUndercut,
-                    'is_edging'            => $isEdging,
-                    'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff, $reception->department_id),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
-                        $isUndercut,
-                        $reception->department_id,
-                        $item->product
+                // База берётся из формы как есть: правила её не переопределяют,
+                // поэтому повторное сохранение не сдвигает коэффициент.
+                $cost = ItemCost::computeFromBase(
+                    $item->product,
+                    (float) $row['base_coeff'],
+                    $this->modifierDepartmentId($reception),
+                    DepartmentModifier::SCOPE_RECEPTION,
+                    ModifierEngine::manualKeysFromLegacyFlags(
+                        !empty($row['is_undercut']),
+                        !empty($row['is_edging']),
                     ),
-                ]);
+                    $this->batchSku($reception),
+                );
+
+                $item->update($cost['attributes']);
+                ItemCost::syncSnapshot('stone_reception_item_id', $item->id, $cost['modifiers']);
             }
 
             $this->syncBatchProcessingSum($reception);
@@ -581,22 +582,21 @@ class StoneReceptionService
                     continue;
                 }
 
-                $baseCoeff   = (float) $item->product->prod_cost_coeff;
-                $isUndercut  = (bool) $item->is_undercut;
-                $isEdging    = (bool) $item->is_edging;
-                $isSmallTile = StoneReceptionItem::skuIsSmallTile($item->product->sku);
-                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging, $item->product->sku);
-
-                $item->update([
-                    'effective_cost_coeff' => $effCoeff,
-                    'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $item->product->prodCost($effCoeff, $reception->department_id),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
-                        $isUndercut,
-                        $reception->department_id,
-                        $item->product
+                // Массовый пересчёт от актуального коэффициента справочника —
+                // флаги позиции сохраняются.
+                $cost = ItemCost::compute(
+                    $item->product,
+                    $this->modifierDepartmentId($reception),
+                    DepartmentModifier::SCOPE_RECEPTION,
+                    ModifierEngine::manualKeysFromLegacyFlags(
+                        (bool) $item->is_undercut,
+                        (bool) $item->is_edging,
                     ),
-                ]);
+                    $this->batchSku($reception),
+                );
+
+                $item->update($cost['attributes']);
+                ItemCost::syncSnapshot('stone_reception_item_id', $item->id, $cost['modifiers']);
             }
 
             $this->syncBatchProcessingSum($reception);
@@ -684,30 +684,44 @@ class StoneReceptionService
         $productMap = Product::whereIn('id', $productIds)->get()->keyBy('id');
 
         foreach ($products as $product) {
-            $prod        = $productMap->get($product['product_id']);
-            $baseCoeff   = (float) ($prod?->prod_cost_coeff ?? 0);
-            $isUndercut  = !empty($product['is_undercut']);
-            $isEdging    = !empty($product['is_edging']);
-            $isSmallTile = StoneReceptionItem::skuIsSmallTile($prod?->sku);
-            $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging, $prod?->sku);
+            $prod = $productMap->get($product['product_id']);
 
-            $reception->items()->create([
-                'product_id'           => $product['product_id'],
-                'quantity'             => $product['quantity'],
-                'effective_cost_coeff' => $effCoeff,
-                'is_undercut'          => $isUndercut,
-                'is_edging'            => $isEdging,
-                'is_small_tile'        => $isSmallTile,
-                'worker_cost_per_m2'   => $prod?->prodCost($effCoeff, $reception->department_id),
-                'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
-                    $isUndercut,
-                    $reception->department_id,
-                    $prod
+            $cost = ItemCost::compute(
+                $prod,
+                $this->modifierDepartmentId($reception),
+                DepartmentModifier::SCOPE_RECEPTION,
+                ModifierEngine::manualKeysFromLegacyFlags(
+                    !empty($product['is_undercut']),
+                    !empty($product['is_edging']),
                 ),
-            ]);
+                $this->batchSku($reception),
+            );
+
+            $item = $reception->items()->create(array_merge($cost['attributes'], [
+                'product_id' => $product['product_id'],
+                'quantity'   => $product['quantity'],
+            ]));
+
+            ItemCost::syncSnapshot('stone_reception_item_id', $item->id, $cost['modifiers']);
         }
 
         $this->syncBatchProcessingSum($reception);
+    }
+
+    /**
+     * Отдел для правил себестоимости — эффективный, а не голая колонка:
+     * у приёмок, созданных админом, department_id пуст, и правила молча
+     * не применились бы.
+     */
+    private function modifierDepartmentId(StoneReception $reception): ?int
+    {
+        return $reception->effectiveDepartmentId();
+    }
+
+    /** SKU партии сырья — от него зависит доступность правил вроде торцовки. */
+    private function batchSku(StoneReception $reception): ?string
+    {
+        return $reception->rawMaterialBatch?->product?->sku;
     }
 
     private function updateReceptionItems(StoneReception $reception, array $products): void
@@ -728,27 +742,25 @@ class StoneReceptionService
             if ($existingItems->has($productId)) {
                 $existingItems[$productId]->update(['quantity' => $product['quantity']]);
             } else {
-                $prod        = $productMap->get($productId);
-                $baseCoeff   = (float) ($prod?->prod_cost_coeff ?? 0);
-                $isUndercut  = !empty($product['is_undercut']);
-                $isEdging    = !empty($product['is_edging']);
-                $isSmallTile = StoneReceptionItem::skuIsSmallTile($prod?->sku);
-                $effCoeff    = StoneReceptionItem::computeEffectiveCoeff($baseCoeff, $isUndercut, $isEdging, $prod?->sku);
+                $prod = $productMap->get($productId);
 
-                $reception->items()->create([
-                    'product_id'           => $productId,
-                    'quantity'             => $product['quantity'],
-                    'effective_cost_coeff' => $effCoeff,
-                    'is_undercut'          => $isUndercut,
-                    'is_edging'            => $isEdging,
-                    'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $prod?->prodCost($effCoeff, $reception->department_id),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
-                        $isUndercut,
-                        $reception->department_id,
-                        $prod
+                $cost = ItemCost::compute(
+                    $prod,
+                    $this->modifierDepartmentId($reception),
+                    DepartmentModifier::SCOPE_RECEPTION,
+                    ModifierEngine::manualKeysFromLegacyFlags(
+                        !empty($product['is_undercut']),
+                        !empty($product['is_edging']),
                     ),
-                ]);
+                    $this->batchSku($reception),
+                );
+
+                $item = $reception->items()->create(array_merge($cost['attributes'], [
+                    'product_id' => $productId,
+                    'quantity'   => $product['quantity'],
+                ]));
+
+                ItemCost::syncSnapshot('stone_reception_item_id', $item->id, $cost['modifiers']);
             }
         }
 

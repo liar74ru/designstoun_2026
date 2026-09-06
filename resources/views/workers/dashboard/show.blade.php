@@ -128,9 +128,8 @@
                             </span>
                         </div>
                         <div class="px-3 py-1 border-bottom text-muted" style="font-size:.75rem">
-                            Ставки отдела: база {{ number_format($dept['rates']['base'], 0, ',', ' ') }} ₽/м²
+                            Ставки отдела: база мастера {{ number_format($dept['rates']['base'], 0, ',', ' ') }} ₽/м²
                             (без коэффициента продукта),
-                            подкол > 80% +{{ number_format($dept['rates']['undercut'], 0, ',', ' ') }} ₽/м²,
                             ставка пильщика {{ number_format($dept['rates']['piece'], 0, ',', ' ') }} ₽/ед
                         </div>
                         <div class="table-responsive">

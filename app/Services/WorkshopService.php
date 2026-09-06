@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Department;
+use App\Models\DepartmentModifier;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
@@ -12,6 +13,8 @@ use App\Models\Store;
 use App\Models\StoneReceptionItem;
 use App\Models\Worker;
 use App\Services\Moysklad\WorkshopSyncService;
+use App\Support\ItemCost;
+use App\Support\ModifierEngine;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -400,24 +403,20 @@ class WorkshopService
             foreach ($validated['items'] as $row) {
                 $item = $workshop->productItems()->with('product')->findOrFail($row['item_id']);
 
-                $isUndercut   = !empty($row['is_undercut']);
-                $isEdging     = !empty($row['is_edging']);
-                $productCoeff = (float) $row['base_coeff'];
-                $isSmallTile  = StoneReceptionItem::skuIsSmallTile($item->product?->sku);
-                $effCoeff     = StoneReceptionItem::computeEffectiveCoeff($productCoeff, $isUndercut, $isEdging);
-
-                $item->update([
-                    'effective_cost_coeff' => $effCoeff,
-                    'is_undercut'          => $isUndercut,
-                    'is_edging'            => $isEdging,
-                    'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $item->product?->prodCost($effCoeff, $workshop->department_id),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
-                        $isUndercut,
-                        $workshop->department_id,
-                        $item->product
+                // База — из формы как есть, правилами не переопределяется.
+                $cost = ItemCost::computeFromBase(
+                    $item->product,
+                    (float) $row['base_coeff'],
+                    $workshop->effectiveDepartmentId(),
+                    DepartmentModifier::SCOPE_WORKSHOP,
+                    ModifierEngine::manualKeysFromLegacyFlags(
+                        !empty($row['is_undercut']),
+                        !empty($row['is_edging']),
                     ),
-                ]);
+                );
+
+                $item->update($cost['attributes']);
+                ItemCost::syncSnapshot('workshop_item_id', $item->id, $cost['modifiers']);
             }
         });
     }
@@ -432,22 +431,18 @@ class WorkshopService
                     continue;
                 }
 
-                $productCoeff = (float) $item->product->prod_cost_coeff;
-                $isUndercut   = (bool) $item->is_undercut;
-                $isEdging     = (bool) $item->is_edging;
-                $isSmallTile  = StoneReceptionItem::skuIsSmallTile($item->product->sku);
-                $effCoeff     = StoneReceptionItem::computeEffectiveCoeff($productCoeff, $isUndercut, $isEdging);
-
-                $item->update([
-                    'effective_cost_coeff' => $effCoeff,
-                    'is_small_tile'        => $isSmallTile,
-                    'worker_cost_per_m2'   => $item->product->prodCost($effCoeff, $workshop->department_id),
-                    'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(
-                        $isUndercut,
-                        $workshop->department_id,
-                        $item->product
+                $cost = ItemCost::compute(
+                    $item->product,
+                    $workshop->effectiveDepartmentId(),
+                    DepartmentModifier::SCOPE_WORKSHOP,
+                    ModifierEngine::manualKeysFromLegacyFlags(
+                        (bool) $item->is_undercut,
+                        (bool) $item->is_edging,
                     ),
-                ]);
+                );
+
+                $item->update($cost['attributes']);
+                ItemCost::syncSnapshot('workshop_item_id', $item->id, $cost['modifiers']);
             }
         });
     }
@@ -517,35 +512,38 @@ class WorkshopService
         $productMap = Product::whereIn('id', array_column($rows, 'product_id'))->get()->keyBy('id');
 
         foreach ($rows as $row) {
-            $workshop->items()->create(
-                $this->productItemAttributes(
-                    $row['product_id'],
-                    $row['quantity'],
-                    $productMap->get($row['product_id']),
-                    $workshop->department_id
-                )
+            $this->createProductItem(
+                $workshop,
+                $row['product_id'],
+                $row['quantity'],
+                $productMap->get($row['product_id']),
             );
         }
     }
 
-    /** Атрибуты строки продукта с зафиксированной зарплатой. */
-    private function productItemAttributes(int $productId, $quantity, ?Product $prod, ?int $departmentId = null): array
+    /**
+     * Создать строку продукта с зафиксированной зарплатой и снапшотом правил.
+     *
+     * Новая строка создаётся без ручных правил: подкол и торцовку в цехе
+     * включают отдельно, через updateItemCoeff.
+     */
+    private function createProductItem(Workshop $workshop, int $productId, $quantity, ?Product $prod): WorkshopItem
     {
-        $productCoeff = (float) ($prod?->prod_cost_coeff ?? 0);
-        $isSmallTile  = StoneReceptionItem::skuIsSmallTile($prod?->sku);
-        $effCoeff     = StoneReceptionItem::computeEffectiveCoeff($productCoeff, false, false);
+        $cost = ItemCost::compute(
+            $prod,
+            $workshop->effectiveDepartmentId(),
+            DepartmentModifier::SCOPE_WORKSHOP,
+        );
 
-        return [
-            'product_id'           => $productId,
-            'role'                 => WorkshopItem::ROLE_PRODUCT,
-            'quantity'             => $quantity,
-            'effective_cost_coeff' => $effCoeff,
-            'is_undercut'          => false,
-            'is_edging'            => false,
-            'is_small_tile'        => $isSmallTile,
-            'worker_cost_per_m2'   => $prod?->prodCost($effCoeff, $departmentId),
-            'master_cost_per_m2'   => StoneReceptionItem::computeMasterCost(false, $departmentId, $prod),
-        ];
+        $item = $workshop->items()->create(array_merge($cost['attributes'], [
+            'product_id' => $productId,
+            'role'       => WorkshopItem::ROLE_PRODUCT,
+            'quantity'   => $quantity,
+        ]));
+
+        ItemCost::syncSnapshot('workshop_item_id', $item->id, $cost['modifiers']);
+
+        return $item;
     }
 
     /**
@@ -573,13 +571,11 @@ class WorkshopService
             }
 
             if ($role === WorkshopItem::ROLE_PRODUCT) {
-                $workshop->items()->create(
-                    $this->productItemAttributes(
-                        $productId,
-                        $row['quantity'],
-                        $productMap->get($productId),
-                        $workshop->department_id
-                    )
+                $this->createProductItem(
+                    $workshop,
+                    $productId,
+                    $row['quantity'],
+                    $productMap->get($productId),
                 );
             } else {
                 $workshop->items()->create([

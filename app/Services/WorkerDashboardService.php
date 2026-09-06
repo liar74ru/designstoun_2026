@@ -174,10 +174,12 @@ class WorkerDashboardService
                     'totalQuantity'  => $summary->sum('quantity'),
                     'totalPay'       => $summary->sum('pay'),
                     'totalMasterPay' => $summary->sum('masterPay'),
+                    // Надбавки больше не рубли, а коэффициенты-правила отдела:
+                    // показывать MASTER_UNDERCUT_RATE стало бы враньём. Перечень
+                    // действующих правил появится здесь вместе с их отображением.
                     'rates'          => [
-                        'piece'    => DepartmentSettings::pieceRate($deptId),
-                        'base'     => DepartmentSettings::masterBaseRate($deptId),
-                        'undercut' => DepartmentSettings::masterUndercutRate($deptId),
+                        'piece' => DepartmentSettings::pieceRate($deptId),
+                        'base'  => DepartmentSettings::masterBaseRate($deptId),
                     ],
                 ];
             })

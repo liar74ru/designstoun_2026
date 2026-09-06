@@ -165,7 +165,9 @@ describe('StoneReceptionController updateItemCoeff()', function () {
         $store    = H::store();
         $rawProd  = H::product();
         $product  = H::product(['prod_cost_coeff' => 1.0]);
-        $batch    = H::batch($rawProd, $store, $cutter, 50.0);
+        // Подкол — правило отдела; без отдела с правилами он не применится
+        $dept     = H::departmentWithModifiers();
+        $batch    = H::batch($rawProd, $store, $cutter, 50.0, ['department_id' => $dept->id]);
         $reception = H::reception($batch, $receiver, $cutter, $store, 5.0);
 
         $item = StoneReceptionItem::create([

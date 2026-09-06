@@ -1,10 +1,12 @@
 <?php
 
+use App\Models\Department;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
+use App\Services\DepartmentModifierService;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\RawMaterialBatchService;
@@ -32,6 +34,11 @@ function makeReceptionServiceForEdging(): StoneReceptionService
 
 function makeEdgingFixtures(): array
 {
+    // Правила себестоимости живут на уровне отдела и не наследуются: без отдела
+    // с заведёнными правилами подкол и торцовка не применятся вовсе.
+    $department = Department::create(['name' => 'Резка', 'is_active' => true]);
+    app(DepartmentModifierService::class)->applyDefaults($department);
+
     $rawProduct = Product::factory()->create(['name' => 'Сырьё 04', 'sku' => '04-01']);
     $product    = Product::factory()->create([
         'name'            => 'Плитка',
@@ -48,10 +55,11 @@ function makeEdgingFixtures(): array
         'remaining_quantity' => 100.0,
         'current_store_id'   => $store->id,
         'current_worker_id'  => $cutter->id,
+        'department_id'      => $department->id,
         'status'             => RawMaterialBatch::STATUS_IN_WORK,
     ]);
 
-    return compact('rawProduct', 'product', 'store', 'cutter', 'receiver', 'batch');
+    return compact('rawProduct', 'product', 'store', 'cutter', 'receiver', 'batch', 'department');
 }
 
 describe('StoneReceptionService::create() — флаг is_edging', function () {

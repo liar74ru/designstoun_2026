@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Department;
+use App\Services\DepartmentModifierService;
 
 class DepartmentsTableSeeder extends Seeder
 {
@@ -26,8 +27,14 @@ class DepartmentsTableSeeder extends Seeder
             ['name' => 'Карьер', 'code' => 'КАРЬЕР'],
         ];
 
+        // Правила себестоимости не наследуются, а миграция заводит их только
+        // отделам, существовавшим на момент её применения. Отделы из сидера
+        // создаются позже, поэтому набор им проставляем здесь — иначе на чистой
+        // установке подкол и торцовка молча не работали бы.
+        $modifiers = app(DepartmentModifierService::class);
+
         foreach ($departments as $dept) {
-            Department::create($dept);
+            $modifiers->applyDefaults(Department::create($dept));
         }
     }
 }
