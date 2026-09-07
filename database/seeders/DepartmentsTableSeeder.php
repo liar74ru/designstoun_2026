@@ -33,8 +33,12 @@ class DepartmentsTableSeeder extends Seeder
         // установке подкол и торцовка молча не работали бы.
         $modifiers = app(DepartmentModifierService::class);
 
+        // Часть отделов заводится миграциями (например, «Карьер» —
+        // 2026_04_26_000002), поэтому создаём по коду, а не вслепую.
         foreach ($departments as $dept) {
-            $modifiers->applyDefaults(Department::create($dept));
+            $modifiers->applyDefaults(
+                Department::firstOrCreate(['code' => $dept['code']], $dept)
+            );
         }
     }
 }
