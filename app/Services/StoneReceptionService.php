@@ -557,10 +557,7 @@ class StoneReceptionService
                     (float) $row['base_coeff'],
                     $this->modifierDepartmentId($reception),
                     DepartmentModifier::SCOPE_RECEPTION,
-                    ModifierEngine::manualKeysFromLegacyFlags(
-                        !empty($row['is_undercut']),
-                        !empty($row['is_edging']),
-                    ),
+                    $row['modifiers'] ?? [],
                     $this->batchSku($reception),
                 );
 
@@ -574,7 +571,7 @@ class StoneReceptionService
 
     public function refreshItemCoeffs(StoneReception $reception): void
     {
-        $reception->loadMissing('items.product');
+        $reception->loadMissing('items.product', 'items.modifiers');
 
         DB::transaction(function () use ($reception) {
             foreach ($reception->items as $item) {
@@ -582,16 +579,16 @@ class StoneReceptionService
                     continue;
                 }
 
-                // Массовый пересчёт от актуального коэффициента справочника —
-                // флаги позиции сохраняются.
+                // Массовый пересчёт от актуального коэффициента справочника.
+                // Ручной выбор пользователя восстанавливается из снапшота позиции:
+                // sku-правила движок определит сам, а отметки — больше неоткуда.
+                $departmentId = $this->modifierDepartmentId($reception);
+
                 $cost = ItemCost::compute(
                     $item->product,
-                    $this->modifierDepartmentId($reception),
+                    $departmentId,
                     DepartmentModifier::SCOPE_RECEPTION,
-                    ModifierEngine::manualKeysFromLegacyFlags(
-                        (bool) $item->is_undercut,
-                        (bool) $item->is_edging,
-                    ),
+                    ModifierEngine::manualKeysFromSnapshot($departmentId, $item->modifiers),
                     $this->batchSku($reception),
                 );
 
@@ -617,7 +614,7 @@ class StoneReceptionService
     {
         $batchIds = RawMaterialBatch::where('product_id', $batch->product_id)->pluck('id');
 
-        return StoneReception::with(['cutter', 'items.product'])
+        return StoneReception::with(['cutter', 'items.product', 'items.modifiers'])
             ->whereIn('raw_material_batch_id', $batchIds)
             ->orderBy('created_at', 'desc')
             ->limit(15)
@@ -690,10 +687,7 @@ class StoneReceptionService
                 $prod,
                 $this->modifierDepartmentId($reception),
                 DepartmentModifier::SCOPE_RECEPTION,
-                ModifierEngine::manualKeysFromLegacyFlags(
-                    !empty($product['is_undercut']),
-                    !empty($product['is_edging']),
-                ),
+                $product['modifiers'] ?? [],
                 $this->batchSku($reception),
             );
 
@@ -748,10 +742,7 @@ class StoneReceptionService
                     $prod,
                     $this->modifierDepartmentId($reception),
                     DepartmentModifier::SCOPE_RECEPTION,
-                    ModifierEngine::manualKeysFromLegacyFlags(
-                        !empty($product['is_undercut']),
-                        !empty($product['is_edging']),
-                    ),
+                    $product['modifiers'] ?? [],
                     $this->batchSku($reception),
                 );
 

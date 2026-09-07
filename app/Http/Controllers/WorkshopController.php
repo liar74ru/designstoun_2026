@@ -205,8 +205,8 @@ class WorkshopController extends Controller
             'items'               => ['required', 'array'],
             'items.*.item_id'     => ['required', 'integer'],
             'items.*.base_coeff'  => ['required', 'numeric'],
-            'items.*.is_undercut' => ['nullable', 'boolean'],
-            'items.*.is_edging'   => ['nullable', 'boolean'],
+            'items.*.modifiers'   => 'nullable|array',
+            'items.*.modifiers.*' => 'string|max:64',
         ]);
 
         $this->service->updateItemCoeff($workshop, $validated);

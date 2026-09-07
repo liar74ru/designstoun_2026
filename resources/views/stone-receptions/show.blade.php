@@ -361,7 +361,7 @@
                                         <tr>
                                             <th>Продукт</th>
                                             <th class="text-center" style="width:130px">Базовый коэф.</th>
-                                            <th class="text-center" style="width:90px">80% подкол</th>
+                                            <th class="text-center" style="width:180px">Правила</th>
                                             <th class="text-end" style="width:100px">Итог</th>
                                         </tr>
                                         </thead>
@@ -378,15 +378,16 @@
                                                            value="{{ number_format($item->base_coeff, 4, '.', '') }}"
                                                            data-row="{{ $i }}">
                                                 </td>
-                                                <td class="text-center">
-                                                    <div class="form-check d-flex justify-content-center">
-                                                        <input class="form-check-input coeff-undercut-cb"
-                                                               type="checkbox"
-                                                               name="items[{{ $i }}][is_undercut]"
-                                                               value="1"
-                                                               data-row="{{ $i }}"
-                                                               {{ $item->is_undercut ? 'checked' : '' }}>
-                                                    </div>
+                                                <td>
+                                                    <div class="modifier-picker d-flex align-items-center gap-2 flex-wrap"
+                                                         data-row="{{ $i }}"
+                                                         data-tpl-index="{{ $i }}"
+                                                         data-scope="reception"
+                                                         data-department-id="{{ $stoneReception->effectiveDepartmentId() }}"
+                                                         data-batch-sku="{{ $stoneReception->rawMaterialBatch?->product?->sku }}"
+                                                         data-sku="{{ $item->product?->sku }}"
+                                                         data-input-name="items[{{ $i }}]"
+                                                         data-active-keys="{{ $item->modifiers->pluck('key')->implode(',') }}"></div>
                                                 </td>
                                                 <td class="text-end">
                                                     <span class="badge bg-secondary coeff-result-display" data-row="{{ $i }}">
@@ -515,24 +516,34 @@ document.addEventListener('DOMContentLoaded', function () {
     cancelBtn?.addEventListener('click', hideEdit);
 
     function recalcRow(rowIdx) {
-        const baseInput  = document.querySelector(`.coeff-base-input[data-row="${rowIdx}"]`);
-        const undercutCb = document.querySelector(`.coeff-undercut-cb[data-row="${rowIdx}"]`);
-        const display    = document.querySelector(`.coeff-result-display[data-row="${rowIdx}"]`);
+        const baseInput = document.querySelector(`.coeff-base-input[data-row="${rowIdx}"]`);
+        const picker    = document.querySelector(`.modifier-picker[data-row="${rowIdx}"]`);
+        const display   = document.querySelector(`.coeff-result-display[data-row="${rowIdx}"]`);
         if (!baseInput || !display) return;
 
-        const base      = parseFloat(baseInput.value) || 0;
-        const undercut  = undercutCb?.checked || false;
-        const effective = undercut ? base - RateFormula.undercutPenalty() : base;
+        const base = parseFloat(baseInput.value) || 0;
+
+        // Ровно то же, что считает сервер: база плюс сумма сработавших правил
+        const effective = RateFormula.effectiveCoeff({
+            baseCoeff: base,
+            departmentId: picker?.dataset.departmentId || null,
+            scope: 'reception',
+            sku: picker?.dataset.sku || null,
+            manualKeys: picker ? ModifierPicker.checkedKeys(picker) : [],
+            batchSku: picker?.dataset.batchSku || null,
+        });
 
         display.textContent = effective.toFixed(4);
-        display.className   = display.className.replace(/bg-\w+/, undercut ? 'bg-warning' : 'bg-secondary');
+        display.className   = display.className.replace(/bg-\w+/, effective < base ? 'bg-warning' : 'bg-secondary');
     }
 
     document.querySelectorAll('.coeff-base-input').forEach(el => {
         el.addEventListener('input', () => recalcRow(el.dataset.row));
     });
-    document.querySelectorAll('.coeff-undercut-cb').forEach(el => {
-        el.addEventListener('change', () => recalcRow(el.dataset.row));
+    document.addEventListener('change', function (e) {
+        if (!e.target.classList.contains('modifier-checkbox')) return;
+        const picker = e.target.closest('.modifier-picker');
+        if (picker) recalcRow(picker.dataset.row);
     });
 
     document.querySelectorAll('.coeff-base-input').forEach(el => recalcRow(el.dataset.row));

@@ -149,7 +149,7 @@ describe('StoneReceptionController updateItemCoeff()', function () {
                 [
                     'item_id'    => $item->id,
                     'base_coeff' => 1.5,
-                    'is_undercut'=> false,
+                    'modifiers'  => [],
                 ],
             ],
         ])->assertRedirect();
@@ -158,7 +158,7 @@ describe('StoneReceptionController updateItemCoeff()', function () {
         expect((float) $item->effective_cost_coeff)->toBe(1.5);
     });
 
-    test('учитывает флаг is_undercut при расчёте коэффициента', function () {
+    test('учитывает правило «подкол» при расчёте коэффициента', function () {
         $user     = H::adminUser();
         $receiver = H::worker();
         $cutter   = H::cutter();
@@ -183,15 +183,16 @@ describe('StoneReceptionController updateItemCoeff()', function () {
                 [
                     'item_id'    => $item->id,
                     'base_coeff' => 1.0,
-                    'is_undercut'=> true,
+                    'modifiers'  => ['undercut'],
                 ],
             ],
         ]);
 
         $item->refresh();
-        $expected = StoneReceptionItem::computeEffectiveCoeff(1.0, true);
-        expect((float) $item->effective_cost_coeff)->toBe((float) $expected);
+        // Подкол — слагаемое −1.5 к базе 1.0
+        expect((float) $item->effective_cost_coeff)->toBe(-0.5);
         expect($item->is_undercut)->toBeTrue();
+        expect($item->modifiers->pluck('key')->all())->toBe(['undercut']);
     });
 
     test('отклоняет без items', function () {

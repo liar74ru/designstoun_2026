@@ -62,11 +62,11 @@ function makeEdgingFixtures(): array
     return compact('rawProduct', 'product', 'store', 'cutter', 'receiver', 'batch', 'department');
 }
 
-describe('StoneReceptionService::create() — флаг is_edging', function () {
+describe('StoneReceptionService::create() — правило «торцовка»', function () {
 
     // Правило «торцовка» — слагаемое −2.5 к коэффициенту продукта (3.0),
     // а не замена коэффициента, как было до упрощения модели правил.
-    test('сохраняет is_edging=true и вычитает значение правила из коэффициента', function () {
+    test('отмеченное правило вычитает своё значение из коэффициента', function () {
         $f = makeEdgingFixtures();
 
         $reception = makeReceptionServiceForEdging()->create([
@@ -76,7 +76,7 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
             'raw_material_batch_id' => $f['batch']->id,
             'raw_quantity_used'     => 5.0,
             'products' => [
-                ['product_id' => $f['product']->id, 'quantity' => 2.0, 'is_edging' => '1'],
+                ['product_id' => $f['product']->id, 'quantity' => 2.0, 'modifiers' => ['edging']],
             ],
         ], false);
 
@@ -87,7 +87,7 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
         expect((float) $item->effective_cost_coeff)->toBe(0.5);
     });
 
-    test('is_edging + is_undercut складываются: 3 − 2.5 − 1.5 = −1.0', function () {
+    test('торцовка и подкол складываются: 3 − 2.5 − 1.5 = −1.0', function () {
         $f = makeEdgingFixtures();
 
         $reception = makeReceptionServiceForEdging()->create([
@@ -97,7 +97,7 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
             'raw_material_batch_id' => $f['batch']->id,
             'raw_quantity_used'     => 5.0,
             'products' => [
-                ['product_id' => $f['product']->id, 'quantity' => 1.0, 'is_edging' => '1', 'is_undercut' => '1'],
+                ['product_id' => $f['product']->id, 'quantity' => 1.0, 'modifiers' => ['edging', 'undercut']],
             ],
         ], false);
 
@@ -108,7 +108,7 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
         expect((bool) $item->is_undercut)->toBeTrue();
     });
 
-    test('без is_edging → effective_cost_coeff = prod_cost_coeff продукта', function () {
+    test('без правил → effective_cost_coeff = prod_cost_coeff продукта', function () {
         $f = makeEdgingFixtures();
 
         $reception = makeReceptionServiceForEdging()->create([
@@ -139,7 +139,7 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
             'raw_material_batch_id' => $f['batch']->id,
             'raw_quantity_used'     => 5.0,
             'products' => [
-                ['product_id' => $f['product']->id, 'quantity' => 2.0, 'is_edging' => '1'],
+                ['product_id' => $f['product']->id, 'quantity' => 2.0, 'modifiers' => ['edging']],
             ],
         ], false);
 
@@ -150,9 +150,9 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
     });
 });
 
-describe('StoneReceptionService::refreshItemCoeffs() — сохраняет is_edging', function () {
+describe('StoneReceptionService::refreshItemCoeffs() — сохраняет выбор правил', function () {
 
-    test('пересчёт после refresh не сбрасывает is_edging и учитывает новый коэффициент продукта', function () {
+    test('пересчёт не теряет отмеченное правило и учитывает новый коэффициент продукта', function () {
         $f       = makeEdgingFixtures();
         $service = makeReceptionServiceForEdging();
 
@@ -163,7 +163,7 @@ describe('StoneReceptionService::refreshItemCoeffs() — сохраняет is_e
             'raw_material_batch_id' => $f['batch']->id,
             'raw_quantity_used'     => 5.0,
             'products' => [
-                ['product_id' => $f['product']->id, 'quantity' => 2.0, 'is_edging' => '1'],
+                ['product_id' => $f['product']->id, 'quantity' => 2.0, 'modifiers' => ['edging']],
             ],
         ], false);
 

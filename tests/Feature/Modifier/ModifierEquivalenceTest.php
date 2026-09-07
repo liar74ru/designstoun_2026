@@ -58,7 +58,10 @@ describe('Коэффициент пильщика — сумма правил', 
                             $product,
                             $this->dept->id,
                             'reception',
-                            ModifierEngine::manualKeysFromLegacyFlags($undercut, $edging),
+                            array_values(array_filter([
+                                $undercut ? 'undercut' : null,
+                                $edging ? 'edging' : null,
+                            ])),
                             '04-01',
                         );
 

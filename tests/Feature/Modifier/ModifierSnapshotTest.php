@@ -67,7 +67,7 @@ function createReceptionWithUndercut(array $f): object
         'raw_material_batch_id' => $f['batch']->id,
         'raw_quantity_used'     => 5.0,
         'products' => [
-            ['product_id' => $f['product']->id, 'quantity' => 2.0, 'is_undercut' => '1'],
+            ['product_id' => $f['product']->id, 'quantity' => 2.0, 'modifiers' => ['undercut']],
         ],
     ], false);
 }

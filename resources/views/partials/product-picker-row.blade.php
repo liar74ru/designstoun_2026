@@ -19,12 +19,13 @@
                          simple — input qty (как в stone-receptions/create, supplier-orders, workshops)
                          delta  — UI «0 + delta = result» с .js-new-delta/.js-new-result/.js-new-qty-out (для stone-receptions/edit)
                          none   — qty не рендерится (потребитель сам добавит)
-      $showUndercut    — bool (default: false) — чекбокс «80% подкол»
-      $isUndercut      — bool (default: false) — предзаполнение чекбокса
-      $undercutClass   — string (default: 'undercut-checkbox') — класс чекбокса (для совместимости с edit)
-      $showEdging      — bool (default: false) — чекбокс «Торцовка» (скрыт по умолчанию, JS показывает по SKU партии 04-XX)
-      $isEdging        — bool (default: false) — предзаполнение чекбокса
-      $edgingClass     — string (default: 'edging-checkbox')
+      $showModifiers   — bool (default: false) — правила себестоимости отдела: ручные чекбоксами,
+                         сработавшие по SKU — плашками. Разметку строит resources/js/modifier-picker.js
+                         по window.ProductionRates (отдел меняется на странице, поэтому не в Blade)
+      $activeKeys      — array (default: []) — ключи правил, отмеченных для позиции
+      $departmentId    — int|string|null (default: null) — отдел, чьи правила показывать
+      $scope           — string (default: 'reception') — область правил: reception|workshop
+      $batchSku        — string|null (default: null) — SKU партии сырья, ограничивает ручные правила
       $showCoeff       — bool (default: false) — отображение коэффициента
       $coeffClass      — string (default: 'coeff-display') — класс span с коэффициентом
       $showRemove      — bool (default: true)
@@ -45,12 +46,11 @@
     $qtyMin          = $qtyMin          ?? '0.001';
     $qtyWidth        = $qtyWidth        ?? '130px';
     $qtyMode         = $qtyMode         ?? 'simple';
-    $showUndercut    = $showUndercut    ?? false;
-    $isUndercut      = $isUndercut      ?? false;
-    $undercutClass   = $undercutClass   ?? 'undercut-checkbox';
-    $showEdging      = $showEdging      ?? false;
-    $isEdging        = $isEdging        ?? false;
-    $edgingClass     = $edgingClass     ?? 'edging-checkbox';
+    $showModifiers   = $showModifiers   ?? false;
+    $activeKeys      = $activeKeys      ?? [];
+    $departmentId    = $departmentId    ?? null;
+    $scope           = $scope           ?? 'reception';
+    $batchSku        = $batchSku        ?? null;
     $showCoeff       = $showCoeff       ?? false;
     $coeffClass      = $coeffClass      ?? 'coeff-display';
     $showRemove      = $showRemove      ?? true;
@@ -61,7 +61,7 @@
     $dynamicUnit     = $dynamicUnit     ?? false;
 
     $idxStr  = (string) $index;
-    $hasRow2 = $qtyMode !== 'none' || $showUndercut || $showEdging || $showCoeff;
+    $hasRow2 = $qtyMode !== 'none' || $showModifiers || $showCoeff;
 @endphp
 
 <div class="product-picker-row {{ $extraRowClass }}"
@@ -140,40 +140,14 @@
             </div>
         @endif
 
-        @if($showUndercut)
-            <div class="form-check mb-0 flex-shrink-0">
-                <input class="form-check-input {{ $undercutClass }}"
-                       type="checkbox"
-                       id="undercut_{{ $idxStr }}"
-                       name="{{ $name }}[{{ $idxStr }}][is_undercut]"
-                       value="1"
-                       data-tpl-index="{{ $idxStr }}"
-                       @if($isUndercut) checked @endif>
-                <label class="form-check-label small text-warning-emphasis fw-semibold"
-                       for="undercut_{{ $idxStr }}"
-                       data-tpl-index="{{ $idxStr }}"
-                       title="Снижает коэффициент на 1.5">
-                    80% подкол
-                </label>
-            </div>
-        @endif
-
-        @if($showEdging)
-            <div class="form-check mb-0 flex-shrink-0 edging-wrapper" style="display:none">
-                <input class="form-check-input {{ $edgingClass }}"
-                       type="checkbox"
-                       id="edging_{{ $idxStr }}"
-                       name="{{ $name }}[{{ $idxStr }}][is_edging]"
-                       value="1"
-                       data-tpl-index="{{ $idxStr }}"
-                       @if($isEdging) checked @endif>
-                <label class="form-check-label small text-info-emphasis fw-semibold"
-                       for="edging_{{ $idxStr }}"
-                       data-tpl-index="{{ $idxStr }}"
-                       title="Полностью заменяет коэффициент продукта на значение настройки EDGING_COEFF">
-                    Торцовка
-                </label>
-            </div>
+        @if($showModifiers)
+            <div class="modifier-picker d-flex align-items-center gap-2 flex-wrap"
+                 data-tpl-index="{{ $idxStr }}"
+                 data-scope="{{ $scope }}"
+                 data-department-id="{{ $departmentId }}"
+                 data-batch-sku="{{ $batchSku }}"
+                 data-input-name="{{ $name }}[{{ $idxStr }}]"
+                 data-active-keys="{{ implode(',', $activeKeys) }}"></div>
         @endif
 
         @if($showCoeff)

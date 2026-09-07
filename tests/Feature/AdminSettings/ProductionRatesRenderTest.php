@@ -88,3 +88,47 @@ test('коэффициенты приходят актуальными посл�
         ->assertOk()
         ->assertSee('7.25', false);
 });
+
+/**
+ * Правила отдела из отрендеренного window.ProductionRates.
+ * Карта правил — последняя строка byDepartment в блоке, у неё своя строка.
+ */
+function renderedRulesFor(string $html, int $departmentId): array
+{
+    $start = strrpos($html, 'byDepartment: ');
+    $line  = substr($html, $start + strlen('byDepartment: '));
+    $line  = rtrim(strtok($line, "\n"), ',');
+
+    return json_decode($line, true)[(string) $departmentId] ?? [];
+}
+
+test('в JS уходят правила отдела — без них форма не покажет чекбоксы', function () {
+    $dept = H::departmentWithModifiers('Резка');
+    $this->actingAs(ratesAdmin());
+
+    $rules = renderedRulesFor($this->get(route('workshops.create'))->assertOk()->getContent(), $dept->id);
+
+    expect(collect($rules)->pluck('key')->all())
+        ->toBe(['mask_tile', 'edging', 'undercut', 'small_tile']);
+
+    $undercut = collect($rules)->firstWhere('key', 'undercut');
+    expect($undercut['trigger'])->toBe('manual')
+        ->and($undercut['worker_coeff_delta'])->toBe(-1.5)
+        ->and($undercut['name'])->toBe('Подкол > 80%');
+
+    // sku-правило приходит со своей маской — по ней форма рисует плашку
+    expect(collect($rules)->firstWhere('key', 'mask_tile')['sku_pattern'])->toBe('04-07-*');
+});
+
+test('выключенное правило в JS не уходит', function () {
+    $dept = H::departmentWithModifiers('Резка');
+    $dept->modifiers()->where('key', 'undercut')->update(['is_active' => false]);
+    $dept->forgetSettingsCache();
+
+    $rules = renderedRulesFor(
+        $this->actingAs(ratesAdmin())->get(route('workshops.create'))->getContent(),
+        $dept->id,
+    );
+
+    expect(collect($rules)->pluck('key')->all())->not->toContain('undercut');
+});

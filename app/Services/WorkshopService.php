@@ -409,10 +409,7 @@ class WorkshopService
                     (float) $row['base_coeff'],
                     $workshop->effectiveDepartmentId(),
                     DepartmentModifier::SCOPE_WORKSHOP,
-                    ModifierEngine::manualKeysFromLegacyFlags(
-                        !empty($row['is_undercut']),
-                        !empty($row['is_edging']),
-                    ),
+                    $row['modifiers'] ?? [],
                 );
 
                 $item->update($cost['attributes']);
@@ -423,7 +420,7 @@ class WorkshopService
 
     public function refreshItemCoeffs(Workshop $workshop): void
     {
-        $workshop->loadMissing('items.product');
+        $workshop->loadMissing('items.product', 'items.modifiers');
 
         DB::transaction(function () use ($workshop) {
             foreach ($workshop->productItems()->with('product')->get() as $item) {
@@ -431,14 +428,15 @@ class WorkshopService
                     continue;
                 }
 
+                // Ручной выбор восстанавливается из снапшота позиции —
+                // sku-правила движок определит сам по товару.
+                $departmentId = $workshop->effectiveDepartmentId();
+
                 $cost = ItemCost::compute(
                     $item->product,
-                    $workshop->effectiveDepartmentId(),
+                    $departmentId,
                     DepartmentModifier::SCOPE_WORKSHOP,
-                    ModifierEngine::manualKeysFromLegacyFlags(
-                        (bool) $item->is_undercut,
-                        (bool) $item->is_edging,
-                    ),
+                    ModifierEngine::manualKeysFromSnapshot($departmentId, $item->modifiers),
                 );
 
                 $item->update($cost['attributes']);

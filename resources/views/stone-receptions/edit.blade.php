@@ -386,8 +386,7 @@
                                             $copyItemsData = $reception->items->map(fn($item) => [
                                                 'product_id'    => $item->product_id,
                                                 'product_label' => $item->product?->name ?? '',
-                                                'is_undercut'   => (bool) $item->is_undercut,
-                                                'is_edging'     => (bool) $item->is_edging,
+                                                'modifiers'     => $item->modifiers->pluck('key')->all(),
                                             ])->toJson(JSON_UNESCAPED_UNICODE);
                                         @endphp
                                         <button type="button"
@@ -575,34 +574,33 @@
             }
 
             function updateNewRowCoeff(row) {
-                const undercutCb   = row.querySelector('.js-new-undercut');
-                const edgingCb     = row.querySelector('.js-new-edging');
                 const coeffDisplay = row.querySelector('.js-new-coeff-display');
+                const picker       = row.querySelector('.modifier-picker');
                 if (!coeffDisplay) return;
+
                 const baseCoeff = parseFloat(coeffDisplay.dataset.baseCoeff);
                 if (isNaN(baseCoeff)) return;
-                const isUndercut = undercutCb?.checked || false;
-                const isEdging   = edgingCb?.checked   || false;
-                const sku        = coeffDisplay.dataset.sku || null;
-                const penalty    = RateFormula.undercutPenalty();
-                const edging     = RateFormula.edgingCoeff();
-                const source     = RateFormula.effectiveCoeff({ baseCoeff, isUndercut: false, isEdging, sku });
-                const effective  = RateFormula.effectiveCoeff({ baseCoeff, isUndercut, isEdging, sku });
 
-                let text;
-                if (isEdging && isUndercut) {
-                    text = `${edging.toFixed(4)} − ${penalty} = ${effective.toFixed(4)}`;
-                } else if (isEdging) {
-                    text = `${baseCoeff.toFixed(4)} → ${edging.toFixed(4)}`;
-                } else if (isUndercut) {
-                    text = `${source.toFixed(4)} − ${penalty} = ${effective.toFixed(4)}`;
-                } else {
-                    text = source.toFixed(4);
-                }
-                coeffDisplay.textContent = text;
-                coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut && !isEdging);
-                coeffDisplay.classList.toggle('text-info-emphasis', isEdging);
-                coeffDisplay.classList.toggle('text-dark', !isUndercut && !isEdging);
+                const manualKeys = picker ? ModifierPicker.checkedKeys(picker) : [];
+
+                // Ровно то же, что считает сервер: база плюс сумма сработавших правил
+                const effective = RateFormula.effectiveCoeff({
+                    baseCoeff,
+                    departmentId: {{ $stoneReception->effectiveDepartmentId() ?? 'null' }},
+                    scope: 'reception',
+                    sku: coeffDisplay.dataset.sku || null,
+                    manualKeys,
+                    batchSku: currentRawSku,
+                });
+
+                const delta = effective - baseCoeff;
+                coeffDisplay.textContent = delta === 0
+                    ? effective.toFixed(4)
+                    : `${baseCoeff.toFixed(4)} ${delta > 0 ? '+' : '−'} ${Math.abs(delta).toFixed(4)} = ${effective.toFixed(4)}`;
+
+                coeffDisplay.classList.toggle('text-warning-emphasis', delta < 0);
+                coeffDisplay.classList.toggle('text-info-emphasis', delta > 0);
+                coeffDisplay.classList.toggle('text-dark', delta === 0);
             }
 
             document.addEventListener('product-picker:selected', async function (e) {
@@ -615,6 +613,10 @@
                     if (data !== null) {
                         coeffDisplay.dataset.baseCoeff = data.coeff;
                         coeffDisplay.dataset.sku       = e.detail?.sku ?? data.sku ?? '';
+
+                        const picker = row.querySelector('.modifier-picker');
+                        if (picker) ModifierPicker.setProductSku(picker, coeffDisplay.dataset.sku);
+
                         updateNewRowCoeff(row);
                     }
                 }
@@ -630,8 +632,7 @@
             const newContainer = document.getElementById('new-products-container');
 
             newContainer.addEventListener('change', function (e) {
-                if (e.target.classList.contains('js-new-undercut') ||
-                    e.target.classList.contains('js-new-edging')) {
+                if (e.target.classList.contains('modifier-checkbox')) {
                     const row = e.target.closest('.new-product-row');
                     if (row) updateNewRowCoeff(row);
                 }
@@ -640,38 +641,34 @@
             let currentSkuPrefix = null;
             let currentRawSku    = null;
 
-            // Видимость чекбокса «Торцовка» (только для партий 04-XX)
-            function applyEdgingVisibility(rawSku) {
+            // От SKU партии зависит, какие ручные правила отдела доступны
+            function applyBatchSku(rawSku) {
                 currentRawSku = rawSku || null;
-                const show = !!(rawSku && rawSku.startsWith('04-'));
                 if (!newContainer) return;
-                newContainer.querySelectorAll('.edging-wrapper').forEach(el => {
-                    el.style.display = show ? '' : 'none';
-                    if (!show) {
-                        const cb = el.querySelector('input[type="checkbox"]');
-                        if (cb && cb.checked) {
-                            cb.checked = false;
-                            const row = el.closest('.new-product-row');
-                            if (row) updateNewRowCoeff(row);
-                        }
-                    }
-                });
+                ModifierPicker.setBatchSku(rawSku || null, newContainer);
+                newContainer.querySelectorAll('.new-product-row').forEach(updateNewRowCoeff);
             }
 
-            function addNewProduct(productId = '', productLabel = '', isUndercut = false, isEdging = false) {
+            function addNewProduct(productId = '', productLabel = '', activeKeys = []) {
                 const idx   = newIdx++;
                 const tpl   = document.getElementById('editPickerRowTemplate');
                 const clone = tpl.content.cloneNode(true);
 
                 clone.querySelectorAll('[data-tpl-index]').forEach(el => {
-                    ['id','name','for','data-hidden-id','data-search-id','data-modal'].forEach(attr => {
+                    ['id','name','for','data-hidden-id','data-search-id','data-modal','data-input-name'].forEach(attr => {
                         if (el.hasAttribute(attr))
                             el.setAttribute(attr, el.getAttribute(attr).replace(/__IDX__/g, idx));
                     });
                 });
 
-                const row = clone.querySelector('.new-product-row');
+                const row    = clone.querySelector('.new-product-row');
+                const picker = row.querySelector('.modifier-picker');
+                if (picker) {
+                    picker.dataset.activeKeys = (activeKeys ?? []).join(',');
+                    picker.dataset.batchSku   = currentRawSku || '';
+                }
                 newContainer.appendChild(clone);
+                ModifierPicker.renderAll(row);
 
                 const deltaInput = row.querySelector('.js-new-delta');
                 const resultSpan = row.querySelector('.js-new-result');
@@ -697,36 +694,19 @@
                     const hiddenInput = row.querySelector('input[type="hidden"][name*="product_id"]');
                     if (searchInput) searchInput.value = productLabel;
                     if (hiddenInput) hiddenInput.value = productId;
-                    if (isUndercut) {
-                        const undercutCb = row.querySelector('.js-new-undercut');
-                        if (undercutCb) undercutCb.checked = true;
-                    }
-                    if (isEdging) {
-                        const edgingCb = row.querySelector('.js-new-edging');
-                        if (edgingCb) edgingCb.checked = true;
-                    }
                     fetchProductCoeff(productId).then(data => {
                         if (data !== null) {
                             const coeffDisplay = row.querySelector('.js-new-coeff-display');
                             if (coeffDisplay) {
                                 coeffDisplay.dataset.baseCoeff = data.coeff;
                                 coeffDisplay.dataset.sku       = data.sku ?? '';
+                                if (picker) ModifierPicker.setProductSku(picker, data.sku ?? '');
                                 updateNewRowCoeff(row);
                             }
                         }
                     });
                 }
 
-                // Видимость «Торцовки» — по SKU фиксированной партии
-                const edgingWrapper = row.querySelector('.edging-wrapper');
-                if (edgingWrapper) {
-                    const show = !!(currentRawSku && currentRawSku.startsWith('04-'));
-                    edgingWrapper.style.display = show ? '' : 'none';
-                    if (!show) {
-                        const cb = edgingWrapper.querySelector('input[type="checkbox"]');
-                        if (cb) cb.checked = false;
-                    }
-                }
             }
 
             document.getElementById('addProductBtn').addEventListener('click', () => addNewProduct());
@@ -771,7 +751,7 @@
             const batchHidden = document.getElementById('raw_material_batch_id');
             if (batchHidden?.dataset.productSku) {
                 applySkuPrefix(localDerivePrefix(batchHidden.dataset.productSku));
-                applyEdgingVisibility(batchHidden.dataset.productSku);
+                applyBatchSku(batchHidden.dataset.productSku);
             }
 
             // ── Последние приёмки: сворачивание на мобильном ────────────────────────
@@ -820,7 +800,7 @@
                         alert('Все продукты из этой приёмки уже добавлены');
                         return;
                     }
-                    toAdd.forEach(p => addNewProduct(String(p.product_id), p.product_label, !!p.is_undercut, !!p.is_edging));
+                    toAdd.forEach(p => addNewProduct(String(p.product_id), p.product_label, p.modifiers ?? []));
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } catch (err) {
                     console.error('copy-reception-btn parse error', err);
@@ -887,12 +867,12 @@
         'placeholder'   => 'Название продукта...',
         'unit'          => 'м²',
         'qtyMode'       => 'delta',
-        'showUndercut'  => true,
-        'showEdging'    => true,
+        'showModifiers' => true,
+        'departmentId'  => $stoneReception->effectiveDepartmentId(),
+        'scope'         => 'reception',
+        'batchSku'      => $stoneReception->rawMaterialBatch?->product?->sku,
         'showCoeff'     => true,
         'showRemove'    => true,
-        'undercutClass' => 'js-new-undercut',
-        'edgingClass'   => 'js-new-edging',
         'coeffClass'    => 'js-new-coeff-display',
         'extraRowClass' => 'new-product-row',
     ])

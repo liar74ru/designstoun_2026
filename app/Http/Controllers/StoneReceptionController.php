@@ -73,13 +73,12 @@ class StoneReceptionController extends Controller
 
         $copyItems = [];
         if ($copyFromId = $request->input('copy_from')) {
-            $copyFrom = StoneReception::with('items.product')->find($copyFromId);
+            $copyFrom = StoneReception::with(['items.product', 'items.modifiers'])->find($copyFromId);
             if ($copyFrom) {
                 $copyItems = $copyFrom->items->map(fn($item) => [
                     'product_id'    => $item->product_id,
                     'product_label' => $item->product?->name ?? '',
-                    'is_undercut'   => (bool) $item->is_undercut,
-                    'is_edging'     => (bool) $item->is_edging,
+                    'modifiers'     => $item->modifiers->pluck('key')->all(),
                 ])->toArray();
             }
         }
@@ -303,8 +302,8 @@ class StoneReceptionController extends Controller
             'items'               => ['required', 'array'],
             'items.*.item_id'     => ['required', 'integer'],
             'items.*.base_coeff'  => ['required', 'numeric'],
-            'items.*.is_undercut' => ['nullable', 'boolean'],
-            'items.*.is_edging'   => ['nullable', 'boolean'],
+            'items.*.modifiers'   => 'nullable|array',
+            'items.*.modifiers.*' => 'string|max:64',
         ]);
 
         $this->service->updateItemCoeff($stoneReception, $validated);
@@ -365,8 +364,7 @@ class StoneReceptionController extends Controller
                     'product_name'  => $i->product?->name ?? '—',
                     'product_label' => $i->product?->name ?? '—',
                     'quantity'      => number_format($i->quantity, 2),
-                    'is_undercut'   => (bool) $i->is_undercut,
-                    'is_edging'     => (bool) $i->is_edging,
+                    'modifiers'     => $i->modifiers->pluck('key')->all(),
                 ]),
             ]);
 

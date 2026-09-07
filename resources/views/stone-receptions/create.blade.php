@@ -357,8 +357,7 @@
                                             $copyItemsData = $reception->items->map(fn($item) => [
                                                 'product_id'    => $item->product_id,
                                                 'product_label' => $item->product?->name ?? '',
-                                                'is_undercut'   => (bool) $item->is_undercut,
-                                                'is_edging'     => (bool) $item->is_edging,
+                                                'modifiers'     => $item->modifiers->pluck('key')->all(),
                                             ])->toJson(JSON_UNESCAPED_UNICODE);
                                         @endphp
                                         <button type="button"
@@ -548,8 +547,7 @@
                     const itemsJson = JSON.stringify(r.items.map(i => ({
                         product_id:    i.product_id,
                         product_label: i.product_label,
-                        is_undercut:   i.is_undercut,
-                        is_edging:     i.is_edging,
+                        modifiers:     i.modifiers,
                     }))).replace(/"/g, '&quot;');
 
                     return `<div class="list-group-item px-2 py-2">
@@ -619,21 +617,12 @@
                 }
             }
 
-            // Видимость чекбокса «Торцовка» — только для партий сырья с SKU 04-XX
-            function applyEdgingVisibility(rawSku) {
+            // От SKU партии зависит, какие ручные правила отдела доступны
+            // (условие available_when_batch_sku правила) — список перерисовывается.
+            function applyBatchSku(rawSku) {
                 currentRawSku = rawSku || null;
-                const show = !!(rawSku && rawSku.startsWith('04-'));
-                container.querySelectorAll('.edging-wrapper').forEach(el => {
-                    el.style.display = show ? '' : 'none';
-                    if (!show) {
-                        const cb = el.querySelector('input[type="checkbox"]');
-                        if (cb && cb.checked) {
-                            cb.checked = false;
-                            const row = el.closest('.product-picker-row');
-                            if (row) updateRowCoeff(row);
-                        }
-                    }
-                });
+                ModifierPicker.setBatchSku(rawSku || null, container);
+                container.querySelectorAll('.product-picker-row').forEach(updateRowCoeff);
             }
 
             if (allCatalogCheck) {
@@ -714,10 +703,10 @@
                     rawQtyInput.value = rem.toFixed(3);
                     loadReceptionsByBatch(opt.value);
                     applySkuPrefix(localDerivePrefix(opt.dataset.productSku || ''));
-                    applyEdgingVisibility(opt.dataset.productSku || '');
+                    applyBatchSku(opt.dataset.productSku || '');
                 } else {
                     applySkuPrefix(null);
-                    applyEdgingVisibility(null);
+                    applyBatchSku(null);
                 }
                 updateRemainingIndicator();
                 updateBatchSidePanels(opt);
@@ -729,7 +718,7 @@
                 const selectedOpt = batchSelect.options[batchSelect.selectedIndex];
                 if (selectedOpt?.dataset.productSku) {
                     applySkuPrefix(localDerivePrefix(selectedOpt.dataset.productSku));
-                    applyEdgingVisibility(selectedOpt.dataset.productSku);
+                    applyBatchSku(selectedOpt.dataset.productSku);
                 }
                 // Заполняем расход остатком партии если поле ещё не заполнено
                 if (selectedOpt?.dataset.remaining && (!rawQtyInput.value || parseFloat(rawQtyInput.value) === 0)) {
@@ -762,6 +751,11 @@
             const departmentSelect = document.getElementById('departmentSelect');
             departmentSelect?.addEventListener('change', function (e) {
                 if (e.isTrusted) this.dataset.touched = '1';
+
+                // Правила себестоимости у каждого отдела свои — перерисовываем список
+                ModifierPicker.setDepartment(this.value || null, container);
+                container.querySelectorAll('.product-picker-row').forEach(updateRowCoeff);
+
                 const opt = this.options[this.selectedIndex];
                 if (!opt || !opt.value || !storeHidden) return;
                 if (!storeHidden.dataset.touched && opt.dataset.productionStoreId) {
@@ -807,36 +801,33 @@
 
             function updateRowCoeff(row) {
                 const coeffDisplay = row.querySelector('.coeff-display');
-                const undercutCb   = row.querySelector('.undercut-checkbox');
-                const edgingCb     = row.querySelector('.edging-checkbox');
+                const picker       = row.querySelector('.modifier-picker');
                 if (!coeffDisplay) return;
 
                 const baseCoeff = parseFloat(coeffDisplay.dataset.baseCoeff);
                 if (isNaN(baseCoeff)) return;
 
-                const isUndercut = undercutCb?.checked || false;
-                const isEdging   = edgingCb?.checked   || false;
+                const manualKeys = picker ? ModifierPicker.checkedKeys(picker) : [];
                 const sku        = coeffDisplay.dataset.sku || null;
-                const penalty    = RateFormula.undercutPenalty();
-                const edging     = RateFormula.edgingCoeff();
-                // Источник — то же, что на сервере: с бонусом маски, если он есть
-                const source     = RateFormula.effectiveCoeff({ baseCoeff, isUndercut: false, isEdging, sku });
-                const effective  = RateFormula.effectiveCoeff({ baseCoeff, isUndercut, isEdging, sku });
 
-                let text;
-                if (isEdging && isUndercut) {
-                    text = `${edging.toFixed(1)} − ${penalty} = ${effective.toFixed(1)}`;
-                } else if (isEdging) {
-                    text = `${baseCoeff.toFixed(1)} → ${edging.toFixed(1)}`;
-                } else if (isUndercut) {
-                    text = `${source.toFixed(1)} − ${penalty} = ${effective.toFixed(1)}`;
-                } else {
-                    text = source.toFixed(1);
-                }
-                coeffDisplay.textContent = text;
-                coeffDisplay.classList.toggle('text-warning-emphasis', isUndercut && !isEdging);
-                coeffDisplay.classList.toggle('text-info-emphasis', isEdging);
-                coeffDisplay.classList.toggle('text-dark', !isUndercut && !isEdging);
+                // Ровно то же, что считает сервер: база плюс сумма сработавших правил
+                const effective = RateFormula.effectiveCoeff({
+                    baseCoeff,
+                    departmentId: departmentSelect?.value || null,
+                    scope: 'reception',
+                    sku,
+                    manualKeys,
+                    batchSku: currentRawSku,
+                });
+
+                const delta = effective - baseCoeff;
+                coeffDisplay.textContent = delta === 0
+                    ? effective.toFixed(1)
+                    : `${baseCoeff.toFixed(1)} ${delta > 0 ? '+' : '−'} ${Math.abs(delta).toFixed(1)} = ${effective.toFixed(1)}`;
+
+                coeffDisplay.classList.toggle('text-warning-emphasis', delta < 0);
+                coeffDisplay.classList.toggle('text-info-emphasis', delta > 0);
+                coeffDisplay.classList.toggle('text-dark', delta === 0);
             }
 
             document.addEventListener('product-picker:selected', async function (e) {
@@ -850,6 +841,10 @@
                     if (data !== null) {
                         coeffDisplay.dataset.baseCoeff = data.coeff;
                         coeffDisplay.dataset.sku       = e.detail?.sku ?? data.sku ?? '';
+
+                        const picker = row.querySelector('.modifier-picker');
+                        if (picker) ModifierPicker.setProductSku(picker, coeffDisplay.dataset.sku);
+
                         updateRowCoeff(row);
                     }
                 }
@@ -857,8 +852,7 @@
             });
 
             container.addEventListener('change', function (e) {
-                if (e.target.classList.contains('undercut-checkbox') ||
-                    e.target.classList.contains('edging-checkbox')) {
+                if (e.target.classList.contains('modifier-checkbox')) {
                     const row = e.target.closest('.product-picker-row');
                     if (row) updateRowCoeff(row);
                 }
@@ -878,12 +872,12 @@
             });
 
             // ── Добавить строку продукта ─────────────────────────────────────────────
-            function addRow(productId = '', productLabel = '', quantity = '', isUndercut = false, isEdging = false) {
+            function addRow(productId = '', productLabel = '', quantity = '', activeKeys = []) {
                 const tpl   = document.getElementById('pickerRowTemplate');
                 const clone = tpl.content.cloneNode(true);
 
                 clone.querySelectorAll('[data-tpl-index]').forEach(el => {
-                    ['id','name','for','data-hidden-id','data-search-id','data-modal'].forEach(attr => {
+                    ['id','name','for','data-hidden-id','data-search-id','data-modal','data-input-name'].forEach(attr => {
                         if (el.hasAttribute(attr)) {
                             el.setAttribute(attr, el.getAttribute(attr).replace('__IDX__', rowIndex));
                         }
@@ -893,14 +887,16 @@
                 const searchInput  = clone.querySelector('.product-picker-search');
                 const hiddenInput  = clone.querySelector('input[type="hidden"][name*="product_id"]');
                 const qtyInput     = clone.querySelector('.product-picker-qty');
-                const undercutCb   = clone.querySelector('.undercut-checkbox');
-                const edgingCb     = clone.querySelector('.edging-checkbox');
+                const picker       = clone.querySelector('.modifier-picker');
 
                 if (searchInput) searchInput.value = productLabel;
                 if (hiddenInput) hiddenInput.value  = productId;
                 if (qtyInput)    qtyInput.value     = quantity;
-                if (undercutCb && isUndercut) undercutCb.checked = true;
-                if (edgingCb && isEdging)     edgingCb.checked   = true;
+                if (picker) {
+                    picker.dataset.activeKeys   = (activeKeys ?? []).join(',');
+                    picker.dataset.departmentId = departmentSelect?.value || '';
+                    picker.dataset.batchSku     = currentRawSku || '';
+                }
 
                 const row = clone.querySelector('.product-picker-row');
                 if (currentSkuPrefix && !(allCatalogCheck?.checked)) {
@@ -911,14 +907,7 @@
                 }
                 container.appendChild(clone);
                 if (window.ProductPicker) window.ProductPicker.initRow(row);
-
-                // Видимость «Торцовки» — по текущему SKU партии
-                const edgingWrapper = row.querySelector('.edging-wrapper');
-                if (edgingWrapper) {
-                    const show = !!(currentRawSku && currentRawSku.startsWith('04-'));
-                    edgingWrapper.style.display = show ? '' : 'none';
-                    if (!show && edgingCb) edgingCb.checked = false;
-                }
+                ModifierPicker.renderAll(row);
 
                 // Загружаем коэффициент если продукт уже задан (копирование)
                 if (productId) {
@@ -928,6 +917,10 @@
                             if (data !== null) {
                                 coeffDisplay.dataset.baseCoeff = data.coeff;
                                 coeffDisplay.dataset.sku       = data.sku ?? '';
+
+                                const rowPicker = row.querySelector('.modifier-picker');
+                                if (rowPicker) ModifierPicker.setProductSku(rowPicker, data.sku ?? '');
+
                                 updateRowCoeff(row);
                             }
                         });
@@ -947,7 +940,7 @@
                     if (!items.length) return;
                     container.innerHTML = '';
                     rowIndex = 0;
-                    items.forEach(p => addRow(p.product_id, p.product_label, '', p.is_undercut, p.is_edging));
+                    items.forEach(p => addRow(p.product_id, p.product_label, '', p.modifiers ?? []));
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } catch (err) {
                     console.error('copy-reception-btn parse error', err);
@@ -957,7 +950,7 @@
             addBtn.addEventListener('click', () => addRow());
 
             if (copyItems.length > 0) {
-                copyItems.forEach(p => addRow(p.product_id, p.product_label, '', p.is_undercut, p.is_edging));
+                copyItems.forEach(p => addRow(p.product_id, p.product_label, '', p.modifiers ?? []));
             } else {
                 addRow();
             }
@@ -1049,11 +1042,12 @@
             'index'        => '__IDX__',
             'placeholder'  => 'Название продукта...',
             'unit'         => 'м²',
-            'qtyMode'      => 'simple',
-            'showUndercut' => true,
-            'showEdging'   => true,
-            'showCoeff'    => true,
-            'showRemove'   => true,
+            'qtyMode'       => 'simple',
+            'showModifiers' => true,
+            'departmentId'  => old('department_id', $defaultDepartmentId ?? null),
+            'scope'         => 'reception',
+            'showCoeff'     => true,
+            'showRemove'    => true,
         ])
     </template>
 

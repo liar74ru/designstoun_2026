@@ -32,17 +32,18 @@ class ModifierEngine
     }
 
     /**
-     * Активные правила отдела для области.
+     * Все активные правила отдела, без фильтра по области.
+     * Нужны формам: они отдают правила обеих областей в JS одной картой.
      *
      * @return Collection<int, DepartmentModifier>
      */
-    public static function rulesFor(?int $departmentId, string $scope): Collection
+    public static function allFor(?int $departmentId): Collection
     {
         if ($departmentId === null) {
             return collect();
         }
 
-        $all = Cache::remember(
+        return Cache::remember(
             self::cacheKey($departmentId),
             self::CACHE_TTL,
             fn () => DepartmentModifier::where('department_id', $departmentId)
@@ -50,8 +51,18 @@ class ModifierEngine
                 ->orderBy('id')
                 ->get()
         );
+    }
 
-        return $all->filter(fn (DepartmentModifier $m) => $m->appliesToScope($scope))->values();
+    /**
+     * Активные правила отдела для области.
+     *
+     * @return Collection<int, DepartmentModifier>
+     */
+    public static function rulesFor(?int $departmentId, string $scope): Collection
+    {
+        return self::allFor($departmentId)
+            ->filter(fn (DepartmentModifier $m) => $m->appliesToScope($scope))
+            ->values();
     }
 
     /**
@@ -123,17 +134,29 @@ class ModifierEngine
         Cache::forget(self::cacheKey($departmentId));
     }
 
-    /** Ключи ручных правил из булевых флагов старых форм (мост на время этапа 2). */
-    public static function manualKeysFromLegacyFlags(bool $isUndercut, bool $isEdging): array
+    /**
+     * Ключи ручных правил, отмеченных для позиции ранее — из её снапшота.
+     *
+     * Нужны при пересчёте: sku-правила движок определит сам по SKU, а вот
+     * выбор пользователя восстанавливать неоткуда, кроме снапшота. Ключи
+     * сверяются с текущими ручными правилами отдела, чтобы снятое с правила
+     * ручное срабатывание не оживало.
+     *
+     * @param  iterable $snapshot Строки production_item_modifiers позиции
+     * @return string[]
+     */
+    public static function manualKeysFromSnapshot(?int $departmentId, iterable $snapshot): array
     {
-        $keys = [];
-        if ($isUndercut) {
-            $keys[] = 'undercut';
-        }
-        if ($isEdging) {
-            $keys[] = 'edging';
-        }
+        $manual = self::allFor($departmentId)
+            ->where('trigger', DepartmentModifier::TRIGGER_MANUAL)
+            ->pluck('key')
+            ->all();
 
-        return $keys;
+        return collect($snapshot)
+            ->pluck('key')
+            ->filter(fn (?string $key) => in_array($key, $manual, true))
+            ->unique()
+            ->values()
+            ->all();
     }
 }

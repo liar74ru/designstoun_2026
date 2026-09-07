@@ -66,7 +66,6 @@ class WorkshopItem extends Model
     public function modifiers()
     {
         return $this->hasMany(ProductionItemModifier::class, 'workshop_item_id')
-            ->orderBy('sort_order')
             ->orderBy('id');
     }
 

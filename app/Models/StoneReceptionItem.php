@@ -59,7 +59,6 @@ class StoneReceptionItem extends Model
     public function modifiers()
     {
         return $this->hasMany(ProductionItemModifier::class, 'stone_reception_item_id')
-            ->orderBy('sort_order')
             ->orderBy('id');
     }
 
