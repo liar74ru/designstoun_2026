@@ -12,11 +12,9 @@
  * оставаться самодостаточной и не ломаться при эволюции конфигурации.
  *
  * Эффект задаётся коэффициентами, не рублями: при подъёме базовой ставки
- * надбавки пересчитываются пропорционально сами.
- *
- * Порядок (sort_order) значим: правила применяются подряд, `replace` обнуляет
- * накопленное, `delta` прибавляет. Поэтому торцовка отменяет бонус маски,
- * но не отменяет подкол.
+ * надбавки пересчитываются пропорционально сами. Значения складываются с
+ * коэффициентом продукта, поэтому сработать может несколько правил сразу
+ * и порядок на результат не влияет.
  */
 return [
     'mask_tile' => [
@@ -26,11 +24,8 @@ return [
         'sku_pattern'              => '04-07-*',
         'available_when_batch_sku' => null,
         'applies_to'               => 'both',
-        'sort_order'               => 10,
         'worker_coeff_delta'       => 2.0,
-        'worker_coeff_replace'     => null,
         'master_coeff_delta'       => null,
-        'master_coeff_replace'     => null,
     ],
     'edging' => [
         'name'                     => 'Торцовка',
@@ -40,11 +35,8 @@ return [
         // Чекбокс исторически показывался только для партий сырья 04-XX.
         'available_when_batch_sku' => '04-*',
         'applies_to'               => 'both',
-        'sort_order'               => 20,
-        'worker_coeff_delta'       => null,
-        'worker_coeff_replace'     => -2.5,
+        'worker_coeff_delta'       => -2.5,
         'master_coeff_delta'       => null,
-        'master_coeff_replace'     => null,
     ],
     'undercut' => [
         'name'                     => 'Подкол > 80%',
@@ -53,13 +45,10 @@ return [
         'sku_pattern'              => null,
         'available_when_batch_sku' => null,
         'applies_to'               => 'both',
-        'sort_order'               => 30,
         'worker_coeff_delta'       => -1.5,
-        'worker_coeff_replace'     => null,
         // Заменяет прежнюю надбавку MASTER_UNDERCUT_RATE = 50 ₽:
         // stepped(base, k) + 50 == stepped(base, k + 3) при базе 100.
         'master_coeff_delta'       => 3.0,
-        'master_coeff_replace'     => null,
     ],
     'small_tile' => [
         'name'                     => 'Мелкая плитка',
@@ -68,11 +57,8 @@ return [
         'sku_pattern'              => '*-*-30',
         'available_when_batch_sku' => null,
         'applies_to'               => 'both',
-        'sort_order'               => 40,
         // Деньги не меняет — правило существует ради плашки в интерфейсе.
         'worker_coeff_delta'       => null,
-        'worker_coeff_replace'     => null,
         'master_coeff_delta'       => null,
-        'master_coeff_replace'     => null,
     ],
 ];

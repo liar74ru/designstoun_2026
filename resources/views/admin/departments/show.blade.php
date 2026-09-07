@@ -332,12 +332,9 @@
 
                     $effects = [];
                     foreach (['worker' => 'пильщик', 'master' => 'мастер'] as $role => $roleLabel) {
-                        $delta   = $modifier->{$role . '_coeff_delta'};
-                        $replace = $modifier->{$role . '_coeff_replace'};
+                        $delta = $modifier->{$role . '_coeff_delta'};
 
-                        if ($replace !== null) {
-                            $effects[] = $roleLabel . ' = ' . rtrim(rtrim((string) $replace, '0'), '.');
-                        } elseif ($delta !== null) {
+                        if ($delta !== null) {
                             $value = rtrim(rtrim((string) $delta, '0'), '.');
                             $effects[] = $roleLabel . ' ' . ($delta > 0 ? '+' . $value : $value);
                         }

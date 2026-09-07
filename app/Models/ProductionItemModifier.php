@@ -24,18 +24,12 @@ class ProductionItemModifier extends Model
         'name',
         'color',
         'worker_coeff_delta',
-        'worker_coeff_replace',
         'master_coeff_delta',
-        'master_coeff_replace',
-        'sort_order',
     ];
 
     protected $casts = [
-        'worker_coeff_delta'   => 'decimal:4',
-        'worker_coeff_replace' => 'decimal:4',
-        'master_coeff_delta'   => 'decimal:4',
-        'master_coeff_replace' => 'decimal:4',
-        'sort_order'           => 'integer',
+        'worker_coeff_delta' => 'decimal:4',
+        'master_coeff_delta' => 'decimal:4',
     ];
 
     public function receptionItem(): BelongsTo
@@ -54,16 +48,12 @@ class ProductionItemModifier extends Model
         return $this->belongsTo(DepartmentModifier::class, 'department_modifier_id');
     }
 
-    /** Значения эффекта для роли — сигнатура совпадает с DepartmentModifier. */
-    public function effectFor(string $role): array
+    /** Слагаемое к коэффициенту для роли — сигнатура совпадает с DepartmentModifier. */
+    public function effectFor(string $role): float
     {
-        $delta   = $role === DepartmentModifier::ROLE_MASTER ? $this->master_coeff_delta : $this->worker_coeff_delta;
-        $replace = $role === DepartmentModifier::ROLE_MASTER ? $this->master_coeff_replace : $this->worker_coeff_replace;
+        $delta = $role === DepartmentModifier::ROLE_MASTER ? $this->master_coeff_delta : $this->worker_coeff_delta;
 
-        return [
-            'delta'   => $delta === null ? null : (float) $delta,
-            'replace' => $replace === null ? null : (float) $replace,
-        ];
+        return (float) ($delta ?? 0);
     }
 
     /** Снимок правила для записи в снапшот позиции. */
@@ -75,10 +65,7 @@ class ProductionItemModifier extends Model
             'name'                   => $modifier->name,
             'color'                  => $modifier->color,
             'worker_coeff_delta'     => $modifier->worker_coeff_delta,
-            'worker_coeff_replace'   => $modifier->worker_coeff_replace,
             'master_coeff_delta'     => $modifier->master_coeff_delta,
-            'master_coeff_replace'   => $modifier->master_coeff_replace,
-            'sort_order'             => $modifier->sort_order,
         ];
     }
 }

@@ -64,7 +64,9 @@ function makeEdgingFixtures(): array
 
 describe('StoneReceptionService::create() — флаг is_edging', function () {
 
-    test('сохраняет is_edging=true и effective_cost_coeff=EDGING_COEFF', function () {
+    // Правило «торцовка» — слагаемое −2.5 к коэффициенту продукта (3.0),
+    // а не замена коэффициента, как было до упрощения модели правил.
+    test('сохраняет is_edging=true и вычитает значение правила из коэффициента', function () {
         $f = makeEdgingFixtures();
 
         $reception = makeReceptionServiceForEdging()->create([
@@ -82,10 +84,10 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
 
         expect((bool) $item->is_edging)->toBeTrue();
         expect((bool) $item->is_undercut)->toBeFalse();
-        expect((float) $item->effective_cost_coeff)->toBe(-2.5);
+        expect((float) $item->effective_cost_coeff)->toBe(0.5);
     });
 
-    test('is_edging + is_undercut → effective = -4.0', function () {
+    test('is_edging + is_undercut складываются: 3 − 2.5 − 1.5 = −1.0', function () {
         $f = makeEdgingFixtures();
 
         $reception = makeReceptionServiceForEdging()->create([
@@ -101,7 +103,7 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
 
         $item = $reception->items->first();
 
-        expect((float) $item->effective_cost_coeff)->toBe(-4.0);
+        expect((float) $item->effective_cost_coeff)->toBe(-1.0);
         expect((bool) $item->is_edging)->toBeTrue();
         expect((bool) $item->is_undercut)->toBeTrue();
     });
@@ -126,8 +128,8 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
         expect((float) $item->effective_cost_coeff)->toBe(3.0);
     });
 
-    test('worker_cost_per_m2 рассчитывается от replaced коэффициента', function () {
-        // PIECE_RATE=100, EDGING_COEFF=-2.5 → prodCost(-2.5) = 100 * -2.5 = -250
+    test('worker_cost_per_m2 считается от итогового коэффициента', function () {
+        // PIECE_RATE=100, коэффициент продукта 3.0, торцовка −2.5 → 0.5
         $f = makeEdgingFixtures();
 
         $reception = makeReceptionServiceForEdging()->create([
@@ -142,7 +144,7 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
         ], false);
 
         $item     = $reception->items->first();
-        $expected = $f['product']->prodCost(-2.5);
+        $expected = $f['product']->prodCost(0.5);
 
         expect((float) $item->worker_cost_per_m2)->toBe((float) $expected);
     });
@@ -150,7 +152,7 @@ describe('StoneReceptionService::create() — флаг is_edging', function () {
 
 describe('StoneReceptionService::refreshItemCoeffs() — сохраняет is_edging', function () {
 
-    test('пересчёт после refresh не сбрасывает is_edging и оставляет effective=-2.5', function () {
+    test('пересчёт после refresh не сбрасывает is_edging и учитывает новый коэффициент продукта', function () {
         $f       = makeEdgingFixtures();
         $service = makeReceptionServiceForEdging();
 
@@ -165,8 +167,7 @@ describe('StoneReceptionService::refreshItemCoeffs() — сохраняет is_e
             ],
         ], false);
 
-        // Меняем prod_cost_coeff у продукта — это бы пересчитало effective_cost_coeff для обычной позиции,
-        // но для is_edging должно остаться -2.5 (полная замена)
+        // Торцовка — слагаемое, поэтому новый коэффициент продукта на неё влияет: 10 − 2.5
         $f['product']->update(['prod_cost_coeff' => 10.0]);
 
         $service->refreshItemCoeffs($reception->fresh());
@@ -174,6 +175,6 @@ describe('StoneReceptionService::refreshItemCoeffs() — сохраняет is_e
         $item = $reception->items()->first();
 
         expect((bool) $item->is_edging)->toBeTrue();
-        expect((float) $item->effective_cost_coeff)->toBe(-2.5);
+        expect((float) $item->effective_cost_coeff)->toBe(7.5);
     });
 });

@@ -26,7 +26,6 @@ function modifierPayload(array $overrides = []): array
         'trigger'            => DepartmentModifier::TRIGGER_MANUAL,
         'applies_to'         => DepartmentModifier::SCOPE_BOTH,
         'worker_coeff_delta' => '1.5',
-        'sort_order'         => '50',
         'is_active'          => '1',
     ], $overrides);
 }
@@ -55,7 +54,7 @@ describe('Создание', function () {
             ->and($rule->name)->toBe('Бонус')
             ->and($rule->color)->toBe('#FFC107')
             ->and((float) $rule->worker_coeff_delta)->toBe(1.5)
-            ->and($rule->worker_coeff_replace)->toBeNull()
+            ->and($rule->master_coeff_delta)->toBeNull()
             ->and($rule->is_active)->toBeTrue();
     });
 
@@ -122,13 +121,6 @@ describe('Валидация', function () {
             ->assertSessionHasErrors('key');
     });
 
-    test('прибавка и замена одновременно отклоняются', function () {
-        storeModifier($this, $this->dept, [
-            'worker_coeff_delta'   => '2',
-            'worker_coeff_replace' => '-2.5',
-        ])->assertSessionHasErrors('worker_coeff_replace');
-    });
-
     test('sku-правило без маски отклоняется', function () {
         storeModifier($this, $this->dept, [
             'trigger'     => DepartmentModifier::TRIGGER_SKU,
@@ -139,11 +131,6 @@ describe('Валидация', function () {
     test('цвет вне палитры отклоняется', function () {
         storeModifier($this, $this->dept, ['color' => '#123456'])
             ->assertSessionHasErrors('color');
-    });
-
-    test('порядок вне диапазона колонки отклоняется', function () {
-        storeModifier($this, $this->dept, ['sort_order' => '70000'])
-            ->assertSessionHasErrors('sort_order');
     });
 });
 

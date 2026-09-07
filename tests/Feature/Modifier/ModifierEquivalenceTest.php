@@ -26,15 +26,23 @@ beforeEach(function () {
     $this->dept = H::departmentWithModifiers();
 });
 
-/** Прежняя формула коэффициента пильщика — эталон для сравнения. */
-function legacyWorkerCoeff(float $base, bool $undercut, bool $edging, bool $maskTile): float
+/**
+ * Ожидаемый коэффициент пильщика: база плюс сумма сработавших правил.
+ *
+ * Для подкола и плитки-маски совпадает с прежней захардкоженной формулой.
+ * Торцовка раньше заменяла коэффициент на −2.5 при любом продукте, а теперь
+ * тоже слагаемое — смена поведения осознанная, см. миграцию
+ * 2026_09_07_000001_simplify_department_modifiers.
+ */
+function expectedWorkerCoeff(float $base, bool $undercut, bool $edging, bool $maskTile): float
 {
-    $coeff = $edging ? -2.5 : $base + ($maskTile ? 2.0 : 0.0);
-
-    return $undercut ? $coeff - 1.5 : $coeff;
+    return $base
+        + ($maskTile ? 2.0 : 0.0)
+        + ($edging ? -2.5 : 0.0)
+        + ($undercut ? -1.5 : 0.0);
 }
 
-describe('Коэффициент пильщика совпадает с прежней формулой', function () {
+describe('Коэффициент пильщика — сумма правил', function () {
 
     test('все комбинации флагов и SKU', function () {
         foreach ([0.0, 1.0, 3.0, 5.0] as $base) {
@@ -54,7 +62,7 @@ describe('Коэффициент пильщика совпадает с преж
                             '04-01',
                         );
 
-                        $expected = legacyWorkerCoeff($base, $undercut, $edging, str_starts_with($sku, '04-07-'));
+                        $expected = expectedWorkerCoeff($base, $undercut, $edging, str_starts_with($sku, '04-07-'));
 
                         expect((float) $cost['attributes']['effective_cost_coeff'])
                             ->toBe($expected, "base={$base} u={$undercut} e={$edging} sku={$sku}");

@@ -10,13 +10,12 @@ use Illuminate\Support\Facades\Cache;
 /**
  * Единая точка расчёта коэффициента себестоимости по правилам отдела.
  *
- * Правила применяются ПО ПОРЯДКУ (sort_order), и порядок значим:
- *   - `replace` обнуляет накопленное и подставляет своё значение;
- *   - `delta` прибавляет к накопленному.
+ * Модель предельно простая: сработать может сколько угодно правил сразу, и все
+ * их значения складываются с коэффициентом продукта.
  *
- * Такая композиция воспроизводит прежнюю захардкоженную формулу точно:
- * торцовка (replace, sort 20) отменяет бонус маски (delta, sort 10),
- * но не отменяет подкол (delta, sort 30).
+ *     коэффициент = коэффициент продукта + сумма сработавших правил
+ *
+ * Сложение коммутативно, поэтому порядка применения у правил нет.
  *
  * Наследования у правил нет: отдел не задан или не имеет правил → коэффициент
  * равен базовому. Вызывающий обязан передавать эффективный отдел документа
@@ -33,7 +32,7 @@ class ModifierEngine
     }
 
     /**
-     * Активные правила отдела для области, отсортированные по sort_order.
+     * Активные правила отдела для области.
      *
      * @return Collection<int, DepartmentModifier>
      */
@@ -48,7 +47,6 @@ class ModifierEngine
             self::CACHE_TTL,
             fn () => DepartmentModifier::where('department_id', $departmentId)
                 ->where('is_active', true)
-                ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get()
         );
@@ -86,7 +84,10 @@ class ModifierEngine
     }
 
     /**
-     * Применить правила к базовому коэффициенту для роли.
+     * Применить правила к базовому коэффициенту для роли:
+     * коэффициент продукта плюс сумма всех сработавших правил.
+     *
+     * Сложение коммутативно, поэтому порядок правил на результат не влияет.
      *
      * @param iterable $applied Правила или их снапшоты — оба отдают effectFor()
      */
@@ -94,17 +95,8 @@ class ModifierEngine
     {
         $coeff = $baseCoeff;
 
-        foreach (self::sorted($applied) as $rule) {
-            ['delta' => $delta, 'replace' => $replace] = $rule->effectFor($role);
-
-            if ($replace !== null) {
-                $coeff = $replace;
-                continue;
-            }
-
-            if ($delta !== null) {
-                $coeff += $delta;
-            }
+        foreach ($applied as $rule) {
+            $coeff += $rule->effectFor($role);
         }
 
         return $coeff;
@@ -123,17 +115,6 @@ class ModifierEngine
     public static function masterCoeff(float $masterBaseCoeff, iterable $applied): float
     {
         return self::apply($masterBaseCoeff, $applied, DepartmentModifier::ROLE_MASTER);
-    }
-
-    /**
-     * Порядок применения задаёт результат, поэтому сортируем всегда —
-     * снапшоты могут прийти из БД в произвольном порядке.
-     */
-    private static function sorted(iterable $applied): Collection
-    {
-        return collect($applied)
-            ->sortBy(fn ($rule) => (int) ($rule->sort_order ?? 0))
-            ->values();
     }
 
     /** Сбросить кэш правил отдела. */

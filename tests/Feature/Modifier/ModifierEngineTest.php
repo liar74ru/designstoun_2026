@@ -17,46 +17,45 @@ function makeRule(Department $dept, array $attrs = []): DepartmentModifier
         'name'       => 'Правило',
         'trigger'    => DepartmentModifier::TRIGGER_MANUAL,
         'applies_to' => DepartmentModifier::SCOPE_BOTH,
-        'sort_order' => 10,
         'is_active'  => true,
     ], $attrs));
 }
 
-describe('ModifierEngine::apply() — композиция правил', function () {
+describe('ModifierEngine::apply() — сумма правил', function () {
 
     test('без правил коэффициент равен базовому', function () {
         expect(ModifierEngine::apply(2.0, [], DepartmentModifier::ROLE_WORKER))->toBe(2.0);
     });
 
-    test('delta прибавляется к базе', function () {
+    test('значение правила прибавляется к базе', function () {
         $rule = makeRule($this->dept, ['worker_coeff_delta' => -1.5]);
 
         expect(ModifierEngine::apply(2.0, [$rule], DepartmentModifier::ROLE_WORKER))->toBe(0.5);
     });
 
-    test('replace подменяет базу целиком', function () {
-        $rule = makeRule($this->dept, ['worker_coeff_replace' => -2.5]);
+    test('несколько правил складываются', function () {
+        // Боевой набор: маска +2, торцовка −2.5, подкол −1.5
+        $mask     = makeRule($this->dept, ['key' => 'mask', 'worker_coeff_delta' => 2.0]);
+        $edging   = makeRule($this->dept, ['key' => 'edg',  'worker_coeff_delta' => -2.5]);
+        $undercut = makeRule($this->dept, ['key' => 'und',  'worker_coeff_delta' => -1.5]);
 
-        expect(ModifierEngine::apply(2.0, [$rule], DepartmentModifier::ROLE_WORKER))->toBe(-2.5);
-    });
-
-    test('replace обнуляет накопленные ранее delta, но не отменяет последующие', function () {
-        // Порядок как у боевых правил: маска (10) → торцовка (20) → подкол (30)
-        $mask     = makeRule($this->dept, ['key' => 'mask', 'sort_order' => 10, 'worker_coeff_delta' => 2.0]);
-        $edging   = makeRule($this->dept, ['key' => 'edg',  'sort_order' => 20, 'worker_coeff_replace' => -2.5]);
-        $undercut = makeRule($this->dept, ['key' => 'und',  'sort_order' => 30, 'worker_coeff_delta' => -1.5]);
-
-        // 3 + 2 = 5 → replace → −2.5 → −1.5 = −4.0
+        // 3 + 2 − 2.5 − 1.5 = 1.0
         expect(ModifierEngine::apply(3.0, [$mask, $edging, $undercut], DepartmentModifier::ROLE_WORKER))
-            ->toBe(-4.0);
+            ->toBe(1.0);
     });
 
-    test('порядок применения не зависит от порядка передачи', function () {
-        $mask   = makeRule($this->dept, ['key' => 'mask', 'sort_order' => 10, 'worker_coeff_delta' => 2.0]);
-        $edging = makeRule($this->dept, ['key' => 'edg',  'sort_order' => 20, 'worker_coeff_replace' => -2.5]);
+    test('результат не зависит от порядка передачи', function () {
+        $mask   = makeRule($this->dept, ['key' => 'mask', 'worker_coeff_delta' => 2.0]);
+        $edging = makeRule($this->dept, ['key' => 'edg',  'worker_coeff_delta' => -2.5]);
 
-        expect(ModifierEngine::apply(3.0, [$edging, $mask], DepartmentModifier::ROLE_WORKER))->toBe(-2.5)
-            ->and(ModifierEngine::apply(3.0, [$mask, $edging], DepartmentModifier::ROLE_WORKER))->toBe(-2.5);
+        expect(ModifierEngine::apply(3.0, [$edging, $mask], DepartmentModifier::ROLE_WORKER))->toBe(2.5)
+            ->and(ModifierEngine::apply(3.0, [$mask, $edging], DepartmentModifier::ROLE_WORKER))->toBe(2.5);
+    });
+
+    test('правило без значения для роли ничего не меняет', function () {
+        $rule = makeRule($this->dept, ['key' => 'small', 'worker_coeff_delta' => null]);
+
+        expect(ModifierEngine::apply(3.0, [$rule], DepartmentModifier::ROLE_WORKER))->toBe(3.0);
     });
 
     test('роли независимы: правило может влиять только на мастера', function () {

@@ -82,7 +82,7 @@ class Department extends Model
      */
     public function modifiers(): HasMany
     {
-        return $this->hasMany(DepartmentModifier::class)->orderBy('sort_order')->orderBy('id');
+        return $this->hasMany(DepartmentModifier::class)->orderBy('id');
     }
 
     public function presets(): HasMany

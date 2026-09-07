@@ -148,7 +148,7 @@
                 </div>
             </div>
 
-            <div>
+            <div class="mb-3">
                 <label for="modAppliesTo" class="form-label fw-semibold">Область действия</label>
                 <select id="modAppliesTo" name="applies_to"
                         class="form-select @error('applies_to') is-invalid @enderror"
@@ -162,6 +162,12 @@
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
+
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="modIsActive" name="is_active" value="1"
+                       {{ old('is_active', $modifier?->is_active ?? true) ? 'checked' : '' }}>
+                <label class="form-check-label fw-semibold" for="modIsActive">Правило активно</label>
+            </div>
         </div>
     </div>
 
@@ -169,18 +175,13 @@
     <div class="card shadow-sm mb-3"
          x-data="{
             workerDelta: '{{ old('worker_coeff_delta', $modifier?->worker_coeff_delta) }}',
-            workerReplace: '{{ old('worker_coeff_replace', $modifier?->worker_coeff_replace) }}',
             get preview() {
                 const rates = window.RateFormula;
                 if (!rates) return null;
 
                 const rate = rates.pieceRate({{ $department->id }});
                 const base = 2;
-                const eff  = this.workerReplace !== ''
-                    ? parseFloat(this.workerReplace)
-                    : base + (parseFloat(this.workerDelta) || 0);
-
-                if (isNaN(eff)) return null;
+                const eff  = base + (parseFloat(this.workerDelta) || 0);
 
                 return {
                     rate,
@@ -195,41 +196,30 @@
         <div class="card-body">
             <p class="text-muted small mb-3">
                 Правило меняет коэффициент, а не рубли: при подъёме базовой ставки отдела
-                надбавка пересчитывается сама. «Прибавить» складывается с коэффициентом продукта,
-                «заменить» — подменяет всё, что накоплено правилами до этого.
+                надбавка пересчитывается сама. Значение складывается с коэффициентом продукта;
+                сработать может несколько правил сразу — они просто суммируются.
+                Штраф — отрицательное число.
             </p>
 
-            @foreach(['worker' => 'Пильщик', 'master' => 'Мастер'] as $role => $roleLabel)
-                <div class="mb-3">
-                    <div class="fw-semibold small mb-1">{{ $roleLabel }}</div>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="form-label small mb-1" for="mod-{{ $role }}-delta">Прибавить</label>
-                            <input type="number" step="0.0001" id="mod-{{ $role }}-delta"
-                                   name="{{ $role }}_coeff_delta"
-                                   value="{{ old($role . '_coeff_delta', $modifier?->{$role . '_coeff_delta'}) }}"
-                                   class="form-control form-control-sm @error($role . '_coeff_delta') is-invalid @enderror"
-                                   style="border-radius:.4rem" placeholder="—"
-                                   @if($role === 'worker') x-model="workerDelta" @endif>
-                            @error($role . '_coeff_delta')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small mb-1" for="mod-{{ $role }}-replace">Заменить</label>
-                            <input type="number" step="0.0001" id="mod-{{ $role }}-replace"
-                                   name="{{ $role }}_coeff_replace"
-                                   value="{{ old($role . '_coeff_replace', $modifier?->{$role . '_coeff_replace'}) }}"
-                                   class="form-control form-control-sm @error($role . '_coeff_replace') is-invalid @enderror"
-                                   style="border-radius:.4rem" placeholder="—"
-                                   @if($role === 'worker') x-model="workerReplace" @endif>
-                            @error($role . '_coeff_replace')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
+            <div class="row g-2 mb-3">
+                @foreach(['worker' => 'Пильщик', 'master' => 'Мастер'] as $role => $roleLabel)
+                    <div class="col-6">
+                        <label class="form-label small mb-1" for="mod-{{ $role }}-delta">{{ $roleLabel }}</label>
+                        <input type="number" step="0.0001" id="mod-{{ $role }}-delta"
+                               name="{{ $role }}_coeff_delta"
+                               value="{{ old($role . '_coeff_delta', $modifier?->{$role . '_coeff_delta'}) }}"
+                               class="form-control form-control-sm @error($role . '_coeff_delta') is-invalid @enderror"
+                               style="border-radius:.4rem" placeholder="—"
+                               @if($role === 'worker') x-model="workerDelta" @endif>
+                        @error($role . '_coeff_delta')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
-                </div>
-            @endforeach
+                @endforeach
+            </div>
+            <div class="form-text mb-3" style="font-size:.72rem">
+                Пустое поле — правило на эту роль не влияет.
+            </div>
 
             <div class="alert alert-light border py-2 mb-0 small" x-show="preview" x-cloak>
                 <template x-if="preview">
@@ -239,37 +229,6 @@
                         с этим правилом <span class="fw-semibold" x-text="preview.after"></span> ₽/м².
                     </span>
                 </template>
-            </div>
-        </div>
-    </div>
-
-    {{-- ④ Порядок и активность --}}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold py-2">
-            <i class="bi bi-sort-numeric-down me-1"></i> Порядок применения
-        </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label for="modSortOrder" class="form-label fw-semibold">
-                    Порядок <span class="text-danger">*</span>
-                </label>
-                <input type="number" step="1" min="0" max="65535" id="modSortOrder" name="sort_order"
-                       value="{{ old('sort_order', $modifier?->sort_order ?? 50) }}"
-                       class="form-control @error('sort_order') is-invalid @enderror"
-                       style="border-radius:.4rem;max-width:140px" required>
-                @error('sort_order')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-                <div class="form-text" style="font-size:.72rem">
-                    Правила применяются по возрастанию. Порядок важен: «заменить» обнуляет всё,
-                    что прибавили правила с меньшим номером.
-                </div>
-            </div>
-
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="modIsActive" name="is_active" value="1"
-                       {{ old('is_active', $modifier?->is_active ?? true) ? 'checked' : '' }}>
-                <label class="form-check-label fw-semibold" for="modIsActive">Правило активно</label>
             </div>
         </div>
     </div>

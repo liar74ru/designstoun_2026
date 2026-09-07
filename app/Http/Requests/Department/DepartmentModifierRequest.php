@@ -5,7 +5,6 @@ namespace App\Http\Requests\Department;
 use App\Models\DepartmentModifier;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class DepartmentModifierRequest extends FormRequest
 {
@@ -44,31 +43,10 @@ class DepartmentModifierRequest extends FormRequest
             ],
 
             // Штрафы отрицательны — ограничения снизу нет.
-            'worker_coeff_delta'   => ['nullable', 'numeric'],
-            'worker_coeff_replace' => ['nullable', 'numeric'],
-            'master_coeff_delta'   => ['nullable', 'numeric'],
-            'master_coeff_replace' => ['nullable', 'numeric'],
+            'worker_coeff_delta' => ['nullable', 'numeric'],
+            'master_coeff_delta' => ['nullable', 'numeric'],
 
-            'sort_order' => ['required', 'integer', 'min:0', 'max:65535'],
-            'is_active'  => ['boolean'],
-        ];
-    }
-
-    public function after(): array
-    {
-        return [
-            function (Validator $validator) {
-                // ModifierEngine::apply() при заданном replace игнорирует delta молча —
-                // не даём админу задать пару, которая работает не так, как выглядит.
-                foreach (['worker' => 'пильщика', 'master' => 'мастера'] as $role => $label) {
-                    if ($this->filled("{$role}_coeff_delta") && $this->filled("{$role}_coeff_replace")) {
-                        $validator->errors()->add(
-                            "{$role}_coeff_replace",
-                            "Для {$label} задайте либо прибавку, либо замену коэффициента — не оба сразу",
-                        );
-                    }
-                }
-            },
+            'is_active' => ['boolean'],
         ];
     }
 
@@ -85,9 +63,6 @@ class DepartmentModifierRequest extends FormRequest
             'sku_pattern.required_if' => 'Укажите маску SKU — по ней правило срабатывает автоматически',
             'applies_to.required'     => 'Выберите область действия',
             'applies_to.in'           => 'Неизвестная область действия',
-            'sort_order.required' => 'Укажите порядок применения',
-            'sort_order.min'      => 'Порядок не может быть отрицательным',
-            'sort_order.max'      => 'Порядок не может быть больше 65535',
         ];
     }
 
@@ -99,8 +74,7 @@ class DepartmentModifierRequest extends FormRequest
     {
         $nullable = [
             'color', 'sku_pattern', 'available_when_batch_sku',
-            'worker_coeff_delta', 'worker_coeff_replace',
-            'master_coeff_delta', 'master_coeff_replace',
+            'worker_coeff_delta', 'master_coeff_delta',
         ];
 
         $merge = ['is_active' => $this->boolean('is_active')];

@@ -13,7 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * не прибавляет и не вычитает. Читать только через App\Support\ModifierEngine.
  *
  * Эффект задаётся коэффициентами, не рублями — тогда при подъёме базовой
- * ставки надбавки пересчитываются пропорционально сами.
+ * ставки надбавки пересчитываются пропорционально сами. Значение правила
+ * складывается с коэффициентом продукта; сработать может несколько правил
+ * сразу, и порядок на результат не влияет.
  */
 class DepartmentModifier extends Model
 {
@@ -53,20 +55,14 @@ class DepartmentModifier extends Model
         'available_when_batch_sku',
         'applies_to',
         'worker_coeff_delta',
-        'worker_coeff_replace',
         'master_coeff_delta',
-        'master_coeff_replace',
-        'sort_order',
         'is_active',
     ];
 
     protected $casts = [
-        'worker_coeff_delta'   => 'decimal:4',
-        'worker_coeff_replace' => 'decimal:4',
-        'master_coeff_delta'   => 'decimal:4',
-        'master_coeff_replace' => 'decimal:4',
-        'sort_order'           => 'integer',
-        'is_active'            => 'boolean',
+        'worker_coeff_delta' => 'decimal:4',
+        'master_coeff_delta' => 'decimal:4',
+        'is_active'          => 'boolean',
     ];
 
     public function department(): BelongsTo
@@ -133,15 +129,11 @@ class DepartmentModifier extends Model
         return self::matchesPattern($batchSku, $this->available_when_batch_sku);
     }
 
-    /** Значения эффекта для роли: ['delta' => ?float, 'replace' => ?float]. */
-    public function effectFor(string $role): array
+    /** Слагаемое к коэффициенту для роли; 0 — правило на эту роль не влияет. */
+    public function effectFor(string $role): float
     {
-        $delta   = $role === self::ROLE_MASTER ? $this->master_coeff_delta : $this->worker_coeff_delta;
-        $replace = $role === self::ROLE_MASTER ? $this->master_coeff_replace : $this->worker_coeff_replace;
+        $delta = $role === self::ROLE_MASTER ? $this->master_coeff_delta : $this->worker_coeff_delta;
 
-        return [
-            'delta'   => $delta === null ? null : (float) $delta,
-            'replace' => $replace === null ? null : (float) $replace,
-        ];
+        return (float) ($delta ?? 0);
     }
 }

@@ -26,12 +26,6 @@ describe('applyDefaults()', function () {
             ->toBe(['mask_tile', 'edging', 'undercut', 'small_tile']);
     });
 
-    test('порядок правил соответствует sort_order', function () {
-        $this->service->applyDefaults($this->dept);
-
-        expect($this->dept->modifiers()->pluck('sort_order')->all())->toBe([10, 20, 30, 40]);
-    });
-
     test('повторный вызов не создаёт дублей', function () {
         $this->service->applyDefaults($this->dept);
         $added = $this->service->applyDefaults($this->dept);
@@ -47,7 +41,6 @@ describe('applyDefaults()', function () {
             'trigger'            => DepartmentModifier::TRIGGER_MANUAL,
             'applies_to'         => DepartmentModifier::SCOPE_BOTH,
             'worker_coeff_delta' => -9.0,
-            'sort_order'         => 30,
         ]);
 
         $this->service->applyDefaults($this->dept);
@@ -100,7 +93,6 @@ describe('copyToDepartment()', function () {
             'trigger'            => DepartmentModifier::TRIGGER_MANUAL,
             'applies_to'         => DepartmentModifier::SCOPE_BOTH,
             'worker_coeff_delta' => -9.0,
-            'sort_order'         => 30,
         ]);
 
         $copied = $this->service->copyToDepartment($this->dept, $target);
