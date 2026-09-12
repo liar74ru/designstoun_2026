@@ -116,6 +116,16 @@ export function effectiveCoeff({ baseCoeff, departmentId, scope, sku = null, man
     );
 }
 
+/**
+ * Коэффициент для показа: до 4 знаков, хвостовые нули отброшены.
+ *
+ * Значение правила задаёт админ, колонка — decimal(8,4). Округление до одного
+ * знака показывало 1.75 как 1.8, а четыре знака давали нечитаемое «2.5000».
+ */
+export function formatCoeff(value) {
+    return String(Number((Number(value) || 0).toFixed(4)));
+}
+
 /** Стоимость единицы продукции для пильщика по эффективному коэффициенту. */
 export function prodCost(effCoeff, departmentId = null) {
     return stepped(pieceRate(departmentId), Number(effCoeff));
@@ -131,5 +141,6 @@ window.RateFormula = {
     resolve,
     stepped,
     effectiveCoeff,
+    formatCoeff,
     prodCost,
 };

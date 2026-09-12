@@ -184,7 +184,7 @@
                                         {{ number_format($row['quantity'], 3, ',', ' ') }}
                                     </td>
                                     <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
-                                        ×{{ number_format($row['coeff'], 1, ',', ' ') }}
+                                        ×{{ \App\Support\RateFormula::formatCoeff($row['coeff']) }}
                                     </td>
                                     <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
                                         {{ number_format($row['prodCost'], 0, ',', ' ') }} ₽

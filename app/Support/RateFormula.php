@@ -23,4 +23,21 @@ class RateFormula
     {
         return floor(($rate + ($rate * self::COEFF_SHARE) * $coeff) / 10) * 10;
     }
+
+    /**
+     * Коэффициент для показа: до 4 знаков, хвостовые нули отброшены.
+     *
+     * Значение правила задаёт админ, колонка — decimal(8,4). Округление до
+     * одного знака показывало 1.75 как «1,8», а четыре знака давали
+     * нечитаемое «2,5000». Зеркало formatCoeff() из resources/js/rate-formula.js;
+     * разделитель — запятая, значения печатаются в русских таблицах.
+     */
+    public static function formatCoeff(float|int|string|null $value): string
+    {
+        $formatted = number_format((float) $value, 4, ',', ' ');
+
+        return str_contains($formatted, ',')
+            ? rtrim(rtrim($formatted, '0'), ',')
+            : $formatted;
+    }
 }

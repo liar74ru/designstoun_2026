@@ -821,9 +821,10 @@
                 });
 
                 const delta = effective - baseCoeff;
+                const fmt   = RateFormula.formatCoeff;
                 coeffDisplay.textContent = delta === 0
-                    ? effective.toFixed(1)
-                    : `${baseCoeff.toFixed(1)} ${delta > 0 ? '+' : '−'} ${Math.abs(delta).toFixed(1)} = ${effective.toFixed(1)}`;
+                    ? fmt(effective)
+                    : `${fmt(baseCoeff)} ${delta > 0 ? '+' : '−'} ${fmt(Math.abs(delta))} = ${fmt(effective)}`;
 
                 coeffDisplay.classList.toggle('text-warning-emphasis', delta < 0);
                 coeffDisplay.classList.toggle('text-info-emphasis', delta > 0);

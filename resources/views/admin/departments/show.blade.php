@@ -335,7 +335,7 @@
                         $delta = $modifier->{$role . '_coeff_delta'};
 
                         if ($delta !== null) {
-                            $value = rtrim(rtrim((string) $delta, '0'), '.');
+                            $value = \App\Support\RateFormula::formatCoeff($delta);
                             $effects[] = $roleLabel . ' ' . ($delta > 0 ? '+' . $value : $value);
                         }
                     }

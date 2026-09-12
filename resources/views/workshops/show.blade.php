@@ -282,7 +282,7 @@
                                     <td class="text-end text-nowrap">{{ number_format($item->quantity, 3) }}</td>
                                     <td class="text-end text-nowrap text-muted">
                                         @if($item->effective_cost_coeff !== null)
-                                            ×{{ number_format($item->effective_cost_coeff, 1, ',', ' ') }}
+                                            ×{{ \App\Support\RateFormula::formatCoeff($item->effective_cost_coeff) }}
                                         @else
                                             —
                                         @endif
@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded', function () {
             manualKeys: picker ? ModifierPicker.checkedKeys(picker) : [],
         });
 
-        display.textContent = effective.toFixed(4);
+        display.textContent = RateFormula.formatCoeff(effective);
         display.className   = display.className.replace(/bg-\w+/, effective < base ? 'bg-warning' : 'bg-secondary');
     }
 
