@@ -37,6 +37,7 @@
                 'key'                      => $rule->key,
                 'name'                     => $rule->name,
                 'color'                    => $rule->color,
+                'icon'                     => $rule->icon,
                 'trigger'                  => $rule->trigger,
                 'sku_pattern'              => $rule->sku_pattern,
                 'available_when_batch_sku' => $rule->available_when_batch_sku,

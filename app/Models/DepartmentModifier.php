@@ -45,11 +45,34 @@ class DepartmentModifier extends Model
         '#6C757D' => 'Серый',
     ];
 
+    /**
+     * Набор иконок плашек (Bootstrap Icons) — единственный источник и для формы,
+     * и для валидации. Хранится класс целиком: <i class="bi {{ $icon }}">.
+     */
+    public const ICONS = [
+        'bi-lightning-charge-fill'     => 'Молния',
+        'bi-scissors'                  => 'Ножницы',
+        'bi-grid-3x3'                  => 'Мелкая сетка',
+        'bi-mask'                      => 'Маска',
+        'bi-rulers'                    => 'Размер',
+        'bi-hammer'                    => 'Обработка',
+        'bi-gem'                       => 'Премиум',
+        'bi-fire'                      => 'Термо',
+        'bi-droplet-fill'              => 'Влажная резка',
+        'bi-star-fill'                 => 'Особое',
+        'bi-exclamation-triangle-fill' => 'Внимание',
+        'bi-snow'                      => 'Холод',
+    ];
+
+    /** Цвет плашки, когда правилу его не задали. */
+    public const COLOR_FALLBACK = '#6C757D';
+
     protected $fillable = [
         'department_id',
         'key',
         'name',
         'color',
+        'icon',
         'trigger',
         'sku_pattern',
         'available_when_batch_sku',
@@ -68,6 +91,26 @@ class DepartmentModifier extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Цвет текста на плашке: на жёлтом белые буквы не читаются.
+     * Яркость по формуле 0.299R + 0.587G + 0.114B; зеркало textColorOn()
+     * из resources/js/modifier-picker.js.
+     */
+    public static function textColorFor(?string $background): string
+    {
+        $hex = ltrim($background ?: self::COLOR_FALLBACK, '#');
+
+        if (strlen($hex) !== 6) {
+            return '#FFFFFF';
+        }
+
+        [$r, $g, $b] = array_map(hexdec(...), str_split($hex, 2));
+
+        // Порог 140: жёлтый и голубой уходят на тёмный текст — ровно так же,
+        // как раньше их бейджи носили класс text-dark.
+        return (0.299 * $r + 0.587 * $g + 0.114 * $b) > 140 ? '#212529' : '#FFFFFF';
     }
 
     /** Действует ли правило в этой области (приёмка/цех). */

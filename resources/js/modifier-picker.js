@@ -36,6 +36,32 @@ export function checkedKeys(container) {
 /** Счётчик id: строки клонируются из <template>, индекс в разметке может повторяться. */
 let checkboxSeq = 0;
 
+/** Цвет плашки, когда правилу его не задали. Зеркало DepartmentModifier::COLOR_FALLBACK. */
+const COLOR_FALLBACK = '#6C757D';
+
+/**
+ * Цвет текста на плашке: на жёлтом белые буквы не читаются.
+ * Зеркало DepartmentModifier::textColorFor().
+ */
+function textColorOn(background) {
+    const hex = String(background || COLOR_FALLBACK).replace('#', '');
+    if (hex.length !== 6) return '#FFFFFF';
+
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 140 ? '#212529' : '#FFFFFF';
+}
+
+/** Иконка правила; null — правилу её не задали. */
+function ruleIcon(rule, extraClass = '') {
+    if (!rule.icon) return null;
+
+    const icon = document.createElement('i');
+    icon.className = `bi ${rule.icon} ${extraClass}`.trim();
+
+    return icon;
+}
+
 function checkbox(rule, { inputName, checked }) {
     const id = `mod_${++checkboxSeq}_${rule.key}`;
     const wrapper = document.createElement('div');
@@ -52,7 +78,9 @@ function checkbox(rule, { inputName, checked }) {
     const label = document.createElement('label');
     label.className = 'form-check-label small fw-semibold';
     label.setAttribute('for', id);
-    label.textContent = rule.name;
+    const labelIcon = ruleIcon(rule, 'me-1');
+    if (labelIcon) label.append(labelIcon);
+    label.append(document.createTextNode(rule.name));
     if (rule.color) label.style.color = rule.color;
 
     wrapper.append(input, label);
@@ -63,9 +91,11 @@ function badge(rule) {
     const span = document.createElement('span');
     span.className = 'badge flex-shrink-0 modifier-badge';
     span.style.fontSize = '.65rem';
-    span.style.background = rule.color || '#6C757D';
-    span.style.color = '#fff';
-    span.textContent = rule.name;
+    span.style.background = rule.color || COLOR_FALLBACK;
+    span.style.color = textColorOn(rule.color);
+    const icon = ruleIcon(rule, 'me-1');
+    if (icon) span.append(icon);
+    span.append(document.createTextNode(rule.name));
     span.title = 'Применяется автоматически по SKU товара';
     return span;
 }

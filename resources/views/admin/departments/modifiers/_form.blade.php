@@ -7,6 +7,7 @@
 
     $trigger = old('trigger', $modifier?->trigger ?? Rule::TRIGGER_MANUAL);
     $color   = old('color', $modifier?->color);
+    $icon    = old('icon', $modifier?->icon);
 @endphp
 
 @push('styles')
@@ -23,6 +24,18 @@
         }
         .modifier-color input:checked + .modifier-color__dot{box-shadow:0 0 0 3px rgba(13,110,253,.4)}
         .modifier-color input:focus-visible + .modifier-color__dot{outline:2px solid #0D6EFD;outline-offset:2px}
+
+        /* Набор иконок — тот же приём, что и палитра: CSS вместо Alpine. */
+        .modifier-icon{display:inline-block;line-height:0}
+        .modifier-icon__box{
+            display:inline-flex;align-items:center;justify-content:center;
+            flex:0 0 auto;width:32px;height:32px;border-radius:.4rem;
+            border:1px solid rgba(0,0,0,.15);cursor:pointer;font-size:1rem;
+        }
+        .modifier-icon input:checked + .modifier-icon__box{
+            box-shadow:0 0 0 3px rgba(13,110,253,.4);border-color:#0D6EFD;
+        }
+        .modifier-icon input:focus-visible + .modifier-icon__box{outline:2px solid #0D6EFD;outline-offset:2px}
     </style>
 @endpush
 
@@ -95,6 +108,36 @@
                 @error('color')
                     <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
+            </div>
+
+            <div class="mb-1 mt-3">
+                <label class="form-label fw-semibold">Иконка плашки</label>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach(Rule::ICONS as $class => $label)
+                        <label class="modifier-icon" title="{{ $label }}">
+                            <input type="radio" name="icon" value="{{ $class }}" class="visually-hidden"
+                                   @checked($icon === $class)>
+                            {{-- Цвет печатается сервером: живая перекраска потребовала бы
+                                 Alpine :style, а он затирает атрибут целиком. --}}
+                            <span class="modifier-icon__box" @if($color) style="color:{{ $color }}" @endif>
+                                <i class="bi {{ $class }}"></i>
+                            </span>
+                        </label>
+                    @endforeach
+                    <label class="modifier-icon" title="Без иконки">
+                        <input type="radio" name="icon" value="" class="visually-hidden"
+                               @checked($icon === null || $icon === '')>
+                        <span class="modifier-icon__box text-muted">
+                            <i class="bi bi-slash-circle"></i>
+                        </span>
+                    </label>
+                </div>
+                @error('icon')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                @enderror
+                <div class="form-text" style="font-size:.72rem">
+                    Иконка показывается рядом с названием правила в карточках приёмки и цеха.
+                </div>
             </div>
         </div>
     </div>

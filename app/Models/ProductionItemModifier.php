@@ -23,6 +23,7 @@ class ProductionItemModifier extends Model
         'key',
         'name',
         'color',
+        'icon',
         'worker_coeff_delta',
         'master_coeff_delta',
     ];
@@ -64,6 +65,7 @@ class ProductionItemModifier extends Model
             'key'                    => $modifier->key,
             'name'                   => $modifier->name,
             'color'                  => $modifier->color,
+            'icon'                   => $modifier->icon,
             'worker_coeff_delta'     => $modifier->worker_coeff_delta,
             'master_coeff_delta'     => $modifier->master_coeff_delta,
         ];

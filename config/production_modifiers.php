@@ -20,6 +20,7 @@ return [
     'mask_tile' => [
         'name'                     => 'Плитка-маска',
         'color'                    => '#0DCAF0',
+        'icon'                     => 'bi-mask',
         'trigger'                  => 'sku',
         'sku_pattern'              => '04-07-*',
         'available_when_batch_sku' => null,
@@ -30,6 +31,7 @@ return [
     'edging' => [
         'name'                     => 'Торцовка',
         'color'                    => '#0DCAF0',
+        'icon'                     => 'bi-scissors',
         'trigger'                  => 'manual',
         'sku_pattern'              => null,
         // Чекбокс исторически показывался только для партий сырья 04-XX.
@@ -41,6 +43,7 @@ return [
     'undercut' => [
         'name'                     => 'Подкол > 80%',
         'color'                    => '#FFC107',
+        'icon'                     => 'bi-lightning-charge-fill',
         'trigger'                  => 'manual',
         'sku_pattern'              => null,
         'available_when_batch_sku' => null,
@@ -53,6 +56,7 @@ return [
     'small_tile' => [
         'name'                     => 'Мелкая плитка',
         'color'                    => '#6C757D',
+        'icon'                     => 'bi-grid-3x3',
         'trigger'                  => 'sku',
         'sku_pattern'              => '*-*-30',
         'available_when_batch_sku' => null,

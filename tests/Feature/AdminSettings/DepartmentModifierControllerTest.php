@@ -224,8 +224,9 @@ describe('Карточка отдела', function () {
             ->getContent();
 
         // Выбор палитры не должен зависеть от JS — checked приходит с сервера.
+        // Вариант «без плашки» ищется по name: пустое value есть и у набора иконок.
         expect($html)->toMatch('/value="#FFC107"[^>]*checked/')
-            ->and($html)->not->toMatch('/value=""[^>]*checked/');
+            ->and($html)->not->toMatch('/name="color" value=""[^>]*checked/');
     });
 
     test('отдел без правил показывает предупреждение', function () {

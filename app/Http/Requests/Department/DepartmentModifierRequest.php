@@ -25,6 +25,7 @@ class DepartmentModifierRequest extends FormRequest
 
             'name'  => ['required', 'string', 'max:100'],
             'color' => ['nullable', Rule::in(array_keys(DepartmentModifier::COLORS))],
+            'icon'  => ['nullable', Rule::in(array_keys(DepartmentModifier::ICONS))],
 
             'trigger' => [
                 'required',
@@ -58,6 +59,7 @@ class DepartmentModifierRequest extends FormRequest
             'key.unique'      => 'Правило с таким ключом уже есть в этом отделе',
             'name.required'   => 'Укажите название правила',
             'color.in'        => 'Выберите цвет из палитры',
+            'icon.in'         => 'Выберите иконку из набора',
             'trigger.required' => 'Выберите, когда правило срабатывает',
             'trigger.in'       => 'Неизвестный тип срабатывания',
             'sku_pattern.required_if' => 'Укажите маску SKU — по ней правило срабатывает автоматически',
@@ -73,7 +75,7 @@ class DepartmentModifierRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $nullable = [
-            'color', 'sku_pattern', 'available_when_batch_sku',
+            'color', 'icon', 'sku_pattern', 'available_when_batch_sku',
             'worker_coeff_delta', 'master_coeff_delta',
         ];
 

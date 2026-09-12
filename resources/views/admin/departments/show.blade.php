@@ -345,6 +345,10 @@
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div class="me-2">
                             <div class="fw-semibold small">
+                                @if($modifier->icon)
+                                    <i class="bi {{ $modifier->icon }} me-1"
+                                       @if($modifier->color) style="color:{{ $modifier->color }}" @endif></i>
+                                @endif
                                 {{ $modifier->name }}
                                 @unless($modifier->is_active)
                                     <span class="badge bg-secondary" style="font-size:.6rem">выключено</span>
