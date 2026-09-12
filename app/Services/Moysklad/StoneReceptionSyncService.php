@@ -482,12 +482,16 @@ class StoneReceptionSyncService extends MoySkladBaseService
             return trim($batchName . "\n___\n" . $costSummary, "\n");
         }
 
-        $undercutMap = $reception->items->keyBy('product_id')->map(fn($i) => (bool) $i->is_undercut);
-        $edgingMap   = $reception->items->keyBy('product_id')->map(fn($i) => (bool) $i->is_edging);
+        // Теги строки — названия применённых правил отдела: набор у каждого
+        // отдела свой, и «подкол/торцовка» перестали быть исчерпывающими.
+        $reception->loadMissing('items.modifiers');
+        $tagMap = $reception->items->keyBy('product_id')
+            ->map(fn($i) => $i->modifiers->pluck('name')->all());
+
         $receiverIds = $logs->pluck('receiver_id')->filter()->unique();
         $receivers   = Worker::whereIn('id', $receiverIds)->pluck('name', 'id');
 
-        $blocks = $logs->map(function (ReceptionLog $log) use ($receivers, $undercutMap, $edgingMap) {
+        $blocks = $logs->map(function (ReceptionLog $log) use ($receivers, $tagMap) {
             $date         = $log->created_at->format('d.m.Y');
             $receiverName = $receivers[$log->receiver_id] ?? '—';
             $lines        = ["___", "{$date} #{$log->id} {$receiverName}"];
@@ -496,9 +500,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 $productName = $item->product?->name ?? "Товар #{$item->product_id}";
                 $delta       = (float) $item->quantity_delta;
                 $sign        = $delta >= 0 ? '+' : '';
-                $tags        = [];
-                if ($undercutMap[$item->product_id] ?? false) $tags[] = 'подкол';
-                if ($edgingMap[$item->product_id]   ?? false) $tags[] = 'торцовка';
+                $tags        = $tagMap[$item->product_id] ?? [];
                 $suffix      = $tags ? ' (' . implode(', ', $tags) . ')' : '';
                 $lines[]     = "{$productName}: {$sign}" . number_format($delta, 3, '.', '') . $suffix;
             }
