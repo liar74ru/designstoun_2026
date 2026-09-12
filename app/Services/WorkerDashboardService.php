@@ -15,11 +15,21 @@ use App\Models\WorkshopLogItem;
 use App\Models\Worker;
 use App\Support\DepartmentSettings;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 // рефакторинг v2 от 26.04.2026 — controller → service
 class WorkerDashboardService
 {
+    /**
+     * Карты «product_id → позиция» по документам: сводка обращается к позиции
+     * приёмки или цеха шесть раз на строку лога. Сбрасываются в начале запроса —
+     * инстанс сервиса переживает его.
+     *
+     * @var array<string, Collection>
+     */
+    private array $itemMaps = [];
+
     public function getDefaultWeekRange(): array
     {
         $today = Carbon::today();
@@ -36,12 +46,14 @@ class WorkerDashboardService
 
     public function getDashboardData(int $workerId, bool $isMaster, Carbon $dateFrom, Carbon $dateTo): array
     {
+        $this->itemMaps = [];
+
         $workerField = $isMaster ? 'receiver_id' : 'cutter_id';
 
         $logs = ReceptionLog::with([
                 'items.product',
                 'stoneReception.store',
-                'stoneReception.items',
+                'stoneReception.items.modifiers',
                 'stoneReception.department',
                 'stoneReception.rawMaterialBatch',
                 'stoneReception.cutter',
@@ -60,7 +72,7 @@ class WorkerDashboardService
 
         $workshopLogs = WorkshopLog::with([
                 'items.product',
-                'workshop.items',
+                'workshop.items.modifiers',
                 'workshop.department',
                 'workshop.packer',
             ])
@@ -73,6 +85,7 @@ class WorkerDashboardService
         $stoneReceptionIds = $logs->pluck('stone_reception_id')->filter()->unique();
         $stoneReceptions = StoneReception::with([
                 'items.product',
+                'items.modifiers',
                 'rawMaterialBatch.product',
                 $isMaster ? 'cutter' : 'receiver',
                 'store',
@@ -204,6 +217,8 @@ class WorkerDashboardService
         $productId = null,
         ?array $restrictDepartmentIds = null
     ): array {
+        $this->itemMaps = [];
+
         // Явный фильтр отделов из формы — строго выбранные отделы (у не-админа —
         // пересечение с доступными). Без фильтра не-админ видит свои отделы плюс
         // документы, отдел которых не определяется вообще; админ — всё.
@@ -221,7 +236,7 @@ class WorkerDashboardService
 
         $logs = ReceptionLog::with([
                 'items.product',
-                'stoneReception.items',
+                'stoneReception.items.modifiers',
                 'stoneReception.department',
                 'stoneReception.rawMaterialBatch',
                 'stoneReception.cutter',
@@ -241,7 +256,7 @@ class WorkerDashboardService
         // Статус цеха не фильтруем — паритет с приёмками камня.
         $workshopLogs = WorkshopLog::with([
                 'items.product',
-                'workshop.items',
+                'workshop.items.modifiers',
                 'workshop.department',
                 'workshop.packer',
             ])
@@ -333,26 +348,66 @@ class WorkerDashboardService
             ->values();
     }
 
+    /**
+     * Подпись набора правил позиции: отсортированные ключи снапшота.
+     *
+     * Сортировка обязательна — порядок строк в production_item_modifiers от
+     * расчёта не зависит, а ключ группировки обязан быть стабильным, иначе
+     * одинаковые наборы дадут разные строки сводки.
+     */
+    private function modifierSignature(?Model $item): string
+    {
+        return $item ? $item->modifiers->pluck('key')->sort()->values()->implode('|') : '';
+    }
+
+    /**
+     * Позиция приёмки под строку лога.
+     *
+     * Связь восстанавливается по product_id: у ReceptionLogItem ссылки на
+     * позицию нет. Если один товар заведён в приёмке двумя позициями с разными
+     * наборами правил, вся выработка по нему считается по первой — ограничение
+     * существует с появлением логов и снимается только FK на позицию.
+     */
+    private function receptionItemFor($logItem): ?Model
+    {
+        $reception = $logItem->receptionLog?->stoneReception;
+
+        if (!$reception) {
+            return null;
+        }
+
+        $this->itemMaps['r' . $reception->id] ??= $reception->items->keyBy('product_id');
+
+        return $this->itemMaps['r' . $reception->id]->get($logItem->product_id);
+    }
+
+    /** Позиция цеха под строку лога. Оговорка та же, что у receptionItemFor(). */
+    private function workshopItemFor($logItem): ?Model
+    {
+        $workshop = $logItem->workshopLog?->workshop;
+
+        if (!$workshop) {
+            return null;
+        }
+
+        $this->itemMaps['w' . $workshop->id] ??= $workshop->items
+            ->where('role', WorkshopItem::ROLE_PRODUCT)
+            ->keyBy('product_id');
+
+        return $this->itemMaps['w' . $workshop->id]->get($logItem->product_id);
+    }
+
     private function buildProductSummary(Collection $logs): Collection
     {
         $allItems = $logs->flatMap(fn($log) => $log->items);
 
         return $allItems
-            ->groupBy(function ($logItem) {
-                $receptionItem = $logItem->receptionLog?->stoneReception?->items
-                    ->firstWhere('product_id', $logItem->product_id);
-                $isUndercut = $receptionItem ? (bool) $receptionItem->is_undercut : false;
-                $isEdging   = $receptionItem ? (bool) $receptionItem->is_edging   : false;
-                return $logItem->product_id . '_' . ($isUndercut ? '1' : '0') . '_' . ($isEdging ? '1' : '0');
-            })
+            ->groupBy(fn($logItem) => $logItem->product_id
+                . '#' . $this->modifierSignature($this->receptionItemFor($logItem)))
             ->map(function ($items) {
                 $firstLogItem       = $items->first();
                 $product            = $firstLogItem->product;
-                $firstReceptionItem = $firstLogItem->receptionLog?->stoneReception?->items
-                    ->firstWhere('product_id', $firstLogItem->product_id);
-                $isUndercut  = $firstReceptionItem ? (bool) $firstReceptionItem->is_undercut  : false;
-                $isEdging    = $firstReceptionItem ? (bool) $firstReceptionItem->is_edging    : false;
-                $isSmallTile = $firstReceptionItem ? (bool) $firstReceptionItem->is_small_tile : false;
+                $firstReceptionItem = $this->receptionItemFor($firstLogItem);
 
                 $quantity = $items->sum(fn($item) => (float) $item->quantity_delta);
 
@@ -360,8 +415,7 @@ class WorkerDashboardService
                     $delta = (float) $logItem->quantity_delta;
                     if (abs($delta) < 0.0001) return 0.0;
 
-                    $receptionItem = $logItem->receptionLog?->stoneReception?->items
-                        ->firstWhere('product_id', $logItem->product_id);
+                    $receptionItem = $this->receptionItemFor($logItem);
 
                     if ($receptionItem) {
                         return $delta * $receptionItem->effectiveProdCost();
@@ -376,15 +430,14 @@ class WorkerDashboardService
                 });
 
                 $effCoeffDisplay = $items
-                    ->map(fn($li) => $li->receptionLog?->stoneReception?->items->firstWhere('product_id', $li->product_id)?->effective_cost_coeff)
+                    ->map(fn($li) => $this->receptionItemFor($li)?->effective_cost_coeff)
                     ->filter()
                     ->avg() ?? $product?->prod_cost_coeff ?? 0;
 
                 $masterPay = $items->sum(function ($logItem) {
                     $delta = (float) $logItem->quantity_delta;
                     if (abs($delta) < 0.0001) return 0.0;
-                    $receptionItem = $logItem->receptionLog?->stoneReception?->items
-                        ->firstWhere('product_id', $logItem->product_id);
+                    $receptionItem = $this->receptionItemFor($logItem);
                     return $receptionItem ? $delta * (float) ($receptionItem->master_cost_per_m2 ?? 0) : 0.0;
                 });
 
@@ -392,20 +445,17 @@ class WorkerDashboardService
                     'product'       => $product,
                     'quantity'      => $quantity,
                     'coeff'         => $effCoeffDisplay,
-                    'is_undercut'   => $isUndercut,
-                    'is_edging'     => $isEdging,
-                    'is_small_tile' => $isSmallTile,
+                    'modifiers'     => $firstReceptionItem?->modifiers ?? collect(),
+                    'signature'     => $this->modifierSignature($firstReceptionItem),
                     'prodCost'      => $items
-                        ->map(fn($li) => $li->receptionLog?->stoneReception?->items
-                            ->firstWhere('product_id', $li->product_id)?->worker_cost_per_m2)
+                        ->map(fn($li) => $this->receptionItemFor($li)?->worker_cost_per_m2)
                         ->filter()
                         ->avg() ?? $product?->prodCost(
                             $effCoeffDisplay,
                             $firstLogItem->receptionLog?->stoneReception?->effectiveDepartmentId()
                         ) ?? 0,
                     'masterCost'    => $items
-                        ->map(fn($li) => $li->receptionLog?->stoneReception?->items
-                            ->firstWhere('product_id', $li->product_id)?->master_cost_per_m2)
+                        ->map(fn($li) => $this->receptionItemFor($li)?->master_cost_per_m2)
                         ->filter()
                         ->avg() ?? 0,
                     'pay'           => $pay,
@@ -413,44 +463,34 @@ class WorkerDashboardService
                 ];
             })
             ->filter(fn($row) => abs($row['quantity']) > 0.0001)
-            ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '_' . ($row['is_undercut'] ? '1' : '0') . '_' . ($row['is_edging'] ? '1' : '0'))
+            ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '#' . $row['signature'])
             ->values();
     }
 
     /**
      * Сводка производства цеха по продуктам: аналог buildProductSummary,
-     * но по дельтам WorkshopLogItem (role=product); стоимости и флаги —
+     * но по дельтам WorkshopLogItem (role=product); стоимости и правила —
      * из родительских позиций Workshop.items (role=product).
      */
     private function buildWorkshopProductSummary(Collection $logs): Collection
     {
         $allItems = $logs->flatMap(fn($log) => $log->items->where('role', WorkshopItem::ROLE_PRODUCT));
 
-        $findWorkshopItem = fn($logItem) => $logItem->workshopLog?->workshop?->items
-            ->first(fn($i) => $i->role === WorkshopItem::ROLE_PRODUCT && $i->product_id === $logItem->product_id);
-
         return $allItems
-            ->groupBy(function ($logItem) use ($findWorkshopItem) {
-                $wsItem     = $findWorkshopItem($logItem);
-                $isUndercut = $wsItem ? (bool) $wsItem->is_undercut : false;
-                $isEdging   = $wsItem ? (bool) $wsItem->is_edging   : false;
-                return $logItem->product_id . '_' . ($isUndercut ? '1' : '0') . '_' . ($isEdging ? '1' : '0');
-            })
-            ->map(function ($items) use ($findWorkshopItem) {
+            ->groupBy(fn($logItem) => $logItem->product_id
+                . '#' . $this->modifierSignature($this->workshopItemFor($logItem)))
+            ->map(function ($items) {
                 $firstLogItem = $items->first();
                 $product      = $firstLogItem->product;
-                $firstWsItem  = $findWorkshopItem($firstLogItem);
-                $isUndercut   = $firstWsItem ? (bool) $firstWsItem->is_undercut  : false;
-                $isEdging     = $firstWsItem ? (bool) $firstWsItem->is_edging    : false;
-                $isSmallTile  = $firstWsItem ? (bool) $firstWsItem->is_small_tile : false;
+                $firstWsItem  = $this->workshopItemFor($firstLogItem);
 
                 $quantity = $items->sum(fn($item) => (float) $item->quantity_delta);
 
-                $pay = $items->sum(function ($logItem) use ($product, $findWorkshopItem) {
+                $pay = $items->sum(function ($logItem) use ($product) {
                     $delta = (float) $logItem->quantity_delta;
                     if (abs($delta) < 0.0001) return 0.0;
 
-                    $wsItem = $findWorkshopItem($logItem);
+                    $wsItem = $this->workshopItemFor($logItem);
                     if ($wsItem) {
                         return $delta * $wsItem->effectiveProdCost();
                     }
@@ -464,14 +504,14 @@ class WorkerDashboardService
                 });
 
                 $effCoeffDisplay = $items
-                    ->map(fn($li) => $findWorkshopItem($li)?->effective_cost_coeff)
+                    ->map(fn($li) => $this->workshopItemFor($li)?->effective_cost_coeff)
                     ->filter()
                     ->avg() ?? $product?->prod_cost_coeff ?? 0;
 
-                $masterPay = $items->sum(function ($logItem) use ($findWorkshopItem) {
+                $masterPay = $items->sum(function ($logItem) {
                     $delta = (float) $logItem->quantity_delta;
                     if (abs($delta) < 0.0001) return 0.0;
-                    $wsItem = $findWorkshopItem($logItem);
+                    $wsItem = $this->workshopItemFor($logItem);
                     return $wsItem ? $delta * (float) ($wsItem->master_cost_per_m2 ?? 0) : 0.0;
                 });
 
@@ -479,18 +519,17 @@ class WorkerDashboardService
                     'product'       => $product,
                     'quantity'      => $quantity,
                     'coeff'         => $effCoeffDisplay,
-                    'is_undercut'   => $isUndercut,
-                    'is_edging'     => $isEdging,
-                    'is_small_tile' => $isSmallTile,
+                    'modifiers'     => $firstWsItem?->modifiers ?? collect(),
+                    'signature'     => $this->modifierSignature($firstWsItem),
                     'prodCost'      => $items
-                        ->map(fn($li) => $findWorkshopItem($li)?->worker_cost_per_m2)
+                        ->map(fn($li) => $this->workshopItemFor($li)?->worker_cost_per_m2)
                         ->filter()
                         ->avg() ?? $product?->prodCost(
                             $effCoeffDisplay,
                             $firstLogItem->workshopLog?->workshop?->effectiveDepartmentId()
                         ) ?? 0,
                     'masterCost'    => $items
-                        ->map(fn($li) => $findWorkshopItem($li)?->master_cost_per_m2)
+                        ->map(fn($li) => $this->workshopItemFor($li)?->master_cost_per_m2)
                         ->filter()
                         ->avg() ?? 0,
                     'pay'           => $pay,
@@ -502,15 +541,13 @@ class WorkerDashboardService
     }
 
     /**
-     * Слияние двух сводок по продуктам: строки с одним товаром и флагами
-     * (is_undercut, is_edging) объединяются, суммы складываются.
+     * Слияние двух сводок по продуктам: строки с одним товаром и одинаковым
+     * набором правил объединяются, суммы складываются.
      */
     private function mergeProductSummaries(Collection $a, Collection $b): Collection
     {
         return $a->concat($b)
-            ->groupBy(fn($row) => ($row['product']?->id ?? 0)
-                . '_' . ($row['is_undercut'] ? '1' : '0')
-                . '_' . ($row['is_edging'] ? '1' : '0'))
+            ->groupBy(fn($row) => ($row['product']?->id ?? 0) . '#' . $row['signature'])
             ->map(function ($rows) {
                 if ($rows->count() === 1) {
                     return $rows->first();
@@ -525,9 +562,9 @@ class WorkerDashboardService
                     'product'       => $rows->first()['product'],
                     'quantity'      => $quantity,
                     'coeff'         => $wavg('coeff'),
-                    'is_undercut'   => $rows->first()['is_undercut'],
-                    'is_edging'     => $rows->first()['is_edging'],
-                    'is_small_tile' => $rows->contains(fn($r) => $r['is_small_tile']),
+                    // Набор правил у сливаемых строк одинаков по построению ключа.
+                    'modifiers'     => $rows->first()['modifiers'],
+                    'signature'     => $rows->first()['signature'],
                     'prodCost'      => $wavg('prodCost'),
                     'masterCost'    => $wavg('masterCost'),
                     'pay'           => $rows->sum('pay'),
@@ -535,7 +572,7 @@ class WorkerDashboardService
                 ];
             })
             ->filter(fn($row) => abs($row['quantity']) > 0.0001)
-            ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '_' . ($row['is_undercut'] ? '1' : '0') . '_' . ($row['is_edging'] ? '1' : '0'))
+            ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '#' . $row['signature'])
             ->values();
     }
 }
