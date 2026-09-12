@@ -272,12 +272,11 @@
                                     <td>
                                         <div>{{ $item->product->name ?? '—' }}</div>
                                         <small class="text-muted">{{ $item->product->sku ?? '' }}</small>
-                                        @if($item->is_undercut)
-                                            <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">подкол 80%</span>
-                                        @endif
-                                        @if($item->is_edging)
-                                            <span class="badge bg-info text-dark ms-1" style="font-size:.6rem">торцовка</span>
-                                        @endif
+                                        @include('partials.modifier-badges', [
+                                            'modifiers' => $item->modifiers,
+                                            'class'     => 'ms-1',
+                                            'font'      => '.6rem',
+                                        ])
                                     </td>
                                     <td class="text-end text-nowrap">{{ number_format($item->quantity, 3) }}</td>
                                     <td class="text-end text-nowrap text-muted">

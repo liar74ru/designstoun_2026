@@ -74,24 +74,24 @@
 
         {{-- Блок: плитка --}}
         @if($log->items->count() > 0)
+            @php
+                // Карта считается один раз: firstWhere в цикле обходил items на каждую строку.
+                $logReceptionItems = $log->stoneReception?->items->keyBy('product_id') ?? collect();
+            @endphp
             <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                 @foreach($log->items as $item)
                     @php
                         $delta = (float) $item->quantity_delta;
-                        $receptionItem = $log->stoneReception?->items->firstWhere('product_id', $item->product_id);
-                        $isUndercut = $receptionItem?->is_undercut ?? false;
-                        $isEdging   = $receptionItem?->is_edging ?? false;
                     @endphp
                     <div class="d-flex justify-content-between align-items-baseline" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
                         <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
-                            @if($isUndercut)
-                                <i class="bi bi-lightning-charge-fill me-1" style="color:#ffc107"></i>
-                            @elseif($isEdging)
-                                <i class="bi bi-scissors me-1" style="color:#0dcaf0"></i>
-                            @else
-                                <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-secondary me-1"></ion-icon>
-                            @endif
+                            <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-secondary me-1"></ion-icon>
                             {{ $item->product?->name ?? '?' }}
+                            @include('partials.modifier-badges', [
+                                'modifiers' => $logReceptionItems->get($item->product_id)?->modifiers ?? [],
+                                'variant'   => 'icon',
+                                'class'     => 'ms-1',
+                            ])
                         </span>
                         <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }} text-nowrap" style="font-size:.72rem">
                             {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }} м²

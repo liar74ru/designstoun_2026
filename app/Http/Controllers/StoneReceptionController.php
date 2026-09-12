@@ -142,6 +142,7 @@ class StoneReceptionController extends Controller
             'store',
             'department',
             'items.product',
+            'items.modifiers',
             'rawMaterialBatch.product',
             'receptionLogs' => fn($q) => $q->orderBy('created_at', 'asc'),
             'receptionLogs.items.product',

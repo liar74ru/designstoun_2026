@@ -281,12 +281,11 @@
                                             @else
                                                 <span class="text-danger">Продукт не найден</span>
                                             @endif
-                                            @if($item->is_undercut)
-                                                <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">подкол 80%</span>
-                                            @endif
-                                            @if($item->is_small_tile)
-                                                <span class="badge bg-info text-dark ms-1" style="font-size:.6rem">< 50мм</span>
-                                            @endif
+                                            @include('partials.modifier-badges', [
+                                                'modifiers' => $item->modifiers,
+                                                'class'     => 'ms-1',
+                                                'font'      => '.6rem',
+                                            ])
                                         </td>
                                         <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
                                             {{ number_format($item->quantity, 3, ',', ' ') }}

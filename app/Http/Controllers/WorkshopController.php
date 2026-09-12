@@ -106,6 +106,7 @@ class WorkshopController extends Controller
             'receiver',
             'store',
             'items.product',
+            'items.modifiers',
             'workshopLogs' => fn($q) => $q->orderBy('created_at', 'asc'),
             'workshopLogs.items.product',
             'workshopLogs.packer',

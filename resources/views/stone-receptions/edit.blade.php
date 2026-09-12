@@ -250,22 +250,20 @@
                                             <input type="hidden" name="products[{{ $idx }}][product_id]" value="{{ $item->product_id }}">
                                             <input type="hidden" class="js-qty-out" name="products[{{ $idx }}][quantity]" value="{{ $current }}">
 
-                                            @if($item->is_undercut)
-                                                <span class="badge bg-warning text-dark position-absolute"
-                                                      style="top:0;right:0;bottom:0;writing-mode:vertical-rl;transform:rotate(180deg);font-size:.55rem;border-radius:0 .4rem .4rem 0;padding:.25rem .2rem">
-                                                    80% подкол
-                                                </span>
-                                            @endif
-                                            @if($item->is_edging)
-                                                <span class="badge bg-info text-dark position-absolute"
-                                                      style="top:0;left:0;bottom:0;writing-mode:vertical-rl;font-size:.55rem;border-radius:.4rem 0 0 .4rem;padding:.25rem .2rem">
-                                                    Торцовка
-                                                </span>
-                                            @endif
-
-                                            <div style="font-size:.85rem;font-weight:600;padding-right:1.8rem;margin-bottom:.15rem">
+                                            <div style="font-size:.85rem;font-weight:600;margin-bottom:.15rem">
                                                 {{ $item->product->name ?? '—' }}
                                             </div>
+
+                                            {{-- Правила строкой, а не вертикальными полосами по краям:
+                                                 прежняя разметка вмещала ровно два признака. --}}
+                                            @if($item->modifiers->isNotEmpty())
+                                                <div class="d-flex flex-wrap gap-1" style="margin-bottom:.15rem">
+                                                    @include('partials.modifier-badges', [
+                                                        'modifiers' => $item->modifiers,
+                                                        'font'      => '.55rem',
+                                                    ])
+                                                </div>
+                                            @endif
 
                                             <div class="d-flex align-items-center gap-1" style="margin-bottom:.15rem">
                                                 <span class="text-muted" style="font-size:.8rem;white-space:nowrap">{{ number_format($current, 3, '.', '') }}</span>
