@@ -85,13 +85,11 @@
                     @endphp
                     <div class="d-flex justify-content-between align-items-baseline" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
                         <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
-                            <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-secondary me-1"></ion-icon>
-                            {{ $item->product?->name ?? '?' }}
-                            @include('partials.modifier-badges', [
+                            @include('partials.item-icon', [
                                 'modifiers' => $logReceptionItems->get($item->product_id)?->modifiers ?? [],
-                                'variant'   => 'icon',
-                                'class'     => 'ms-1',
+                                'sku'       => $item->product?->sku,
                             ])
+                            {{ $item->product?->name ?? '?' }}
                         </span>
                         <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }} text-nowrap" style="font-size:.72rem">
                             {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }} м²

@@ -57,6 +57,15 @@ class ProductionItemModifier extends Model
         return (float) ($delta ?? 0);
     }
 
+    /**
+     * Срабатывало ли правило вручную — по текущему правилу отдела.
+     * Удалённое правило считается ручным: иконка не должна пропасть молча.
+     */
+    public function isManual(): bool
+    {
+        return $this->modifier?->trigger !== DepartmentModifier::TRIGGER_SKU;
+    }
+
     /** Снимок правила для записи в снапшот позиции. */
     public static function attributesFrom(DepartmentModifier $modifier): array
     {

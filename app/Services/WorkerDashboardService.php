@@ -53,7 +53,7 @@ class WorkerDashboardService
         $logs = ReceptionLog::with([
                 'items.product',
                 'stoneReception.store',
-                'stoneReception.items.modifiers',
+                'stoneReception.items.modifiers.modifier',
                 'stoneReception.department',
                 'stoneReception.rawMaterialBatch',
                 'stoneReception.cutter',
@@ -85,7 +85,7 @@ class WorkerDashboardService
         $stoneReceptionIds = $logs->pluck('stone_reception_id')->filter()->unique();
         $stoneReceptions = StoneReception::with([
                 'items.product',
-                'items.modifiers',
+                'items.modifiers.modifier',
                 'rawMaterialBatch.product',
                 $isMaster ? 'cutter' : 'receiver',
                 'store',

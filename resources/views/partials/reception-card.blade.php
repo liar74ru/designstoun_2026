@@ -110,13 +110,12 @@
                 @foreach($reception->items as $item)
                     <div class="d-flex justify-content-between align-items-baseline" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
                         <span class="text-truncate me-2" style="font-size:.72rem;max-width:80%">
-                            <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-secondary me-1" style="vertical-align:-2px"></ion-icon>
-                            {{ $item->product->name }}
-                            @include('partials.modifier-badges', [
+                            @include('partials.item-icon', [
                                 'modifiers' => $item->modifiers,
-                                'variant'   => 'icon',
-                                'class'     => 'ms-1',
+                                'sku'       => $item->product?->sku,
+                                'iconStyle' => 'vertical-align:-2px',
                             ])
+                            {{ $item->product->name }}
                         </span>
                         <span class="fw-semibold text-primary text-nowrap" style="font-size:.72rem">
                             {{ number_format($item->quantity, 3, ',', '.') }} м²

@@ -37,7 +37,7 @@ class RawMaterialBatchController extends Controller
         $batch = RawMaterialBatch::with([
             'product', 'currentStore', 'currentWorker',
             'movements' => fn($q) => $q->with(['fromStore', 'toStore', 'fromWorker', 'toWorker', 'movedBy'])->orderBy('created_at', 'desc'),
-            'receptions' => fn($q) => $q->with(['items.product', 'items.modifiers', 'receiver', 'cutter'])->orderBy('created_at', 'desc'),
+            'receptions' => fn($q) => $q->with(['items.product', 'items.modifiers.modifier', 'receiver', 'cutter'])->orderBy('created_at', 'desc'),
         ])->findOrFail($id);
 
         $backUrl = back_url(route('raw-batches.index'));

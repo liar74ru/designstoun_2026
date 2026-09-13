@@ -108,7 +108,7 @@ class StoneReceptionService
     {
         $accessible = $request?->user()?->accessibleDepartmentIds();
 
-        $query = StoneReception::with(['receiver', 'cutter', 'store', 'items.product', 'items.modifiers', 'rawMaterialBatch.product'])
+        $query = StoneReception::with(['receiver', 'cutter', 'store', 'items.product', 'items.modifiers.modifier', 'rawMaterialBatch.product'])
             ->orderBy('created_at', 'desc');
 
         if ($rawMaterialProductId) {
@@ -146,7 +146,7 @@ class StoneReceptionService
                 }),
                 AllowedFilter::exact('cutter_id'),
             ])
-            ->with(['receiver', 'cutter', 'store', 'items.product', 'items.modifiers', 'rawMaterialBatch.product', 'department'])
+            ->with(['receiver', 'cutter', 'store', 'items.product', 'items.modifiers.modifier', 'rawMaterialBatch.product', 'department'])
             ->when($request->filled('date_from'), fn($q) =>
                 $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->filled('date_to'), fn($q) =>
@@ -215,7 +215,7 @@ class StoneReceptionService
                 AllowedFilter::callback('sync_status', fn() => null),
             ])
             ->with(['cutter', 'receiver', 'items.product',
-                'stoneReception.items.modifiers',
+                'stoneReception.items.modifiers.modifier',
                 'stoneReception.store', 'stoneReception.department', 'rawMaterialBatch.product'])
             ->when($request->filled('date_from'), fn($q) =>
                 $q->whereDate('created_at', '>=', $request->date_from))
