@@ -71,7 +71,19 @@ class ProductController extends Controller
             ->where('moysklad_id', $id)
             ->firstOrFail();
 
-        return view('products.show', compact('product'));
+        // «Назад» ведёт туда, откуда пришли. Переходы внутри карточки товара
+        // (обновление, синхронизация остатков) возвращают на неё же — их не запоминаем.
+        $backKey = 'products.back.'.$id;
+        $previous = url()->previous(route('products.index'));
+        $previousPath = '/'.ltrim((string) parse_url($previous, PHP_URL_PATH), '/');
+
+        if (! str_starts_with($previousPath, '/products/'.$id)) {
+            session([$backKey => $previous]);
+        }
+
+        $backUrl = session($backKey, route('products.index'));
+
+        return view('products.show', compact('product', 'backUrl'));
     }
 
     /**

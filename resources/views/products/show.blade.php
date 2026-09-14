@@ -2,315 +2,309 @@
 
 @section('title', $product->name)
 
+@push('styles')
+    <style>
+        /* Tailwind (app.css) задаёт .collapse { visibility: collapse } — раскрытый блок Bootstrap
+           получал высоту, но оставался невидимым. */
+        .collapse.show, .collapsing { visibility: visible; }
+
+        .info-block-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            min-width: 0;
+            border: 0;
+            border-bottom: 1px solid #dee2e6;
+            color: inherit;
+            font-weight: 600;
+            text-align: left;
+        }
+        .info-block-toggle.collapsed { border-bottom: 0; border-radius: .35rem; }
+        .info-block-toggle .bi-chevron-right { transition: transform .15s ease; }
+        .info-block-toggle:not(.collapsed) .bi-chevron-right { transform: rotate(90deg); }
+        @media (prefers-reduced-motion: reduce) {
+            .info-block-toggle .bi-chevron-right { transition: none; }
+        }
+    </style>
+@endpush
+
 @section('content')
-    <div class="container py-4">
-        <!-- Навигация -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <a href="{{ route('products.index') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> К списку товаров
-                </a>
-            </div>
-            <div class="btn-group">
+    @php
+        $uom      = $product->stocks->first()?->store?->uom ?? 'шт';
+        $skuColor = \App\Models\Product::getColorBySku($product->sku);
+        $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+
+        $extraAttributes = is_string($product->attributes) ? json_decode($product->attributes, true) : ($product->attributes ?? []);
+        $extraAttributes = collect($extraAttributes)->filter(fn ($value, $key) => $value && !in_array($key, ['meta', 'zones', 'slots']));
+
+        // Склады, где всё по нулям (остаток, резерв, в пути), не показываем — только считаем.
+        $visibleStocks     = $product->stocks->reject(fn ($s) => $s->quantity == 0 && $s->reserved == 0 && $s->in_transit == 0);
+        $hiddenStocksCount = $product->stocks->count() - $visibleStocks->count();
+        $refreshConfirm  = "return confirm('Обновить данные товара из МойСклад?')";
+    @endphp
+
+    <div class="container py-3 py-md-4">
+        <x-page-header :title="$product->name" :backUrl="$backUrl">
+            <x-slot:actions>
                 <a href="{{ route('products.refresh', $product->moysklad_id) }}"
                    class="btn btn-warning"
-                   onclick="return confirm('Обновить данные товара из МойСклад?')">
+                   onclick="{{ $refreshConfirm }}">
                     <i class="bi bi-arrow-repeat"></i> Обновить
                 </a>
-            </div>
-        </div>
+            </x-slot:actions>
+            <x-slot:mobileActions>
+                <a href="{{ route('products.refresh', $product->moysklad_id) }}"
+                   class="btn btn-warning btn-sm"
+                   title="Обновить"
+                   onclick="{{ $refreshConfirm }}">
+                    <i class="bi bi-arrow-repeat"></i>
+                </a>
+            </x-slot:mobileActions>
+        </x-page-header>
 
-        <!-- Информация о товаре -->
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">{{ $product->name }}</h4>
-                        <span class="badge bg-info" style="font-size: 1rem;">
-                            Общий остаток: {{ number_format($product->total_quantity, 2, ',', ' ') }}
-                            @if($product->stocks->first() && $product->stocks->first()->store)
-                                {{ $product->stocks->first()->store->uom ?? 'шт' }}
-                            @else
-                                шт
-                            @endif
-                        </span>
+        @include('partials.alerts')
+
+        <div class="d-flex flex-column gap-2">
+            {{-- Общий остаток --}}
+            <div class="info-block mb-0" style="border-left:4px solid {{ $skuColor }}">
+                <div class="info-block-header d-flex justify-content-between align-items-center small fw-semibold">
+                    <span>Общий остаток</span>
+                    @if($product->total_quantity > 0)
+                        <span class="badge bg-success">В наличии</span>
+                    @else
+                        <span class="badge bg-danger">Нет в наличии</span>
+                    @endif
+                </div>
+                <div class="info-block-body" style="{{ $skuBg }}">
+                    <div class="fs-3 fw-semibold lh-sm">
+                        {{ number_format($product->total_quantity, 3, ',', ' ') }}
+                        <span class="fs-6 fw-normal text-muted">{{ $uom }}</span>
                     </div>
-                    <div class="card-body">
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <h5 class="text-muted mb-3">Основная информация</h5>
-                                <table class="table table-sm">
-                                    <tr>
-                                        <th style="width: 150px;">Артикул:</th>
-                                        <td><span class="badge bg-secondary">{{ $product->sku ?? '—' }}</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Код:</th>
-                                        <td><span class="badge bg-secondary">{{ $product->code ?? '—' }}</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th>group_name:</th>
-                                        <td><span class="badge bg-secondary">{{ $product->group_name ?? '—' }}</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th>ID в МойСклад:</th>
-                                        <td><small class="text-muted">{{ $product->moysklad_id }}</small></td>
-                                    </tr>
-                                    <tr>
-                                        <th>prodCostCoeff:</th>
-                                        <td><small class="text-muted">{{ $product->prod_cost_coeff }}</small></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Статус:</th>
-                                        <td>
-                                            @if($product->is_active)
-                                                <span class="badge bg-success">Активен</span>
-                                            @else
-                                                <span class="badge bg-secondary">Неактивен</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Дата добавления:</th>
-                                        <td>{{ $product->created_at->format('d.m.Y H:i') }}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Последнее обновление:</th>
-                                        <td>{{ $product->updated_at->format('d.m.Y H:i') }}</td>
-                                    </tr>
-                                </table>
-                            </div>
-                            <div class="col-md-6">
-                                <h5 class="text-muted mb-3">Цена и наличие</h5>
-                                <table class="table table-sm">
-                                    <tr>
-                                        <th style="width: 150px;">Цена:</th>
-                                        <td>
-                                        <span class="h4 text-primary">
-                                            {{ number_format($product->price, 2, ',', ' ') }} ₽
-                                        </span>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th style="width: 150px;">Мин. цена:</th>
-                                        <td>
-                                            @if($product->min_price && $product->min_price > 0)
-                                                <span class="text-success fw-semibold">{{ number_format($product->min_price, 2, ',', ' ') }} ₽</span>
-                                            @else
-                                                <span class="text-muted">—</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Закупочная цена:</th>
-                                        <td>
-                                            @if($product->buy_price && $product->buy_price > 0)
-                                                <span class="text-info fw-semibold">{{ number_format($product->buy_price, 2, ',', ' ') }} ₽</span>
-                                            @else
-                                                <span class="text-muted">—</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                    @if($product->old_price && $product->old_price > 0)
-                                        <tr>
-                                            <th>Старая цена:</th>
-                                            <td>
-                                                <span class="text-muted text-decoration-line-through">
-                                                    {{ number_format($product->old_price, 2, ',', ' ') }} ₽
-                                                </span>
-                                                @php
-                                                    $discountPercent = round((($product->old_price - $product->price) / $product->old_price) * 100);
-                                                @endphp
-                                                @if($discountPercent > 0)
-                                                    <span class="badge bg-danger ms-2">
-                                                        -{{ $discountPercent }}%
-                                                    </span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endif
-                                    <tr>
-                                        <th>Общее количество:</th>
-                                        <td>
-                                            @if($product->total_quantity > 0)
-                                                <span class="badge bg-success" style="font-size: 1rem;">
-                                                    {{ number_format($product->total_quantity, 3, ',', ' ') }}
-                                                    @if($product->stocks->first() && $product->stocks->first()->store)
-                                                        {{ $product->stocks->first()->store->uom ?? 'шт' }}
-                                                    @else
-                                                        шт
-                                                    @endif
-                                                </span>
-                                            @else
-                                                <span class="badge bg-danger" style="font-size: 1rem;">
-                                                    Нет в наличии
-                                                </span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
+                    @if($product->stocks->isNotEmpty())
+                        <div class="d-flex flex-wrap column-gap-3 small text-muted mt-1">
+                            <span>Доступно <b class="text-body">{{ number_format($visibleStocks->sum('available'), 3, ',', ' ') }}</b></span>
+                            <span>Резерв <b class="text-body">{{ number_format($visibleStocks->sum('reserved'), 3, ',', ' ') }}</b></span>
+                            <span>В пути <b class="text-body">{{ number_format($visibleStocks->sum('in_transit'), 3, ',', ' ') }}</b></span>
                         </div>
-
-                        @if($product->description)
-                            <div class="mb-4">
-                                <h5 class="text-muted mb-3">Описание</h5>
-                                <div class="p-3 bg-light rounded">
-                                    {{ $product->description }}
-                                </div>
-                            </div>
-                        @endif
-
-                        <!-- Блок остатков по складам -->
-                        <div class="mt-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="text-muted mb-0">Остатки по складам</h5>
-                                <form action="{{ route('products.stocks.sync', $product->moysklad_id) }}"
-                                      method="POST"
-                                      class="d-inline">
-                                    @csrf
-                                    <button type="submit" class="btn btn-sm btn-outline-primary"
-                                            onclick="return confirm('Обновить остатки по складам из МойСклад?')">
-                                        <i class="bi bi-arrow-repeat"></i> Синхронизировать остатки
-                                    </button>
-                                </form>
-                            </div>
-
-                            @if($product->stocks && $product->stocks->count() > 0)
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-hover">
-                                        <thead class="table-light">
-                                        <tr>
-                                            <th>Склад</th>
-                                            <th class="text-center">Количество</th>
-                                            <th class="text-center">Резерв</th>
-                                            <th class="text-center">В пути</th>
-                                            <th class="text-center">Доступно</th>
-                                            <th>Последнее обновление</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        @foreach($product->stocks as $stock)
-                                            <tr>
-                                                <td>
-                                                    <strong>{{ $stock->store->name ?? 'Неизвестный склад' }}</strong>
-                                                    @if($stock->store && $stock->store->path_name)
-                                                        <br>
-                                                        <small class="text-muted">{{ $stock->store->path_name }}</small>
-                                                    @endif
-                                                </td>
-                                                <td class="text-center">
-                                                    <span class="badge bg-primary">{{ number_format($stock->quantity, 3, ',', ' ') }}</span>
-                                                </td>
-                                                <td class="text-center">
-                                                    @if($stock->reserved > 0)
-                                                        <span class="badge bg-warning text-dark">{{ number_format($stock->reserved, 3, ',', ' ') }}</span>
-                                                    @else
-                                                        <span class="text-muted">0</span>
-                                                    @endif
-                                                </td>
-                                                <td class="text-center">
-                                                    @if($stock->in_transit > 0)
-                                                        <span class="badge bg-info">{{ number_format($stock->in_transit, 3, ',', ' ') }}</span>
-                                                    @else
-                                                        <span class="text-muted">0</span>
-                                                    @endif
-                                                </td>
-                                                <td class="text-center">
-                                                    @if($stock->available > 0)
-                                                        <span class="badge bg-success">{{ number_format($stock->available, 3, ',', ' ') }}</span>
-                                                    @else
-                                                        <span class="text-muted">0</span>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    <small class="text-muted">
-                                                        {{ $stock->updated_at->format('d.m.Y H:i') }}
-                                                    </small>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                        <tfoot class="table-light">
-                                        <tr>
-                                            <th>Итого:</th>
-                                            <th class="text-center">{{ number_format($product->stocks->sum('quantity'), 3, ',', ' ') }}</th>
-                                            <th class="text-center">{{ number_format($product->stocks->sum('reserved'), 3, ',', ' ') }}</th>
-                                            <th class="text-center">{{ number_format($product->stocks->sum('in_transit'), 3, ',', ' ') }}</th>
-                                            <th class="text-center">{{ number_format($product->stocks->sum('available'), 3, ',', ' ') }}</th>
-                                            <th></th>
-                                        </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-
-                                @if($product->stocks->where('quantity', 0)->count() > 0)
-                                    <div class="mt-2">
-                                        <small class="text-muted">
-                                            * Показаны только склады с ненулевым остатком.
-                                            Складов с нулевым остатком: {{ $product->stocks->where('quantity', 0)->count() }}
-                                        </small>
-                                    </div>
-                                @endif
-                            @else
-                                <div class="alert alert-light border text-center py-4">
-                                    <i class="bi bi-box-seam d-block mb-2" style="font-size: 2rem;"></i>
-                                    <p class="mb-0">Нет данных об остатках по складам</p>
-                                    <small class="text-muted">Нажмите "Синхронизировать остатки" для загрузки данных</small>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
+                    @endif
                 </div>
             </div>
 
-            <div class="col-md-4">
-                <!-- Дополнительные атрибуты -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">Дополнительные атрибуты</h5>
-                    </div>
-                    <div class="card-body">
-                        @php
-                            $attributes = is_string($product->attributes) ? json_decode($product->attributes, true) : ($product->attributes ?? []);
-                        @endphp
-
-                        @if(!empty($attributes))
-                            <table class="table table-sm">
-                                @foreach($attributes as $key => $value)
-                                    @if($value && !in_array($key, ['meta', 'zones', 'slots']))
-                                        <tr>
-                                            <th style="width: 100px;">{{ ucfirst(str_replace('_', ' ', $key)) }}:</th>
-                                            <td>{{ $value }}</td>
-                                        </tr>
-                                    @endif
+            {{-- Остатки по складам --}}
+            <div class="info-block mb-0">
+                <div class="info-block-header d-flex justify-content-between align-items-center small fw-semibold">
+                    <span>Остатки по складам</span>
+                    <form action="{{ route('products.stocks.sync', $product->moysklad_id) }}"
+                          method="POST"
+                          data-submit-guard
+                          onsubmit="return confirm('Обновить остатки по складам из МойСклад?')">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-primary py-0" title="Синхронизировать остатки">
+                            <i class="bi bi-arrow-repeat"></i>
+                            <span class="d-none d-md-inline">Синхронизировать остатки</span>
+                        </button>
+                    </form>
+                </div>
+                <div class="info-block-body">
+                    @if($visibleStocks->isNotEmpty())
+                        {{-- Десктоп --}}
+                        <div class="d-none d-md-block table-responsive">
+                            <table class="table table-sm table-hover mb-0 small">
+                                <thead class="table-light">
+                                <tr>
+                                    <th>Склад</th>
+                                    <th class="text-end">Кол-во</th>
+                                    <th class="text-end">Резерв</th>
+                                    <th class="text-end">В пути</th>
+                                    <th class="text-end">Доступно</th>
+                                    <th>Обновлено</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($visibleStocks as $stock)
+                                    <tr>
+                                        <td>
+                                            <strong>{{ $stock->store->name ?? 'Неизвестный склад' }}</strong>
+                                            @if($stock->store?->path_name)
+                                                <div class="text-muted" style="font-size:.75rem">{{ $stock->store->path_name }}</div>
+                                            @endif
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="badge bg-primary">{{ number_format($stock->quantity, 3, ',', ' ') }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            @if($stock->reserved > 0)
+                                                <span class="badge bg-warning text-dark">{{ number_format($stock->reserved, 3, ',', ' ') }}</span>
+                                            @else
+                                                <span class="text-muted">0</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-end">
+                                            @if($stock->in_transit > 0)
+                                                <span class="badge bg-info">{{ number_format($stock->in_transit, 3, ',', ' ') }}</span>
+                                            @else
+                                                <span class="text-muted">0</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-end">
+                                            @if($stock->available > 0)
+                                                <span class="badge bg-success">{{ number_format($stock->available, 3, ',', ' ') }}</span>
+                                            @else
+                                                <span class="text-muted">0</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-muted text-nowrap">{{ $stock->updated_at->format('d.m.Y H:i') }}</td>
+                                    </tr>
                                 @endforeach
+                                </tbody>
+                                <tfoot class="table-light">
+                                <tr>
+                                    <th>Итого:</th>
+                                    <th class="text-end">{{ number_format($visibleStocks->sum('quantity'), 3, ',', ' ') }}</th>
+                                    <th class="text-end">{{ number_format($visibleStocks->sum('reserved'), 3, ',', ' ') }}</th>
+                                    <th class="text-end">{{ number_format($visibleStocks->sum('in_transit'), 3, ',', ' ') }}</th>
+                                    <th class="text-end">{{ number_format($visibleStocks->sum('available'), 3, ',', ' ') }}</th>
+                                    <th></th>
+                                </tr>
+                                </tfoot>
                             </table>
-                        @else
-                            <p class="text-muted mb-0">Нет дополнительных атрибутов</p>
+                        </div>
+
+                        {{-- Мобильный --}}
+                        <div class="d-md-none d-flex flex-column gap-1">
+                            @foreach($visibleStocks as $stock)
+                                <div class="border rounded p-2">
+                                    <div class="fw-semibold lh-sm">{{ $stock->store->name ?? 'Неизвестный склад' }}</div>
+                                    @if($stock->store?->path_name)
+                                        <div class="text-muted" style="font-size:.75rem">{{ $stock->store->path_name }}</div>
+                                    @endif
+                                    @include('products.partials.stock-figures', [
+                                        'quantity'  => $stock->quantity,
+                                        'reserved'  => $stock->reserved,
+                                        'inTransit' => $stock->in_transit,
+                                        'available' => $stock->available,
+                                    ])
+                                    <div class="text-end text-muted mt-1" style="font-size:.75rem">
+                                        обновлено {{ $stock->updated_at->format('d.m.Y H:i') }}
+                                    </div>
+                                </div>
+                            @endforeach
+                            <div class="border rounded p-2 bg-light">
+                                <div class="fw-semibold lh-sm">Итого</div>
+                                @include('products.partials.stock-figures', [
+                                    'quantity'  => $visibleStocks->sum('quantity'),
+                                    'reserved'  => $visibleStocks->sum('reserved'),
+                                    'inTransit' => $visibleStocks->sum('in_transit'),
+                                    'available' => $visibleStocks->sum('available'),
+                                ])
+                            </div>
+                        </div>
+
+                        @if($hiddenStocksCount > 0)
+                            <div class="small text-muted mt-2">
+                                * Показаны только склады с ненулевым остатком.
+                                Складов с нулевым остатком: {{ $hiddenStocksCount }}
+                            </div>
                         @endif
+                    @elseif($hiddenStocksCount > 0)
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-box-seam d-block mb-2" style="font-size: 2rem;"></i>
+                            <p class="mb-0 text-body">На всех складах нулевой остаток</p>
+                            <small>Складов: {{ $hiddenStocksCount }}</small>
+                        </div>
+                    @else
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-box-seam d-block mb-2" style="font-size: 2rem;"></i>
+                            <p class="mb-0 text-body">Нет данных об остатках по складам</p>
+                            <small>Нажмите <i class="bi bi-arrow-repeat"></i> в заголовке блока, чтобы загрузить данные</small>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Основная информация --}}
+            <div class="info-block mb-0">
+                @include('products.partials.collapsible-header', [
+                    'target' => 'product-main-info',
+                    'title'  => 'Основная информация',
+                    'hint'   => ($product->sku ?? '—') . ' · коэф. '
+                        . \App\Support\RateFormula::formatCoeff($product->prod_cost_coeff) . ' / '
+                        . \App\Support\RateFormula::formatCoeff($product->master_cost_coeff),
+                ])
+                <div class="collapse" id="product-main-info">
+                    <div class="info-block-body">
+                        <dl class="row mb-0 small">
+                            <dt class="col-5 col-md-3 fw-normal text-muted">Артикул</dt>
+                            <dd class="col-7 col-md-9"><span class="badge bg-secondary">{{ $product->sku ?? '—' }}</span></dd>
+
+                            <dt class="col-5 col-md-3 fw-normal text-muted">Код</dt>
+                            <dd class="col-7 col-md-9"><span class="badge bg-secondary">{{ $product->code ?? '—' }}</span></dd>
+
+                            <dt class="col-5 col-md-3 fw-normal text-muted">Группа</dt>
+                            <dd class="col-7 col-md-9">{{ $product->group_name ?? '—' }}</dd>
+
+                            <dt class="col-5 col-md-3 fw-normal text-muted">ID в МойСклад</dt>
+                            <dd class="col-7 col-md-9 text-break"><code class="text-muted">{{ $product->moysklad_id }}</code></dd>
+
+                            <dt class="col-5 col-md-3 fw-normal text-muted">prodCostCoeff</dt>
+                            <dd class="col-7 col-md-9">{{ \App\Support\RateFormula::formatCoeff($product->prod_cost_coeff) }}</dd>
+
+                            <dt class="col-5 col-md-3 fw-normal text-muted">masterCostCoeff</dt>
+                            <dd class="col-7 col-md-9">{{ \App\Support\RateFormula::formatCoeff($product->master_cost_coeff) }}</dd>
+
+                            <dt class="col-5 col-md-3 fw-normal text-muted">Статус</dt>
+                            <dd class="col-7 col-md-9">
+                                @if($product->is_active)
+                                    <span class="badge bg-success">Активен</span>
+                                @else
+                                    <span class="badge bg-secondary">Неактивен</span>
+                                @endif
+                            </dd>
+
+                            <dt class="col-5 col-md-3 fw-normal text-muted">Добавлен</dt>
+                            <dd class="col-7 col-md-9">{{ $product->created_at->format('d.m.Y H:i') }}</dd>
+
+                            <dt class="col-5 col-md-3 fw-normal text-muted">Обновлён</dt>
+                            <dd class="col-7 col-md-9 mb-0">{{ $product->updated_at->format('d.m.Y H:i') }}</dd>
+                        </dl>
                     </div>
                 </div>
+            </div>
 
-                <!-- Краткая статистика -->
-                <div class="card shadow-sm bg-light">
-                    <div class="card-body">
-                        <h5 class="mb-3">Быстрые действия</h5>
-                        <div class="d-grid gap-2">
-                            <a href="{{ route('products.refresh', $product->moysklad_id) }}"
-                               class="btn btn-warning"
-                               onclick="return confirm('Обновить данные товара из МойСклад?')">
-                                <i class="bi bi-arrow-repeat"></i> Обновить из МойСклад
-                            </a>
-                            <form action="{{ route('products.stocks.sync', $product->moysklad_id) }}"
-                                  method="POST">
-                                @csrf
-                                <button type="submit" class="btn btn-outline-success w-100"
-                                        onclick="return confirm('Синхронизировать остатки по складам?')">
-                                    <i class="bi bi-box-seam"></i> Синхронизировать остатки
-                                </button>
-                            </form>
-                        </div>
+            {{-- Описание --}}
+            @if($product->description)
+                <div class="info-block mb-0">
+                    @include('products.partials.collapsible-header', [
+                        'target' => 'product-description',
+                        'title'  => 'Описание',
+                        'hint'   => $product->description,
+                    ])
+                    <div class="collapse" id="product-description">
+                        <div class="info-block-body small">{{ $product->description }}</div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Дополнительные атрибуты --}}
+            <div class="info-block mb-0">
+                @include('products.partials.collapsible-header', [
+                    'target' => 'product-attributes',
+                    'title'  => 'Дополнительные атрибуты',
+                    'hint'   => $extraAttributes->isNotEmpty() ? $extraAttributes->count() . ' шт.' : 'нет',
+                ])
+                <div class="collapse" id="product-attributes">
+                    <div class="info-block-body">
+                        @if($extraAttributes->isNotEmpty())
+                            <dl class="row mb-0 small">
+                                @foreach($extraAttributes as $key => $value)
+                                    <dt class="col-5 col-md-3 fw-normal text-muted">{{ ucfirst(str_replace('_', ' ', $key)) }}</dt>
+                                    <dd class="col-7 col-md-9 text-break {{ $loop->last ? 'mb-0' : '' }}">{{ $value }}</dd>
+                                @endforeach
+                            </dl>
+                        @else
+                            <p class="small text-muted mb-0">Нет дополнительных атрибутов</p>
+                        @endif
                     </div>
                 </div>
             </div>
