@@ -38,7 +38,7 @@
     $pickerLabel   = $filterProducts ? ($filterProducts->firstWhere('id', $pickerValue)?->name ?? '') : '';
 @endphp
 
-<form method="GET" id="filter-form" class="card shadow-sm mb-2 mb-md-4">
+<form method="GET" id="filter-form" class="card shadow-sm mb-2 mb-md-4" data-filter-memory>
     <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
          style="cursor:pointer" id="filter-toggle" role="button">
         <span class="fw-semibold text-muted small">
@@ -210,7 +210,7 @@
                 <button type="submit" class="btn btn-primary btn-sm">
                     <i class="bi bi-funnel"></i> Применить
                 </button>
-                <a href="{{ url()->current() }}" class="btn btn-outline-secondary btn-sm">
+                <a href="{{ url()->current() }}" class="btn btn-outline-secondary btn-sm" data-filter-reset>
                     <i class="bi bi-x-circle"></i> Сбросить
                 </a>
             </div>

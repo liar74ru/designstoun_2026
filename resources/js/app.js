@@ -1,5 +1,6 @@
 import './bootstrap';
 import './form-submit-guard';
+import './filter-memory';
 import './rate-formula';
 import './modifier-picker';
 

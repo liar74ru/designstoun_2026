@@ -134,7 +134,7 @@
         <!-- Фильтры -->
         <div class="card mb-4">
             <div class="card-body">
-                <form method="GET" action="{{ route('products.index') }}" class="row g-3" id="filterForm">
+                <form method="GET" action="{{ route('products.index') }}" class="row g-3" id="filterForm" data-filter-memory>
                     <!-- Поиск -->
                     <div class="col-md-4">
                         <label class="form-label">Поиск</label>
@@ -180,7 +180,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-search"></i> Применить фильтры
                         </button>
-                        <a href="{{ route('products.index') }}" class="btn btn-outline-secondary">
+                        <a href="{{ route('products.index') }}" class="btn btn-outline-secondary" data-filter-reset>
                             <i class="bi bi-x-circle"></i> Сбросить
                         </a>
                     </div>
@@ -327,7 +327,7 @@
                     <i class="bi bi-cloud-download"></i> Загрузить из МойСклад
                 </a>
                 @if(request()->anyFilled(['search', 'group', 'in_stock', 'price_from', 'price_to']))
-                    <a href="{{ route('products.index') }}" class="btn btn-outline-secondary btn-lg ms-2">
+                    <a href="{{ route('products.index') }}" class="btn btn-outline-secondary btn-lg ms-2" data-filter-reset>
                         <i class="bi bi-x-circle"></i> Сбросить фильтры
                     </a>
                 @endif
