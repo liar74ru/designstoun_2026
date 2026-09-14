@@ -280,6 +280,8 @@
                             @foreach($group['keys'] as $key => $meta)
                                 @php
                                     $globalValue = $globalDefaults[$key] ?? $meta['default'] ?? 0;
+                                    $ownValue    = old('settings.' . $key, $costSettings[$key] ?? '');
+                                    $hasOwn      = $ownValue !== '' && $ownValue !== null;
                                 @endphp
                                 <div class="col-12 col-md-6 col-lg-4">
                                     <label class="form-label small mb-1" for="cost-{{ $key }}">{{ $meta['label'] }}</label>
@@ -287,9 +289,15 @@
                                            class="form-control form-control-sm"
                                            id="cost-{{ $key }}"
                                            name="settings[{{ $key }}]"
-                                           value="{{ old('settings.' . $key, $costSettings[$key] ?? '') }}"
+                                           value="{{ $ownValue }}"
                                            placeholder="{{ $globalValue }}">
-                                    <div class="form-text" style="font-size:.7rem">Общее: {{ $globalValue }} ₽</div>
+                                    <div class="form-text" style="font-size:.7rem">
+                                        @if($hasOwn)
+                                            Своё значение · общее: {{ $globalValue }} ₽
+                                        @else
+                                            Наследуется: {{ $globalValue }} ₽
+                                        @endif
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
