@@ -99,6 +99,33 @@ class RawMaterialBatchService
     }
 
     /**
+     * Данные формы редактирования: склады + текущие склады первичного движения.
+     *
+     * @return array{stores: \Illuminate\Support\Collection, fromStoreId: ?string, toStoreId: ?string}
+     */
+    public function getEditFormOptions(RawMaterialBatch $batch): array
+    {
+        $createMovement = $this->findCreateMovement($batch);
+
+        return [
+            'stores'      => Store::orderBy('name')->get(),
+            'fromStoreId' => $createMovement?->from_store_id ?? $batch->current_store_id,
+            'toStoreId'   => $createMovement?->to_store_id   ?? $batch->current_store_id,
+        ];
+    }
+
+    /**
+     * Первичное движение партии (создание) — в нём хранятся склады перемещения МойСклад.
+     */
+    private function findCreateMovement(RawMaterialBatch $batch): ?RawMaterialMovement
+    {
+        return $batch->movements()
+            ->where('movement_type', 'create')
+            ->orderBy('created_at')
+            ->first();
+    }
+
+    /**
      * Создать партию + движение + скорректировать остатки.
      *
      * @return array{batch: RawMaterialBatch, movement: RawMaterialMovement}
@@ -186,18 +213,28 @@ class RawMaterialBatchService
             ? Carbon::parse($manualDate)
             : null;
 
-        $productChanged  = $oldProductId !== $newProductId;
-        $quantityChanged = abs($oldQuantity - $newQuantity) > 0.0001;
-        $dateChanged     = $newCreatedAt && $newCreatedAt->ne($batch->created_at);
+        $createMovement = $this->findCreateMovement($batch);
+        $oldFromStoreId = $createMovement?->from_store_id ?? $batch->current_store_id;
+        $oldToStoreId   = $createMovement?->to_store_id   ?? $batch->current_store_id;
+        $newFromStoreId = $data['from_store_id'] ?? $oldFromStoreId;
+        $newToStoreId   = $data['to_store_id']   ?? $oldToStoreId;
 
-        if (!$productChanged && !$quantityChanged && !$dateChanged) {
+        $productChanged   = $oldProductId !== $newProductId;
+        $quantityChanged  = abs($oldQuantity - $newQuantity) > 0.0001;
+        $dateChanged      = $newCreatedAt && $newCreatedAt->ne($batch->created_at);
+        $fromStoreChanged = $oldFromStoreId !== $newFromStoreId;
+        $toStoreChanged   = $oldToStoreId !== $newToStoreId;
+
+        if (!$productChanged && !$quantityChanged && !$dateChanged && !$fromStoreChanged && !$toStoreChanged) {
             return null;
         }
 
         DB::transaction(function () use (
-            $batch, $oldProductId, $oldRemaining,
+            $batch, $createMovement, $oldProductId, $oldRemaining,
             $newProductId, $newQuantity, $newRemaining,
-            $productChanged, $quantityChanged, $newCreatedAt
+            $productChanged, $quantityChanged, $newCreatedAt,
+            $oldFromStoreId, $oldToStoreId, $newFromStoreId, $newToStoreId,
+            $fromStoreChanged, $toStoreChanged
         ) {
             $storeId = $batch->current_store_id;
 
@@ -208,19 +245,38 @@ class RawMaterialBatchService
                 $this->adjustStock($oldProductId, $storeId, $newRemaining - $oldRemaining);
             }
 
+            // Смена складов: остаток переезжает на новый склад-назначение,
+            // списание — на новый склад-источник.
+            if ($toStoreChanged) {
+                $this->adjustStock($newProductId, $storeId, -$newRemaining);
+                $this->adjustStock($newProductId, $newToStoreId, +$newRemaining);
+            }
+            if ($fromStoreChanged) {
+                $this->adjustStock($newProductId, $oldFromStoreId, +$newQuantity);
+                $this->adjustStock($newProductId, $newFromStoreId, -$newQuantity);
+            }
+
             $updateData = [
                 'product_id'         => $newProductId,
                 'initial_quantity'   => $newQuantity,
                 'remaining_quantity' => $newRemaining,
+                'current_store_id'   => $newToStoreId,
             ];
 
+            $movementData = [];
+            if ($fromStoreChanged || $toStoreChanged) {
+                $movementData['from_store_id'] = $newFromStoreId;
+                $movementData['to_store_id']   = $newToStoreId;
+            }
+
             if ($newCreatedAt) {
-                $updateData['created_at'] = $newCreatedAt;
-                $batch->movements()
-                    ->where('movement_type', 'create')
-                    ->orderBy('created_at')
-                    ->first()
-                    ?->update(['created_at' => $newCreatedAt, 'updated_at' => $newCreatedAt]);
+                $updateData['created_at']   = $newCreatedAt;
+                $movementData['created_at'] = $newCreatedAt;
+                $movementData['updated_at'] = $newCreatedAt;
+            }
+
+            if ($movementData) {
+                $createMovement?->update($movementData);
             }
 
             $batch->update($updateData);

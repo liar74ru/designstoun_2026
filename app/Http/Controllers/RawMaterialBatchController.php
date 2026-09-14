@@ -211,7 +211,10 @@ class RawMaterialBatchController extends Controller
         $products = \App\Models\Product::orderBy('name')->get();
         $backUrl  = back_url(route('raw-batches.index'));
 
-        return view('raw-batches.edit', compact('batch', 'products', 'backUrl'));
+        return view('raw-batches.edit', array_merge(
+            $this->service->getEditFormOptions($batch),
+            compact('batch', 'products', 'backUrl')
+        ));
     }
 
     public function update(Request $request, RawMaterialBatch $batch): RedirectResponse
@@ -225,7 +228,16 @@ class RawMaterialBatchController extends Controller
             'product_id'        => 'required|exists:products,id',
             'quantity'          => 'required|numeric|min:0.001',
             'manual_created_at' => 'nullable|date',
+            'from_store_id'     => 'nullable|exists:stores,id',
+            'to_store_id'       => 'nullable|exists:stores,id',
         ]);
+
+        // Не переданный склад остаётся прежним (см. RawMaterialBatchService::update()).
+        if (!empty($data['from_store_id']) && $data['from_store_id'] === ($data['to_store_id'] ?? null)) {
+            return back()
+                ->withErrors(['to_store_id' => 'Склад-источник и склад-назначение не могут совпадать.'])
+                ->withInput();
+        }
 
         $usedQuantity = (float) $batch->initial_quantity - (float) $batch->remaining_quantity;
         $newRemaining = (float) $data['quantity'] - $usedQuantity;

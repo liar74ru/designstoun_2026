@@ -16,7 +16,7 @@
     <div class="alert alert-info py-2 mb-3 small">
         <i class="bi bi-info-circle me-1"></i>
         Редактирование доступно для партий в статусе <strong>«Новая»</strong>, <strong>«Не уточнена»</strong> и <strong>«Уточнена»</strong>.
-        Изменения продукта и количества будут синхронизированы с МойСклад.
+        Изменения продукта, количества и складов будут синхронизированы с МойСклад.
         @if($batch->status === \App\Models\RawMaterialBatch::STATUS_IN_WORK)
             <br>Остаток будет пересчитан с учётом уже израсходованного сырья
             (израсходовано: <strong>{{ number_format($batch->initial_quantity - $batch->remaining_quantity, 3) }} м³</strong>).
@@ -89,6 +89,44 @@
                         Текущий остаток: <strong>{{ rtrim(rtrim(number_format($batch->remaining_quantity, 2), '0'), '.') }} м³</strong>
                         — будет заменён новым значением.
                     </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="from_store_id" class="form-label fw-semibold">
+                        Склад-источник <span class="text-danger">*</span>
+                    </label>
+                    <select name="from_store_id" id="from_store_id"
+                            class="form-select @error('from_store_id') is-invalid @enderror" required>
+                        <option value="">— Выберите склад —</option>
+                        @foreach($stores as $store)
+                            <option value="{{ $store->id }}"
+                                {{ old('from_store_id', $fromStoreId) == $store->id ? 'selected' : '' }}>
+                                {{ $store->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('from_store_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="to_store_id" class="form-label fw-semibold">
+                        Склад-назначение (цех) <span class="text-danger">*</span>
+                    </label>
+                    <select name="to_store_id" id="to_store_id"
+                            class="form-select @error('to_store_id') is-invalid @enderror" required>
+                        <option value="">— Выберите склад —</option>
+                        @foreach($stores as $store)
+                            <option value="{{ $store->id }}"
+                                {{ old('to_store_id', $toStoreId) == $store->id ? 'selected' : '' }}>
+                                {{ $store->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('to_store_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <x-admin-date-field
