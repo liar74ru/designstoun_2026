@@ -149,6 +149,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post  ('workshops/{workshop}/sync',                [WorkshopController::class, 'syncToProcessing'])->name('workshops.sync');
         Route::post  ('workshops/{workshop}/item-coeffs',         [WorkshopController::class, 'updateItemCoeff'])->name('workshops.update-item-coeff');
         Route::post  ('workshops/{workshop}/refresh-item-coeffs', [WorkshopController::class, 'refreshItemCoeffs'])->name('workshops.refresh-item-coeffs');
+        Route::patch ('workshops/{workshop}/update-stores',       [WorkshopController::class, 'updateStores'])->name('workshops.update-stores');
+        Route::patch ('workshops/{workshop}/update-department',   [WorkshopController::class, 'updateDepartment'])
+            ->name('workshops.update-department')
+            ->middleware('can:manage-admin');
         Route::get   ('api/workers/{worker}/default-production-store', [WorkshopController::class, 'getDefaultStoreJson'])->name('api.worker.default-production-store');
         Route::get   ('api/departments/{department}/workshop-presets', [WorkshopController::class, 'getPresetsJson'])->name('api.department.workshop-presets');
     });

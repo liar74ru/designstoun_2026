@@ -105,6 +105,8 @@ class WorkshopController extends Controller
             'packer',
             'receiver',
             'store',
+            'productStore',
+            'department',
             'items.product',
             'items.modifiers',
             'workshopLogs' => fn($q) => $q->orderBy('created_at', 'asc'),
@@ -115,7 +117,7 @@ class WorkshopController extends Controller
 
         $backUrl = back_url(route('workshops.index'));
 
-        return view('workshops.show', compact('workshop', 'backUrl'));
+        return view('workshops.show', compact('workshop', 'backUrl') + $this->service->getPlacementOptions());
     }
 
     public function edit(Workshop $workshop): View
@@ -221,6 +223,31 @@ class WorkshopController extends Controller
         $this->service->refreshItemCoeffs($workshop);
 
         return back()->with('success', 'Коэффициенты обновлены из справочника');
+    }
+
+    public function updateStores(Request $request, Workshop $workshop): RedirectResponse
+    {
+        abort_unless($workshop->status === Workshop::STATUS_ACTIVE, 403, 'Сменить склады можно только у активной операции');
+
+        $validated = $request->validate([
+            'store_id'         => ['required', 'string', 'exists:stores,id'],
+            'product_store_id' => ['required', 'string', 'exists:stores,id'],
+        ]);
+
+        $this->service->updateStores($workshop, $validated['store_id'], $validated['product_store_id']);
+
+        return back()->with('success', 'Склады операции обновлены.');
+    }
+
+    public function updateDepartment(Request $request, Workshop $workshop): RedirectResponse
+    {
+        $validated = $request->validate([
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
+        ]);
+
+        $this->service->updateDepartment($workshop, (int) $validated['department_id']);
+
+        return back()->with('success', 'Отдел операции обновлён.');
     }
 
     /**

@@ -55,10 +55,101 @@
                             <div class="small fw-semibold">{{ $workshop->receiver->name ?? '—' }}</div>
                         </div>
                     </div>
-                    <div class="mt-1">
-                        <div class="text-muted" style="font-size:.72rem">Склад</div>
-                        <div class="small fw-semibold">{{ $workshop->store->name ?? '—' }}</div>
-                    </div>
+                </div>
+            </div>
+
+            {{-- Отдел --}}
+            <div class="info-block">
+                <div class="info-block-header">
+                    <span class="small fw-semibold text-muted">Отдел</span>
+                </div>
+                <div class="info-block-body">
+                    @if(auth()->user()->isAdmin())
+                        <form method="POST"
+                              action="{{ route('workshops.update-department', $workshop) }}"
+                              class="d-flex gap-2 align-items-center"
+                              data-submit-guard>
+                            @csrf
+                            @method('PATCH')
+                            <select name="department_id"
+                                    class="form-select form-select-sm"
+                                    style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
+                                    required>
+                                <option value="">— Выберите отдел —</option>
+                                @foreach($departments as $department)
+                                    <option value="{{ $department->id }}"
+                                        {{ $workshop->department_id == $department->id ? 'selected' : '' }}>
+                                        {{ $department->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-primary" style="flex-shrink:0" title="Сохранить отдел">
+                                <i class="bi bi-save"></i>
+                            </button>
+                        </form>
+                    @else
+                        <span class="small">{{ $workshop->department?->name ?? '—' }}</span>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Склады --}}
+            <div class="info-block">
+                <div class="info-block-header">
+                    <span class="small fw-semibold text-muted">Склады</span>
+                </div>
+                <div class="info-block-body">
+                    @if($workshop->status === 'active')
+                        <form method="POST"
+                              action="{{ route('workshops.update-stores', $workshop) }}"
+                              data-submit-guard>
+                            @csrf
+                            @method('PATCH')
+                            <div class="text-muted" style="font-size:.72rem">Сырьё и тара</div>
+                            <select name="store_id"
+                                    class="form-select form-select-sm mb-1"
+                                    style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
+                                    required>
+                                <option value="">— Выберите склад —</option>
+                                @foreach($stores as $store)
+                                    <option value="{{ $store->id }}"
+                                        {{ $workshop->store_id == $store->id ? 'selected' : '' }}>
+                                        {{ $store->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="text-muted" style="font-size:.72rem">Продукт</div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <select name="product_store_id"
+                                        class="form-select form-select-sm"
+                                        style="font-size:.8rem;padding:.18rem .35rem;border-radius:.4rem"
+                                        required>
+                                    <option value="">— Выберите склад —</option>
+                                    @foreach($stores as $store)
+                                        <option value="{{ $store->id }}"
+                                            {{ ($workshop->product_store_id ?? $workshop->store_id) == $store->id ? 'selected' : '' }}>
+                                            {{ $store->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-primary" style="flex-shrink:0" title="Сохранить склады">
+                                    <i class="bi bi-save"></i>
+                                </button>
+                            </div>
+                            <div class="form-text" style="font-size:.7rem">При смене склада сырья остаток тары переносится на новый склад.</div>
+                        </form>
+                    @else
+                        <div class="row g-1">
+                            <div class="col-6">
+                                <div class="text-muted" style="font-size:.72rem">Сырьё и тара</div>
+                                <div class="small fw-semibold">{{ $workshop->store->name ?? '—' }}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted" style="font-size:.72rem">Продукт</div>
+                                <div class="small fw-semibold">{{ ($workshop->productStore ?? $workshop->store)?->name ?? '—' }}</div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
 

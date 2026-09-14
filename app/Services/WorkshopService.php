@@ -236,12 +236,7 @@ class WorkshopService
             // Движение остатка тары.
             $afterPackages = $workshop->packageItems()->get();
             if ((string) $oldStoreId !== (string) $workshop->store_id) {
-                foreach ($beforePackages as $it) {
-                    $workshop->adjustPackageStock($it->product_id, -1 * (float) $it->quantity, $oldStoreId);
-                }
-                foreach ($afterPackages as $it) {
-                    $workshop->adjustPackageStock($it->product_id, (float) $it->quantity);
-                }
+                $this->movePackageStock($workshop, $beforePackages, $afterPackages, $oldStoreId);
             } else {
                 $this->applyPackageDeltas($workshop, $beforePackages, $afterPackages);
             }
@@ -271,6 +266,60 @@ class WorkshopService
         $this->syncService->syncWorkshop($workshop);
 
         return $workshop;
+    }
+
+    /** Справочники для правки складов и отдела на странице просмотра операции. */
+    public function getPlacementOptions(): array
+    {
+        return [
+            'stores'      => Store::orderBy('name')->get(),
+            'departments' => Department::orderBy('name')->get(),
+        ];
+    }
+
+    /**
+     * Сменить склады операции со страницы просмотра.
+     * Смена склада сырья переносит остаток тары так же, как update(),
+     * после чего техоперация пересинхронизируется с МойСклад.
+     */
+    public function updateStores(Workshop $workshop, string $storeId, string $productStoreId): void
+    {
+        $oldStoreId = $workshop->store_id;
+
+        if ((string) $oldStoreId === $storeId && (string) $workshop->product_store_id === $productStoreId) {
+            return;
+        }
+
+        DB::transaction(function () use ($workshop, $storeId, $productStoreId, $oldStoreId) {
+            $workshop->update([
+                'store_id'         => $storeId,
+                'product_store_id' => $productStoreId,
+            ]);
+
+            if ((string) $oldStoreId !== $storeId) {
+                $packages = $workshop->packageItems()->get();
+                $this->movePackageStock($workshop, $packages, $packages, $oldStoreId);
+            }
+        });
+
+        $workshop->refresh();
+        $this->syncService->syncWorkshop($workshop);
+    }
+
+    public function updateDepartment(Workshop $workshop, int $departmentId): void
+    {
+        $workshop->update(['department_id' => $departmentId]);
+    }
+
+    /** Смена склада сырья: вернуть тару на старый склад и списать с нового. */
+    private function movePackageStock(Workshop $workshop, $before, $after, ?string $oldStoreId): void
+    {
+        foreach ($before as $it) {
+            $workshop->adjustPackageStock($it->product_id, -1 * (float) $it->quantity, $oldStoreId);
+        }
+        foreach ($after as $it) {
+            $workshop->adjustPackageStock($it->product_id, (float) $it->quantity);
+        }
     }
 
     /** Списать/вернуть разницу остатка тары по товарам при неизменном складе. */
