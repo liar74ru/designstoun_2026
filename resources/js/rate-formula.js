@@ -117,6 +117,19 @@ export function effectiveCoeff({ baseCoeff, departmentId, scope, sku = null, man
 }
 
 /**
+ * Итоговый коэффициент мастера: база мастера плюс master-слагаемые сработавших правил.
+ * Зеркало ModifierEngine::masterCoeff().
+ */
+export function masterEffectiveCoeff({ baseCoeff, departmentId, scope, sku = null, manualKeys = [], batchSku = null }) {
+    const applied = resolve({ departmentId, scope, sku, manualKeys, batchSku });
+
+    return applied.reduce(
+        (coeff, rule) => coeff + Number(rule.master_coeff_delta ?? 0),
+        Number(baseCoeff) || 0,
+    );
+}
+
+/**
  * Коэффициент для показа: до 4 знаков, хвостовые нули отброшены.
  *
  * Значение правила задаёт админ, колонка — decimal(8,4). Округление до одного
@@ -141,6 +154,7 @@ window.RateFormula = {
     resolve,
     stepped,
     effectiveCoeff,
+    masterEffectiveCoeff,
     formatCoeff,
     prodCost,
 };

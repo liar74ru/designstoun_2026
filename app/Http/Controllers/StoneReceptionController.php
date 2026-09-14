@@ -325,9 +325,10 @@ class StoneReceptionController extends Controller
         $validated = $request->validate([
             'items'               => ['required', 'array'],
             'items.*.item_id'     => ['required', 'integer'],
-            'items.*.base_coeff'  => ['required', 'numeric'],
-            'items.*.modifiers'   => 'nullable|array',
-            'items.*.modifiers.*' => 'string|max:64',
+            'items.*.base_coeff'        => ['required', 'numeric'],
+            'items.*.master_base_coeff' => ['required', 'numeric'],
+            'items.*.modifiers'         => 'nullable|array',
+            'items.*.modifiers.*'       => 'string|max:64',
         ]);
 
         $this->service->updateItemCoeff($stoneReception, $validated);

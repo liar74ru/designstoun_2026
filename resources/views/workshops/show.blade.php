@@ -261,6 +261,7 @@
                                 <tr>
                                     <th>Товар</th>
                                     <th class="text-end text-nowrap">Кол-во</th>
+                                    <th style="width:1%"></th>
                                     <th class="text-end text-nowrap" title="Коэффициент зафиксирован при создании">Коэф.</th>
                                     <th class="text-end text-nowrap">₽/м²</th>
                                     <th class="text-end text-nowrap">Зарплата</th>
@@ -279,22 +280,50 @@
                                         ])
                                     </td>
                                     <td class="text-end text-nowrap">{{ number_format($item->quantity, 3) }}</td>
-                                    <td class="text-end text-nowrap text-muted">
-                                        @if($item->effective_cost_coeff !== null)
-                                            ×{{ \App\Support\RateFormula::formatCoeff($item->effective_cost_coeff) }}
-                                        @else
-                                            —
-                                        @endif
+                                    {{-- Метка роли: верхняя строка — пильщик, нижняя — мастер --}}
+                                    <td class="text-center text-muted">
+                                        <div style="font-size:.7rem;line-height:1.5" title="Пильщик"><i class="bi bi-person"></i></div>
+                                        <div style="font-size:.7rem;line-height:1.5" title="Мастер"><i class="bi bi-person-gear"></i></div>
                                     </td>
                                     <td class="text-end text-nowrap text-muted">
-                                        @if($item->worker_cost_per_m2 !== null)
-                                            {{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} ₽
-                                        @else
-                                            —
-                                        @endif
+                                        <div style="font-size:.7rem;line-height:1.5">
+                                            @if($item->effective_cost_coeff !== null)
+                                                ×{{ \App\Support\RateFormula::formatCoeff($item->effective_cost_coeff) }}
+                                            @else
+                                                —
+                                            @endif
+                                        </div>
+                                        <div style="font-size:.7rem;line-height:1.5">
+                                            @if($item->master_effective_cost_coeff !== null)
+                                                ×{{ \App\Support\RateFormula::formatCoeff($item->master_effective_cost_coeff) }}
+                                            @else
+                                                —
+                                            @endif
+                                        </div>
                                     </td>
-                                    <td class="text-end text-nowrap fw-semibold text-success">
-                                        {{ number_format($item->calculateWorkerPay(), 2) }} ₽
+                                    <td class="text-end text-nowrap text-muted">
+                                        <div style="font-size:.7rem;line-height:1.5">
+                                            @if($item->worker_cost_per_m2 !== null)
+                                                {{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} ₽
+                                            @else
+                                                —
+                                            @endif
+                                        </div>
+                                        <div style="font-size:.7rem;line-height:1.5">
+                                            @if($item->master_cost_per_m2 !== null)
+                                                {{ number_format($item->master_cost_per_m2, 0, '.', ' ') }} ₽
+                                            @else
+                                                —
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <div class="fw-semibold text-success" style="font-size:.7rem;line-height:1.5">
+                                            {{ number_format($item->calculateWorkerPay(), 2) }} ₽
+                                        </div>
+                                        <div class="text-muted" style="font-size:.7rem;line-height:1.5">
+                                            {{ number_format($item->calculateMasterPay(), 2) }} ₽
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -303,10 +332,19 @@
                                 <tr>
                                     <th>ИТОГО:</th>
                                     <th class="text-end text-nowrap fw-semibold">{{ number_format($productItems->sum('quantity'), 3) }}</th>
+                                    <th class="text-center text-muted fw-normal">
+                                        <div style="font-size:.75rem;line-height:1.5" title="Пильщик"><i class="bi bi-person"></i></div>
+                                        <div style="font-size:.75rem;line-height:1.5" title="Мастер"><i class="bi bi-person-gear"></i></div>
+                                    </th>
                                     <th></th>
                                     <th></th>
-                                    <th class="text-end text-nowrap text-success fw-semibold">
-                                        {{ number_format($productItems->sum(fn($i) => $i->calculateWorkerPay()), 2) }} ₽
+                                    <th class="text-end text-nowrap fw-semibold">
+                                        <div class="text-success" style="font-size:.75rem;line-height:1.5">
+                                            {{ number_format($productItems->sum(fn($i) => $i->calculateWorkerPay()), 2) }} ₽
+                                        </div>
+                                        <div class="text-muted" style="font-size:.75rem;line-height:1.5">
+                                            {{ number_format($productItems->sum(fn($i) => $i->calculateMasterPay()), 2) }} ₽
+                                        </div>
                                     </th>
                                 </tr>
                             </tfoot>
@@ -331,6 +369,7 @@
                                     <thead class="table-light">
                                     <tr>
                                         <th>Товар</th>
+                                        <th style="width:1%"></th>
                                         <th class="text-center" style="width:130px">Базовый коэф.</th>
                                         <th class="text-center" style="width:180px">Правила</th>
                                         <th class="text-end" style="width:90px">Итог</th>
@@ -340,6 +379,11 @@
                                     @foreach($productItems->values() as $i => $item)
                                         <tr>
                                             <td class="small">{{ $item->product->name ?? '—' }}</td>
+                                            {{-- Метка роли: верхнее поле — пильщик, нижнее — мастер --}}
+                                            <td class="text-muted">
+                                                <div class="d-flex align-items-center" style="height:calc(1.5em + .5rem + 2px)" title="Пильщик"><i class="bi bi-person"></i></div>
+                                                <div class="d-flex align-items-center mt-1" style="height:calc(1.5em + .5rem + 2px)" title="Мастер"><i class="bi bi-person-gear"></i></div>
+                                            </td>
                                             <td class="text-center">
                                                 <input type="hidden" name="items[{{ $i }}][item_id]" value="{{ $item->id }}">
                                                 <input type="number"
@@ -347,7 +391,15 @@
                                                        class="form-control form-control-sm text-center coeff-base-input"
                                                        step="0.0001"
                                                        value="{{ number_format($item->base_coeff, 4, '.', '') }}"
-                                                       data-row="{{ $i }}">
+                                                       data-row="{{ $i }}"
+                                                       title="Пильщик">
+                                                <input type="number"
+                                                       name="items[{{ $i }}][master_base_coeff]"
+                                                       class="form-control form-control-sm text-center coeff-master-base-input mt-1"
+                                                       step="0.0001"
+                                                       value="{{ number_format($item->master_base_cost_coeff ?? $item->product?->master_cost_coeff ?? 0, 4, '.', '') }}"
+                                                       data-row="{{ $i }}"
+                                                       title="Мастер">
                                             </td>
                                             <td>
                                                 <div class="modifier-picker d-flex align-items-center gap-2 flex-wrap"
@@ -360,9 +412,16 @@
                                                      data-active-keys="{{ $item->modifiers->pluck('key')->implode(',') }}"></div>
                                             </td>
                                             <td class="text-end">
-                                                <span class="badge bg-secondary coeff-result-display" data-row="{{ $i }}">
-                                                    {{ number_format($item->effective_cost_coeff ?? 0, 4) }}
-                                                </span>
+                                                <div class="d-flex align-items-center justify-content-end" style="height:calc(1.5em + .5rem + 2px)">
+                                                    <span class="badge bg-secondary coeff-result-display" data-row="{{ $i }}" title="Пильщик">
+                                                        {{ number_format($item->effective_cost_coeff ?? 0, 4) }}
+                                                    </span>
+                                                </div>
+                                                <div class="d-flex align-items-center justify-content-end mt-1" style="height:calc(1.5em + .5rem + 2px)">
+                                                    <span class="badge bg-secondary coeff-master-result-display" data-row="{{ $i }}" title="Мастер">
+                                                        {{ number_format($item->master_effective_cost_coeff ?? 0, 4) }}
+                                                    </span>
+                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -480,19 +539,29 @@ document.addEventListener('DOMContentLoaded', function () {
         // Ровно то же, что считает сервер: база плюс сумма сработавших правил.
         // База хранится отдельно от результата, поэтому SKU-правила применяются
         // здесь так же, как в WorkshopService::updateItemCoeff.
-        const effective = RateFormula.effectiveCoeff({
-            baseCoeff: base,
+        const ctx = {
             departmentId: picker?.dataset.departmentId || null,
             scope: 'workshop',
             sku: picker?.dataset.sku || null,
             manualKeys: picker ? ModifierPicker.checkedKeys(picker) : [],
-        });
+        };
+        const effective = RateFormula.effectiveCoeff({ ...ctx, baseCoeff: base });
 
         display.textContent = RateFormula.formatCoeff(effective);
         display.className   = display.className.replace(/bg-\w+/, effective < base ? 'bg-warning' : 'bg-secondary');
+
+        const masterInput   = document.querySelector(`.coeff-master-base-input[data-row="${rowIdx}"]`);
+        const masterDisplay = document.querySelector(`.coeff-master-result-display[data-row="${rowIdx}"]`);
+        if (!masterInput || !masterDisplay) return;
+
+        const masterBase = parseFloat(masterInput.value) || 0;
+        const masterEff  = RateFormula.masterEffectiveCoeff({ ...ctx, baseCoeff: masterBase });
+
+        masterDisplay.textContent = RateFormula.formatCoeff(masterEff);
+        masterDisplay.className   = masterDisplay.className.replace(/bg-\w+/, masterEff < masterBase ? 'bg-warning' : 'bg-secondary');
     }
 
-    document.querySelectorAll('.coeff-base-input').forEach(el => {
+    document.querySelectorAll('.coeff-base-input, .coeff-master-base-input').forEach(el => {
         el.addEventListener('input', () => recalcRow(el.dataset.row));
     });
     document.addEventListener('change', function (e) {

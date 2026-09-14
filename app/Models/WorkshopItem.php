@@ -19,6 +19,8 @@ class WorkshopItem extends Model
         'quantity',
         'base_cost_coeff',
         'effective_cost_coeff',
+        'master_base_cost_coeff',
+        'master_effective_cost_coeff',
         'is_undercut',
         'is_edging',
         'is_small_tile',
@@ -27,14 +29,16 @@ class WorkshopItem extends Model
     ];
 
     protected $casts = [
-        'quantity'             => 'decimal:3',
-        'base_cost_coeff'      => 'decimal:4',
-        'effective_cost_coeff' => 'decimal:4',
-        'is_undercut'          => 'boolean',
-        'is_edging'            => 'boolean',
-        'is_small_tile'        => 'boolean',
-        'worker_cost_per_m2'   => 'decimal:2',
-        'master_cost_per_m2'   => 'decimal:2',
+        'quantity'                    => 'decimal:3',
+        'base_cost_coeff'             => 'decimal:4',
+        'effective_cost_coeff'        => 'decimal:4',
+        'master_base_cost_coeff'      => 'decimal:4',
+        'master_effective_cost_coeff' => 'decimal:4',
+        'is_undercut'                 => 'boolean',
+        'is_edging'                   => 'boolean',
+        'is_small_tile'               => 'boolean',
+        'worker_cost_per_m2'          => 'decimal:2',
+        'master_cost_per_m2'          => 'decimal:2',
     ];
 
     public function workshop()

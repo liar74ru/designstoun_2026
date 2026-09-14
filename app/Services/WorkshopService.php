@@ -410,6 +410,8 @@ class WorkshopService
                     $workshop->effectiveDepartmentId(),
                     DepartmentModifier::SCOPE_WORKSHOP,
                     $row['modifiers'] ?? [],
+                    null,
+                    (float) $row['master_base_coeff'],
                 );
 
                 $item->update($cost['attributes']);

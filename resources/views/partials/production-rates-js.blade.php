@@ -12,7 +12,8 @@
     пользователю.
 
     Правила отдаются обеих областей сразу (поле applies_to) — форма фильтрует
-    сама. Ставка мастера в формах не показывается, поэтому в JSON не уходит.
+    сама. Базовая ставка мастера в JSON не уходит — превью считает только
+    коэффициент мастера, для него нужны лишь master-слагаемые правил.
 
     Подключать перед скриптами, использующими window.RateFormula.
 --}}
@@ -43,6 +44,7 @@
                 'available_when_batch_sku' => $rule->available_when_batch_sku,
                 'applies_to'               => $rule->applies_to,
                 'worker_coeff_delta'       => (float) ($rule->worker_coeff_delta ?? 0),
+                'master_coeff_delta'       => (float) ($rule->master_coeff_delta ?? 0),
             ])
             ->values();
     }

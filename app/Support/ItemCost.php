@@ -52,8 +52,10 @@ class ItemCost
 
         return [
             'attributes' => [
-                'base_cost_coeff'      => $baseCoeff,
-                'effective_cost_coeff' => $effCoeff,
+                'base_cost_coeff'             => $baseCoeff,
+                'effective_cost_coeff'        => $effCoeff,
+                'master_base_cost_coeff'      => (float) ($product?->master_cost_coeff ?? 0),
+                'master_effective_cost_coeff' => $masterCoeff,
                 // Старые булевы колонки продолжают писаться по прежним правилам —
                 // на них ещё завязаны формы, группировки и бейджи (этапы 4–5).
                 'is_undercut'          => in_array('undercut', $manualKeys, true),
@@ -72,6 +74,8 @@ class ItemCost
      * Пересчёт от заданной вручную базы — для формы правки коэффициента.
      * База берётся из формы как есть и правилами не переопределяется, поэтому
      * повторное сохранение не сдвигает коэффициент.
+     *
+     * $masterBaseCoeff — база мастера из формы; null — берётся из продукта.
      */
     public static function computeFromBase(
         ?Product $product,
@@ -80,6 +84,7 @@ class ItemCost
         string $scope,
         array $manualKeys = [],
         ?string $batchSku = null,
+        ?float $masterBaseCoeff = null,
     ): array {
         $result = self::compute($product, $departmentId, $scope, $manualKeys, $batchSku);
 
@@ -89,6 +94,16 @@ class ItemCost
         $result['attributes']['base_cost_coeff']      = $baseCoeff;
         $result['attributes']['effective_cost_coeff'] = $effCoeff;
         $result['attributes']['worker_cost_per_m2']   = $product?->prodCost($effCoeff, $departmentId);
+
+        if ($masterBaseCoeff !== null) {
+            $masterCoeff = ModifierEngine::masterCoeff($masterBaseCoeff, $applied);
+
+            $result['attributes']['master_base_cost_coeff']      = $masterBaseCoeff;
+            $result['attributes']['master_effective_cost_coeff'] = $masterCoeff;
+            $result['attributes']['master_cost_per_m2']          = $product
+                ? RateFormula::stepped(DepartmentSettings::masterBaseRate($departmentId), $masterCoeff)
+                : null;
+        }
 
         return $result;
     }

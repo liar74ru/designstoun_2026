@@ -576,6 +576,7 @@ class StoneReceptionService
                     DepartmentModifier::SCOPE_RECEPTION,
                     $row['modifiers'] ?? [],
                     $this->batchSku($reception),
+                    (float) $row['master_base_coeff'],
                 );
 
                 $item->update($cost['attributes']);

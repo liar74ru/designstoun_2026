@@ -147,9 +147,10 @@ describe('StoneReceptionController updateItemCoeff()', function () {
         $this->actingAs($user)->post(route('stone-receptions.update-item-coeff', $reception), [
             'items' => [
                 [
-                    'item_id'    => $item->id,
-                    'base_coeff' => 1.5,
-                    'modifiers'  => [],
+                    'item_id'           => $item->id,
+                    'base_coeff'        => 1.5,
+                    'master_base_coeff' => 0,
+                    'modifiers'         => [],
                 ],
             ],
         ])->assertRedirect();
@@ -181,9 +182,10 @@ describe('StoneReceptionController updateItemCoeff()', function () {
         $this->actingAs($user)->post(route('stone-receptions.update-item-coeff', $reception), [
             'items' => [
                 [
-                    'item_id'    => $item->id,
-                    'base_coeff' => 1.0,
-                    'modifiers'  => ['undercut'],
+                    'item_id'           => $item->id,
+                    'base_coeff'        => 1.0,
+                    'master_base_coeff' => 0,
+                    'modifiers'         => ['undercut'],
                 ],
             ],
         ]);
