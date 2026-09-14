@@ -5,6 +5,14 @@
     $isMaster        = $isMaster        ?? false;
     $editableReceiver = $editableReceiver ?? false;
     $masterWorkers    = $masterWorkers    ?? collect();
+    $showSyncStatus   = $showSyncStatus   ?? false;
+
+    // Синхронизация — свойство приёмки, у самой записи журнала своего статуса нет.
+    // На странице самой приёмки статус уже показан карточкой МойСклад, поэтому бейдж
+    // включается явно — в реестре, где другого источника статуса нет.
+    $syncBadge = $showSyncStatus
+        && $log->stoneReception?->moysklad_sync_status
+        && !$log->stoneReception->isSynced();
 
     $skuColor = \App\Models\Product::getColorBySku($log->rawMaterialBatch?->product?->sku);
     $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
@@ -23,6 +31,9 @@
             </span>
             @if($showActions)
                 <div class="d-flex gap-1 align-items-center">
+                    @if($syncBadge)
+                        <span class="badge {{ $log->stoneReception->syncStatusBadgeClass() }}" style="font-size:.65rem">{{ $log->stoneReception->syncStatusLabel() }}</span>
+                    @endif
                     <a href="{{ route('stone-receptions.show', $log->stoneReception) }}"
                        class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center"
                        style="width:22px;height:22px;padding:0;font-size:.65rem" title="Просмотр">
@@ -50,11 +61,16 @@
                     @endif
                 </div>
             @else
-                @if($log->type === 'created')
-                    <span class="badge bg-success" style="font-size:.65rem">Создание</span>
-                @else
-                    <span class="badge bg-warning text-dark" style="font-size:.65rem">Правка</span>
-                @endif
+                <div class="d-flex gap-1 align-items-center">
+                    @if($syncBadge)
+                        <span class="badge {{ $log->stoneReception->syncStatusBadgeClass() }}" style="font-size:.65rem">{{ $log->stoneReception->syncStatusLabel() }}</span>
+                    @endif
+                    @if($log->type === 'created')
+                        <span class="badge bg-success" style="font-size:.65rem">Создание</span>
+                    @else
+                        <span class="badge bg-warning text-dark" style="font-size:.65rem">Правка</span>
+                    @endif
+                </div>
             @endif
         </div>
 

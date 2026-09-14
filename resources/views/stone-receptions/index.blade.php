@@ -300,6 +300,9 @@
                                             @else
                                                 <span class="badge bg-warning text-dark">Правка</span>
                                             @endif
+                                            @if($log->stoneReception?->moysklad_sync_status && !$log->stoneReception->isSynced())
+                                                <br><span class="badge {{ $log->stoneReception->syncStatusBadgeClass() }} mt-1">{{ $log->stoneReception->syncStatusLabel() }}</span>
+                                            @endif
                                         </td>
                                         <td>
                                             <div class="d-flex gap-1 justify-content-end">
@@ -335,6 +338,7 @@
                                 'showActions'     => true,
                                 'showRawDetails'  => true,
                                 'showStoreBottom' => false,
+                                'showSyncStatus'  => true,
                             ])
                         @endforeach
                     </div>
@@ -370,7 +374,6 @@
         const STORAGE_KEY = 'stone_receptions_view';
 
         const statusCol = document.querySelector('[name="filter[status][]"]')?.closest('[class*="col-"]');
-        const syncCol   = document.querySelector('[name="filter[sync_status][]"]')?.closest('[class*="col-"]');
 
         function applyView(key) {
             VIEWS.forEach(v => {
@@ -387,7 +390,6 @@
             });
 
             if (statusCol) statusCol.style.display = key === 'logs' ? 'none' : '';
-            if (syncCol)   syncCol.style.display   = key === 'logs' ? 'none' : '';
 
             const viewInput = document.getElementById('filter-view-input');
             if (viewInput) viewInput.value = key;

@@ -2,8 +2,12 @@
 
 use App\Models\Department;
 use App\Models\DepartmentExpense;
+use App\Models\StoneReception;
+use App\Models\Store;
+use App\Models\Worker;
 use App\Services\Moysklad\StoneReceptionSyncService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // StoneReceptionSyncService — manualCostPerUnit()
@@ -58,5 +62,37 @@ describe('StoneReceptionSyncService::manualCostPerUnit()', function () {
 
         expect($service->manualCostPerUnit($cutting->id))->toBe(135.0);
         expect($service->manualCostPerUnit($quarry->id))->toBe(500.0);
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// StoneReceptionSyncService — syncReception()
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('StoneReceptionSyncService::syncReception()', function () {
+
+    test('приёмка без партии сырья помечается несинхронизированной', function () {
+        Http::fake();
+
+        $store    = Store::factory()->create();
+        $cutter   = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
+        $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
+
+        $reception = StoneReception::create([
+            'receiver_id'           => $receiver->id,
+            'cutter_id'             => $cutter->id,
+            'store_id'              => $store->id,
+            'raw_material_batch_id' => null,
+            'raw_quantity_used'     => 5.0,
+            'status'                => StoneReception::STATUS_ACTIVE,
+        ]);
+
+        app(StoneReceptionSyncService::class)->syncReception($reception);
+
+        $reception->refresh();
+        expect($reception->moysklad_sync_status)->toBe(StoneReception::SYNC_STATUS_NOT_SYNCED);
+        expect($reception->moysklad_sync_error)->toBe('Партия сырья не привязана к приёмке');
+
+        Http::assertNothingSent();
     });
 });

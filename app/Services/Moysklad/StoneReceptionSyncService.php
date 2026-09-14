@@ -389,6 +389,12 @@ class StoneReceptionSyncService extends MoySkladBaseService
     {
         $batch = $reception->rawMaterialBatch;
         if (!$batch) {
+            // Молчать нельзя: приёмка осталась бы с пустым moysklad_sync_status,
+            // а бейдж «Не синхр» в реестре рисуется только при непустом значении.
+            Log::warning('syncReception: у приёмки нет партии сырья', [
+                'reception_id' => $reception->id,
+            ]);
+            $reception->markSyncError('Партия сырья не привязана к приёмке');
             return;
         }
 

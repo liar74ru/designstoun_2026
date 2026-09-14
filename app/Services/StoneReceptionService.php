@@ -212,7 +212,11 @@ class StoneReceptionService
                     $query->whereHas('stoneReception', fn($q) => $q->whereIn('department_id', $ids));
                 }),
                 AllowedFilter::callback('status', fn() => null),
-                AllowedFilter::callback('sync_status', fn() => null),
+                AllowedFilter::callback('sync_status', function ($query, $value) {
+                    $statuses = is_array($value) ? $value : [$value];
+                    $query->whereHas('stoneReception', fn($q) =>
+                        $q->whereIn('moysklad_sync_status', $statuses));
+                }),
             ])
             ->with(['cutter', 'receiver', 'items.product',
                 'stoneReception.items.modifiers.modifier',
@@ -433,6 +437,18 @@ class StoneReceptionService
 
         foreach ($activeReceptions as $reception) {
             $reception->refresh();
+
+            // Приёмку с незакрытой ошибкой синхронизации не завершаем: смена статуса
+            // техоперации проходит и с непроехавшими позициями, а markSynced() затёр бы
+            // ошибку — приёмка выглядела бы синхронизированной. Ср. markCompleted().
+            if ($reception->hasSyncError()) {
+                Log::warning('closeBatch: приёмка пропущена — не закрыта ошибка синхронизации', [
+                    'reception_id' => $reception->id,
+                    'error'        => $reception->moysklad_sync_error,
+                ]);
+                continue;
+            }
+
             if ($reception->hasMoySkladProcessing()) {
                 $result = $this->syncService->completeProcessing($reception->moysklad_processing_id);
                 if ($result['success']) {

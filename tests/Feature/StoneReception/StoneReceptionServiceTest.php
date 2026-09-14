@@ -495,6 +495,83 @@ describe('StoneReceptionService::closeBatch()', function () {
 
         expect($result)->toBeFalse();
     });
+
+    test('приёмка с ошибкой синхронизации не завершается в МойСклад и сохраняет ошибку', function () {
+        $rawProduct = Product::factory()->create(['name' => 'Гранит']);
+        $store = Store::factory()->create();
+        $cutter = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
+        $batch = RawMaterialBatch::create([
+            'product_id' => $rawProduct->id,
+            'initial_quantity' => 100.0,
+            'remaining_quantity' => 0.0,
+            'current_store_id' => $store->id,
+            'current_worker_id' => $cutter->id,
+            'status' => RawMaterialBatch::STATUS_IN_WORK,
+        ]);
+
+        $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
+        $reception = StoneReception::create([
+            'receiver_id' => $receiver->id,
+            'cutter_id' => $cutter->id,
+            'store_id' => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_used' => 100.0,
+            'status' => StoneReception::STATUS_ACTIVE,
+            'moysklad_processing_id' => 'proc-uuid',
+            'moysklad_sync_status' => StoneReception::SYNC_STATUS_NOT_SYNCED,
+            'moysklad_sync_error' => 'Ошибка МойСклад: товар не найден',
+        ]);
+
+        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
+        $mockSync->shouldNotReceive('completeProcessing');
+
+        $service = makeStoneReceptionService($mockSync);
+        $result = $service->closeBatch($batch);
+
+        expect($result)->toBeTrue();
+
+        $reception->refresh();
+        expect($reception->status)->toBe(StoneReception::STATUS_COMPLETED);
+        expect($reception->moysklad_sync_status)->toBe(StoneReception::SYNC_STATUS_NOT_SYNCED);
+        expect($reception->moysklad_sync_error)->toBe('Ошибка МойСклад: товар не найден');
+    });
+
+    test('приёмка без ошибки завершается в МойСклад и помечается синхронизированной', function () {
+        $rawProduct = Product::factory()->create(['name' => 'Гранит']);
+        $store = Store::factory()->create();
+        $cutter = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
+        $batch = RawMaterialBatch::create([
+            'product_id' => $rawProduct->id,
+            'initial_quantity' => 100.0,
+            'remaining_quantity' => 0.0,
+            'current_store_id' => $store->id,
+            'current_worker_id' => $cutter->id,
+            'status' => RawMaterialBatch::STATUS_IN_WORK,
+        ]);
+
+        $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
+        $reception = StoneReception::create([
+            'receiver_id' => $receiver->id,
+            'cutter_id' => $cutter->id,
+            'store_id' => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_used' => 100.0,
+            'status' => StoneReception::STATUS_ACTIVE,
+            'moysklad_processing_id' => 'proc-uuid',
+            'moysklad_sync_status' => StoneReception::SYNC_STATUS_SYNCED,
+        ]);
+
+        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
+        $mockSync->shouldReceive('completeProcessing')->once()->with('proc-uuid')
+            ->andReturn(['success' => true, 'message' => 'ok']);
+
+        $service = makeStoneReceptionService($mockSync);
+        $service->closeBatch($batch);
+
+        $reception->refresh();
+        expect($reception->moysklad_sync_status)->toBe(StoneReception::SYNC_STATUS_SYNCED);
+        expect($reception->moysklad_sync_error)->toBeNull();
+    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

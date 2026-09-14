@@ -117,16 +117,16 @@ class StoneReceptionController extends Controller
                 $request->input('processing_name') ?: null
             );
 
+            $redirect = redirect()->route('stone-receptions.create', ['cutter_id' => $request->input('cutter_id')]);
+
             if ($request->boolean('close_batch')) {
                 $batch = $reception->rawMaterialBatch()->first();
                 if ($batch && $this->service->closeBatch($batch)) {
-                    return redirect()->route('stone-receptions.create', ['cutter_id' => $request->input('cutter_id')])
-                        ->with('success', 'Приёмка создана. Партия закрыта.');
+                    return $this->withSyncFlash($redirect, $reception, 'Приёмка создана. Партия закрыта.');
                 }
             }
 
-            return redirect()->route('stone-receptions.create', ['cutter_id' => $request->input('cutter_id')])
-                ->with('success', 'Приемка создана');
+            return $this->withSyncFlash($redirect, $reception, 'Приемка создана');
 
         } catch (\Exception $e) {
             Log::error('Ошибка создания приёмки:', ['error' => $e->getMessage(), 'data' => $data]);
@@ -182,19 +182,41 @@ class StoneReceptionController extends Controller
         try {
             $this->service->update($stoneReception, $data, auth()->user()?->isAdmin() ?? false);
 
+            $redirect = redirect()->route('stone-receptions.index');
+
             if ($request->boolean('close_batch') && $stoneReception->rawMaterialBatch) {
                 if ($this->service->closeBatch($stoneReception->rawMaterialBatch)) {
-                    return redirect()->route('stone-receptions.index')
-                        ->with('success', 'Приёмка обновлена. Партия закрыта.');
+                    return $this->withSyncFlash($redirect, $stoneReception, 'Приёмка обновлена. Партия закрыта.');
                 }
             }
 
-            return redirect()->route('stone-receptions.index')->with('success', 'Приемка обновлена');
+            return $this->withSyncFlash($redirect, $stoneReception, 'Приемка обновлена');
 
         } catch (\Exception $e) {
             Log::error('Ошибка обновления приёмки:', ['error' => $e->getMessage()]);
             return back()->withErrors(['error' => 'Ошибка: ' . $e->getMessage()])->withInput();
         }
+    }
+
+    /**
+     * Флеш по итогам сохранения приёмки: если синхронизация с МойСклад не прошла,
+     * пользователь должен узнать об этом сразу, а не по бейджу в реестре.
+     */
+    private function withSyncFlash(
+        RedirectResponse $redirect,
+        StoneReception $reception,
+        string $okMessage
+    ): RedirectResponse {
+        $reception->refresh();
+
+        if ($reception->hasSyncError()) {
+            return $redirect->with(
+                'warning',
+                $okMessage . ' Ошибка синхронизации с МойСклад: ' . $reception->moysklad_sync_error
+            );
+        }
+
+        return $redirect->with('success', $okMessage);
     }
 
     public function updateLogReceiver(Request $request, ReceptionLog $receptionLog): JsonResponse
