@@ -415,23 +415,28 @@ class WorkshopSyncService extends MoySkladBaseService
      */
     private function refreshAffectedStocks(Workshop $workshop): void
     {
-        try {
-            $workshop->loadMissing('items.product');
+        $workshop->loadMissing('items.product');
 
-            $ids = collect();
-            foreach ($workshop->items as $item) {
-                $ids->push($item->product?->moysklad_id);
-            }
+        $this->stockSyncService->refreshProducts(
+            $workshop->items->map(fn ($item) => $item->product?->moysklad_id)
+        );
+    }
 
-            foreach ($ids->filter()->unique() as $moyskladId) {
-                $this->stockSyncService->updateProductStocksByMoyskladId($moyskladId);
-            }
-        } catch (\Exception $e) {
-            Log::warning('WorkshopSyncService::refreshAffectedStocks: не удалось обновить остатки', [
-                'workshop_id' => $workshop->id,
-                'error'        => $e->getMessage(),
-            ]);
+    /**
+     * Удалить техоперацию цеха в МойСклад и подтянуть остатки затронутых товаров.
+     * Вызывается после локального удаления — items.product должны быть загружены заранее.
+     *
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function deleteProcessingForWorkshop(Workshop $workshop): array
+    {
+        $result = $this->deleteProcessing($workshop->moysklad_processing_id);
+
+        if ($result['success']) {
+            $this->refreshAffectedStocks($workshop);
         }
+
+        return $result;
     }
 
     private function buildWorkshopDescription(Workshop $workshop): string

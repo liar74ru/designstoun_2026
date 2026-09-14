@@ -269,6 +269,58 @@ describe('StoneReceptionService::update()', function () {
             ->and($log->receiver_id)->toBe($editor->id);
     });
 
+    test('перечитывает остатки убранных позиций и сырья партии', function () {
+        $rawProduct = Product::factory()->create(['name' => 'Гранит', 'moysklad_id' => 'ms-raw']);
+        $kept       = Product::factory()->create(['name' => 'Плитка', 'moysklad_id' => 'ms-kept']);
+        $removed    = Product::factory()->create(['name' => 'Брусчатка', 'moysklad_id' => 'ms-removed']);
+        $store      = Store::factory()->create();
+        $cutter     = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
+        $batch      = RawMaterialBatch::create([
+            'product_id'         => $rawProduct->id,
+            'initial_quantity'   => 100.0,
+            'remaining_quantity' => 95.0,
+            'current_store_id'   => $store->id,
+            'current_worker_id'  => $cutter->id,
+            'status'             => RawMaterialBatch::STATUS_IN_WORK,
+        ]);
+
+        $receiver  = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
+        $reception = StoneReception::create([
+            'receiver_id'           => $receiver->id,
+            'cutter_id'             => $cutter->id,
+            'store_id'              => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_used'     => 5.0,
+            'status'                => StoneReception::STATUS_ACTIVE,
+        ]);
+        StoneReceptionItem::create(['stone_reception_id' => $reception->id, 'product_id' => $kept->id, 'quantity' => 2.0]);
+        StoneReceptionItem::create(['stone_reception_id' => $reception->id, 'product_id' => $removed->id, 'quantity' => 1.0]);
+
+        $this->actingAs(User::factory()->create(['worker_id' => $receiver->id]));
+
+        // Убранная позиция и сырьё партии уходят в syncReception() на перечитывание остатков
+        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
+        $mockSync->shouldReceive('syncReception')
+            ->once()
+            ->withArgs(fn ($r, $name, array $alsoRefresh) => in_array('ms-removed', $alsoRefresh, true)
+                && in_array('ms-raw', $alsoRefresh, true))
+            ->andReturn(null);
+
+        makeStoneReceptionService($mockSync)->update($reception, [
+            'receiver_id'           => $receiver->id,
+            'cutter_id'             => $cutter->id,
+            'store_id'              => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_used'     => 5.0,
+            'raw_quantity_delta'    => 0,
+            'products'              => [
+                ['product_id' => $kept->id, 'quantity' => 2.0],
+            ],
+        ], false);
+
+        expect($reception->fresh()->items)->toHaveCount(1);
+    });
+
     test('не пишет лог если ничего не изменилось', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $product = Product::factory()->create(['name' => 'Плитка']);

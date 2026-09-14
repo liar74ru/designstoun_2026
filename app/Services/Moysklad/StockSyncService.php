@@ -42,14 +42,21 @@ class StockSyncService extends MoySkladBaseService
             if ($filterStoreId && $storeId !== $filterStoreId) continue;
             if (!Store::find($storeId)) continue;
 
-            ProductStock::updateOrCreate(
-                ['product_id' => $product->id, 'store_id' => $storeId],
-                [
-                    'quantity'   => (float)($storeStock['stock']     ?? 0),
-                    'reserved'   => (float)($storeStock['reserve']   ?? 0),
-                    'in_transit' => (float)($storeStock['inTransit'] ?? 0),
-                ]
-            );
+            $values = [
+                'quantity'   => (float)($storeStock['stock']     ?? 0),
+                'reserved'   => (float)($storeStock['reserve']   ?? 0),
+                'in_transit' => (float)($storeStock['inTransit'] ?? 0),
+            ];
+
+            // stockMode=all отдаёт и пустые склады: пустую строку не создаём,
+            // но существующую обнуляем — иначе списанный до нуля остаток остаётся старым.
+            if (!array_filter($values)) {
+                $stock = ProductStock::where('product_id', $product->id)->where('store_id', $storeId)->first();
+                if (!$stock) continue;
+                $stock->fill($values)->save();
+            } else {
+                ProductStock::updateOrCreate(['product_id' => $product->id, 'store_id' => $storeId], $values);
+            }
 
             $updated++;
         }
@@ -71,7 +78,8 @@ class StockSyncService extends MoySkladBaseService
             $total  = 0;
 
             do {
-                $params = ['limit' => $limit, 'offset' => $offset];
+                // stockMode=all — иначе склады с нулевым остатком не приходят и не обнуляются
+                $params = ['limit' => $limit, 'offset' => $offset, 'filter' => 'stockMode=all'];
                 if ($storeId) $params['store'] = $storeId;
 
                 $data = $this->get('/report/stock/bystore', $params);
@@ -117,11 +125,17 @@ class StockSyncService extends MoySkladBaseService
         $filter = $this->baseUrl . '/entity/product/' . $moyskladId;
 
         $data = $this->get('/report/stock/bystore', [
-            'filter' => 'product=' . $filter,
+            'filter' => 'product=' . $filter . ';stockMode=all',
             'limit'  => 1,
         ]);
 
-        if (!$data || empty($data['rows'])) {
+        if (!$data) {
+            return ['success' => false, 'message' => 'Ошибка получения данных из МойСклад', 'updated' => 0];
+        }
+
+        if (empty($data['rows'])) {
+            // Со stockMode=all существующий товар приходит всегда, даже с нулями.
+            // Пустой ответ — не повод стирать остатки: ничего не пишем.
             return ['success' => false, 'message' => 'Нет данных об остатках', 'updated' => 0];
         }
 
@@ -132,6 +146,31 @@ class StockSyncService extends MoySkladBaseService
             'message' => "Обновлено записей по складам: {$updated}",
             'updated' => $updated,
         ];
+    }
+
+    /**
+     * Перечитать из МойСклад остатки конкретных товаров — вызывается после любого
+     * документа, который их двигает. Ошибка не должна ронять вызывающий поток — логируем.
+     */
+    public function refreshProducts(iterable $moyskladIds): void
+    {
+        foreach (collect($moyskladIds)->filter()->unique() as $moyskladId) {
+            try {
+                $result = $this->updateProductStocksByMoyskladId($moyskladId);
+
+                if (!$result['success']) {
+                    Log::warning('Остатки товара не обновлены из МойСклад', [
+                        'moysklad_id' => $moyskladId,
+                        'message'     => $result['message'],
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Исключение при обновлении остатков товара из МойСклад', [
+                    'moysklad_id' => $moyskladId,
+                    'error'       => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     // ─── Обёртки для обратной совместимости ─────────────────────────────────

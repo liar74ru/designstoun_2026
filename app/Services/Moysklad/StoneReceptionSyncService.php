@@ -385,7 +385,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
      * Синхронизирует приёмку с МойСклад: создаёт техоперацию (первая синхронизация)
      * или обновляет продукты/материал (повторная).
      */
-    public function syncReception(StoneReception $reception, ?string $customName = null): void
+    public function syncReception(StoneReception $reception, ?string $customName = null, array $alsoRefresh = []): void
     {
         $batch = $reception->rawMaterialBatch;
         if (!$batch) {
@@ -407,7 +407,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
 
                 if ($result['success']) {
                     $reception->markSynced($result['processing_id'], $result['processing_name']);
-                    $this->refreshAffectedStocks($reception);
+                    $this->refreshAffectedStocks($reception, $alsoRefresh);
                 } else {
                     $reception->markSyncError($result['message']);
                     Log::warning('syncReception: не удалось создать техоперацию', [
@@ -428,7 +428,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
 
                 if ($result['success']) {
                     $reception->markSynced($reception->moysklad_processing_id);
-                    $this->refreshAffectedStocks($reception);
+                    $this->refreshAffectedStocks($reception, $alsoRefresh);
                 } else {
                     $reception->markSyncError($result['message']);
                     Log::warning('syncReception: не удалось обновить техоперацию', [
@@ -449,27 +449,19 @@ class StoneReceptionSyncService extends MoySkladBaseService
 
     /**
      * Подтянуть из МойСклад актуальные остатки товаров, затронутых приёмкой:
-     * сырьё партии + вся готовая продукция. Вызывается только после успешной
-     * техоперации. Ошибка подтяжки не должна ронять поток приёмки — логируем.
+     * сырьё партии + вся готовая продукция + $alsoRefresh (товары «до правки»:
+     * убранные позиции и сырьё прежней партии). Вызывается только после успешной
+     * техоперации; ошибки логирует StockSyncService::refreshProducts().
      */
-    private function refreshAffectedStocks(StoneReception $reception): void
+    private function refreshAffectedStocks(StoneReception $reception, array $alsoRefresh = []): void
     {
-        try {
-            $ids = collect();
-            $ids->push($reception->rawMaterialBatch?->product?->moysklad_id);
-            foreach ($reception->items as $item) {
-                $ids->push($item->product?->moysklad_id);
-            }
-
-            foreach ($ids->filter()->unique() as $moyskladId) {
-                $this->stockSyncService->updateProductStocksByMoyskladId($moyskladId);
-            }
-        } catch (\Exception $e) {
-            Log::warning('refreshAffectedStocks: не удалось обновить остатки', [
-                'reception_id' => $reception->id,
-                'error'        => $e->getMessage(),
-            ]);
+        $ids = collect($alsoRefresh);
+        $ids->push($reception->rawMaterialBatch?->product?->moysklad_id);
+        foreach ($reception->items as $item) {
+            $ids->push($item->product?->moysklad_id);
         }
+
+        $this->stockSyncService->refreshProducts($ids);
     }
 
     private function buildReceptionDescription(StoneReception $reception, RawMaterialBatch $batch): string

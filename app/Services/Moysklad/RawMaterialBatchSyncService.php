@@ -11,6 +11,7 @@ class RawMaterialBatchSyncService
 {
     public function __construct(
         private MoySkladMoveService $moveService,
+        private StockSyncService $stockSyncService,
     ) {}
 
     /**
@@ -53,6 +54,7 @@ class RawMaterialBatchSyncService
                 $movement->update(['moysklad_move_id' => $result['move_id'], 'moysklad_synced' => true]);
                 $batch->markSynced($result['move_id'], $moveData['name']);
                 Log::info('Перемещение синхронизировано с МойСклад', ['move_id' => $result['move_id']]);
+                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
             } else {
                 $batch->markSyncError($result['message']);
                 Log::warning('Ошибка синхронизации перемещения с МойСклад', ['error' => $result['message']]);
@@ -101,6 +103,7 @@ class RawMaterialBatchSyncService
                     'move_id'  => $result['move_id'],
                     'batch_id' => $newBatch->id,
                 ]);
+                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
             } else {
                 Log::warning('Ошибка синхронизации возврата партии с МойСклад', [
                     'error'    => $result['message'],
@@ -118,12 +121,15 @@ class RawMaterialBatchSyncService
     /**
      * Синхронизирует редактирование партии (товар/количество/дата/склады).
      * Склады берутся из первичного движения — update() уже записал в него новые.
+     * $previousProductMoyskladId — прежний товар партии, если его сменили: его остаток
+     * в МойСклад тоже меняется и перечитывается.
      * Вызывается после update().
      */
     public function syncEdited(
         RawMaterialBatch $batch,
         float $newQuantity,
-        ?\Carbon\Carbon $newCreatedAt = null
+        ?\Carbon\Carbon $newCreatedAt = null,
+        ?string $previousProductMoyskladId = null
     ): void {
         $batch->refresh();
         $product = $batch->product;
@@ -170,6 +176,7 @@ class RawMaterialBatchSyncService
                     'move_id'  => $originalMovement->moysklad_move_id,
                     'batch_id' => $batch->id,
                 ]);
+                $this->stockSyncService->refreshProducts([$product->moysklad_id, $previousProductMoyskladId]);
             } else {
                 Log::warning('Ошибка обновления перемещения партии в МойСклад', [
                     'error'    => $result['message'],
@@ -248,6 +255,7 @@ class RawMaterialBatchSyncService
                     'delta'    => $delta,
                     'new_qty'  => $newTotalQty,
                 ]);
+                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
             } else {
                 Log::warning('Ошибка обновления перемещения в МойСклад', [
                     'error'    => $result['message'],
@@ -330,6 +338,7 @@ class RawMaterialBatchSyncService
                     'batch_id' => $batch->id,
                     'move_id'  => $moveId,
                 ]);
+                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
                 return ['success' => true, 'code' => 'ok', 'message' => 'Синхронизировано'];
             }
 
@@ -389,7 +398,9 @@ class RawMaterialBatchSyncService
                 'products'      => [['product_id' => $product->moysklad_id, 'quantity' => $qty]],
             ]);
 
-            if (!$result['success']) {
+            if ($result['success']) {
+                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
+            } else {
                 Log::warning('Ошибка обновления перемещения родительской партии', [
                     'error'    => $result['message'],
                     'batch_id' => $batch->id,
@@ -399,6 +410,31 @@ class RawMaterialBatchSyncService
             Log::error('Исключение при обновлении перемещения родительской партии', [
                 'error'    => $e->getMessage(),
                 'batch_id' => $batch->id,
+            ]);
+        }
+    }
+
+    /**
+     * Удаляет перемещение партии в МойСклад и подтягивает остатки товара.
+     * Вызывается после локального удаления новой партии.
+     */
+    public function deleteMove(string $moveId, ?string $productMoyskladId): void
+    {
+        try {
+            $result = $this->moveService->deleteMove($moveId);
+
+            if ($result['success']) {
+                $this->stockSyncService->refreshProducts([$productMoyskladId]);
+            } else {
+                Log::warning('Не удалось удалить перемещение в МойСклад при удалении партии', [
+                    'move_id' => $moveId,
+                    'error'   => $result['message'],
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Исключение при удалении перемещения в МойСклад', [
+                'move_id' => $moveId,
+                'error'   => $e->getMessage(),
             ]);
         }
     }

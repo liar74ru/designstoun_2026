@@ -220,6 +220,7 @@ class SupplierOrderSyncService
             'status'             => SupplierOrder::STATUS_SENT,
             'sync_error'         => null,
         ]);
+        $this->syncSuppliedProductStocks($order);
 
         return ['status' => 'success', 'number' => $order->fresh()->number];
     }
@@ -240,17 +241,15 @@ class SupplierOrderSyncService
             'status'             => SupplierOrder::STATUS_SENT,
             'sync_error'         => null,
         ]);
+        $this->syncSuppliedProductStocks($order);
 
         return ['status' => 'success', 'name' => $supplyName];
     }
 
     private function syncSuppliedProductStocks(SupplierOrder $order): void
     {
-        foreach ($order->items as $item) {
-            $moyskladId = $item->product?->moysklad_id;
-            if ($moyskladId) {
-                $this->stockSyncService->updateProductStocksByMoyskladId($moyskladId);
-            }
-        }
+        $this->stockSyncService->refreshProducts(
+            $order->items->map(fn ($item) => $item->product?->moysklad_id)
+        );
     }
 }

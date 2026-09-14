@@ -8,13 +8,11 @@ use App\Models\RawMaterialBatch;
 use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
-use App\Services\Moysklad\MoySkladMoveService;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\RawMaterialBatchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 // рефакторинг v2 от 26.04.2026  controller -> service -> service/moysklad
@@ -24,7 +22,6 @@ class RawMaterialBatchController extends Controller
     public function __construct(
         private RawMaterialBatchService $service,
         private RawMaterialBatchSyncService $syncService,
-        private MoySkladMoveService $moySkladMoveService,
     ) {}
 
     public function index(Request $request): View
@@ -255,7 +252,12 @@ class RawMaterialBatchController extends Controller
                 ->with('info', 'Изменений не обнаружено.');
         }
 
-        $this->syncService->syncEdited($result['batch'], $result['newQuantity'], $result['newCreatedAt']);
+        $this->syncService->syncEdited(
+            $result['batch'],
+            $result['newQuantity'],
+            $result['newCreatedAt'],
+            $result['previousProductMoyskladId']
+        );
 
         return redirect()->route('raw-batches.show', $batch)
             ->with('success', 'Партия обновлена.');
@@ -268,23 +270,12 @@ class RawMaterialBatchController extends Controller
                 ->with('error', 'Удалить можно только партии в статусе «Новая».');
         }
 
-        $moyskladMoveId = $this->service->deleteNew($batch);
+        // Товар запоминаем до удаления: после него остаток перечитывается из МойСклад
+        $productMoyskladId = $batch->product?->moysklad_id;
+        $moyskladMoveId    = $this->service->deleteNew($batch);
 
         if ($moyskladMoveId) {
-            try {
-                $result = $this->moySkladMoveService->deleteMove($moyskladMoveId);
-                if (!$result['success']) {
-                    Log::warning('Не удалось удалить перемещение в МойСклад при удалении партии', [
-                        'move_id' => $moyskladMoveId,
-                        'error'   => $result['message'],
-                    ]);
-                }
-            } catch (\Exception $e) {
-                Log::error('Исключение при удалении перемещения в МойСклад', [
-                    'move_id' => $moyskladMoveId,
-                    'error'   => $e->getMessage(),
-                ]);
-            }
+            $this->syncService->deleteMove($moyskladMoveId, $productMoyskladId);
         }
 
         return redirect()->route('raw-batches.index')

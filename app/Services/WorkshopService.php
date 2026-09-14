@@ -317,10 +317,13 @@ class WorkshopService
     {
         $processingId = $workshop->moysklad_processing_id;
 
+        // Позиции нужны в памяти: после удаления по ним подтягиваются остатки из МойСклад.
+        $workshop->loadMissing('items.product');
+
         DB::transaction(fn() => $workshop->delete());
 
         if ($processingId) {
-            $result = $this->syncService->deleteProcessing($processingId);
+            $result = $this->syncService->deleteProcessingForWorkshop($workshop);
 
             if (!$result['success']) {
                 Log::warning('Не удалось удалить техоперацию в МойСклад при удалении операции цеха', [

@@ -200,6 +200,7 @@ class RawMaterialBatchService
     public function update(RawMaterialBatch $batch, array $data, bool $isAdmin): ?array
     {
         $oldProductId = $batch->product_id;
+        $oldProductMoyskladId = $batch->product?->moysklad_id;
         $oldQuantity  = (float) $batch->initial_quantity;
         $oldRemaining = (float) $batch->remaining_quantity;
         $newProductId = (int) $data['product_id'];
@@ -282,7 +283,13 @@ class RawMaterialBatchService
             $batch->update($updateData);
         });
 
-        return ['batch' => $batch, 'newQuantity' => $newQuantity, 'newCreatedAt' => $newCreatedAt];
+        return [
+            'batch'        => $batch,
+            'newQuantity'  => $newQuantity,
+            'newCreatedAt' => $newCreatedAt,
+            // Прежний товар — чтобы после синхронизации перечитать и его остаток
+            'previousProductMoyskladId' => $productChanged ? $oldProductMoyskladId : null,
+        ];
     }
 
     /**

@@ -17,6 +17,11 @@ function mockMoySklad(bool $success = true): void
         'message' => $success ? '' : 'API error',
     ]);
     app()->instance(MoySkladMoveService::class, $mock);
+
+    // Остатки после синхронизации из МойСклад не тянем — в тестах сети нет
+    $stock = Mockery::mock(\App\Services\Moysklad\StockSyncService::class);
+    $stock->shouldReceive('refreshProducts')->andReturnNull();
+    app()->instance(\App\Services\Moysklad\StockSyncService::class, $stock);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -225,3 +225,69 @@ describe('SupplierOrderSyncService::deleteOrderFromMoysklad()', function () {
         expect($result['message'])->toContain('Не найден');
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SupplierOrderSyncService::forceSync() — остатки после создания приёмки
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('SupplierOrderSyncService::forceSync() — остатки', function () {
+
+    beforeEach(function () {
+        $counterparty = Counterparty::create(['name' => 'Поставщик', 'moysklad_id' => 'cp-1']);
+        $this->order  = SupplierOrder::create([
+            'counterparty_id' => $counterparty->id,
+            'store_id'        => Store::factory()->create()->id,
+            'number'          => '001',
+            'moysklad_id'     => 'mo-1',
+        ]);
+    });
+
+    test('recreate после создания приёмки обновляет остатки', function () {
+        $mockPurchaseOrder = mock(MoySkladPurchaseOrderService::class)
+            ->shouldReceive('createPurchaseOrder')
+            ->andReturn(['success' => true, 'moysklad_id' => 'mo-2'])
+            ->getMock();
+        $mockSupply = mock(MoySkladSupplyService::class)
+            ->shouldReceive('createSupply')
+            ->andReturn(['success' => true, 'supply_moysklad_id' => 'sup-1'])
+            ->getMock();
+        $mockStock = mock(StockSyncService::class)
+            ->shouldReceive('refreshProducts')->once()
+            ->getMock();
+
+        $service = new SupplierOrderSyncService($mockPurchaseOrder, $mockSupply, $mockStock);
+        $result  = $service->forceSync($this->order, 'recreate');
+
+        expect($result['status'])->toBe('success');
+    });
+
+    test('suffix_supply после создания приёмки обновляет остатки', function () {
+        $mockSupply = mock(MoySkladSupplyService::class)
+            ->shouldReceive('createSupply')
+            ->andReturn(['success' => true, 'supply_moysklad_id' => 'sup-1'])
+            ->getMock();
+        $mockStock = mock(StockSyncService::class)
+            ->shouldReceive('refreshProducts')->once()
+            ->getMock();
+
+        $service = new SupplierOrderSyncService(mock(MoySkladPurchaseOrderService::class), $mockSupply, $mockStock);
+        $result  = $service->forceSync($this->order, 'suffix_supply', '001-1');
+
+        expect($result['status'])->toBe('success');
+    });
+
+    test('при ошибке создания приёмки остатки не обновляются', function () {
+        $mockSupply = mock(MoySkladSupplyService::class)
+            ->shouldReceive('createSupply')
+            ->andReturn(['success' => false, 'code' => 'api_error', 'message' => 'Сбой'])
+            ->getMock();
+        $mockStock = mock(StockSyncService::class)
+            ->shouldNotReceive('refreshProducts')
+            ->getMock();
+
+        $service = new SupplierOrderSyncService(mock(MoySkladPurchaseOrderService::class), $mockSupply, $mockStock);
+        $result  = $service->forceSync($this->order, 'suffix_supply', '001-1');
+
+        expect($result['status'])->toBe('error');
+    });
+});

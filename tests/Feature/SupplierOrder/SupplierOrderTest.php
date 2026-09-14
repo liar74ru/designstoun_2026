@@ -56,6 +56,7 @@ function mockStockSync(): void
         'success' => true,
         'updated' => 1,
     ]);
+    $mock->shouldReceive('refreshProducts')->andReturnNull();
     app()->instance(StockSyncService::class, $mock);
 }
 

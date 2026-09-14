@@ -279,9 +279,9 @@ describe('WorkshopService::delete()', function () {
         $workshop = $service->create(basePayload($this), false);
         $workshop->update(['moysklad_processing_id' => 'ms-uuid-1']);
 
-        $this->mockSync->shouldReceive('deleteProcessing')
+        $this->mockSync->shouldReceive('deleteProcessingForWorkshop')
             ->once()
-            ->with('ms-uuid-1')
+            ->withArgs(fn (Workshop $w) => $w->moysklad_processing_id === 'ms-uuid-1')
             ->andReturn(['success' => true, 'message' => 'Техоперация удалена']);
 
         $service->delete($workshop->fresh());
@@ -294,9 +294,9 @@ describe('WorkshopService::delete()', function () {
         $workshop = $service->create(basePayload($this), false);
         $workshop->update(['moysklad_processing_id' => 'ms-uuid-2']);
 
-        $this->mockSync->shouldReceive('deleteProcessing')
+        $this->mockSync->shouldReceive('deleteProcessingForWorkshop')
             ->once()
-            ->with('ms-uuid-2')
+            ->withArgs(fn (Workshop $w) => $w->moysklad_processing_id === 'ms-uuid-2')
             ->andReturn(['success' => false, 'message' => 'Ошибка API МойСклад']);
 
         $service->delete($workshop->fresh());
@@ -308,7 +308,7 @@ describe('WorkshopService::delete()', function () {
         $service  = new WorkshopService($this->mockSync);
         $workshop = $service->create(basePayload($this), false);
 
-        $this->mockSync->shouldNotReceive('deleteProcessing');
+        $this->mockSync->shouldNotReceive('deleteProcessingForWorkshop');
 
         $service->delete($workshop);
 

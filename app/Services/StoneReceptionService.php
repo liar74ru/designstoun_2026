@@ -316,6 +316,15 @@ class StoneReceptionService
             ? (float) $reception->rawMaterialBatch->remaining_quantity
             : null;
 
+        // Товары «до правки»: убранные позиции и сырьё прежней партии тоже двигаются
+        // в МойСклад — их остатки перечитываются вместе с текущими после синхронизации.
+        $previousMoyskladIds = $reception->items()->with('product')->get()
+            ->map(fn ($item) => $item->product?->moysklad_id)
+            ->push($reception->rawMaterialBatch?->product?->moysklad_id)
+            ->filter()
+            ->values()
+            ->all();
+
         DB::transaction(function () use ($reception, $data, $rawDelta, $batchSnapshotBefore, $isAdmin) {
             $preSaveItems = $reception->items()
                 ->get()
@@ -367,7 +376,7 @@ class StoneReceptionService
         });
 
         $reception->refresh();
-        $this->syncService->syncReception($reception);
+        $this->syncService->syncReception($reception, null, $previousMoyskladIds);
 
         return $reception;
     }
