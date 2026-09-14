@@ -102,7 +102,12 @@
                                 @endphp
                                 <tr>
                                     <td style="border-left:4px solid {{ $skuColor }};{{ $skuBg }};word-break:break-word;padding:.3rem .1rem .3rem .4rem">
-                                        {{ $row['product']?->name ?? '—' }}
+                                        @if($row['product'])
+                                            <a href="{{ route('products.show', $row['product']->moysklad_id) }}"
+                                               class="text-body text-decoration-none">{{ $row['product']->name }}</a>
+                                        @else
+                                            —
+                                        @endif
                                         @include('partials.modifier-badges', [
                                             'modifiers' => $row['modifiers'] ?? [],
                                             'class'     => 'ms-1',
@@ -179,7 +184,12 @@
                                 @endphp
                                 <tr>
                                     <td style="border-left:4px solid {{ $skuColor }};{{ $skuBg }};word-break:break-word;padding:.3rem .1rem .3rem .4rem">
-                                        {{ $row['product']?->name ?? '—' }}
+                                        @if($row['product'])
+                                            <a href="{{ route('products.show', $row['product']->moysklad_id) }}"
+                                               class="text-body text-decoration-none">{{ $row['product']->name }}</a>
+                                        @else
+                                            —
+                                        @endif
                                     </td>
                                     <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
                                         {{ $row['uom'] }}
