@@ -53,7 +53,16 @@
                         <ion-icon name="{{ \App\Models\Product::getIconBySku($product?->sku) }}" class="text-muted flex-shrink-0 mt-1"></ion-icon>
                         <div class="min-w-0">
                             <div style="font-size:.78rem; line-height:1.25; word-break:break-word">
-                                {{ $product?->name ?? $item->product_name ?? '—' }}
+                                @if($product)
+                                    @can('see-products')
+                                        <a href="{{ route('products.show', $product->moysklad_id) }}"
+                                           class="text-reset text-decoration-none">{{ $product->name }}</a>
+                                    @else
+                                        {{ $product->name }}
+                                    @endcan
+                                @else
+                                    {{ $item->product_name ?? '—' }}
+                                @endif
                             </div>
                         </div>
                     </div>
