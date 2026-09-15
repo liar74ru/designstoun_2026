@@ -131,7 +131,7 @@
                                             @endif
                                         </td>
                                         <td class="text-end">
-                                            <span class="badge bg-primary">{{ number_format($stock->quantity, 3, ',', ' ') }}</span>
+                                            <span class="badge {{ $stock->quantity < 0 ? 'bg-danger' : 'bg-primary' }}">{{ number_format($stock->quantity, 3, ',', ' ') }}</span>
                                         </td>
                                         <td class="text-end">
                                             @if($stock->reserved > 0)
@@ -148,8 +148,8 @@
                                             @endif
                                         </td>
                                         <td class="text-end">
-                                            @if($stock->available > 0)
-                                                <span class="badge bg-success">{{ number_format($stock->available, 3, ',', ' ') }}</span>
+                                            @if($stock->available != 0)
+                                                <span class="badge {{ $stock->available < 0 ? 'bg-danger' : 'bg-success' }}">{{ number_format($stock->available, 3, ',', ' ') }}</span>
                                             @else
                                                 <span class="text-muted">0</span>
                                             @endif

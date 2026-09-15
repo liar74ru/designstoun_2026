@@ -15,8 +15,8 @@
         <div class="col">
             <div class="d-flex justify-content-between gap-2 border-bottom">
                 <span class="text-muted">{{ $label }}</span>
-                <span class="fw-semibold text-nowrap {{ $value > 0 ? $class : 'text-muted' }}">
-                    {{ $value > 0 ? number_format($value, 3, ',', ' ') : '0' }}
+                <span class="fw-semibold text-nowrap {{ $value > 0 ? $class : ($value < 0 ? 'text-danger' : 'text-muted') }}">
+                    {{ $value != 0 ? number_format($value, 3, ',', ' ') : '0' }}
                 </span>
             </div>
         </div>
