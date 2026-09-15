@@ -211,7 +211,13 @@ function renderTree(groups, filter = '') {
             toggler.type = 'button';
             toggler.className = 'btn btn-sm p-0 border-0 text-muted tree-toggler';
             toggler.innerHTML = '<i class="bi bi-chevron-right" style="font-size:.7rem"></i>';
-            toggler.addEventListener('click', () => {
+            groupEl.appendChild(toggler);
+
+            // Раскрытие по клику на всю строку группы, а не только на стрелку
+            groupEl.style.cursor = 'pointer';
+            groupEl.style.userSelect = 'none';
+            groupEl.setAttribute('role', 'button');
+            groupEl.addEventListener('click', () => {
                 const sub = li.querySelector('.tree-sub');
                 const icon = toggler.querySelector('i');
                 const isOpen = sub.style.display !== 'none';
@@ -219,7 +225,6 @@ function renderTree(groups, filter = '') {
                 icon.className = isOpen ? 'bi bi-chevron-right' : 'bi bi-chevron-down';
                 icon.style.fontSize = '.7rem';
             });
-            groupEl.appendChild(toggler);
         } else {
             const spacer = document.createElement('span');
             spacer.style.width = '20px';

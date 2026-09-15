@@ -18,6 +18,16 @@
     padding: .4rem .5rem;
 }
 
+/* Дерево каталога в пикере продукта: на мобильном модалка fullscreen — тело на всю высоту */
+.product-tree-modal-body {
+    overflow-y: auto;
+}
+@media (min-width: 576px) {
+    .product-tree-modal-body {
+        max-height: 70vh;
+    }
+}
+
 /* Стили для карточек-плиток */
 .hover-shadow {
     transition: all 0.3s ease;

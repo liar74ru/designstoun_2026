@@ -72,7 +72,7 @@
                 <h5 class="modal-title">Выбрать из каталога</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+            <div class="modal-body product-tree-modal-body">
                 <input type="text" class="form-control mb-3 tree-search-input"
                        placeholder="Поиск по каталогу...">
                 <div class="product-tree-container"></div>
