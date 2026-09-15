@@ -34,6 +34,8 @@ class SupplierOrder extends Model
         'status',
         'note',
         'sync_error',
+        'created_at',
+        'updated_at',
     ];
 
     public function store(): BelongsTo

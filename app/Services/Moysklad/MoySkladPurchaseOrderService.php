@@ -186,6 +186,7 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
 
             $body = [
                 'agent'     => ['meta' => $agentMeta],
+                'moment'    => MoyskladMoment::format($order->created_at, true),
                 'positions' => $positions,
             ];
 
