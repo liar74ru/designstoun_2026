@@ -10,6 +10,7 @@
       $statusOptions      — array [ value => label ] (для multi и single)
       $filterDepartments  — Collection|null  (null = скрыть multi-select отделов)
       $departmentDefaults — array (id отделов выбранных по умолчанию у мастера)
+      $filterCounterparties — Collection|null  (null = скрыть select поставщиков)
 --}}
 @php
     $cutterParam        = $cutterParam        ?? 'cutter_id';
@@ -24,8 +25,10 @@
     $syncStatusOptions  = $syncStatusOptions  ?? [];
     $filterDepartments  = $filterDepartments  ?? null;
     $departmentDefaults = $departmentDefaults ?? [];
+    $filterCounterparties = $filterCounterparties ?? null;
     $selectedDepartments = (array) request('filter.department_id', $departmentDefaults);
     $filterCount   = ($filterCutters    ? 1 : 0)
+                   + ($filterCounterparties ? 1 : 0)
                    + ($filterRawProducts ? 1 : 0)
                    + ($filterProducts    ? 1 : 0)
                    + ($showStatus !== false ? 1 : 0)
@@ -98,6 +101,21 @@
                             <option value="{{ $cutter->id }}"
                                 {{ request("filter.$cutterParam") == $cutter->id ? 'selected' : '' }}>
                                 {{ $cutter->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+
+                {{-- Поставщик --}}
+                @if($filterCounterparties)
+                <div class="col-12 col-sm-6 {{ $colClass }}">
+                    <label class="form-label small text-muted mb-1">Поставщик</label>
+                    <select name="filter[counterparty_id]" class="form-select" style="border-radius:.4rem">
+                        <option value="">Все поставщики</option>
+                        @foreach($filterCounterparties as $counterparty)
+                            <option value="{{ $counterparty->id }}"
+                                {{ request('filter.counterparty_id') == $counterparty->id ? 'selected' : '' }}>
+                                {{ $counterparty->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -236,6 +254,7 @@
         'filter[{{ $cutterParam }}]',
         'filter[{{ $rawProductParam }}]',
         @if($filterProducts) 'filter[product_id]', @endif
+        @if($filterCounterparties) 'filter[counterparty_id]', @endif
         'date_from', 'date_to'
     ];
     const activeFilters = filterKeys.filter(k => params.get(k) && params.get(k) !== '').length

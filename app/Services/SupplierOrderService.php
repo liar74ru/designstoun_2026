@@ -27,6 +27,7 @@ class SupplierOrderService
                 AllowedFilter::callback('department_id', fn($q, $v) =>
                     $q->whereIn('supplier_orders.department_id', (array) $v)),
                 AllowedFilter::exact('status'),
+                AllowedFilter::exact('counterparty_id', 'supplier_orders.counterparty_id'),
             ])
             ->with(['counterparty', 'store', 'receiver', 'items.product', 'department', 'createdBy.worker'])
             ->when($request->filled('date_from'), fn($q) =>
@@ -44,7 +45,19 @@ class SupplierOrderService
         $filterDepartments  = Department::orderBy('name')->get();
         $departmentDefaults = $accessible ?? [];
 
-        return compact('orders', 'filterDepartments', 'departmentDefaults');
+        // В фильтр попадают только контрагенты, от которых было хотя бы одно поступление
+        // в тех же отделах, что видны в списке: выбранных в фильтре, иначе доступных пользователю
+        $filter    = $request->input('filter', []);
+        $deptScope = array_key_exists('department_id', $filter)
+            ? (array) $filter['department_id']
+            : $accessible;
+
+        $filterCounterparties = Counterparty::whereIn('id', SupplierOrder::select('counterparty_id')
+                ->when($deptScope !== null, fn($q) => $q->whereIn('department_id', $deptScope ?: [-1])))
+            ->orderBy('name')
+            ->get();
+
+        return compact('orders', 'filterDepartments', 'departmentDefaults', 'filterCounterparties');
     }
 
     public function getFormOptions(): array

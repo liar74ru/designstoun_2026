@@ -39,6 +39,7 @@
         'showStatus'         => false,
         'filterDepartments'  => $filterDepartments,
         'departmentDefaults' => $departmentDefaults,
+        'filterCounterparties' => $filterCounterparties,
     ])
 
     @if($orders->count() > 0)
