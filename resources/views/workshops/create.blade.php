@@ -179,6 +179,7 @@
                             @foreach($workers as $worker)
                                 <option value="{{ $worker->id }}"
                                     data-department-ids="{{ implode(',', $worker->departmentIds()) }}"
+                                    data-department-id="{{ $worker->department_id }}"
                                     @if($worker->position === 'Администратор') data-always-visible @endif
                                     {{ old('packer_id', $selectedPackerId ?? auth()->user()->worker_id) == $worker->id ? 'selected' : '' }}>
                                     {{ $worker->name }}
@@ -703,6 +704,28 @@
         rawStoreSelect.dataset.touched = '1';
         productStoreSelect.dataset.touched = '1';
     @endif
+
+    // ── Отдел от выбранного работника ────────────────────────────────────────
+    // Ручной выбор отдела приоритетнее: isTrusted отличает человека от dispatchEvent.
+    departmentSelect.addEventListener('change', function (e) {
+        if (e.isTrusted) this.dataset.touched = '1';
+    });
+    @if(old('department_id'))
+        departmentSelect.dataset.touched = '1';
+    @endif
+
+    const packerSelect = document.getElementById('packerSelect');
+    function syncDeptFromPacker() {
+        if (departmentSelect.dataset.touched) return;
+        const deptId = packerSelect.options[packerSelect.selectedIndex]?.dataset.departmentId;
+        if (!deptId || departmentSelect.value === deptId) return;
+        // Отдела может не быть в списке: не-админ выбирает только среди своих отделов
+        if (!departmentSelect.querySelector(`option[value="${deptId}"]`)) return;
+        departmentSelect.value = deptId;
+        departmentSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    packerSelect.addEventListener('change', syncDeptFromPacker);
+    syncDeptFromPacker();
 
     // Начальные строки: копия операции (copy_from) либо две пустые строки.
     const copyItems = @json($copyItems ?? []);
