@@ -41,6 +41,11 @@ class OrderService
             'statusDefaults'     => $statuses,
             'filterDepartments'  => Department::orderBy('name')->get(),
             'departmentDefaults' => $accessible ?? [],
+            'switchDepartments'  => Department::query()
+                ->when($accessible !== null, fn ($q) => $q->whereIn('id', $accessible ?: [-1]))
+                ->whereHas('orders')
+                ->orderBy('name')
+                ->get(),
             'productionStoreId'  => $productionStoreId,
         ];
     }

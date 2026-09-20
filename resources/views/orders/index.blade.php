@@ -44,6 +44,11 @@
         'departmentDefaults' => $departmentDefaults,
     ])
 
+    @include('partials.department-switcher', [
+        'departments' => $switchDepartments,
+        'routeName'   => 'orders.index',
+    ])
+
     @if($orders->count() > 0)
 
         {{-- Десктоп --}}
