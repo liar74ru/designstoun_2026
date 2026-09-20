@@ -41,7 +41,7 @@ class WorkshopService
             ->orderBy('name')->get();
 
         $userDepartment = auth()->user()?->worker?->department;
-        $userDepartment?->loadMissing('defaultProductionStore', 'defaultProductStore');
+        $userDepartment?->loadMissing('defaultRawStore', 'defaultProductStore');
 
         // Не-админ выбирает только среди своих отделов
         $accessibleDepartmentIds = auth()->user()?->accessibleDepartmentIds();
@@ -54,12 +54,12 @@ class WorkshopService
             'products'            => Product::orderBy('name')->get(),
             'packageProducts'     => Product::where('sku', 'like', '07-03%')->orderBy('name')->get(),
             'stores'              => Store::orderBy('name')->get(),
-            'defaultStore'        => $userDepartment?->defaultProductionStore ?? Store::getDefault(),
+            'defaultStore'        => $userDepartment?->defaultRawStore ?? Store::getDefault(),
             'defaultProductStore' => $userDepartment?->defaultProductStore ?? Store::getDefault(),
             'departments'         => Department::where('is_active', true)
                 ->when($accessibleDepartmentIds !== null,
                     fn($q) => $q->whereIn('id', $accessibleDepartmentIds ?: [-1]))
-                ->with('defaultProductionStore', 'defaultProductStore')
+                ->with('defaultRawStore', 'defaultProductStore')
                 ->orderBy('name')->get(),
         ];
 

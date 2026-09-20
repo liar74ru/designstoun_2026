@@ -69,7 +69,7 @@
                                     <option value="">— Не задан —</option>
                                     @foreach($departments as $department)
                                         <option value="{{ $department->id }}"
-                                            data-production-store-id="{{ $department->defaultProductionStore?->id }}"
+                                            data-raw-store-id="{{ $department->defaultRawStore?->id }}"
                                             data-product-store-id="{{ $department->defaultProductStore?->id }}"
                                             {{ (string) old('department_id', $userDeptId) === (string) $department->id ? 'selected' : '' }}>
                                             {{ $department->name }}
@@ -689,8 +689,8 @@
     function syncStoresFromDepartment() {
         const opt = departmentSelect.options[departmentSelect.selectedIndex];
         if (!opt || !opt.value) return;
-        if (!rawStoreSelect.dataset.touched && opt.dataset.productionStoreId) {
-            rawStoreSelect.value = opt.dataset.productionStoreId;
+        if (!rawStoreSelect.dataset.touched && opt.dataset.rawStoreId) {
+            rawStoreSelect.value = opt.dataset.rawStoreId;
         }
         if (!productStoreSelect.dataset.touched && opt.dataset.productStoreId) {
             productStoreSelect.value = opt.dataset.productStoreId;
