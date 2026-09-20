@@ -67,8 +67,13 @@
                     </thead>
                     <tbody>
                     @foreach($orders as $order)
-                        <tr>
-                            <td class="fw-semibold align-top">{{ $order->name }}</td>
+                        <tr class="order-row" style="cursor:pointer"
+                            data-href="{{ route('orders.show', $order->moysklad_id) }}">
+                            <td class="fw-semibold align-top">
+                                <a href="{{ route('orders.show', $order->moysklad_id) }}" class="text-reset">
+                                    {{ $order->name }}
+                                </a>
+                            </td>
                             <td class="text-muted small align-top">
                                 {{ $order->moment ? $order->moment->format('d.m.Y') : '—' }}
                             </td>
@@ -130,6 +135,15 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Клик по строке таблицы и по мобильной карточке открывает карточку заявки;
+            // ссылки внутри (товары, номер заявки) работают как обычно.
+            document.querySelectorAll('.order-row').forEach(function (row) {
+                row.addEventListener('click', function (e) {
+                    if (e.target.closest('a, button, input, label')) return;
+                    window.location = row.dataset.href;
+                });
+            });
+
             document.querySelectorAll('form.sync-form').forEach(function (form) {
                 form.addEventListener('submit', function () {
                     const btn = form.querySelector('button[type=submit]');

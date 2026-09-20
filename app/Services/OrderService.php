@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\OrderStatusSettingController;
 use App\Models\Department;
 use App\Models\Order;
 use App\Models\Setting;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -48,6 +49,64 @@ class OrderService
                 ->get(),
             'productionStoreId'  => $productionStoreId,
         ];
+    }
+
+    /**
+     * Данные карточки заявки. Заявка ищется по moysklad_id — локальные id живут
+     * только до ближайшей синхронизации (CustomerOrderSyncService чистит выпавшие).
+     */
+    public function getShowData(Request $request, string $moyskladId): array
+    {
+        $order = Order::query()
+            ->with(['items.product.stocks.store', 'departments', 'counterparty'])
+            ->where('moysklad_id', $moyskladId)
+            ->firstOrFail();
+
+        $accessible = $request->user()?->accessibleDepartmentIds();
+        if ($accessible !== null && empty(array_intersect($accessible, $order->departments->pluck('id')->all()))) {
+            abort(403);
+        }
+
+        return [
+            'order'             => $order,
+            'attributes'        => $this->visibleAttributes($order),
+            'productionStoreId' => $request->user()?->worker?->department?->default_production_store_id,
+            'backUrl'           => url()->previous(route('orders.index')),
+        ];
+    }
+
+    /**
+     * Доп. реквизиты МойСклад для карточки: булевы отброшены — они уже разобраны в отделы.
+     *
+     * @return array<string, string>
+     */
+    private function visibleAttributes(Order $order): array
+    {
+        $result = [];
+
+        foreach ($order->attributes ?? [] as $attr) {
+            $name = $attr['name'] ?? null;
+            $type = $attr['type'] ?? null;
+            $value = $attr['value'] ?? null;
+
+            if (! $name || $type === 'boolean') {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $value = $value['name'] ?? null;
+            } elseif ($type === 'time' && $value) {
+                $value = Carbon::parse($value)->format('d.m.Y');
+            }
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $result[$name] = (string) $value;
+        }
+
+        return $result;
     }
 
     public function statuses(): array

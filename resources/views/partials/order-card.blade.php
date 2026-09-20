@@ -1,10 +1,13 @@
 @php
     $productionStoreId = $productionStoreId ?? null;
 @endphp
-<div class="info-block mb-2">
+<div class="info-block mb-2 order-row" style="cursor:pointer"
+     data-href="{{ route('orders.show', $order->moysklad_id) }}">
     <div class="info-block-header d-flex justify-content-between align-items-center">
         <span class="fw-semibold small text-dark">
-            {{ $order->name }}
+            <a href="{{ route('orders.show', $order->moysklad_id) }}" class="text-reset text-decoration-none">
+                {{ $order->name }} <i class="bi bi-chevron-right" style="font-size:.7rem"></i>
+            </a>
             <span class="text-muted ms-1">{{ $order->moment?->format('d.m.Y') }}</span>
         </span>
         <span class="badge text-white"

@@ -61,6 +61,8 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('can:see-orders')->group(function () {
         Route::get ('orders',       [OrderController::class, 'index'])->name('orders.index');
         Route::post('orders/sync',  [OrderController::class, 'sync'])->name('orders.sync');
+        // Биндинг по moysklad_id: синхронизация удаляет выпавшие заявки, локальные id протухают.
+        Route::get ('orders/{moyskladId}', [OrderController::class, 'show'])->name('orders.show');
     });
 
     // Работники — список/CRUD доступен по can:see-workers; смена своего пароля — отдельно

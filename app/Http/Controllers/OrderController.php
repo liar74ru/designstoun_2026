@@ -23,6 +23,11 @@ class OrderController extends Controller
         return view('orders.index', $this->service->getIndexData($request));
     }
 
+    public function show(Request $request, string $moyskladId): View
+    {
+        return view('orders.show', $this->service->getShowData($request, $moyskladId));
+    }
+
     public function sync(): RedirectResponse
     {
         $orders = $this->sync->pullActive();
