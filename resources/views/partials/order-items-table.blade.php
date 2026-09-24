@@ -26,11 +26,19 @@
                 $isFullyShipped = $ordered > 0 && $shipped >= $ordered;
                 $isPartialShipped = $shipped > 0 && $shipped < $ordered;
 
+                // Уточнение мастера по этой заявке — поправка к остатку МойСклад.
+                $correction = $productionStoreId && $product
+                    ? $order->stockCorrections
+                        ->where('product_id', $product->id)
+                        ->firstWhere('store_id', $productionStoreId)
+                    : null;
+                $delta = $correction ? (float) $correction->delta : 0.0;
+
                 $hasProdStore = $productionStoreId && $product;
                 $prodQty = null;
                 if ($hasProdStore) {
                     $stock = $product->stocks->firstWhere('store_id', $productionStoreId);
-                    $prodQty = $stock ? (float) $stock->quantity : 0.0;
+                    $prodQty = max(0, ($stock ? (float) $stock->quantity : 0.0) + $delta);
                 }
                 $prodClass = '';
                 if ($prodQty !== null && ! $isFullyShipped) {
@@ -38,7 +46,7 @@
                 }
 
                 $totalQty = $product
-                    ? $product->stocks->filter(fn($s) => $s->store && ! $s->store->archived)->sum('quantity')
+                    ? max(0, $product->stocks->filter(fn($s) => $s->store && ! $s->store->archived)->sum('quantity') + $delta)
                     : null;
                 $totalClass = '';
                 if ($totalQty !== null && ! $isFullyShipped) {
@@ -82,7 +90,11 @@
                     @endif
                 </td>
                 <td class="text-end fw-semibold px-2 {{ $prodClass }}"
-                    style="white-space:nowrap; font-size:.82rem; font-variant-numeric:tabular-nums">
+                    style="white-space:nowrap; font-size:.82rem; font-variant-numeric:tabular-nums"
+                    @if($correction) title="Уточнено мастером. В МойСклад {{ $fmt1($correction->moysklad_quantity) }}" @endif>
+                    @if($correction)
+                        <i class="bi bi-pencil-fill text-warning" style="font-size:.6rem"></i>
+                    @endif
                     {{ $prodQty !== null ? $fmt1($prodQty) : '—' }}
                 </td>
                 <td class="text-end fw-semibold ps-2 {{ $totalClass }}"

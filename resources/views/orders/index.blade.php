@@ -79,7 +79,10 @@
                             </td>
                             <td class="align-top">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</td>
                             <td class="align-top p-0">
-                                @include('partials.order-items-table', ['order' => $order, 'productionStoreId' => $productionStoreId])
+                                @include('partials.order-items-table', [
+                                    'order'             => $order,
+                                    'productionStoreId' => $productionStoreIds[$order->id] ?? null,
+                                ])
                             </td>
                             <td class="align-top">
                                 @forelse($order->departments as $dept)
@@ -104,7 +107,10 @@
         {{-- Мобильный --}}
         <div class="d-md-none">
             @foreach($orders as $order)
-                @include('partials.order-card', ['order' => $order, 'productionStoreId' => $productionStoreId])
+                @include('partials.order-card', [
+                    'order'             => $order,
+                    'productionStoreId' => $productionStoreIds[$order->id] ?? null,
+                ])
             @endforeach
         </div>
 

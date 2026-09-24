@@ -63,7 +63,7 @@ describe('OrderService::getIndexData()', function () {
             'statusDefaults',
             'filterDepartments',
             'departmentDefaults',
-            'productionStoreId',
+            'productionStoreIds',
         ]);
     });
 
@@ -117,11 +117,15 @@ describe('OrderService::getIndexData()', function () {
         expect($data['filterDepartments']->pluck('id'))->toContain($dept1->id, $dept2->id);
     });
 
-    test('включает склад по умолчанию из настроек работника', function () {
+    test('склад заявки берётся от её отдела, а не от смотрящего', function () {
         Store::factory()->create(['id' => 'store-uuid-123']);
         $dept = Department::create(['name' => 'Отдел', 'is_active' => true, 'default_production_store_id' => 'store-uuid-123']);
-        $worker = Worker::create(['name' => 'Работник', 'department_id' => $dept->id, 'position' => 'Мастер']);
-        $user = User::factory()->for($worker)->create();
+
+        $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая']);
+        $order->departments()->attach($dept->id);
+
+        // Админ без отдела — склад всё равно определяется, потому что берётся от заявки
+        $user = User::factory()->create(['is_admin' => true]);
 
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
@@ -129,7 +133,7 @@ describe('OrderService::getIndexData()', function () {
         $service = new OrderService();
         $data = $service->getIndexData($request);
 
-        expect($data['productionStoreId'])->toBe('store-uuid-123');
+        expect($data['productionStoreIds'][$order->id])->toBe('store-uuid-123');
     });
 
     test('фильтрует по статусу через querystring', function () {

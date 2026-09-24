@@ -8,38 +8,51 @@
     $fmt1   = fn ($v) => number_format((float) $v, 1, '.', '');
 
     // Позиции считаем один раз: и таблица, и карточки, и сводка берут готовые числа.
-    $rows = $order->items->map(function ($item) use ($productionStoreId) {
+    $rows = $order->items->map(function ($item) use ($order, $productionStoreId) {
         $product = $item->product;
 
         $ordered = (float) $item->quantity;
         $shipped = (float) $item->shipped;
         $left    = max(0, $ordered - $shipped);
 
+        // Уточнение мастера хранится поправкой к остатку МойСклад — движения по товару
+        // переносятся на неё сами.
+        $correction = $productionStoreId && $product
+            ? $order->stockCorrections
+                ->where('product_id', $product->id)
+                ->firstWhere('store_id', $productionStoreId)
+            : null;
+        $delta = $correction ? (float) $correction->delta : 0.0;
+
+        $baseQty = null;
         $prodQty = null;
         if ($productionStoreId && $product) {
             $stock   = $product->stocks->firstWhere('store_id', $productionStoreId);
-            $prodQty = $stock ? (float) $stock->quantity : 0.0;
+            $baseQty = $stock ? (float) $stock->quantity : 0.0;
+            $prodQty = max(0, $baseQty + $delta);
         }
 
         $totalQty = $product
-            ? (float) $product->stocks->filter(fn ($s) => $s->store && ! $s->store->archived)->sum('quantity')
+            ? max(0, (float) $product->stocks->filter(fn ($s) => $s->store && ! $s->store->archived)->sum('quantity') + $delta)
             : null;
 
         return [
-            'item'     => $item,
-            'product'  => $product,
-            'name'     => $product?->name ?? $item->product_name ?? '—',
-            'ordered'  => $ordered,
-            'shipped'  => $shipped,
-            'left'     => $left,
-            'done'     => $ordered > 0 && $shipped >= $ordered,
-            'partial'  => $shipped > 0 && $shipped < $ordered,
-            'prodQty'  => $prodQty,
-            'totalQty' => $totalQty,
-            'short'    => $prodQty === null ? null : max(0, $left - $prodQty),
-            'ready'    => $left > 0 ? ($prodQty === null ? null : min(1, $prodQty / $left)) : 1.0,
-            'color'    => \App\Models\Product::getColorBySku($product?->sku),
-            'icon'     => \App\Models\Product::getIconBySku($product?->sku),
+            'item'       => $item,
+            'product'    => $product,
+            'name'       => $product?->name ?? $item->product_name ?? '—',
+            'ordered'    => $ordered,
+            'shipped'    => $shipped,
+            'left'       => $left,
+            'done'       => $ordered > 0 && $shipped >= $ordered,
+            'partial'    => $shipped > 0 && $shipped < $ordered,
+            'baseQty'    => $baseQty,
+            'prodQty'    => $prodQty,
+            'totalQty'   => $totalQty,
+            'correction' => $correction,
+            'short'      => $prodQty === null ? null : max(0, $left - $prodQty),
+            'ready'      => $left > 0 ? ($prodQty === null ? null : min(1, $prodQty / $left)) : 1.0,
+            'color'      => \App\Models\Product::getColorBySku($product?->sku),
+            'icon'       => \App\Models\Product::getIconBySku($product?->sku),
         ];
     });
 
@@ -72,6 +85,14 @@
     </x-page-header>
 
     @include('partials.alerts')
+
+    @if($errors->any())
+        <div class="alert alert-danger py-2">
+            @foreach($errors->all() as $error)
+                <div>{{ $error }}</div>
+            @endforeach
+        </div>
+    @endif
 
     <div class="row g-2">
 
@@ -110,6 +131,13 @@
                                 @endforelse
                             </div>
                         </div>
+
+                        @if($productionStore)
+                            <div class="mb-2">
+                                <div class="text-muted" style="font-size:.78rem">Склад комплектации</div>
+                                <div>{{ $productionStore->name }}</div>
+                            </div>
+                        @endif
 
                         <div class="pt-2" style="border-top:1px solid #f1f3f5">
                             <div class="d-flex justify-content-between small">
@@ -186,7 +214,16 @@
                                         <th style="min-width:140px">Готовность</th>
                                         <th class="text-end">Заказ</th>
                                         <th class="text-end">Отгр.</th>
-                                        <th class="text-end">Склад</th>
+                                        <th class="text-end">
+                                            Склад
+                                            @if($productionStore)
+                                                <div class="fw-normal text-muted text-truncate"
+                                                     style="font-size:.68rem; max-width:160px"
+                                                     title="{{ $productionStore->name }}">
+                                                    {{ $productionStore->name }}
+                                                </div>
+                                            @endif
+                                        </th>
                                         <th class="text-end">Всего</th>
                                     </tr>
                                 </thead>
@@ -230,9 +267,12 @@
                                             style="white-space:nowrap; font-variant-numeric: tabular-nums">
                                             {{ $row['shipped'] > 0 ? $fmt1($row['shipped']) : '—' }}
                                         </td>
-                                        <td class="text-end fw-semibold {{ $row['done'] || $row['prodQty'] === null ? '' : ($row['short'] > 0 ? 'text-danger' : 'text-success') }}"
-                                            style="white-space:nowrap; font-variant-numeric: tabular-nums">
-                                            {{ $row['prodQty'] !== null ? $fmt1($row['prodQty']) : '—' }}
+                                        <td class="text-end" style="white-space:nowrap">
+                                            @include('orders.partials.stock-cell', [
+                                                'row'               => $row,
+                                                'fmt1'              => $fmt1,
+                                                'productionStoreId' => $productionStoreId,
+                                            ])
                                         </td>
                                         <td class="text-end fw-semibold {{ $row['done'] || $row['totalQty'] === null ? '' : ($row['totalQty'] >= $row['left'] ? 'text-success' : 'text-danger') }}"
                                             style="white-space:nowrap; font-variant-numeric: tabular-nums">
@@ -294,9 +334,11 @@
                                             </span>
                                             <span>
                                                 <span class="text-muted">склад</span>
-                                                <b class="{{ $row['prodQty'] === null ? '' : ($row['short'] > 0 ? 'text-danger' : 'text-success') }}">
-                                                    {{ $row['prodQty'] !== null ? $fmt1($row['prodQty']) : '—' }}
-                                                </b>
+                                                @include('orders.partials.stock-cell', [
+                                                    'row'               => $row,
+                                                    'fmt1'              => $fmt1,
+                                                    'productionStoreId' => $productionStoreId,
+                                                ])
                                             </span>
                                             <span>
                                                 <span class="text-muted">всего</span>
@@ -325,4 +367,75 @@
 
     </div>
 </div>
+
+@if($productionStoreId)
+    @include('orders.partials.correction-modal', ['order' => $order, 'productionStoreId' => $productionStoreId])
+@endif
 @endsection
+
+@if($productionStoreId)
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal     = document.getElementById('stockCorrectionModal');
+            const resetForm = document.getElementById('correctionResetForm');
+            if (!modal || !resetForm) return;
+
+            const productInput = document.getElementById('correction_product_id');
+            const nameEl       = document.getElementById('correction_name');
+            const baseEl       = document.getElementById('correction_base');
+            const factInput    = document.getElementById('correction_fact');
+            const noteInput    = document.getElementById('correction_note');
+            const hintEl       = document.getElementById('correction_hint');
+            const resetBtn     = document.getElementById('correction_reset_btn');
+
+            // Шаблон маршрута сброса: последний сегмент — id товара, подставляем по клику.
+            const resetBase = resetBtn.parentElement.dataset.resetUrl.replace(/\/0$/, '');
+
+            function updateHint() {
+                const base = parseFloat(baseEl.dataset.value);
+                const fact = parseFloat(factInput.value);
+                if (isNaN(base) || isNaN(fact)) {
+                    hintEl.textContent = '';
+                    return;
+                }
+                const delta = Math.round((fact - base) * 1000) / 1000;
+                hintEl.textContent = delta === 0
+                    ? 'Совпадает с МойСклад — уточнение будет снято'
+                    : 'Поправка ' + (delta > 0 ? '+' : '−') + Math.abs(delta).toFixed(1);
+            }
+
+            modal.addEventListener('show.bs.modal', function (event) {
+                const btn = event.relatedTarget;
+                if (!btn) return;
+
+                productInput.value  = btn.dataset.productId;
+                nameEl.textContent  = btn.dataset.name;
+                baseEl.textContent  = btn.dataset.base;
+                baseEl.dataset.value = btn.dataset.base;
+                factInput.value     = btn.dataset.fact;
+                noteInput.value     = btn.dataset.note || '';
+
+                // Инлайн-style, а не [hidden]: .btn задаёт display и перебил бы атрибут.
+                resetBtn.style.display = btn.dataset.hasCorrection === '1' ? '' : 'none';
+                resetForm.action       = resetBase + '/' + btn.dataset.productId;
+
+                updateHint();
+            });
+
+            modal.addEventListener('shown.bs.modal', function () {
+                factInput.focus();
+                factInput.select();
+            });
+
+            factInput.addEventListener('input', updateHint);
+
+            resetBtn.addEventListener('click', function () {
+                if (confirm('Снять уточнение и показывать остаток МойСклад?')) {
+                    resetForm.submit();
+                }
+            });
+        });
+    </script>
+@endpush
+@endif

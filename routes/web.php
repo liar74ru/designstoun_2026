@@ -63,6 +63,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('orders/sync',  [OrderController::class, 'sync'])->name('orders.sync');
         // Биндинг по moysklad_id: синхронизация удаляет выпавшие заявки, локальные id протухают.
         Route::get ('orders/{moyskladId}', [OrderController::class, 'show'])->name('orders.show');
+        // Уточнение фактических остатков в рамках заявки
+        Route::post   ('orders/{moyskladId}/corrections', [OrderController::class, 'storeCorrection'])
+            ->name('orders.corrections.store');
+        Route::delete ('orders/{moyskladId}/corrections/{productId}', [OrderController::class, 'destroyCorrection'])
+            ->name('orders.corrections.destroy');
     });
 
     // Работники — список/CRUD доступен по can:see-workers; смена своего пароля — отдельно

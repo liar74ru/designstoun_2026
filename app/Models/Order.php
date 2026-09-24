@@ -35,6 +35,12 @@ class Order extends Model
         return $this->belongsTo(Counterparty::class);
     }
 
+    /** Поправки к остаткам, уточнённые мастером в рамках этой заявки */
+    public function stockCorrections(): HasMany
+    {
+        return $this->hasMany(OrderStockCorrection::class);
+    }
+
     public function departments(): BelongsToMany
     {
         return $this->belongsToMany(Department::class, 'order_department');

@@ -6,6 +6,8 @@ use App\Http\Controllers\Admin\OrderStatusSettingController;
 use App\Models\Department;
 use App\Models\Order;
 use App\Models\Setting;
+use App\Models\Store;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -19,7 +21,7 @@ class OrderService
         $statuses   = $this->statuses();
 
         $orders = QueryBuilder::for(Order::class)
-            ->with(['items.product.stocks.store', 'departments', 'counterparty'])
+            ->with(['items.product.stocks.store', 'departments', 'counterparty', 'stockCorrections'])
             ->allowedFilters([
                 AllowedFilter::callback('status', fn ($q, $v) =>
                     $q->whereIn('state_name', (array) $v)),
@@ -34,7 +36,12 @@ class OrderService
             ->paginate(20)
             ->withQueryString();
 
-        $productionStoreId = $request->user()?->worker?->department?->default_production_store_id;
+        // Склад у каждой заявки свой — считаем по странице пагинации.
+        $productionStoreIds = $orders->getCollection()
+            ->mapWithKeys(fn (Order $order) => [
+                $order->id => $this->effectiveStoreId($order, $request->user()),
+            ])
+            ->all();
 
         return [
             'orders'             => $orders,
@@ -47,18 +54,40 @@ class OrderService
                 ->whereHas('orders')
                 ->orderBy('name')
                 ->get(),
-            'productionStoreId'  => $productionStoreId,
+            'productionStoreIds' => $productionStoreIds,
         ];
     }
 
     /**
-     * Данные карточки заявки. Заявка ищется по moysklad_id — локальные id живут
-     * только до ближайшей синхронизации (CustomerOrderSyncService чистит выпавшие).
+     * Склад, остаток по которому показывается и уточняется в заявке.
+     *
+     * Определяется от заявки, а не от смотрящего: поправка хранится вместе со store_id,
+     * и склад «по пользователю» развёл бы админа и мастера по разным строкам поправок.
+     * Цепочка по образцу StoneReception::effectiveDepartmentId().
      */
-    public function getShowData(Request $request, string $moyskladId): array
+    public function effectiveStoreId(Order $order, ?User $user): ?string
+    {
+        $fromOrder = $order->departments
+            ->sortBy('id')
+            ->firstWhere(fn ($d) => ! empty($d->default_production_store_id));
+
+        return $fromOrder?->default_production_store_id
+            ?? $user?->worker?->department?->default_production_store_id
+            ?? Store::getDefault()?->id;
+    }
+
+    /**
+     * Заявка по moysklad_id с проверкой доступа по отделу. Локальные id живут только
+     * до ближайшей синхронизации (CustomerOrderSyncService чистит выпавшие), поэтому
+     * ищем по moysklad_id. В списке чужие заявки отфильтрованы, но по прямой ссылке
+     * были бы видны — отсюда 403.
+     *
+     * @param  array<int, string>  $with
+     */
+    public function findForUser(Request $request, string $moyskladId, array $with = []): Order
     {
         $order = Order::query()
-            ->with(['items.product.stocks.store', 'departments', 'counterparty'])
+            ->with(array_merge(['departments'], $with))
             ->where('moysklad_id', $moyskladId)
             ->firstOrFail();
 
@@ -67,10 +96,27 @@ class OrderService
             abort(403);
         }
 
+        return $order;
+    }
+
+    /**
+     * Данные карточки заявки.
+     */
+    public function getShowData(Request $request, string $moyskladId): array
+    {
+        $order = $this->findForUser($request, $moyskladId, [
+            'items.product.stocks.store',
+            'counterparty',
+            'stockCorrections.user.worker',
+        ]);
+
+        $productionStoreId = $this->effectiveStoreId($order, $request->user());
+
         return [
             'order'             => $order,
             'attributes'        => $this->visibleAttributes($order),
-            'productionStoreId' => $request->user()?->worker?->department?->default_production_store_id,
+            'productionStoreId' => $productionStoreId,
+            'productionStore'   => $productionStoreId ? Store::find($productionStoreId) : null,
             'backUrl'           => url()->previous(route('orders.index')),
         ];
     }
