@@ -25,6 +25,7 @@ class OrderService
     {
         $accessible = $request->user()?->accessibleDepartmentIds();
         $statuses   = $this->statuses();
+        $defaults   = $this->defaultStatuses();
 
         $orders = QueryBuilder::for(Order::class)
             ->with(['items.product.stocks', 'departments', 'counterparty', 'positionSettings'])
@@ -38,6 +39,10 @@ class OrderService
             ->when($accessible !== null, fn ($q) =>
                 $q->whereHas('departments', fn ($d) =>
                     $d->whereIn('departments.id', $accessible ?: [-1])))
+            // Фильтр статусов не пришёл — показываем набор, отмеченный админом «по умолчанию».
+            // Проверяем наличие ключа: пустой filter[status] форма не присылает вовсе.
+            ->when(! $request->has('filter.status') && $defaults !== [], fn ($q) =>
+                $q->whereIn('state_name', $defaults))
             ->orderByDesc('moment')
             ->paginate(20)
             ->withQueryString();
@@ -58,7 +63,7 @@ class OrderService
         return [
             'orders'             => $orders,
             'statusOptions'      => array_combine($statuses, $statuses),
-            'statusDefaults'     => $statuses,
+            'statusDefaults'     => $defaults,
             'filterDepartments'  => Department::orderBy('name')->get(),
             'departmentDefaults' => $accessible ?? [],
             'switchDepartments'  => Department::query()
@@ -181,9 +186,25 @@ class OrderService
         return $result;
     }
 
-    /** Имена используемых статусов — для фильтра в списке заявок. */
+    /** Имена используемых статусов — варианты в фильтре списка заявок. */
     public function statuses(): array
     {
         return OrderState::enabled()->orderBy('position')->pluck('name')->all();
+    }
+
+    /**
+     * Статусы, показываемые в списке при заходе без фильтра.
+     *
+     * Пересекаем с используемыми: забытая галочка на выключенном статусе не должна
+     * сужать выдачу. Ничего не отмечено — показываем все используемые, как было до
+     * появления настройки, а не пустой список.
+     *
+     * @return array<int, string>
+     */
+    public function defaultStatuses(): array
+    {
+        $defaults = OrderState::enabled()->defaultFilter()->orderBy('position')->pluck('name')->all();
+
+        return $defaults ?: $this->statuses();
     }
 }

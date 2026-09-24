@@ -44,6 +44,36 @@ describe('OrderService::statuses()', function () {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+// OrderService::defaultStatuses()
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('OrderService::defaultStatuses()', function () {
+
+    test('возвращает только отмеченные «в списке»', function () {
+        orderState('Новый', true, position: 0);
+        orderState('Собран', true, position: 1)->update(['is_default_filter' => true]);
+        orderState('Отгружен', true, position: 2)->update(['is_default_filter' => true]);
+
+        expect(app(OrderService::class)->defaultStatuses())->toBe(['Собран', 'Отгружен']);
+    });
+
+    test('отмеченный, но неиспользуемый статус в набор не попадает', function () {
+        orderState('Новый', true, position: 0)->update(['is_default_filter' => true]);
+        orderState('Отменен', false, position: 1)->update(['is_default_filter' => true]);
+
+        expect(app(OrderService::class)->defaultStatuses())->toBe(['Новый']);
+    });
+
+    test('без отметок возвращает все используемые — поведение как до настройки', function () {
+        orderState('Новый', true, position: 0);
+        orderState('Собран', true, position: 1);
+        orderState('Отменен', false, position: 2);
+
+        expect(app(OrderService::class)->defaultStatuses())->toBe(['Новый', 'Собран']);
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 // OrderService::getIndexData()
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -157,6 +187,58 @@ describe('OrderService::getIndexData()', function () {
         $data = $service->getIndexData($request);
 
         expect($data['orders']->total())->toBe(1);
+    });
+
+    test('без фильтра показывает только статусы, отмеченные «в списке»', function () {
+        $user = User::factory()->create(['is_admin' => true]);
+        orderState('Новый', true, position: 0);
+        orderState('Собран', true, position: 1)->update(['is_default_filter' => true]);
+
+        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый']);
+        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Собран']);
+
+        $request = Request::create('/', 'GET');
+        $request->setUserResolver(fn () => $user);
+
+        $data = app(OrderService::class)->getIndexData($request);
+
+        expect($data['orders']->total())->toBe(1)
+            ->and($data['orders']->first()->state_name)->toBe('Собран')
+            ->and($data['statusDefaults'])->toBe(['Собран'])
+            // Варианты в фильтре при этом остаются все используемые
+            ->and($data['statusOptions'])->toHaveKeys(['Новый', 'Собран']);
+    });
+
+    test('явный фильтр перебивает статусы по умолчанию', function () {
+        $user = User::factory()->create(['is_admin' => true]);
+        orderState('Новый', true, position: 0);
+        orderState('Собран', true, position: 1)->update(['is_default_filter' => true]);
+
+        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый']);
+        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Собран']);
+
+        $request = Request::create('/', 'GET', ['filter' => ['status' => ['Новый']]]);
+        $request->setUserResolver(fn () => $user);
+        app()->instance('request', $request);
+
+        $data = app(OrderService::class)->getIndexData($request);
+
+        expect($data['orders']->total())->toBe(1)
+            ->and($data['orders']->first()->state_name)->toBe('Новый');
+    });
+
+    test('без отметок «в списке» показываются все заявки', function () {
+        $user = User::factory()->create(['is_admin' => true]);
+        orderState('Новый', true, position: 0);
+        orderState('Собран', true, position: 1);
+
+        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый']);
+        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Собран']);
+
+        $request = Request::create('/', 'GET');
+        $request->setUserResolver(fn () => $user);
+
+        expect(app(OrderService::class)->getIndexData($request)['orders']->total())->toBe(2);
     });
 
     test('загружает отношения для оптимизации', function () {

@@ -43,6 +43,10 @@
                 Пока заявка в нём, остаток на складе зафиксирован, а всё произведённое
                 попадает в колонку «Изготовлено» карточки заявки.
             </div>
+            <div class="mt-1">
+                Колонка <strong>«В списке»</strong> — какие статусы показывать в списке заявок
+                при заходе без фильтра. Если не отмечено ничего, показываются все используемые.
+            </div>
         </div>
     </div>
 
@@ -62,13 +66,14 @@
                     <span class="badge bg-secondary">{{ $states->count() }}</span>
                 </div>
                 <div class="info-block-body p-0">
-                    {{-- Две независимые галочки в строке, поэтому строка не обёрнута
+                    {{-- Три независимые галочки в строке, поэтому строка не обёрнута
                          в общий <label>: он переключал бы только первую. --}}
                     <div class="d-flex align-items-center gap-2 px-2 py-1 text-muted"
                          style="border-bottom:1px solid #f1f3f5; font-size:.72rem">
                         <span class="flex-grow-1">Статус</span>
                         <span class="text-center" style="width:44px">Исп.</span>
                         <span class="text-center" style="width:56px">Произв.</span>
+                        <span class="text-center" style="width:58px">В списке</span>
                     </div>
 
                     @foreach($states as $state)
@@ -102,6 +107,13 @@
                                 <input type="checkbox" class="form-check-input mt-0"
                                        name="production[]" value="{{ $state->id }}"
                                        {{ $state->is_production ? 'checked' : '' }}>
+                            </label>
+
+                            <label class="d-flex justify-content-center m-0" style="width:58px; cursor:pointer"
+                                   title="Показывать в списке заявок по умолчанию">
+                                <input type="checkbox" class="form-check-input mt-0"
+                                       name="default_filter[]" value="{{ $state->id }}"
+                                       {{ $state->is_default_filter ? 'checked' : '' }}>
                             </label>
                         </div>
                     @endforeach

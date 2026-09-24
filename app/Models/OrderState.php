@@ -27,15 +27,17 @@ class OrderState extends Model
         'position',
         'is_enabled',
         'is_production',
+        'is_default_filter',
         'archived',
     ];
 
     protected $casts = [
-        'color'         => 'integer',
-        'position'      => 'integer',
-        'is_enabled'    => 'boolean',
-        'is_production' => 'boolean',
-        'archived'      => 'boolean',
+        'color'             => 'integer',
+        'position'          => 'integer',
+        'is_enabled'        => 'boolean',
+        'is_production'     => 'boolean',
+        'is_default_filter' => 'boolean',
+        'archived'          => 'boolean',
     ];
 
     /**
@@ -59,6 +61,12 @@ class OrderState extends Model
     public function scopeProduction(Builder $query): Builder
     {
         return $query->where('is_production', true);
+    }
+
+    /** Статусы, отмеченные для показа в списке заявок по умолчанию. */
+    public function scopeDefaultFilter(Builder $query): Builder
+    {
+        return $query->where('is_default_filter', true);
     }
 
     /** Цвет плашки; у статуса без цвета — нейтральный серый. */

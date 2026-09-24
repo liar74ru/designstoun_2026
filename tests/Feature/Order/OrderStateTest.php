@@ -205,6 +205,41 @@ describe('Admin\OrderStateController', function () {
             ->and(OrderState::find(ST_A)->is_enabled)->toBeTrue();
     });
 
+    test('галочка «в списке» сохраняется независимо от остальных', function () {
+        OrderState::create(['id' => ST_A, 'name' => 'Новый', 'is_enabled' => true]);
+        OrderState::create(['id' => ST_B, 'name' => 'Собран', 'is_enabled' => true]);
+        $user = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($user)->post(route('admin.order-states.update'), [
+            'enabled'        => [ST_A, ST_B],
+            'production'     => [ST_A],
+            'default_filter' => [ST_B],
+        ]);
+
+        expect(OrderState::find(ST_B)->is_default_filter)->toBeTrue()
+            ->and(OrderState::find(ST_B)->is_production)->toBeFalse()
+            ->and(OrderState::find(ST_A)->is_default_filter)->toBeFalse()
+            ->and(OrderState::find(ST_A)->is_production)->toBeTrue();
+    });
+
+    test('снятая галочка «в списке» сбрасывается', function () {
+        OrderState::create(['id' => ST_A, 'name' => 'Собран', 'is_enabled' => true, 'is_default_filter' => true]);
+        $user = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($user)->post(route('admin.order-states.update'), ['enabled' => [ST_A]]);
+
+        expect(OrderState::find(ST_A)->is_default_filter)->toBeFalse();
+    });
+
+    test('синхронизация справочника не сбрасывает «в списке»', function () {
+        OrderState::create(['id' => ST_A, 'name' => 'Собран', 'is_default_filter' => true]);
+
+        Http::fake(['*' => Http::response(statesMetadata([stateRow(ST_A, 'Собран')]), 200)]);
+        (new OrderStateSyncService())->sync();
+
+        expect(OrderState::find(ST_A)->is_default_filter)->toBeTrue();
+    });
+
     test('снятая галочка «производственный» сбрасывается', function () {
         OrderState::create(['id' => ST_A, 'name' => 'В процессе', 'is_enabled' => true, 'is_production' => true]);
         $user = User::factory()->create(['is_admin' => true]);

@@ -32,24 +32,30 @@ class OrderStateController extends Controller
             ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
-    /** Сохранить галочки «используется» и «производственный». */
+    /** Сохранить галочки «используется», «производственный» и «в списке по умолчанию». */
     public function update(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'enabled'      => ['nullable', 'array'],
-            'enabled.*'    => ['string', 'exists:order_states,id'],
-            'production'   => ['nullable', 'array'],
-            'production.*' => ['string', 'exists:order_states,id'],
+            'enabled'          => ['nullable', 'array'],
+            'enabled.*'        => ['string', 'exists:order_states,id'],
+            'production'       => ['nullable', 'array'],
+            'production.*'     => ['string', 'exists:order_states,id'],
+            'default_filter'   => ['nullable', 'array'],
+            'default_filter.*' => ['string', 'exists:order_states,id'],
         ]);
 
-        $enabled    = $data['enabled'] ?? [];
-        $production = $data['production'] ?? [];
+        $enabled       = $data['enabled'] ?? [];
+        $production    = $data['production'] ?? [];
+        $defaultFilter = $data['default_filter'] ?? [];
 
         OrderState::whereIn('id', $enabled)->update(['is_enabled' => true]);
         OrderState::whereNotIn('id', $enabled ?: ['-'])->update(['is_enabled' => false]);
 
         OrderState::whereIn('id', $production)->update(['is_production' => true]);
         OrderState::whereNotIn('id', $production ?: ['-'])->update(['is_production' => false]);
+
+        OrderState::whereIn('id', $defaultFilter)->update(['is_default_filter' => true]);
+        OrderState::whereNotIn('id', $defaultFilter ?: ['-'])->update(['is_default_filter' => false]);
 
         // Массовый update событий модели не поднимает — чистим кэш явно.
         Order::forgetStateCache();
