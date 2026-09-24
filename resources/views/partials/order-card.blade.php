@@ -10,8 +10,8 @@
             </a>
             <span class="text-muted ms-1">{{ $order->moment?->format('d.m.Y') }}</span>
         </span>
-        <span class="badge text-white"
-              style="background-color: {{ \App\Models\Order::stateColor($order->state_name) }}">
+        <span class="badge"
+              style="background-color: {{ $order->state_color }}; color: {{ $order->state_text_color }}">
             {{ $order->state_name ?? '—' }}
         </span>
     </div>

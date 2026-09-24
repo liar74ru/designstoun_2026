@@ -2,10 +2,9 @@
 
 namespace App\Services;
 
-use App\Http\Controllers\Admin\OrderStatusSettingController;
 use App\Models\Department;
 use App\Models\Order;
-use App\Models\Setting;
+use App\Models\OrderState;
 use App\Models\Store;
 use App\Models\User;
 use Carbon\Carbon;
@@ -155,10 +154,9 @@ class OrderService
         return $result;
     }
 
+    /** Имена используемых статусов — для фильтра в списке заявок. */
     public function statuses(): array
     {
-        $raw = Setting::get(OrderStatusSettingController::SETTING_KEY, '[]');
-
-        return json_decode($raw, true) ?: [];
+        return OrderState::enabled()->orderBy('position')->pluck('name')->all();
     }
 }

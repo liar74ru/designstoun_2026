@@ -301,10 +301,11 @@
         <div class="collapse-content" id="block-order-statuses" style="display: none;">
             <div class="card-body">
                 <p class="text-muted small mb-3">
-                    Список имён статусов <strong>customerorder</strong> из МойСклад,
-                    которые подгружаются при синхронизации заявок.
+                    Справочник статусов <strong>customerorder</strong> тянется из МойСклад
+                    вместе с именами и цветами. Галочками отмечается, какие статусы
+                    подгружаются при синхронизации заявок.
                 </p>
-                <a href="{{ route('admin.order-statuses.index') }}"
+                <a href="{{ route('admin.order-states.index') }}"
                    class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-list-check"></i> Открыть настройки статусов
                 </a>

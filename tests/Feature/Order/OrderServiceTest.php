@@ -8,8 +8,19 @@ use App\Models\Setting;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
+use App\Models\OrderState;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
+
+/** Статус в справочнике: имя + отмечен ли как используемый. */
+function orderState(string $name, bool $enabled = true, int $position = 0): OrderState
+{
+    return OrderState::create([
+        'name'       => $name,
+        'is_enabled' => $enabled,
+        'position'   => $position,
+    ]);
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // OrderService::statuses()
@@ -17,25 +28,18 @@ use Illuminate\Http\Request;
 
 describe('OrderService::statuses()', function () {
 
-    test('возвращает пустой массив когда статусы не установлены', function () {
-        Setting::where('key', 'MOYSKLAD_ORDER_STATUSES')->delete();
-
+    test('возвращает пустой массив когда справочник пуст', function () {
         $service = new OrderService();
         expect($service->statuses())->toBe([]);
     });
 
-    test('возвращает массив статусов из настроек', function () {
-        Setting::set('MOYSKLAD_ORDER_STATUSES', json_encode(['Новая', 'Выполнена', 'Отменена']));
+    test('возвращает имена только отмеченных статусов, в порядке МойСклад', function () {
+        orderState('Собран', true, position: 2);
+        orderState('Новый', true, position: 0);
+        orderState('Отменен', false, position: 1);
 
         $service = new OrderService();
-        expect($service->statuses())->toBe(['Новая', 'Выполнена', 'Отменена']);
-    });
-
-    test('возвращает пустой массив при невалидном JSON', function () {
-        Setting::set('MOYSKLAD_ORDER_STATUSES', 'invalid-json');
-
-        $service = new OrderService();
-        expect($service->statuses())->toBe([]);
+        expect($service->statuses())->toBe(['Новый', 'Собран']);
     });
 });
 
@@ -46,7 +50,8 @@ describe('OrderService::statuses()', function () {
 describe('OrderService::getIndexData()', function () {
 
     beforeEach(function () {
-        Setting::set('MOYSKLAD_ORDER_STATUSES', json_encode(['Новая', 'Выполнена']));
+        orderState('Новая');
+        orderState('Выполнена', position: 1);
     });
 
     test('возвращает все необходимые ключи', function () {

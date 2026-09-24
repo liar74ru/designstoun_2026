@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Support\BadgeColor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 
 class Order extends Model
 {
@@ -46,27 +48,50 @@ class Order extends Model
         return $this->belongsToMany(Department::class, 'order_department');
     }
 
-    public const STATE_COLORS = [
-        'Проект'              => '#94a3b8',
-        'Новый'               => '#94a3b8',
-        'Новая'               => '#94a3b8',
-        'Изменено'            => '#6b7280',
-        'Посчитанно'          => '#6b7280',
-        'В процессе'          => '#f97316',
-        'Собран'              => '#06b6d4',
-        'В процессе отгрузки' => '#ec4899',
-        'Отправлен'           => '#2563eb',
-        'Под Реализацию'      => '#a855f7',
-        'Завершён'            => '#16a34a',
-        'Завершена'           => '#16a34a',
-        'Сорван'              => '#dc2626',
-    ];
+    private const STATE_CACHE_KEY = 'order_states.colors';
 
-    public static function stateColor(?string $name): string
+    /**
+     * Цвет плашки статуса — из справочника OrderState (приходит из МойСклад).
+     * Ищем по id статуса, для исторических заявок без него — по имени.
+     */
+    public function getStateColorAttribute(): string
     {
-        if (!$name) {
-            return '#6c757d';
-        }
-        return self::STATE_COLORS[$name] ?? '#6c757d';
+        $maps = self::stateColorMaps();
+
+        return $maps['byId'][$this->state_moysklad_id ?? '']
+            ?? $maps['byName'][$this->state_name ?? '']
+            ?? BadgeColor::FALLBACK;
+    }
+
+    /** Цвет текста, читаемый на плашке статуса. */
+    public function getStateTextColorAttribute(): string
+    {
+        return BadgeColor::textFor($this->state_color);
+    }
+
+    /**
+     * Карты «id → цвет» и «имя → цвет». Справочник меняется только при
+     * синхронизации, поэтому держим в кэше.
+     *
+     * @return array{byId: array<string, string>, byName: array<string, string>}
+     */
+    private static function stateColorMaps(): array
+    {
+        return Cache::rememberForever(self::STATE_CACHE_KEY, function () {
+            $byId = [];
+            $byName = [];
+
+            foreach (OrderState::all() as $state) {
+                $byId[$state->id] = $state->hex_color;
+                $byName[$state->name] = $state->hex_color;
+            }
+
+            return ['byId' => $byId, 'byName' => $byName];
+        });
+    }
+
+    public static function forgetStateCache(): void
+    {
+        Cache::forget(self::STATE_CACHE_KEY);
     }
 }

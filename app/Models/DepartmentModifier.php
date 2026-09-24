@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\BadgeColor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -94,23 +95,12 @@ class DepartmentModifier extends Model
     }
 
     /**
-     * Цвет текста на плашке: на жёлтом белые буквы не читаются.
-     * Яркость по формуле 0.299R + 0.587G + 0.114B; зеркало textColorOn()
-     * из resources/js/modifier-picker.js.
+     * Цвет текста на плашке правила. Расчёт общий для всех цветных плашек —
+     * App\Support\BadgeColor::textFor(), зеркало textColorOn() из modifier-picker.js.
      */
     public static function textColorFor(?string $background): string
     {
-        $hex = ltrim($background ?: self::COLOR_FALLBACK, '#');
-
-        if (strlen($hex) !== 6) {
-            return '#FFFFFF';
-        }
-
-        [$r, $g, $b] = array_map(hexdec(...), str_split($hex, 2));
-
-        // Порог 140: жёлтый и голубой уходят на тёмный текст — ровно так же,
-        // как раньше их бейджи носили класс text-dark.
-        return (0.299 * $r + 0.587 * $g + 0.114 * $b) > 140 ? '#212529' : '#FFFFFF';
+        return BadgeColor::textFor($background ?: self::COLOR_FALLBACK);
     }
 
     /** Действует ли правило в этой области (приёмка/цех). */

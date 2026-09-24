@@ -11,7 +11,7 @@ use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
 use App\Http\Controllers\Admin\DepartmentModifierController;
-use App\Http\Controllers\Admin\OrderStatusSettingController;
+use App\Http\Controllers\Admin\OrderStateController;
 use App\Http\Controllers\Admin\WorkshopPresetController;
 use App\Http\Controllers\AdminSettingController;
 use App\Http\Controllers\DepartmentController;
@@ -230,8 +230,10 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/departments/{department}/modifiers/{modifier}',      [DepartmentModifierController::class, 'destroy'])->name('departments.modifiers.destroy');
         });
 
-        Route::get ('/order-statuses', [OrderStatusSettingController::class, 'index'])->name('order-statuses.index');
-        Route::post('/order-statuses', [OrderStatusSettingController::class, 'update'])->name('order-statuses.update');
+        // Статусы заявок — справочник-зеркало МойСклад
+        Route::get ('/order-states',      [OrderStateController::class, 'index'])->name('order-states.index');
+        Route::post('/order-states',      [OrderStateController::class, 'update'])->name('order-states.update');
+        Route::post('/order-states/sync', [OrderStateController::class, 'sync'])->name('order-states.sync');
     });
 });
 

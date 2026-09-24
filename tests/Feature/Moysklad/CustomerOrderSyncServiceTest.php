@@ -1,11 +1,17 @@
 <?php
 
-use App\Models\Counterparty;
 use App\Models\Department;
 use App\Models\Order;
-use App\Models\Setting;
+use App\Models\OrderState;
 use App\Services\Moysklad\CustomerOrderSyncService;
-use App\Services\OrderService;
+use App\Services\Moysklad\MoySkladService;
+use App\Services\Moysklad\OrderStateSyncService;
+use Illuminate\Support\Facades\Http;
+
+function customerOrderSync(): CustomerOrderSyncService
+{
+    return new CustomerOrderSyncService(new MoySkladService(), new OrderStateSyncService());
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CustomerOrderSyncService::pullActive()
@@ -13,66 +19,88 @@ use App\Services\OrderService;
 
 describe('CustomerOrderSyncService::pullActive()', function () {
 
-    beforeEach(function () {
-        Setting::set('ORDER_STATUSES', json_encode(['Новая', 'Выполняется']));
-    });
-
     test('возвращает ошибку при отсутствии токена', function () {
         config()->set('services.moysklad.token', '');
 
-        $orderService = new OrderService();
-        $service = new CustomerOrderSyncService(
-            $orderService,
-            new \App\Services\Moysklad\MoySkladService()
-        );
-
-        $result = $service->pullActive();
+        $result = customerOrderSync()->pullActive();
 
         expect($result['success'])->toBeFalse();
         expect($result['message'])->toContain('MOYSKLAD_TOKEN');
     });
 
-    test('возвращает ошибку при пустом списке статусов', function () {
+    test('возвращает ошибку, когда не отмечено ни одного статуса', function () {
         config()->set('services.moysklad.token', 'test-token');
-        Setting::where('key', 'ORDER_STATUSES')->delete();
+        Http::fake(['*' => Http::response(['states' => []], 200)]);
 
-        $orderService = new OrderService();
-        $service = new CustomerOrderSyncService(
-            $orderService,
-            new \App\Services\Moysklad\MoySkladService()
-        );
-
-        $result = $service->pullActive();
+        $result = customerOrderSync()->pullActive();
 
         expect($result['success'])->toBeFalse();
-        expect($result['message'])->toContain('Список статусов');
+        expect($result['message'])->toContain('Не выбрано ни одного статуса');
     });
 
-    test('возвращает успех с нулевым количеством когда новых заявок нет', function () {
+    test('статусы берутся из справочника, а не из имён в настройках', function () {
         config()->set('services.moysklad.token', 'test-token');
 
-        $orderService = new OrderService();
-        $service = new CustomerOrderSyncService(
-            $orderService,
-            new \App\Services\Moysklad\MoySkladService()
-        );
+        OrderState::create([
+            'id'         => '11111111-1111-1111-1111-111111111111',
+            'name'       => 'В процессе',
+            'is_enabled' => true,
+        ]);
+        OrderState::create([
+            'id'         => '22222222-2222-2222-2222-222222222222',
+            'name'       => 'Отменен',
+            'is_enabled' => false,
+        ]);
 
-        // Мокируем сервис, чтобы вернуть пустой список
-        $reflection = new ReflectionClass($service);
-        $method = $reflection->getMethod('resolveStateIds');
-        $method->setAccessible(true);
+        // metadata для OrderStateSyncService, затем пустой список заявок
+        Http::fake([
+            '*/entity/customerorder/metadata' => Http::response([
+                'states' => [
+                    ['id' => '11111111-1111-1111-1111-111111111111', 'name' => 'В процессе', 'color' => 15280409, 'stateType' => 'Regular'],
+                    ['id' => '22222222-2222-2222-2222-222222222222', 'name' => 'Отменен', 'color' => 16711680, 'stateType' => 'Regular'],
+                ],
+            ], 200),
+            '*' => Http::response(['rows' => [], 'meta' => ['size' => 0]], 200),
+        ]);
 
-        // Проверяем, что пустой список заявок возвращает успех
-        $result = ['success' => true, 'count' => 0, 'message' => 'Новых заявок не найдено.'];
+        $result = customerOrderSync()->pullActive();
+
         expect($result['success'])->toBeTrue();
+
+        // В фильтр ушёл только отмеченный статус
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), '/entity/customerorder?')) {
+                return false;
+            }
+
+            return str_contains(urldecode($request->url()), '11111111-1111-1111-1111-111111111111')
+                && ! str_contains(urldecode($request->url()), '22222222-2222-2222-2222-222222222222');
+        });
     });
 
-    test('включает информацию об удаленных устаревших заявках', function () {
+    test('заявки, выпавшие из выбранных статусов, удаляются', function () {
         config()->set('services.moysklad.token', 'test-token');
-        $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
+        Department::create(['name' => 'Тест отдел', 'is_active' => true]);
         Order::create(['moysklad_id' => 'old-id-123', 'name' => 'Старая', 'state_name' => 'Новая']);
 
-        // В реальном тесте с моком API это бы проверило удаление
-        expect(Order::where('moysklad_id', 'old-id-123')->exists())->toBeTrue();
+        OrderState::create([
+            'id'         => '11111111-1111-1111-1111-111111111111',
+            'name'       => 'В процессе',
+            'is_enabled' => true,
+        ]);
+
+        Http::fake([
+            '*/entity/customerorder/metadata' => Http::response([
+                'states' => [
+                    ['id' => '11111111-1111-1111-1111-111111111111', 'name' => 'В процессе', 'color' => 15280409, 'stateType' => 'Regular'],
+                ],
+            ], 200),
+            '*' => Http::response(['rows' => [], 'meta' => ['size' => 0]], 200),
+        ]);
+
+        $result = customerOrderSync()->pullActive();
+
+        expect($result['success'])->toBeTrue();
+        expect(Order::where('moysklad_id', 'old-id-123')->exists())->toBeFalse();
     });
 });

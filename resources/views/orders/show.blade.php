@@ -62,7 +62,8 @@
     $sumShort   = $productionStoreId ? $rows->sum('short') : null;
     $percent    = $sumOrdered > 0 ? (int) round($sumShipped / $sumOrdered * 100) : 0;
 
-    $stateColor = \App\Models\Order::stateColor($order->state_name);
+    $stateColor = $order->state_color;
+    $stateTextColor = $order->state_text_color;
 @endphp
 
 <div class="container py-3 py-md-4">
@@ -73,12 +74,12 @@
         :backUrl="$backUrl"
         backLabel="К списку">
         <x-slot name="actions">
-            <span class="badge text-white fs-6" style="background-color: {{ $stateColor }}">
+            <span class="badge fs-6" style="background-color: {{ $stateColor }}; color: {{ $stateTextColor }}">
                 {{ $order->state_name ?? '—' }}
             </span>
         </x-slot>
         <x-slot name="mobileActions">
-            <span class="badge text-white" style="background-color: {{ $stateColor }}">
+            <span class="badge" style="background-color: {{ $stateColor }}; color: {{ $stateTextColor }}">
                 {{ $order->state_name ?? '—' }}
             </span>
         </x-slot>

@@ -2,6 +2,7 @@
 
 use App\Models\Department;
 use App\Models\Order;
+use App\Models\OrderState;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Store;
@@ -9,8 +10,8 @@ use App\Models\User;
 use App\Models\Worker;
 
 beforeEach(function () {
-    // Очистить статусы заявок
-    Setting::where('key', 'MOYSKLAD_ORDER_STATUSES')->delete();
+    // Справочник статусов пуст — фильтр статусов в списке отключён
+    OrderState::query()->delete();
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -80,7 +81,8 @@ describe('OrderController::index()', function () {
     });
 
     test('применяет фильтр по статусу', function () {
-        Setting::set('MOYSKLAD_ORDER_STATUSES', json_encode(['Новая', 'Выполнена']));
+        OrderState::create(['name' => 'Новая', 'is_enabled' => true, 'position' => 0]);
+        OrderState::create(['name' => 'Выполнена', 'is_enabled' => true, 'position' => 1]);
         $user = User::factory()->create(['is_admin' => true]);
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 

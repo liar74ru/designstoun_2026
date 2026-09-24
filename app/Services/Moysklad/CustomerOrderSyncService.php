@@ -5,16 +5,16 @@ namespace App\Services\Moysklad;
 use App\Models\Counterparty;
 use App\Models\Department;
 use App\Models\Order;
+use App\Models\OrderState;
 use App\Models\Product;
-use App\Services\OrderService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CustomerOrderSyncService extends MoySkladBaseService
 {
     public function __construct(
-        private OrderService $orderService,
         private MoySkladService $moySkladService,
+        private OrderStateSyncService $stateSync,
     ) {
         parent::__construct();
     }
@@ -30,21 +30,16 @@ class CustomerOrderSyncService extends MoySkladBaseService
             return ['success' => false, 'count' => 0, 'message' => 'MOYSKLAD_TOKEN не установлен'];
         }
 
-        $statusNames = $this->orderService->statuses();
-        if (empty($statusNames)) {
-            return [
-                'success' => false,
-                'count'   => 0,
-                'message' => 'Список статусов пуст. Настройте его в админке (Статусы заявок).',
-            ];
-        }
+        // Справочник статусов освежаем перед выгрузкой: иначе новый статус,
+        // заведённый в МойСклад, не попадёт в список, пока админ не нажмёт кнопку.
+        $this->stateSync->sync();
 
-        $stateIds = $this->resolveStateIds($statusNames);
+        $stateIds = OrderState::enabled()->pluck('id')->all();
         if (empty($stateIds)) {
             return [
                 'success' => false,
                 'count'   => 0,
-                'message' => 'В МойСклад не найдено статусов: ' . implode(', ', $statusNames),
+                'message' => 'Не выбрано ни одного статуса. Отметьте нужные в админке (Статусы заявок).',
             ];
         }
 
@@ -87,24 +82,6 @@ class CustomerOrderSyncService extends MoySkladBaseService
             'count'   => $count,
             'message' => $message,
         ];
-    }
-
-    /**
-     * Получить state.id из metadata customerorder по именам статусов.
-     */
-    private function resolveStateIds(array $names): array
-    {
-        $meta = $this->get('/entity/customerorder/metadata');
-        $states = $meta['states'] ?? [];
-
-        $ids = [];
-        foreach ($states as $state) {
-            if (in_array($state['name'] ?? null, $names, true)) {
-                $ids[] = $state['id'] ?? null;
-            }
-        }
-
-        return array_values(array_filter($ids));
     }
 
     /**

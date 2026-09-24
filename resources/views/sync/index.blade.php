@@ -132,6 +132,28 @@
                 </div>
             </div>
 
+            {{-- 6. Статусы заявок --}}
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card sync-card sync-card--danger h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-list-check text-danger me-1"></i> Статусы заявок
+                            </h5>
+                        </div>
+                        <p class="card-text text-muted small mb-3">
+                            Справочник статусов заказа покупателя: имена и цвета
+                        </p>
+                        <form method="POST" action="{{ route('admin.order-states.sync') }}" class="mt-auto sync-form">
+                            @csrf
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-arrow-repeat"></i> Синхронизировать
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
     </div>
