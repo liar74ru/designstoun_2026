@@ -1,6 +1,3 @@
-@php
-    $productionStoreId = $productionStoreId ?? null;
-@endphp
 <div class="info-block mb-2 order-row" style="cursor:pointer"
      data-href="{{ route('orders.show', $order->moysklad_id) }}">
     <div class="info-block-header d-flex justify-content-between align-items-center">
@@ -21,7 +18,7 @@
             {{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}
         </div>
 
-        @include('partials.order-items-table', ['order' => $order, 'productionStoreId' => $productionStoreId])
+        @include('partials.order-items-table', ['rows' => $rows])
 
         @if($order->departments->isNotEmpty())
             <div class="d-flex flex-wrap gap-1 mt-2">

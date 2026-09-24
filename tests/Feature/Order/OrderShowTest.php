@@ -201,14 +201,14 @@ describe('OrderService::getShowData()', function () {
         $user = User::factory()->create(['is_admin' => true]);
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
-        $data = (new OrderService())->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
+        $data = app(OrderService::class)->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
 
-        expect($data)->toHaveKeys(['order', 'attributes', 'productionStoreId', 'backUrl'])
+        expect($data)->toHaveKeys(['order', 'attributes', 'rows', 'stores', 'defaultStoreId', 'backUrl'])
             ->and($data['order']->is($order))->toBeTrue()
             ->and($data['backUrl'])->toBe(route('orders.index'));
     });
 
-    test('productionStoreId берётся из отдела работника', function () {
+    test('склад по умолчанию берётся из отдела заявки', function () {
         $store = Store::factory()->create();
         $dept = Department::create([
             'name'                        => 'Отдел 1',
@@ -220,9 +220,9 @@ describe('OrderService::getShowData()', function () {
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
         $order->departments()->attach($dept->id);
 
-        $data = (new OrderService())->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
+        $data = app(OrderService::class)->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
 
-        expect($data['productionStoreId'])->toBe($store->id);
+        expect($data['defaultStoreId'])->toBe($store->id);
     });
 
     test('булевы реквизиты отброшены — они уже разобраны в отделы', function () {
@@ -237,7 +237,7 @@ describe('OrderService::getShowData()', function () {
             ],
         ]);
 
-        $data = (new OrderService())->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
+        $data = app(OrderService::class)->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
 
         expect($data['attributes'])->toBe(['Менеджер' => 'Смирнов А. В.']);
     });
@@ -255,7 +255,7 @@ describe('OrderService::getShowData()', function () {
             ],
         ]);
 
-        $data = (new OrderService())->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
+        $data = app(OrderService::class)->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
 
         expect($data['attributes'])->toBe(['Способ доставки' => 'Самовывоз']);
     });
@@ -271,7 +271,7 @@ describe('OrderService::getShowData()', function () {
             ],
         ]);
 
-        $data = (new OrderService())->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
+        $data = app(OrderService::class)->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
 
         expect($data['attributes'])->toBe([
             'Тип доставки'      => 'Транспортная компания',
@@ -283,7 +283,7 @@ describe('OrderService::getShowData()', function () {
         $user = User::factory()->create(['is_admin' => true]);
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
-        $data = (new OrderService())->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
+        $data = app(OrderService::class)->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
 
         expect($data['attributes'])->toBe([]);
     });

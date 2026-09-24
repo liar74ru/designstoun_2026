@@ -1,7 +1,7 @@
-{{-- Готовность позиции: сколько из неотгруженного остатка лежит на производственном складе. --}}
+{{-- Готовность позиции: сколько из неотгруженного остатка уже есть — на складе и изготовлено. --}}
 @if($row['done'])
     <span class="badge bg-secondary-subtle text-secondary-emphasis">отгружено</span>
-@elseif($row['prodQty'] === null)
+@elseif($row['totalQty'] === null)
     <span class="text-muted small">—</span>
 @else
     @php

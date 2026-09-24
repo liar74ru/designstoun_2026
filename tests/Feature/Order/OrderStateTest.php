@@ -190,6 +190,39 @@ describe('Admin\OrderStateController', function () {
             ->and(OrderState::find(ST_B)->is_enabled)->toBeTrue();
     });
 
+    test('галочка «производственный» сохраняется отдельно от «используется»', function () {
+        OrderState::create(['id' => ST_A, 'name' => 'Новый', 'is_enabled' => true]);
+        OrderState::create(['id' => ST_B, 'name' => 'В процессе', 'is_enabled' => true]);
+        $user = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($user)->post(route('admin.order-states.update'), [
+            'enabled'    => [ST_A, ST_B],
+            'production' => [ST_B],
+        ]);
+
+        expect(OrderState::find(ST_B)->is_production)->toBeTrue()
+            ->and(OrderState::find(ST_A)->is_production)->toBeFalse()
+            ->and(OrderState::find(ST_A)->is_enabled)->toBeTrue();
+    });
+
+    test('снятая галочка «производственный» сбрасывается', function () {
+        OrderState::create(['id' => ST_A, 'name' => 'В процессе', 'is_enabled' => true, 'is_production' => true]);
+        $user = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($user)->post(route('admin.order-states.update'), ['enabled' => [ST_A]]);
+
+        expect(OrderState::find(ST_A)->is_production)->toBeFalse();
+    });
+
+    test('синхронизация справочника не сбрасывает «производственный»', function () {
+        OrderState::create(['id' => ST_A, 'name' => 'В процессе', 'is_production' => true]);
+
+        Http::fake(['*' => Http::response(statesMetadata([stateRow(ST_A, 'В процессе')]), 200)]);
+        (new OrderStateSyncService())->sync();
+
+        expect(OrderState::find(ST_A)->is_production)->toBeTrue();
+    });
+
     test('пустой список снимает все галочки', function () {
         OrderState::create(['id' => ST_A, 'name' => 'Новый', 'is_enabled' => true]);
         $user = User::factory()->create(['is_admin' => true]);

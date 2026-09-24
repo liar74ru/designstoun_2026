@@ -80,8 +80,7 @@
                             <td class="align-top">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</td>
                             <td class="align-top p-0">
                                 @include('partials.order-items-table', [
-                                    'order'             => $order,
-                                    'productionStoreId' => $productionStoreIds[$order->id] ?? null,
+                                    'rows' => $rowsByOrder[$order->id] ?? collect(),
                                 ])
                             </td>
                             <td class="align-top">
@@ -109,9 +108,9 @@
         <div class="d-md-none">
             @foreach($orders as $order)
                 @include('partials.order-card', [
-                    'order'             => $order,
-                    'productionStoreId' => $productionStoreIds[$order->id] ?? null,
-                    'orderStates'       => $orderStates,
+                    'order'       => $order,
+                    'rows'        => $rowsByOrder[$order->id] ?? collect(),
+                    'orderStates' => $orderStates,
                 ])
             @endforeach
         </div>

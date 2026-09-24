@@ -65,11 +65,14 @@ Route::middleware(['auth'])->group(function () {
         Route::get ('orders/{moyskladId}', [OrderController::class, 'show'])->name('orders.show');
         Route::post('orders/{moyskladId}/state', [OrderController::class, 'updateState'])
             ->name('orders.state.update');
-        // Уточнение фактических остатков в рамках заявки
-        Route::post   ('orders/{moyskladId}/corrections', [OrderController::class, 'storeCorrection'])
-            ->name('orders.corrections.store');
-        Route::delete ('orders/{moyskladId}/corrections/{productId}', [OrderController::class, 'destroyCorrection'])
-            ->name('orders.corrections.destroy');
+        // Настройки позиции: склады комплектации и уточнения мастера
+        Route::post   ('orders/{moyskladId}/positions', [OrderController::class, 'storePosition'])
+            ->name('orders.position.update');
+        Route::delete ('orders/{moyskladId}/positions/{productId}', [OrderController::class, 'destroyPosition'])
+            ->name('orders.position.destroy');
+        // Пересъёмка остатков: обнуляет изготовленное, поэтому отдельным действием
+        Route::post   ('orders/{moyskladId}/recalculate', [OrderController::class, 'recalculate'])
+            ->name('orders.recalculate');
     });
 
     // Работники — список/CRUD доступен по can:see-workers; смена своего пароля — отдельно

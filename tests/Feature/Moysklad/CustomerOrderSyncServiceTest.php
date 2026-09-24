@@ -2,15 +2,27 @@
 
 use App\Models\Department;
 use App\Models\Order;
+use App\Models\OrderPositionSetting;
 use App\Models\OrderState;
+use App\Models\Product;
+use App\Models\ProductStock;
+use App\Models\Store;
 use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\Moysklad\MoySkladService;
 use App\Services\Moysklad\OrderStateSyncService;
+use App\Services\OrderProductionService;
 use Illuminate\Support\Facades\Http;
+
+const SYNC_PROD_STATE = '55555555-5555-5555-5555-555555555555';
+const SYNC_IDLE_STATE = '66666666-6666-6666-6666-666666666666';
 
 function customerOrderSync(): CustomerOrderSyncService
 {
-    return new CustomerOrderSyncService(new MoySkladService(), new OrderStateSyncService());
+    return new CustomerOrderSyncService(
+        new MoySkladService(),
+        new OrderStateSyncService(),
+        app(OrderProductionService::class),
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -102,5 +114,107 @@ describe('CustomerOrderSyncService::pullActive()', function () {
 
         expect($result['success'])->toBeTrue();
         expect(Order::where('moysklad_id', 'old-id-123')->exists())->toBeFalse();
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Окно производства при смене статуса в самом МойСклад
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Окно производства по данным синхронизации', function () {
+
+    /** Ответ на выгрузку заявок: одна заявка в заданном статусе, одна позиция. */
+    function ordersResponse(string $stateId, string $stateName, Product $product): array
+    {
+        return [
+            'rows' => [[
+                'id'    => 'ms-1',
+                'name'  => 'Заявка 1',
+                'state' => [
+                    'meta' => ['href' => 'https://api.moysklad.ru/entity/customerorder/metadata/states/' . $stateId],
+                    'name' => $stateName,
+                ],
+                'positions' => ['rows' => [[
+                    'quantity'   => 100,
+                    'shipped'    => 0,
+                    'assortment' => [
+                        'meta' => ['href' => 'https://api.moysklad.ru/entity/product/' . $product->moysklad_id],
+                        'name' => $product->name,
+                    ],
+                ]]],
+                'attributes' => [],
+            ]],
+            'meta' => ['size' => 1],
+        ];
+    }
+
+    function syncStatesFake(): array
+    {
+        return ['states' => [
+            ['id' => SYNC_PROD_STATE, 'name' => 'В процессе', 'color' => 15280409, 'stateType' => 'Regular'],
+            ['id' => SYNC_IDLE_STATE, 'name' => 'Новый', 'color' => 15280409, 'stateType' => 'Regular'],
+        ]];
+    }
+
+    test('статус, изменённый в МойСклад, открывает окно производства', function () {
+        config()->set('services.moysklad.token', 'test-token');
+
+        OrderState::create(['id' => SYNC_PROD_STATE, 'name' => 'В процессе', 'is_enabled' => true, 'is_production' => true]);
+        OrderState::create(['id' => SYNC_IDLE_STATE, 'name' => 'Новый', 'is_enabled' => true]);
+
+        $store = Store::factory()->create();
+        $product = Product::factory()->create();
+        ProductStock::create(['product_id' => $product->id, 'store_id' => $store->id, 'quantity' => 45]);
+
+        Order::create([
+            'moysklad_id'       => 'ms-1',
+            'name'              => 'Заявка 1',
+            'state_moysklad_id' => SYNC_IDLE_STATE,
+            'state_name'        => 'Новый',
+        ]);
+
+        Http::fake([
+            '*/entity/customerorder/metadata' => Http::response(syncStatesFake(), 200),
+            '*/entity/customerorder?*'        => Http::response(
+                ordersResponse(SYNC_PROD_STATE, 'В процессе', $product), 200,
+            ),
+            '*' => Http::response(['rows' => [], 'meta' => ['size' => 0]], 200),
+        ]);
+
+        customerOrderSync()->pullActive();
+
+        $order = Order::where('moysklad_id', 'ms-1')->first();
+        expect($order->production_started_at)->not->toBeNull()
+            ->and($order->production_ended_at)->toBeNull()
+            ->and(OrderPositionSetting::first()->frozen_stocks)->toEqual([$store->id => 45.0]);
+    });
+
+    test('выход из производственного статуса в МойСклад закрывает окно', function () {
+        config()->set('services.moysklad.token', 'test-token');
+
+        OrderState::create(['id' => SYNC_PROD_STATE, 'name' => 'В процессе', 'is_enabled' => true, 'is_production' => true]);
+        OrderState::create(['id' => SYNC_IDLE_STATE, 'name' => 'Новый', 'is_enabled' => true]);
+
+        $product = Product::factory()->create();
+
+        Order::create([
+            'moysklad_id'           => 'ms-1',
+            'name'                  => 'Заявка 1',
+            'state_moysklad_id'     => SYNC_PROD_STATE,
+            'state_name'            => 'В процессе',
+            'production_started_at' => now()->subDay(),
+        ]);
+
+        Http::fake([
+            '*/entity/customerorder/metadata' => Http::response(syncStatesFake(), 200),
+            '*/entity/customerorder?*'        => Http::response(
+                ordersResponse(SYNC_IDLE_STATE, 'Новый', $product), 200,
+            ),
+            '*' => Http::response(['rows' => [], 'meta' => ['size' => 0]], 200),
+        ]);
+
+        customerOrderSync()->pullActive();
+
+        expect(Order::where('moysklad_id', 'ms-1')->first()->production_ended_at)->not->toBeNull();
     });
 });

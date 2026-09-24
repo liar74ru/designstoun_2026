@@ -32,19 +32,26 @@ class OrderStateController extends Controller
             ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
-    /** Сохранить галочки «используется». */
+    /** Сохранить галочки «используется» и «производственный». */
     public function update(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'enabled'   => ['nullable', 'array'],
-            'enabled.*' => ['string', 'exists:order_states,id'],
+            'enabled'      => ['nullable', 'array'],
+            'enabled.*'    => ['string', 'exists:order_states,id'],
+            'production'   => ['nullable', 'array'],
+            'production.*' => ['string', 'exists:order_states,id'],
         ]);
 
-        $enabled = $data['enabled'] ?? [];
+        $enabled    = $data['enabled'] ?? [];
+        $production = $data['production'] ?? [];
 
         OrderState::whereIn('id', $enabled)->update(['is_enabled' => true]);
         OrderState::whereNotIn('id', $enabled ?: ['-'])->update(['is_enabled' => false]);
 
+        OrderState::whereIn('id', $production)->update(['is_production' => true]);
+        OrderState::whereNotIn('id', $production ?: ['-'])->update(['is_production' => false]);
+
+        // Массовый update событий модели не поднимает — чистим кэш явно.
         Order::forgetStateCache();
 
         return redirect()->route('admin.order-states.index')

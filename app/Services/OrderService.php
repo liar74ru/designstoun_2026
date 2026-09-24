@@ -15,13 +15,19 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class OrderService
 {
+    public function __construct(
+        private OrderPositionService $positions,
+        private OrderProductionService $production,
+    ) {
+    }
+
     public function getIndexData(Request $request): array
     {
         $accessible = $request->user()?->accessibleDepartmentIds();
         $statuses   = $this->statuses();
 
         $orders = QueryBuilder::for(Order::class)
-            ->with(['items.product.stocks.store', 'departments', 'counterparty', 'stockCorrections'])
+            ->with(['items.product.stocks', 'departments', 'counterparty', 'positionSettings'])
             ->allowedFilters([
                 AllowedFilter::callback('status', fn ($q, $v) =>
                     $q->whereIn('state_name', (array) $v)),
@@ -36,10 +42,16 @@ class OrderService
             ->paginate(20)
             ->withQueryString();
 
-        // Склад у каждой заявки свой — считаем по странице пагинации.
-        $productionStoreIds = $orders->getCollection()
+        // Изготовленное — двумя выборками на всю страницу, а не по заявке.
+        $produced = $this->production->producedForOrders($orders->getCollection());
+
+        $rowsByOrder = $orders->getCollection()
             ->mapWithKeys(fn (Order $order) => [
-                $order->id => $this->effectiveStoreId($order, $request->user()),
+                $order->id => $this->positions->rows(
+                    $order,
+                    $this->effectiveStoreId($order, $request->user()),
+                    $produced[$order->id] ?? [],
+                ),
             ])
             ->all();
 
@@ -54,7 +66,7 @@ class OrderService
                 ->whereHas('orders')
                 ->orderBy('name')
                 ->get(),
-            'productionStoreIds' => $productionStoreIds,
+            'rowsByOrder'        => $rowsByOrder,
             'orderStates'        => $this->enabledStates(),
         ];
     }
@@ -112,20 +124,26 @@ class OrderService
     public function getShowData(Request $request, string $moyskladId): array
     {
         $order = $this->findForUser($request, $moyskladId, [
-            'items.product.stocks.store',
+            'items.product.stocks',
             'counterparty',
-            'stockCorrections.user.worker',
+            'positionSettings.user.worker',
         ]);
 
-        $productionStoreId = $this->effectiveStoreId($order, $request->user());
+        $defaultStoreId = $this->effectiveStoreId($order, $request->user());
 
         return [
-            'order'             => $order,
-            'attributes'        => $this->visibleAttributes($order),
-            'productionStoreId' => $productionStoreId,
-            'productionStore'   => $productionStoreId ? Store::find($productionStoreId) : null,
-            'orderStates'       => $this->enabledStates(),
-            'backUrl'           => url()->previous(route('orders.index')),
+            'order'          => $order,
+            'attributes'     => $this->visibleAttributes($order),
+            'rows'           => $this->positions->rows(
+                $order,
+                $defaultStoreId,
+                $this->production->producedForOrder($order),
+            ),
+            // Полный список складов нужен модалке: мастер выбирает, откуда собирает позицию.
+            'stores'         => Store::where('archived', false)->orderBy('name')->get(),
+            'defaultStoreId' => $defaultStoreId,
+            'orderStates'    => $this->enabledStates(),
+            'backUrl'        => url()->previous(route('orders.index')),
         ];
     }
 

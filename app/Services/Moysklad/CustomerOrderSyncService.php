@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Order;
 use App\Models\OrderState;
 use App\Models\Product;
+use App\Services\OrderProductionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -15,6 +16,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
     public function __construct(
         private MoySkladService $moySkladService,
         private OrderStateSyncService $stateSync,
+        private OrderProductionService $production,
     ) {
         parent::__construct();
     }
@@ -200,6 +202,10 @@ class CustomerOrderSyncService extends MoySkladBaseService
         $agentMoyskladId = $this->extractIdFromMeta($row['agent']['meta']['href'] ?? null);
         $stateMoyskladId = $this->extractIdFromMeta($row['state']['meta']['href'] ?? null);
 
+        // Статус меняют и прямо в МойСклад, минуя программу, — сравниваем до upsert,
+        // иначе вход в производство останется незамеченным.
+        $previousStateId = Order::where('moysklad_id', $row['id'])->value('state_moysklad_id');
+
         $order = Order::updateOrCreate(
             ['moysklad_id' => $row['id']],
             [
@@ -240,6 +246,11 @@ class CustomerOrderSyncService extends MoySkladBaseService
             }
         }
         $order->departments()->sync(array_values(array_unique($matchedIds)));
+
+        if ($previousStateId !== $stateMoyskladId) {
+            // Позиции только что пересозданы — снимок остатка ляжет по актуальному составу.
+            $this->production->syncPeriod($order->load('items.product'), $stateMoyskladId);
+        }
     }
 
     /**

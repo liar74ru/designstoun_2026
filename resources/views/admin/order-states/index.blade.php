@@ -35,9 +35,14 @@
         <div class="info-block-body small text-muted">
             Список, имена и цвета статусов приходят из МойСклад — нажмите «Обновить из МойСклад»,
             если там завели или переименовали статус.
-            Отмеченные статусы подгружаются при синхронизации заявок, снятые — нет.
-            <strong>Сняв галочку, вы убираете заявки в этом статусе из программы</strong>
+            Статусы в колонке <strong>«Исп.»</strong> подгружаются при синхронизации заявок,
+            снятые — нет. <strong>Сняв галочку, вы убираете заявки в этом статусе из программы</strong>
             при следующей синхронизации.
+            <div class="mt-1">
+                Колонка <strong>«Произв.»</strong> — статус, в котором идёт производство.
+                Пока заявка в нём, остаток на складе зафиксирован, а всё произведённое
+                попадает в колонку «Изготовлено» карточки заявки.
+            </div>
         </div>
     </div>
 
@@ -57,19 +62,22 @@
                     <span class="badge bg-secondary">{{ $states->count() }}</span>
                 </div>
                 <div class="info-block-body p-0">
-                    @foreach($states as $state)
-                        <label class="d-flex align-items-center gap-2 px-2 py-2 m-0"
-                               style="border-bottom:1px solid #f1f3f5; cursor:pointer">
-                            <input type="checkbox" class="form-check-input mt-0 flex-shrink-0"
-                                   name="enabled[]" value="{{ $state->id }}"
-                                   {{ $state->is_enabled ? 'checked' : '' }}>
+                    {{-- Две независимые галочки в строке, поэтому строка не обёрнута
+                         в общий <label>: он переключал бы только первую. --}}
+                    <div class="d-flex align-items-center gap-2 px-2 py-1 text-muted"
+                         style="border-bottom:1px solid #f1f3f5; font-size:.72rem">
+                        <span class="flex-grow-1">Статус</span>
+                        <span class="text-center" style="width:44px">Исп.</span>
+                        <span class="text-center" style="width:56px">Произв.</span>
+                    </div>
 
+                    @foreach($states as $state)
+                        <div class="d-flex align-items-center gap-2 px-2 py-2"
+                             style="border-bottom:1px solid #f1f3f5">
                             <span class="badge flex-shrink-0"
                                   style="background-color: {{ $state->hex_color }}; color: {{ \App\Support\BadgeColor::textFor($state->hex_color) }}">
                                 {{ $state->name }}
                             </span>
-
-                            <span class="flex-grow-1"></span>
 
                             @if($state->archived)
                                 <span class="badge bg-danger-subtle text-danger-emphasis"
@@ -79,7 +87,23 @@
                             @if($state->state_type && $state->state_type !== 'Regular')
                                 <span class="text-muted" style="font-size:.72rem">{{ $state->state_type }}</span>
                             @endif
-                        </label>
+
+                            <span class="flex-grow-1"></span>
+
+                            <label class="d-flex justify-content-center m-0" style="width:44px; cursor:pointer"
+                                   title="Подгружать заявки в этом статусе">
+                                <input type="checkbox" class="form-check-input mt-0"
+                                       name="enabled[]" value="{{ $state->id }}"
+                                       {{ $state->is_enabled ? 'checked' : '' }}>
+                            </label>
+
+                            <label class="d-flex justify-content-center m-0" style="width:56px; cursor:pointer"
+                                   title="В этом статусе идёт производство">
+                                <input type="checkbox" class="form-check-input mt-0"
+                                       name="production[]" value="{{ $state->id }}"
+                                       {{ $state->is_production ? 'checked' : '' }}>
+                            </label>
+                        </div>
                     @endforeach
                 </div>
             </div>

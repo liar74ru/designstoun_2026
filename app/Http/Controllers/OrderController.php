@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\OrderState;
+use App\Models\Product;
 use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\Moysklad\StockSyncService;
+use App\Services\OrderPositionService;
+use App\Services\OrderProductionService;
 use App\Services\OrderService;
-use App\Services\OrderStockCorrectionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,6 +19,7 @@ class OrderController extends Controller
         private OrderService $service,
         private CustomerOrderSyncService $sync,
         private StockSyncService $stockSync,
+        private OrderProductionService $production,
     ) {
     }
 
@@ -54,57 +57,81 @@ class OrderController extends Controller
 
         $result = $this->sync->updateState($order, $state);
 
+        // Окно производства открывается/закрывается только после успешной записи
+        // в МойСклад — иначе снимок остатка лёг бы под статус, которого там нет.
+        if ($result['success']) {
+            $this->production->syncPeriod($order, $state->id);
+        }
+
         return back()->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
     /**
-     * Уточнить фактический остаток позиции в рамках заявки.
+     * Настроить позицию заявки: склады комплектации и уточнения мастера.
      */
-    public function storeCorrection(
+    public function storePosition(
         Request $request,
-        OrderStockCorrectionService $corrections,
+        OrderPositionService $positions,
         string $moyskladId,
     ): RedirectResponse {
         $data = $request->validate([
             'product_id' => 'required|integer|exists:products,id',
-            'store_id'   => 'required|string|exists:stores,id',
-            'fact'       => 'required|numeric|min:0',
+            'stores'     => 'required|array|min:1',
+            'stores.*'   => 'string|exists:stores,id',
+            'fact'       => 'nullable|numeric|min:0',
+            'produced'   => 'nullable|numeric|min:0',
             'note'       => 'nullable|string|max:500',
         ], [
-            'fact.required' => 'Укажите фактический остаток',
-            'fact.min'      => 'Фактический остаток не может быть отрицательным',
+            'stores.required' => 'Выберите хотя бы один склад',
+            'stores.min'      => 'Выберите хотя бы один склад',
+            'fact.min'        => 'Остаток не может быть отрицательным',
+            'produced.min'    => 'Изготовлено не может быть отрицательным',
         ]);
 
-        $order = $this->service->findForUser($request, $moyskladId);
+        $order   = $this->service->findForUser($request, $moyskladId, ['items']);
+        $product = Product::findOrFail($data['product_id']);
 
-        $correction = $corrections->set(
+        $positions->save(
             $order,
-            (int) $data['product_id'],
-            $data['store_id'],
-            (float) $data['fact'],
+            $product,
+            $data['stores'],
+            isset($data['fact']) ? (float) $data['fact'] : null,
+            isset($data['produced']) ? (float) $data['produced'] : null,
             $data['note'] ?? null,
             $request->user(),
+            $this->production->producedForOrder($order)[$product->id] ?? [],
         );
 
-        $message = $correction
-            ? 'Остаток уточнён: ' . number_format((float) $data['fact'], 1, '.', '') . '.'
-            : 'Остаток совпал с МойСклад — поправка снята.';
-
-        return redirect()->route('orders.show', $moyskladId)->with('success', $message);
+        return redirect()->route('orders.show', $moyskladId)
+            ->with('success', 'Позиция «' . $product->name . '» обновлена.');
     }
 
-    public function destroyCorrection(
+    /**
+     * Пересчитать заявку по складам: свежие остатки из МойСклад, новый снимок,
+     * изготовленное с нуля.
+     */
+    public function recalculate(Request $request, string $moyskladId): RedirectResponse
+    {
+        $order = $this->service->findForUser($request, $moyskladId, ['items.product']);
+
+        $this->production->recalculate($order);
+
+        return redirect()->route('orders.show', $moyskladId)
+            ->with('success', 'Остатки пересчитаны по складам, отсчёт изготовленного начат заново.');
+    }
+
+    public function destroyPosition(
         Request $request,
-        OrderStockCorrectionService $corrections,
+        OrderPositionService $positions,
         string $moyskladId,
         int $productId,
     ): RedirectResponse {
         $order = $this->service->findForUser($request, $moyskladId);
 
-        $corrections->reset($order, $productId, (string) $request->input('store_id'));
+        $positions->reset($order, $productId);
 
         return redirect()->route('orders.show', $moyskladId)
-            ->with('success', 'Уточнение снято — показан остаток МойСклад.');
+            ->with('success', 'Уточнения сняты — показаны расчётные значения.');
     }
 
     public function sync(): RedirectResponse

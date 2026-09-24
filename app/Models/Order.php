@@ -19,12 +19,16 @@ class Order extends Model
         'counterparty_id',
         'agent_name',
         'moment',
+        'production_started_at',
+        'production_ended_at',
         'attributes',
     ];
 
     protected $casts = [
-        'moment'     => 'datetime',
-        'attributes' => 'array',
+        'moment'                => 'datetime',
+        'production_started_at' => 'datetime',
+        'production_ended_at'   => 'datetime',
+        'attributes'            => 'array',
     ];
 
     public function items(): HasMany
@@ -37,10 +41,10 @@ class Order extends Model
         return $this->belongsTo(Counterparty::class);
     }
 
-    /** Поправки к остаткам, уточнённые мастером в рамках этой заявки */
-    public function stockCorrections(): HasMany
+    /** Настройки позиций: склады комплектации, снимок остатка, поправки мастера */
+    public function positionSettings(): HasMany
     {
-        return $this->hasMany(OrderStockCorrection::class);
+        return $this->hasMany(OrderPositionSetting::class);
     }
 
     public function departments(): BelongsToMany

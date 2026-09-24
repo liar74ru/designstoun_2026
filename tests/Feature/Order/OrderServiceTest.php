@@ -29,7 +29,7 @@ function orderState(string $name, bool $enabled = true, int $position = 0): Orde
 describe('OrderService::statuses()', function () {
 
     test('возвращает пустой массив когда справочник пуст', function () {
-        $service = new OrderService();
+        $service = app(OrderService::class);
         expect($service->statuses())->toBe([]);
     });
 
@@ -38,7 +38,7 @@ describe('OrderService::statuses()', function () {
         orderState('Новый', true, position: 0);
         orderState('Отменен', false, position: 1);
 
-        $service = new OrderService();
+        $service = app(OrderService::class);
         expect($service->statuses())->toBe(['Новый', 'Собран']);
     });
 });
@@ -59,7 +59,7 @@ describe('OrderService::getIndexData()', function () {
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
 
-        $service = new OrderService();
+        $service = app(OrderService::class);
         $data = $service->getIndexData($request);
 
         expect($data)->toHaveKeys([
@@ -68,7 +68,7 @@ describe('OrderService::getIndexData()', function () {
             'statusDefaults',
             'filterDepartments',
             'departmentDefaults',
-            'productionStoreIds',
+            'rowsByOrder',
         ]);
     });
 
@@ -82,7 +82,7 @@ describe('OrderService::getIndexData()', function () {
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
 
-        $service = new OrderService();
+        $service = app(OrderService::class);
         $data = $service->getIndexData($request);
 
         expect($data['orders']->total())->toBe(2);
@@ -102,7 +102,7 @@ describe('OrderService::getIndexData()', function () {
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
 
-        $service = new OrderService();
+        $service = app(OrderService::class);
         $data = $service->getIndexData($request);
 
         expect($data['orders']->total())->toBe(1);
@@ -116,7 +116,7 @@ describe('OrderService::getIndexData()', function () {
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
 
-        $service = new OrderService();
+        $service = app(OrderService::class);
         $data = $service->getIndexData($request);
 
         expect($data['filterDepartments']->pluck('id'))->toContain($dept1->id, $dept2->id);
@@ -128,6 +128,7 @@ describe('OrderService::getIndexData()', function () {
 
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая']);
         $order->departments()->attach($dept->id);
+        $order->items()->create(['product_id' => Product::factory()->create()->id, 'quantity' => 10, 'shipped' => 0]);
 
         // Админ без отдела — склад всё равно определяется, потому что берётся от заявки
         $user = User::factory()->create(['is_admin' => true]);
@@ -135,10 +136,10 @@ describe('OrderService::getIndexData()', function () {
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
 
-        $service = new OrderService();
+        $service = app(OrderService::class);
         $data = $service->getIndexData($request);
 
-        expect($data['productionStoreIds'][$order->id])->toBe('store-uuid-123');
+        expect($data['rowsByOrder'][$order->id]->first()['stores'])->toBe(['store-uuid-123']);
     });
 
     test('фильтрует по статусу через querystring', function () {
@@ -152,7 +153,7 @@ describe('OrderService::getIndexData()', function () {
         $request->setUserResolver(fn () => $user);
         app()->instance('request', $request);
 
-        $service = new OrderService();
+        $service = app(OrderService::class);
         $data = $service->getIndexData($request);
 
         expect($data['orders']->total())->toBe(1);
@@ -167,7 +168,7 @@ describe('OrderService::getIndexData()', function () {
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
 
-        $service = new OrderService();
+        $service = app(OrderService::class);
         $data = $service->getIndexData($request);
 
         // Проверяем, что отношения загружены
