@@ -10,10 +10,11 @@
             </a>
             <span class="text-muted ms-1">{{ $order->moment?->format('d.m.Y') }}</span>
         </span>
-        <span class="badge"
-              style="background-color: {{ $order->state_color }}; color: {{ $order->state_text_color }}">
-            {{ $order->state_name ?? '—' }}
-        </span>
+        @include('orders.partials.state-picker', [
+            'order'  => $order,
+            'states' => $orderStates ?? collect(),
+            'size'   => 'sm',
+        ])
     </div>
     <div class="info-block-body">
         <div class="fw-semibold mb-1">

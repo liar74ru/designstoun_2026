@@ -63,6 +63,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('orders/sync',  [OrderController::class, 'sync'])->name('orders.sync');
         // Биндинг по moysklad_id: синхронизация удаляет выпавшие заявки, локальные id протухают.
         Route::get ('orders/{moyskladId}', [OrderController::class, 'show'])->name('orders.show');
+        Route::post('orders/{moyskladId}/state', [OrderController::class, 'updateState'])
+            ->name('orders.state.update');
         // Уточнение фактических остатков в рамках заявки
         Route::post   ('orders/{moyskladId}/corrections', [OrderController::class, 'storeCorrection'])
             ->name('orders.corrections.store');

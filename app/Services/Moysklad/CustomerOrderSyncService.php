@@ -242,6 +242,75 @@ class CustomerOrderSyncService extends MoySkladBaseService
         $order->departments()->sync(array_values(array_unique($matchedIds)));
     }
 
+    /**
+     * Перевести заявку в другой статус.
+     *
+     * Пишем сначала в МойСклад и только при успехе обновляем локальные поля:
+     * иначе в программе окажется статус, которого в МойСклад нет.
+     *
+     * @return array{success: bool, code: string, message: string}
+     */
+    public function updateState(Order $order, OrderState $state): array
+    {
+        $result = ['success' => false, 'code' => '', 'message' => ''];
+
+        if (! $this->hasCredentials()) {
+            $result['code']    = 'no_credentials';
+            $result['message'] = 'MOYSKLAD_TOKEN не установлен';
+
+            return $result;
+        }
+
+        try {
+            $payload = [
+                'state' => [
+                    'meta' => [
+                        'href'      => $this->baseUrl . '/entity/customerorder/metadata/states/' . $state->id,
+                        'type'      => 'state',
+                        'mediaType' => 'application/json',
+                    ],
+                ],
+            ];
+
+            $response = $this->put('/entity/customerorder/' . $order->moysklad_id, $payload);
+
+            if (! $response->successful()) {
+                $errors = $response->json()['errors'] ?? [];
+                $result['code']    = 'api_error';
+                $result['message'] = 'Ошибка МойСклад: ' . ($errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка');
+
+                Log::error('Ошибка смены статуса заявки в МойСклад', [
+                    'order_id' => $order->id,
+                    'state'    => $state->name,
+                    'status'   => $response->status(),
+                    'response' => $response->json(),
+                ]);
+
+                return $result;
+            }
+
+            $order->update([
+                'state_moysklad_id' => $state->id,
+                'state_name'        => $state->name,
+            ]);
+
+            $result['success'] = true;
+            $result['message'] = "Статус заявки изменён на «{$state->name}».";
+
+            Log::info('Статус заявки изменён', ['order_id' => $order->id, 'state' => $state->name]);
+        } catch (\Throwable $e) {
+            $result['code']    = 'exception';
+            $result['message'] = 'Ошибка: ' . $e->getMessage();
+
+            Log::error('Исключение при смене статуса заявки', [
+                'order_id' => $order->id,
+                'error'    => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
+    }
+
     private function extractIdFromMeta(?string $href): ?string
     {
         if (! $href) {

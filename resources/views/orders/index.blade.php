@@ -92,10 +92,11 @@
                                 @endforelse
                             </td>
                             <td class="align-top">
-                                <span class="badge"
-                                      style="background-color: {{ $order->state_color }}; color: {{ $order->state_text_color }}">
-                                    {{ $order->state_name ?? '—' }}
-                                </span>
+                                @include('orders.partials.state-picker', [
+                                    'order'  => $order,
+                                    'states' => $orderStates,
+                                    'size'   => 'sm',
+                                ])
                             </td>
                         </tr>
                     @endforeach
@@ -110,6 +111,7 @@
                 @include('partials.order-card', [
                     'order'             => $order,
                     'productionStoreId' => $productionStoreIds[$order->id] ?? null,
+                    'orderStates'       => $orderStates,
                 ])
             @endforeach
         </div>

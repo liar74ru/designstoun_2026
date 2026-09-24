@@ -8,6 +8,7 @@ use App\Models\OrderState;
 use App\Models\Store;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -54,7 +55,14 @@ class OrderService
                 ->orderBy('name')
                 ->get(),
             'productionStoreIds' => $productionStoreIds,
+            'orderStates'        => $this->enabledStates(),
         ];
+    }
+
+    /** Используемые статусы — для переключателя статуса заявки. */
+    public function enabledStates(): Collection
+    {
+        return OrderState::enabled()->orderBy('position')->get();
     }
 
     /**
@@ -116,6 +124,7 @@ class OrderService
             'attributes'        => $this->visibleAttributes($order),
             'productionStoreId' => $productionStoreId,
             'productionStore'   => $productionStoreId ? Store::find($productionStoreId) : null,
+            'orderStates'       => $this->enabledStates(),
             'backUrl'           => url()->previous(route('orders.index')),
         ];
     }

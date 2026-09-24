@@ -36,6 +36,17 @@ class OrderState extends Model
         'archived'   => 'boolean',
     ];
 
+    /**
+     * Карта цветов у Order кэшируется — сбрасываем её при любой правке статуса.
+     * Массовые update() событий не поднимают, там кэш чистится явно
+     * (OrderStateSyncService::sync, OrderStateController::update).
+     */
+    protected static function booted(): void
+    {
+        static::saved(fn () => Order::forgetStateCache());
+        static::deleted(fn () => Order::forgetStateCache());
+    }
+
     /** Статусы, отмеченные админом как используемые. */
     public function scopeEnabled(Builder $query): Builder
     {

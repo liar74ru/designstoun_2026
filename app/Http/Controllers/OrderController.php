@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\OrderState;
 use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\Moysklad\StockSyncService;
 use App\Services\OrderService;
@@ -27,6 +28,33 @@ class OrderController extends Controller
     public function show(Request $request, string $moyskladId): View
     {
         return view('orders.show', $this->service->getShowData($request, $moyskladId));
+    }
+
+    /**
+     * Перевести заявку в другой статус — с записью в МойСклад.
+     */
+    public function updateState(Request $request, string $moyskladId): RedirectResponse
+    {
+        $data = $request->validate([
+            'state_id' => 'required|string|exists:order_states,id',
+        ]);
+
+        $order = $this->service->findForUser($request, $moyskladId);
+
+        // Выставить можно только используемый статус: иначе заявка выпадет
+        // из выгрузки и будет удалена при следующей синхронизации.
+        $state = OrderState::enabled()->find($data['state_id']);
+        if (! $state) {
+            return back()->withErrors(['state_id' => 'Этот статус не используется в программе.']);
+        }
+
+        if ($order->state_moysklad_id === $state->id) {
+            return back()->with('warning', 'Заявка уже в статусе «' . $state->name . '».');
+        }
+
+        $result = $this->sync->updateState($order, $state);
+
+        return back()->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
     /**

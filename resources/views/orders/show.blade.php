@@ -104,10 +104,11 @@
                 <div class="info-block">
                     <div class="info-block-header small fw-semibold">Заявка</div>
                     <div class="info-block-body">
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <span class="rounded-circle d-inline-block flex-shrink-0"
-                                  style="width:10px;height:10px;background:{{ $stateColor }}"></span>
-                            <span class="fs-5 fw-semibold">{{ $order->state_name ?? '—' }}</span>
+                        <div class="mb-2">
+                            @include('orders.partials.state-picker', [
+                                'order'  => $order,
+                                'states' => $orderStates,
+                            ])
                         </div>
 
                         <div class="mb-1">
