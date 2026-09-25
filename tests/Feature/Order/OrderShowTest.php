@@ -108,7 +108,7 @@ describe('OrderController::show()', function () {
             ->assertForbidden();
     });
 
-    test('заявка без отделов недоступна неадмину', function () {
+    test('заявка без отделов доступна неадмину — ей назначают отдел', function () {
         $dept = Department::create(['name' => 'Отдел 1', 'is_active' => true]);
         $user = orderShowMaster($dept);
 
@@ -116,7 +116,7 @@ describe('OrderController::show()', function () {
 
         $this->actingAs($user)
             ->get(route('orders.show', $order->moysklad_id))
-            ->assertForbidden();
+            ->assertSuccessful();
     });
 
     test('показывает позиции, контрагента и дефицит по производственному складу', function () {

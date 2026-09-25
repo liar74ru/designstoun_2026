@@ -15,6 +15,9 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class OrderService
 {
+    /** Значение пункта «Без отдела» в фильтре filter[department_id][]. */
+    public const NO_DEPARTMENT = 'none';
+
     public function __construct(
         private OrderPositionService $positions,
         private OrderProductionService $production,
@@ -32,13 +35,28 @@ class OrderService
             ->allowedFilters([
                 AllowedFilter::callback('status', fn ($q, $v) =>
                     $q->whereIn('state_name', (array) $v)),
-                AllowedFilter::callback('department_id', fn ($q, $v) =>
-                    $q->whereHas('departments', fn ($d) =>
-                        $d->whereIn('departments.id', (array) $v))),
+                AllowedFilter::callback('department_id', function ($q, $v) {
+                    $values   = (array) $v;
+                    $ids      = array_values(array_filter($values, 'is_numeric'));
+                    $withNone = in_array(self::NO_DEPARTMENT, $values, true);
+
+                    $q->where(function ($w) use ($ids, $withNone) {
+                        $w->whereHas('departments', fn ($d) => $d->whereIn('departments.id', $ids ?: [-1]));
+                        if ($withNone) {
+                            $w->orWhereDoesntHave('departments');
+                        }
+                    });
+                }),
             ])
+            // Заявки без отдела видны всем — их отдел назначают из списка — но по умолчанию
+            // скрыты: показываются только при отмеченном «Без отдела».
             ->when($accessible !== null, fn ($q) =>
-                $q->whereHas('departments', fn ($d) =>
-                    $d->whereIn('departments.id', $accessible ?: [-1])))
+                $q->where(fn ($w) => $w
+                    ->whereHas('departments', fn ($d) =>
+                        $d->whereIn('departments.id', $accessible ?: [-1]))
+                    ->orWhereDoesntHave('departments')))
+            ->when(! $request->has('filter.department_id'), fn ($q) =>
+                $q->has('departments'))
             // Фильтр статусов не пришёл — показываем набор, отмеченный админом «по умолчанию».
             // Проверяем наличие ключа: пустой filter[status] форма не присылает вовсе.
             ->when(! $request->has('filter.status') && $defaults !== [], fn ($q) =>
@@ -60,11 +78,15 @@ class OrderService
             ])
             ->all();
 
+        $departments = Department::orderBy('name')->get();
+
         return [
             'orders'             => $orders,
             'statusOptions'      => array_combine($statuses, $statuses),
             'statusDefaults'     => $defaults,
-            'filterDepartments'  => Department::orderBy('name')->get(),
+            'filterDepartments'  => $departments,
+            'noDepartmentOption' => self::NO_DEPARTMENT,
+            'assignDepartments'  => $departments,
             'departmentDefaults' => $accessible ?? [],
             'switchDepartments'  => Department::query()
                 ->when($accessible !== null, fn ($q) => $q->whereIn('id', $accessible ?: [-1]))
@@ -104,7 +126,8 @@ class OrderService
      * Заявка по moysklad_id с проверкой доступа по отделу. Локальные id живут только
      * до ближайшей синхронизации (CustomerOrderSyncService чистит выпавшие), поэтому
      * ищем по moysklad_id. В списке чужие заявки отфильтрованы, но по прямой ссылке
-     * были бы видны — отсюда 403.
+     * были бы видны — отсюда 403. Заявка без отдела доступна всем: отдел ей назначают
+     * из списка.
      *
      * @param  array<int, string>  $with
      */
@@ -116,7 +139,7 @@ class OrderService
             ->firstOrFail();
 
         $accessible = $request->user()?->accessibleDepartmentIds();
-        if ($accessible !== null && empty(array_intersect($accessible, $order->departments->pluck('id')->all()))) {
+        if ($accessible !== null && $order->departments->isNotEmpty() && empty(array_intersect($accessible, $order->departments->pluck('id')->all()))) {
             abort(403);
         }
 
@@ -148,6 +171,7 @@ class OrderService
             'stores'         => Store::where('archived', false)->orderBy('name')->get(),
             'defaultStoreId' => $defaultStoreId,
             'orderStates'    => $this->enabledStates(),
+            'departments'    => Department::orderBy('name')->get(),
             'backUrl'        => url()->previous(route('orders.index')),
         ];
     }

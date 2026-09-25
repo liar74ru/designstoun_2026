@@ -80,12 +80,8 @@
 
                         <div class="mb-2">
                             <div class="text-muted" style="font-size:.78rem">Отделы</div>
-                            <div class="d-flex flex-wrap gap-1 mt-1">
-                                @forelse($order->departments as $dept)
-                                    <span class="badge bg-light text-dark border">{{ $dept->name }}</span>
-                                @empty
-                                    <span class="text-muted small">—</span>
-                                @endforelse
+                            <div class="mt-1">
+                                @include('orders.partials.departments-button', ['order' => $order])
                             </div>
                         </div>
 
@@ -345,6 +341,7 @@
 @if($stores->isNotEmpty())
     @include('orders.partials.position-modal', ['order' => $order, 'stores' => $stores])
 @endif
+@include('orders.partials.departments-modal', ['departments' => $departments])
 @endsection
 
 @if($stores->isNotEmpty())

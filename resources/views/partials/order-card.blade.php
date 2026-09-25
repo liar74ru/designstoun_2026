@@ -20,14 +20,8 @@
 
         @include('partials.order-items-table', ['rows' => $rows])
 
-        @if($order->departments->isNotEmpty())
-            <div class="d-flex flex-wrap gap-1 mt-2">
-                @foreach($order->departments as $dept)
-                    <span class="badge bg-light text-dark border" style="font-size:.7rem">
-                        {{ $dept->name }}
-                    </span>
-                @endforeach
-            </div>
-        @endif
+        <div class="mt-2">
+            @include('orders.partials.departments-button', ['order' => $order, 'font' => '.7rem'])
+        </div>
     </div>
 </div>

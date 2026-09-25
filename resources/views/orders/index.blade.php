@@ -42,6 +42,7 @@
         'statusDefaults'     => $statusDefaults,
         'filterDepartments'  => $filterDepartments,
         'departmentDefaults' => $departmentDefaults,
+        'departmentNoneValue' => $noDepartmentOption,
     ])
 
     @include('partials.department-switcher', [
@@ -84,11 +85,7 @@
                                 ])
                             </td>
                             <td class="align-top">
-                                @forelse($order->departments as $dept)
-                                    <span class="badge bg-light text-dark border me-1">{{ $dept->name }}</span>
-                                @empty
-                                    <span class="text-muted small">—</span>
-                                @endforelse
+                                @include('orders.partials.departments-button', ['order' => $order])
                             </td>
                             <td class="align-top">
                                 @include('orders.partials.state-picker', [
@@ -118,6 +115,8 @@
         <div class="d-flex justify-content-center mt-3">
             {{ $orders->links() }}
         </div>
+
+        @include('orders.partials.departments-modal', ['departments' => $assignDepartments])
 
     @else
         <div class="text-center py-5">

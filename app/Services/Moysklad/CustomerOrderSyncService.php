@@ -322,6 +322,105 @@ class CustomerOrderSyncService extends MoySkladBaseService
         return $result;
     }
 
+    /**
+     * Назначить заявке отделы.
+     *
+     * Отдел в МойСклад — булев доп. реквизит с именем отдела (так их разбирает
+     * upsertOrder). Пишем туда, а не только локально: иначе ближайшая синхронизация
+     * перезапишет выбор. Снятые отделы сбрасываем в false.
+     *
+     * @param  array<int, int>  $departmentIds
+     */
+    public function updateDepartments(Order $order, array $departmentIds): array
+    {
+        $result = ['success' => false, 'code' => '', 'message' => ''];
+
+        if (! $this->hasCredentials()) {
+            $result['code']    = 'no_credentials';
+            $result['message'] = 'MOYSKLAD_TOKEN не установлен';
+
+            return $result;
+        }
+
+        $departmentIds = array_values(array_unique(array_map('intval', $departmentIds)));
+
+        try {
+            $metadata = $this->get('/entity/customerorder/metadata/attributes');
+            if ($metadata === null) {
+                $result['code']    = 'api_error';
+                $result['message'] = 'Не удалось получить реквизиты заказа из МойСклад';
+
+                return $result;
+            }
+
+            $attributeMeta = [];
+            foreach ($metadata['rows'] ?? [] as $attr) {
+                if (($attr['type'] ?? null) === 'boolean' && isset($attr['name'], $attr['meta'])) {
+                    $attributeMeta[$attr['name']] = $attr['meta'];
+                }
+            }
+
+            $departments = Department::orderBy('name')->get(['id', 'name']);
+
+            $missing = $departments
+                ->whereIn('id', $departmentIds)
+                ->reject(fn ($d) => isset($attributeMeta[$d->name]))
+                ->pluck('name');
+
+            if ($missing->isNotEmpty()) {
+                $result['code']    = 'no_attribute';
+                $result['message'] = 'В МойСклад нет реквизита-флажка для отдела: «'
+                    . $missing->implode('», «') . '»';
+
+                return $result;
+            }
+
+            $attributes = $departments
+                ->filter(fn ($d) => isset($attributeMeta[$d->name]))
+                ->map(fn ($d) => [
+                    'meta'  => $attributeMeta[$d->name],
+                    'value' => in_array($d->id, $departmentIds, true),
+                ])
+                ->values()
+                ->all();
+
+            $response = $this->put('/entity/customerorder/' . $order->moysklad_id, ['attributes' => $attributes]);
+
+            if (! $response->successful()) {
+                $errors = $response->json()['errors'] ?? [];
+                $result['code']    = 'api_error';
+                $result['message'] = 'Ошибка МойСклад: ' . ($errors[0]['error'] ?? 'Неизвестная ошибка');
+
+                Log::error('Ошибка записи отделов заявки в МойСклад', [
+                    'order_id' => $order->id,
+                    'status'   => $response->status(),
+                    'response' => $response->json(),
+                ]);
+
+                return $result;
+            }
+
+            $order->departments()->sync($departmentIds);
+
+            $result['success'] = true;
+            $result['message'] = $departmentIds
+                ? 'Отделы заявки «' . $order->name . '» сохранены.'
+                : 'У заявки «' . $order->name . '» сняты все отделы.';
+
+            Log::info('Отделы заявки изменены', ['order_id' => $order->id, 'departments' => $departmentIds]);
+        } catch (\Throwable $e) {
+            $result['code']    = 'exception';
+            $result['message'] = 'Ошибка: ' . $e->getMessage();
+
+            Log::error('Исключение при записи отделов заявки', [
+                'order_id' => $order->id,
+                'error'    => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
+    }
+
     private function extractIdFromMeta(?string $href): ?string
     {
         if (! $href) {

@@ -71,7 +71,8 @@ describe('OrderController::index()', function () {
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
         for ($i = 0; $i < 25; $i++) {
-            Order::create(['moysklad_id' => 'ms-' . $i, 'name' => 'Заявка ' . $i, 'state_name' => 'Новая']);
+            Order::create(['moysklad_id' => 'ms-' . $i, 'name' => 'Заявка ' . $i, 'state_name' => 'Новая'])
+                ->departments()->attach($dept->id);
         }
 
         $this->actingAs($user)
@@ -100,6 +101,8 @@ describe('OrderController::index()', function () {
 
         $order1 = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая', 'moment' => now()->subDay()]);
         $order2 = Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Новая', 'moment' => now()]);
+        $order1->departments()->attach($dept->id);
+        $order2->departments()->attach($dept->id);
 
         $response = $this->actingAs($user)
             ->get(route('orders.index'))

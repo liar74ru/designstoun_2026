@@ -65,6 +65,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get ('orders/{moyskladId}', [OrderController::class, 'show'])->name('orders.show');
         Route::post('orders/{moyskladId}/state', [OrderController::class, 'updateState'])
             ->name('orders.state.update');
+        Route::post('orders/{moyskladId}/departments', [OrderController::class, 'updateDepartments'])
+            ->name('orders.departments.update');
         // Настройки позиции: склады комплектации и уточнения мастера
         Route::post   ('orders/{moyskladId}/positions', [OrderController::class, 'storePosition'])
             ->name('orders.position.update');

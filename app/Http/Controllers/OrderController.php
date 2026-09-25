@@ -67,6 +67,23 @@ class OrderController extends Controller
     }
 
     /**
+     * Назначить заявке отделы — с записью в МойСклад. Пустой выбор снимает все отделы.
+     */
+    public function updateDepartments(Request $request, string $moyskladId): RedirectResponse
+    {
+        $data = $request->validate([
+            'departments'   => 'nullable|array',
+            'departments.*' => 'integer|exists:departments,id',
+        ]);
+
+        $order = $this->service->findForUser($request, $moyskladId);
+
+        $result = $this->sync->updateDepartments($order, $data['departments'] ?? []);
+
+        return back()->with($result['success'] ? 'success' : 'error', $result['message']);
+    }
+
+    /**
      * Настроить позицию заявки: склады комплектации и уточнения мастера.
      */
     public function storePosition(

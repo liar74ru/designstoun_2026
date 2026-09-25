@@ -10,6 +10,7 @@
       $statusOptions      — array [ value => label ] (для multi и single)
       $filterDepartments  — Collection|null  (null = скрыть multi-select отделов)
       $departmentDefaults — array (id отделов выбранных по умолчанию у мастера)
+      $departmentNoneValue — string|null: значение чекбокса «Без отдела» (null = не показывать)
       $filterCounterparties — Collection|null  (null = скрыть select поставщиков)
 --}}
 @php
@@ -25,6 +26,7 @@
     $syncStatusOptions  = $syncStatusOptions  ?? [];
     $filterDepartments  = $filterDepartments  ?? null;
     $departmentDefaults = $departmentDefaults ?? [];
+    $departmentNoneValue = $departmentNoneValue ?? null;
     $filterCounterparties = $filterCounterparties ?? null;
     $selectedDepartments = (array) request('filter.department_id', $departmentDefaults);
     $filterCount   = ($filterCutters    ? 1 : 0)
@@ -218,6 +220,15 @@
                                 <label class="form-check-label small" for="dept_{{ $dept->id }}">{{ $dept->name }}</label>
                             </div>
                         @endforeach
+                        @if($departmentNoneValue !== null)
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox"
+                                       name="filter[department_id][]" value="{{ $departmentNoneValue }}"
+                                       id="dept_{{ $departmentNoneValue }}"
+                                    {{ in_array($departmentNoneValue, (array) request('filter.department_id', []), true) ? 'checked' : '' }}>
+                                <label class="form-check-label small fst-italic" for="dept_{{ $departmentNoneValue }}">Без отдела</label>
+                            </div>
+                        @endif
                     </div>
                 </div>
                 @endif

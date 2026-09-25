@@ -106,8 +106,10 @@ describe('OrderService::getIndexData()', function () {
         $user = User::factory()->create(['is_admin' => true]);
         $dept1 = Department::create(['name' => 'Отдел 1', 'is_active' => true]);
         $dept2 = Department::create(['name' => 'Отдел 2', 'is_active' => true]);
-        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая']);
-        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Новая']);
+        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая'])
+            ->departments()->attach($dept1->id);
+        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Новая'])
+            ->departments()->attach($dept2->id);
 
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
@@ -176,8 +178,10 @@ describe('OrderService::getIndexData()', function () {
         $user = User::factory()->create(['is_admin' => true]);
         $dept = Department::create(['name' => 'Отдел', 'is_active' => true]);
 
-        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая']);
-        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Выполнена']);
+        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая'])
+            ->departments()->attach($dept->id);
+        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Выполнена'])
+            ->departments()->attach($dept->id);
 
         $request = Request::create('/', 'GET', ['filter' => ['status' => 'Новая']]);
         $request->setUserResolver(fn () => $user);
@@ -194,8 +198,11 @@ describe('OrderService::getIndexData()', function () {
         orderState('Новый', true, position: 0);
         orderState('Собран', true, position: 1)->update(['is_default_filter' => true]);
 
-        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый']);
-        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Собран']);
+        $dept = Department::create(['name' => 'Отдел', 'is_active' => true]);
+        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый'])
+            ->departments()->attach($dept->id);
+        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Собран'])
+            ->departments()->attach($dept->id);
 
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
@@ -214,8 +221,11 @@ describe('OrderService::getIndexData()', function () {
         orderState('Новый', true, position: 0);
         orderState('Собран', true, position: 1)->update(['is_default_filter' => true]);
 
-        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый']);
-        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Собран']);
+        $dept = Department::create(['name' => 'Отдел', 'is_active' => true]);
+        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый'])
+            ->departments()->attach($dept->id);
+        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Собран'])
+            ->departments()->attach($dept->id);
 
         $request = Request::create('/', 'GET', ['filter' => ['status' => ['Новый']]]);
         $request->setUserResolver(fn () => $user);
@@ -232,8 +242,11 @@ describe('OrderService::getIndexData()', function () {
         orderState('Новый', true, position: 0);
         orderState('Собран', true, position: 1);
 
-        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый']);
-        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Собран']);
+        $dept = Department::create(['name' => 'Отдел', 'is_active' => true]);
+        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый'])
+            ->departments()->attach($dept->id);
+        Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Собран'])
+            ->departments()->attach($dept->id);
 
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
