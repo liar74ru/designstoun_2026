@@ -127,6 +127,7 @@
                         @endif
 
                         {{-- Кнопка синхронизации --}}
+                        @can('modify', $supplierOrder)
                         <div class="mt-3">
                             <form method="POST" action="{{ route('supplier-orders.sync', $supplierOrder) }}">
                                 @csrf
@@ -143,14 +144,16 @@
                                 </button>
                             </form>
                         </div>
+                        @endcan
                     </div>
                 </div>
 
                 {{-- Действия --}}
                 @php
                     $isAdmin = auth()->user()?->is_admin;
-                    $canEdit = $supplierOrder->isNew();
-                    $canDelete = $supplierOrder->isNew() || $isAdmin;
+                    $canModify = auth()->user()?->can('modify', $supplierOrder);
+                    $canEdit = $canModify && $supplierOrder->isNew();
+                    $canDelete = $canModify && ($supplierOrder->isNew() || $isAdmin);
                     $confirmText = $supplierOrder->status === \App\Models\SupplierOrder::STATUS_SENT
                         ? "Удалить поступление №{$supplierOrder->number}? Будут удалены Приёмка и Заявка поставщику из МойСклад, остатки откатятся. Это действие необратимо."
                         : "Удалить поступление №{$supplierOrder->number}? Это действие необратимо.";

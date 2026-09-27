@@ -19,7 +19,7 @@
                    style="width:22px;height:22px;padding:0;font-size:.65rem" title="Посмотреть партию">
                     <i class="bi bi-eye"></i>
                 </a>
-                @if(auth()->user()->isAdmin() || auth()->user()->isMaster())
+                @if((auth()->user()->isAdmin() || auth()->user()->isMaster()) && auth()->user()->can('modify', $batch))
                     @if($isActive)
                         <a href="{{ route('raw-batches.adjust.form', $batch) }}"
                            class="btn btn-outline-success d-inline-flex align-items-center justify-content-center"

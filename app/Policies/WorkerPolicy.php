@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Models\Worker;
+use App\Support\DepartmentAccess;
 
 class WorkerPolicy
 {
@@ -38,5 +39,14 @@ class WorkerPolicy
             return array_intersect($worker->departmentIds(), $user->worker->departmentIds()) !== [];
         }
         return false;
+    }
+
+    /**
+     * Менять карточку работника (правка, архив, учётная запись) — работника своих отделов.
+     * У работника несколько отделов (основной + pivot): достаточно одного общего.
+     */
+    public function modify(User $user, Worker $worker): bool
+    {
+        return DepartmentAccess::allowsAny($user, $worker->departmentIds());
     }
 }

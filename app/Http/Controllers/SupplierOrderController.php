@@ -79,6 +79,8 @@ class SupplierOrderController extends Controller
 
     public function edit(SupplierOrder $supplierOrder): View|RedirectResponse
     {
+        $this->authorize('modify', $supplierOrder);
+
         if (!$supplierOrder->isNew()) {
             return redirect()->route('supplier-orders.index')
                 ->with('warning', 'Редактировать можно только поступления в статусе «Новый».');
@@ -101,6 +103,8 @@ class SupplierOrderController extends Controller
 
     public function update(UpdateSupplierOrderRequest $request, SupplierOrder $supplierOrder): RedirectResponse
     {
+        $this->authorize('modify', $supplierOrder);
+
         if (!$supplierOrder->isNew()) {
             return redirect()->route('supplier-orders.index')
                 ->with('warning', 'Редактировать можно только поступления в статусе «Новый».');
@@ -120,6 +124,8 @@ class SupplierOrderController extends Controller
 
     public function destroy(SupplierOrder $supplierOrder): RedirectResponse
     {
+        $this->authorize('modify', $supplierOrder);
+
         $isAdmin = auth()->user()?->isAdmin() ?? false;
 
         if (!$isAdmin && !$supplierOrder->isNew()) {
@@ -145,6 +151,8 @@ class SupplierOrderController extends Controller
 
     public function sync(SupplierOrder $supplierOrder): RedirectResponse
     {
+        $this->authorize('modify', $supplierOrder);
+
         if ($supplierOrder->status === SupplierOrder::STATUS_SENT) {
             return redirect()->route('supplier-orders.show', $supplierOrder)
                 ->with('warning', 'Приёмка уже создана в МойСклад.');
@@ -171,6 +179,8 @@ class SupplierOrderController extends Controller
 
     public function syncConfirm(SupplierOrder $supplierOrder): View|RedirectResponse
     {
+        $this->authorize('modify', $supplierOrder);
+
         $confirm = session()->get("sync_confirm_{$supplierOrder->id}");
         if (!$confirm) {
             return redirect()->route('supplier-orders.index');
@@ -185,6 +195,8 @@ class SupplierOrderController extends Controller
 
     public function forceSync(Request $request, SupplierOrder $supplierOrder): RedirectResponse
     {
+        $this->authorize('modify', $supplierOrder);
+
         if ($supplierOrder->status === SupplierOrder::STATUS_SENT) {
             return redirect()->route('supplier-orders.show', $supplierOrder)
                 ->with('warning', 'Приёмка уже создана в МойСклад.');

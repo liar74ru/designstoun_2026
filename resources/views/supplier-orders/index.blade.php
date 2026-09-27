@@ -91,7 +91,7 @@
                                     <a href="{{ route('supplier-orders.show', $order) }}" class="btn btn-sm btn-outline-secondary" title="Просмотр">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    @if($order->status === \App\Models\SupplierOrder::STATUS_NEW)
+                                    @if($order->status === \App\Models\SupplierOrder::STATUS_NEW && auth()->user()->can('modify', $order))
                                         <form method="POST" action="{{ route('supplier-orders.sync', $order) }}"
                                               class="d-inline"
                                               onsubmit="return confirm('Создать приёмку в МойСклад для поступления №{{ $order->number }}?')">
@@ -105,7 +105,7 @@
                                        class="btn btn-sm btn-outline-secondary" title="Скопировать поступление">
                                         <i class="bi bi-copy"></i>
                                     </a>
-                                    @if($order->isNew())
+                                    @if($order->isNew() && auth()->user()->can('modify', $order))
                                         <a href="{{ route('supplier-orders.edit', $order) }}" class="btn btn-sm btn-outline-secondary" title="Редактировать">
                                             <i class="bi bi-pencil"></i>
                                         </a>
@@ -175,7 +175,7 @@
 
                         {{-- Правая часть: кнопки --}}
                         <div class="d-flex flex-column gap-1 flex-shrink-0" style="width:88px">
-                            @if($order->status === \App\Models\SupplierOrder::STATUS_NEW)
+                            @if($order->status === \App\Models\SupplierOrder::STATUS_NEW && auth()->user()->can('modify', $order))
                                 <form method="POST" action="{{ route('supplier-orders.sync', $order) }}"
                                       onsubmit="return confirm('Создать приёмку в МойСклад для поступления №{{ $order->number }}?')">
                                     @csrf
@@ -195,7 +195,7 @@
                                style="font-size:.8rem;padding:.23rem .35rem">
                                 <i class="bi bi-copy"></i> Копия
                             </a>
-                            @if($order->isNew())
+                            @if($order->isNew() && auth()->user()->can('modify', $order))
                                 <a href="{{ route('supplier-orders.edit', $order) }}"
                                    class="btn btn-outline-secondary w-100"
                                    style="font-size:.8rem;padding:.23rem .35rem">

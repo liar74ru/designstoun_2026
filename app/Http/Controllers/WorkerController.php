@@ -59,6 +59,8 @@ class WorkerController extends Controller
 
     public function edit(Worker $worker)
     {
+        $this->authorize('modify', $worker);
+
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $worker->load('departments');
 
@@ -67,6 +69,8 @@ class WorkerController extends Controller
 
     public function update(Request $request, Worker $worker)
     {
+        $this->authorize('modify', $worker);
+
         $validated = $request->validate([
             'name'             => 'required|string|max:255',
             'position'         => 'required|string|in:'.implode(',', Worker::POSITIONS),
@@ -93,6 +97,8 @@ class WorkerController extends Controller
 
     public function destroy(Worker $worker)
     {
+        $this->authorize('modify', $worker);
+
         $worker->delete();
 
         return redirect()->route('workers.index')
@@ -101,6 +107,8 @@ class WorkerController extends Controller
 
     public function archive(Worker $worker)
     {
+        $this->authorize('modify', $worker);
+
         $worker->archive();
 
         return redirect()->route('workers.index')
@@ -109,6 +117,8 @@ class WorkerController extends Controller
 
     public function restore(Worker $worker)
     {
+        $this->authorize('modify', $worker);
+
         $worker->restore();
 
         return redirect()->route('workers.index')
@@ -117,6 +127,8 @@ class WorkerController extends Controller
 
     public function createUser(Worker $worker)
     {
+        $this->authorize('modify', $worker);
+
         if ($worker->user) {
             return redirect()->route('workers.index')
                 ->with('error', 'У этого работника уже есть учетная запись');
@@ -139,6 +151,8 @@ class WorkerController extends Controller
 
     public function storeUser(Request $request, Worker $worker)
     {
+        $this->authorize('modify', $worker);
+
         if ($worker->user) {
             return redirect()->route('workers.index')
                 ->with('error', 'У этого работника уже есть учетная запись');

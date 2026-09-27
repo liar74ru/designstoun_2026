@@ -2,9 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\RawMaterialBatch;
+use App\Models\StoneReception;
+use App\Models\SupplierOrder;
 use App\Models\User;
 use App\Models\Worker;
+use App\Models\Workshop;
+use App\Policies\RawMaterialBatchPolicy;
+use App\Policies\StoneReceptionPolicy;
+use App\Policies\SupplierOrderPolicy;
 use App\Policies\WorkerPolicy;
+use App\Policies\WorkshopPolicy;
 use App\Support\OperationAccessor;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
@@ -37,6 +45,11 @@ class AppServiceProvider extends ServiceProvider
         );
 
         Gate::policy(Worker::class, WorkerPolicy::class);
+        // Изменяющие действия над записью — только в своём отделе (DepartmentAccess)
+        Gate::policy(StoneReception::class, StoneReceptionPolicy::class);
+        Gate::policy(Workshop::class, WorkshopPolicy::class);
+        Gate::policy(RawMaterialBatch::class, RawMaterialBatchPolicy::class);
+        Gate::policy(SupplierOrder::class, SupplierOrderPolicy::class);
 
         View::composer('layouts.partials.header', function ($view) {
             $view->with('operationsRegistry', config('department_operations'));

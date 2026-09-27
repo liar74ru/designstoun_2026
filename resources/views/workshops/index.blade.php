@@ -186,6 +186,7 @@
 
                                 {{-- Правая часть: кнопки в столбик --}}
                                 <div class="d-flex flex-column gap-1 flex-shrink-0">
+                                    @can('modify', $workshop)
                                     @if($workshop->status === 'active')
                                         <a href="{{ route('workshops.edit', $workshop) }}" class="btn btn-sm btn-success" style="min-width:110px">
                                             <i class="bi bi-pencil"></i> Изменить
@@ -197,6 +198,7 @@
                                             </button>
                                         </form>
                                     @endif
+                                    @endcan
                                     <form action="{{ route('workshops.copy', $workshop) }}" method="POST" data-submit-guard>
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-outline-info w-100" style="min-width:110px">
@@ -206,6 +208,7 @@
                                     <a href="{{ route('workshops.show', $workshop) }}" class="btn btn-sm btn-outline-secondary" style="min-width:110px">
                                         <i class="bi bi-eye"></i> Просмотр
                                     </a>
+                                    @can('modify', $workshop)
                                     @if($workshop->status === 'active')
                                         <form action="{{ route('workshops.destroy', $workshop) }}" method="POST" onsubmit="return confirm('Удалить операцию?')" data-submit-guard>
                                             @csrf @method('DELETE')
@@ -221,6 +224,7 @@
                                             </button>
                                         </form>
                                     @endif
+                                    @endcan
                                 </div>
                             </div>
                         </div>

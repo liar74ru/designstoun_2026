@@ -39,7 +39,7 @@
                        style="width:22px;height:22px;padding:0;font-size:.65rem" title="Просмотр">
                         <i class="bi bi-eye"></i>
                     </a>
-                    @if($log->stoneReception && $log->stoneReception->status === 'active')
+                    @if($log->stoneReception && $log->stoneReception->status === 'active' && auth()->user()?->can('modify', $log->stoneReception))
                         <a href="{{ route('stone-receptions.edit', $log->stone_reception_id) }}"
                            class="btn btn-success d-inline-flex align-items-center justify-content-center"
                            style="width:22px;height:22px;padding:0;font-size:.65rem"

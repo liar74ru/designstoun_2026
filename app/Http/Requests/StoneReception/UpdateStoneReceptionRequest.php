@@ -6,9 +6,14 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateStoneReceptionRequest extends FormRequest
 {
+    /**
+     * Чужой отдел — 403 до валидации: иначе правка чужой записи с кривыми данными
+     * отвечала бы ошибками полей, а не отказом в доступе. Та же политика modify,
+     * что и в контроллере.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('modify', $this->route('stone_reception'));
     }
 
     /**

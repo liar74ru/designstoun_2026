@@ -122,6 +122,8 @@ class WorkshopController extends Controller
 
     public function edit(Workshop $workshop): View
     {
+        $this->authorize('modify', $workshop);
+
         $data = $this->service->getFormOptions($workshop);
 
         return view('workshops.edit', $data);
@@ -129,6 +131,8 @@ class WorkshopController extends Controller
 
     public function update(UpdateWorkshopRequest $request, Workshop $workshop): RedirectResponse
     {
+        $this->authorize('modify', $workshop);
+
         $data = $request->validated();
 
         try {
@@ -152,6 +156,8 @@ class WorkshopController extends Controller
 
     public function destroy(Workshop $workshop): RedirectResponse
     {
+        $this->authorize('modify', $workshop);
+
         try {
             $this->service->delete($workshop);
             return redirect()->route('workshops.index')->with('success', 'Операция удалена');
@@ -171,6 +177,8 @@ class WorkshopController extends Controller
 
     public function syncToProcessing(Workshop $workshop): RedirectResponse
     {
+        $this->authorize('modify', $workshop);
+
         $result = $this->service->syncToProcessing($workshop);
 
         return $result['success']
@@ -180,6 +188,8 @@ class WorkshopController extends Controller
 
     public function resetStatus(Workshop $workshop): RedirectResponse
     {
+        $this->authorize('modify', $workshop);
+
         $result = $this->service->resetStatus($workshop);
 
         if ($result !== true) {
@@ -191,6 +201,8 @@ class WorkshopController extends Controller
 
     public function markCompleted(Workshop $workshop): RedirectResponse
     {
+        $this->authorize('modify', $workshop);
+
         abort_unless($workshop->status === Workshop::STATUS_ACTIVE, 403, 'Закрыть можно только активную операцию');
 
         $result = $this->service->markCompleted($workshop);
@@ -204,6 +216,8 @@ class WorkshopController extends Controller
 
     public function updateItemCoeff(Request $request, Workshop $workshop): RedirectResponse
     {
+        $this->authorize('modify', $workshop);
+
         $validated = $request->validate([
             'items'               => ['required', 'array'],
             'items.*.item_id'     => ['required', 'integer'],
@@ -220,6 +234,8 @@ class WorkshopController extends Controller
 
     public function refreshItemCoeffs(Workshop $workshop): RedirectResponse
     {
+        $this->authorize('modify', $workshop);
+
         $this->service->refreshItemCoeffs($workshop);
 
         return back()->with('success', 'Коэффициенты обновлены из справочника');
@@ -227,6 +243,8 @@ class WorkshopController extends Controller
 
     public function updateStores(Request $request, Workshop $workshop): RedirectResponse
     {
+        $this->authorize('modify', $workshop);
+
         abort_unless($workshop->status === Workshop::STATUS_ACTIVE, 403, 'Сменить склады можно только у активной операции');
 
         $validated = $request->validate([

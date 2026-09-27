@@ -131,7 +131,7 @@
                                         <i class="bi bi-person-check"></i> Связан
                                     </a>
                                 @else
-                                    @if(auth()->user()->isAdmin())
+                                    @if(auth()->user()->isAdmin() && auth()->user()->can('modify', $worker))
                                         <a href="{{ route('workers.create-user', $worker) }}"
                                            class="btn btn-sm btn-outline-primary" title="Создать учётную запись">
                                             <i class="bi bi-person-plus"></i> Создать
@@ -155,7 +155,7 @@
                                             <i class="bi bi-bar-chart"></i>
                                         </a>
                                     @endif
-                                    @if(auth()->user()->isAdmin())
+                                    @if(auth()->user()->isAdmin() && auth()->user()->can('modify', $worker))
                                         <a href="{{ route('workers.edit', $worker) }}"
                                            class="btn btn-sm btn-outline-primary" title="Редактировать">
                                             <i class="bi bi-pencil"></i>
@@ -234,7 +234,7 @@
                                        class="btn btn-sm btn-success py-0 px-2" style="font-size:.75rem">
                                         <i class="bi bi-person-check"></i> Аккаунт
                                     </a>
-                                @elseif(auth()->user()->isAdmin())
+                                @elseif(auth()->user()->isAdmin() && auth()->user()->can('modify', $worker))
                                     <a href="{{ route('workers.create-user', $worker) }}"
                                        class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:.75rem">
                                         <i class="bi bi-person-plus"></i> Создать аккаунт
@@ -257,7 +257,7 @@
                                     <i class="bi bi-bar-chart"></i> Выр. мастера
                                 </a>
                             @endif
-                            @if(auth()->user()->isAdmin())
+                            @if(auth()->user()->isAdmin() && auth()->user()->can('modify', $worker))
                                 <a href="{{ route('workers.edit', $worker) }}"
                                    class="btn btn-sm btn-outline-primary w-100">
                                     <i class="bi bi-pencil"></i> Изменить

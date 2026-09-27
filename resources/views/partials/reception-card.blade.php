@@ -2,6 +2,7 @@
     $showActions   = $showActions   ?? false;
     $showEyeButton = $showEyeButton ?? false;
     $isMaster      = $isMaster      ?? false;
+    $canModify     = $showActions && auth()->user()?->can('modify', $reception);
 
     $skuColor = \App\Models\Product::getColorBySku($reception->rawMaterialBatch?->product?->sku);
     $skuBg    = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
@@ -17,14 +18,14 @@
             </span>
             <div class="d-flex gap-1 align-items-center">
                 @if($showActions)
-                    @if($reception->status == 'active')
+                    @if($canModify && $reception->status == 'active')
                         <a href="{{ route('stone-receptions.edit', $reception) }}"
                            class="btn btn-success d-inline-flex align-items-center justify-content-center"
                            style="width:22px;height:22px;padding:0;font-size:.65rem" title="Редактировать">
                             <i class="bi bi-plus-lg"></i>
                         </a>
                     @endif
-                    @if($reception->status == 'active')
+                    @if($canModify && $reception->status == 'active')
                         <form action="{{ route('stone-receptions.mark-completed', $reception) }}"
                               method="POST" class="d-inline-flex"
                               onsubmit="return confirm('Завершить приёмку?')">
@@ -54,7 +55,7 @@
                         <i class="bi bi-eye"></i>
                     </a>
                 @endif
-                @if($showActions && $reception->status != 'active')
+                @if($canModify && $reception->status != 'active')
                     <form action="{{ route('stone-receptions.reset-status', $reception) }}"
                           method="POST" class="d-inline-flex"
                           onsubmit="return confirm('Сбросить статус на Активна?')">
@@ -67,7 +68,7 @@
                         </button>
                     </form>
                 @endif
-                @if($showActions && $reception->status == 'active')
+                @if($canModify && $reception->status == 'active')
                     <form action="{{ route('stone-receptions.destroy', $reception) }}"
                           method="POST" class="d-inline-flex"
                           onsubmit="return confirm('Удалить приёмку?')">

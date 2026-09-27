@@ -161,6 +161,8 @@ class StoneReceptionController extends Controller
 
     public function edit(Request $request, StoneReception $stoneReception): View
     {
+        $this->authorize('modify', $stoneReception);
+
         $data = $this->service->getFormOptions($stoneReception);
 
         $rawProductId        = $stoneReception->rawMaterialBatch?->product_id;
@@ -176,6 +178,8 @@ class StoneReceptionController extends Controller
 
     public function update(UpdateStoneReceptionRequest $request, StoneReception $stoneReception): RedirectResponse
     {
+        $this->authorize('modify', $stoneReception);
+
         $data = $request->validated();
         $data['raw_quantity_delta'] = (float) $request->input('raw_quantity_delta', 0);
 
@@ -235,6 +239,8 @@ class StoneReceptionController extends Controller
 
     public function destroy(StoneReception $stoneReception): RedirectResponse
     {
+        $this->authorize('modify', $stoneReception);
+
         try {
             $this->service->delete($stoneReception);
             return redirect()->route('stone-receptions.index')->with('success', 'Приемка удалена');
@@ -254,6 +260,8 @@ class StoneReceptionController extends Controller
 
     public function syncToProcessing(StoneReception $stoneReception): RedirectResponse
     {
+        $this->authorize('modify', $stoneReception);
+
         if (!$stoneReception->store_id) {
             return back()->with('error', 'Склад не указан — синхронизация невозможна.');
         }
@@ -274,6 +282,8 @@ class StoneReceptionController extends Controller
 
     public function resetStatus(StoneReception $stoneReception): RedirectResponse
     {
+        $this->authorize('modify', $stoneReception);
+
         $result = $this->service->resetStatus($stoneReception);
 
         if ($result !== true) {
@@ -285,6 +295,8 @@ class StoneReceptionController extends Controller
 
     public function markCompleted(StoneReception $stoneReception): RedirectResponse
     {
+        $this->authorize('modify', $stoneReception);
+
         abort_unless($stoneReception->status === StoneReception::STATUS_ACTIVE, 403, 'Завершить можно только активную приёмку');
 
         $result = $this->service->markCompleted($stoneReception);
@@ -298,6 +310,8 @@ class StoneReceptionController extends Controller
 
     public function updateStore(Request $request, StoneReception $stoneReception): RedirectResponse
     {
+        $this->authorize('modify', $stoneReception);
+
         abort_unless($stoneReception->status === StoneReception::STATUS_ACTIVE, 403, 'Сменить склад можно только у активной приёмки');
 
         $validated = $request->validate([
@@ -322,6 +336,8 @@ class StoneReceptionController extends Controller
 
     public function updateItemCoeff(Request $request, StoneReception $stoneReception): RedirectResponse
     {
+        $this->authorize('modify', $stoneReception);
+
         $validated = $request->validate([
             'items'               => ['required', 'array'],
             'items.*.item_id'     => ['required', 'integer'],
@@ -338,6 +354,8 @@ class StoneReceptionController extends Controller
 
     public function refreshItemCoeffs(StoneReception $stoneReception): RedirectResponse
     {
+        $this->authorize('modify', $stoneReception);
+
         $this->service->refreshItemCoeffs($stoneReception);
 
         return back()->with('success', 'Коэффициенты обновлены из справочника');

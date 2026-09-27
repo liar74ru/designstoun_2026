@@ -72,7 +72,8 @@
                                 <span class="small fw-semibold text-muted">Склад приёмки</span>
                             </div>
                             <div class="info-block-body">
-                                @if($stoneReception->status === \App\Models\StoneReception::STATUS_ACTIVE)
+                                @if($stoneReception->status === \App\Models\StoneReception::STATUS_ACTIVE
+                                    && auth()->user()->can('modify', $stoneReception))
                                     <form method="POST"
                                           action="{{ route('stone-receptions.update-store', $stoneReception) }}"
                                           class="d-flex gap-2 align-items-center">
@@ -162,9 +163,11 @@
                         <x-moysklad-sync-status
                             :model="$stoneReception"
                             :sync-route="route('stone-receptions.sync', $stoneReception)"
+                            :show-button="auth()->user()->can('modify', $stoneReception)"
                             wrapper="info-block" />
 
                 {{-- Кнопки действий --}}
+                @can('modify', $stoneReception)
                 <div class="card shadow-sm mb-3">
                     <div class="card-header bg-white py-2">
                         <span class="fw-semibold small text-muted">Возможные действия</span>
@@ -216,6 +219,7 @@
                         </div>
                     </div>
                 </div>
+                @endcan
 
             </div>
 
@@ -226,6 +230,7 @@
                 <div class="card shadow-sm mb-3">
                     <div style="background:#f8f9fa;padding:.3rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0;display:flex;justify-content:space-between;align-items:center">
                         <span class="small fw-semibold">📦 Принятая продукция</span>
+                        @can('modify', $stoneReception)
                         <div class="d-flex gap-1">
                             <form method="POST"
                                   action="{{ route('stone-receptions.refresh-item-coeffs', $stoneReception) }}"
@@ -246,6 +251,7 @@
                                 <span class="d-none d-sm-inline ms-1">Коэффициенты</span>
                             </button>
                         </div>
+                        @endcan
                     </div>
 
                     @if($stoneReception->items->count() > 0)
@@ -386,6 +392,7 @@
                         </div>
 
                         {{-- Форма редактирования коэффициентов (скрыта по умолчанию) --}}
+                        @can('modify', $stoneReception)
                         <div id="coeffEditPanel" style="display:none" class="p-2 border-top bg-warning bg-opacity-10">
                             <div class="d-flex align-items-center gap-2 mb-2">
                                 <i class="bi bi-exclamation-triangle-fill text-warning"></i>
@@ -472,6 +479,7 @@
                                 </div>
                             </form>
                         </div>
+                        @endcan
                     @else
                         <div class="text-center py-4">
                             <i class="bi bi-box-seam fs-3 text-muted d-block mb-1"></i>

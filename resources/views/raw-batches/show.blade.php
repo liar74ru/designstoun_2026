@@ -113,11 +113,14 @@
                 <x-moysklad-sync-status
                     :model="$batch"
                     :sync-route="route('raw-batches.sync', $batch)"
-                    :show-button="$batch->status !== 'archived'"
+                    :show-button="$batch->status !== 'archived' && auth()->user()->can('modify', $batch)"
                     empty-text="Перемещение не создано"
                     create-text="Создать перемещение" />
 
                 @if($batch->status !== 'archived')
+                    @php
+                        $canModify = auth()->user()->can('modify', $batch);
+                    @endphp
                     <div class="card shadow-sm mb-4">
                         <div class="card-header bg-white py-2">
                             <span class="fw-semibold small text-muted">Возможные действия</span>
@@ -125,11 +128,13 @@
                         <div class="card-body py-2">
                             <div class="d-grid gap-2">
 
-                                <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-success">
-                                    <i class="bi bi-plus-slash-minus"></i> Изменить количество
-                                </a>
+                                @if($canModify)
+                                    <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-success">
+                                        <i class="bi bi-plus-slash-minus"></i> Изменить количество
+                                    </a>
+                                @endif
 
-                                @if ($activeReception = $batch->getActiveReception())
+                                @if (($activeReception = $batch->getActiveReception()) && auth()->user()->can('modify', $activeReception))
                                     <a href="{{ route('stone-receptions.edit', $activeReception) }}" class="btn btn-outline-primary">
                                         <i class="bi bi-pencil-square"></i>
                                         Редактировать приёмку №{{ $activeReception->id }}
@@ -140,7 +145,7 @@
                                     <i class="bi bi-copy"></i> Копировать
                                 </a>
 
-                                @if($batch->canBeTransferredOrReturned())
+                                @if($canModify && $batch->canBeTransferredOrReturned())
                                     <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-warning">
                                         <i class="bi bi-arrow-left-right"></i> Передать пильщику
                                     </a>
@@ -149,7 +154,7 @@
                                     </a>
                                 @endif
 
-                                @if($batch->canBeMarkedAsUsed())
+                                @if($canModify && $batch->canBeMarkedAsUsed())
                                     <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}"
                                           onsubmit="return confirm('Отметить партию как «Израсходована»?\nСвязанная активная приёмка будет завершена.')">
                                         @csrf
@@ -159,7 +164,7 @@
                                     </form>
                                 @endif
 
-                                @if($batch->status === \App\Models\RawMaterialBatch::STATUS_USED)
+                                @if($canModify && $batch->status === \App\Models\RawMaterialBatch::STATUS_USED)
                                     <form method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}"
                                           onsubmit="return confirm('Вернуть партию в статус «В работе»?\nЕсли есть завершённая приёмка, она снова станет активной.')">
                                         @csrf
@@ -169,7 +174,7 @@
                                     </form>
                                 @endif
 
-                                @if($batch->canBeArchived())
+                                @if($canModify && $batch->canBeArchived())
                                     <form method="POST" action="{{ route('raw-batches.archive', $batch) }}"
                                           onsubmit="return confirm('Отправить партию в архив? Это финальный статус.')">
                                         @csrf
@@ -177,19 +182,19 @@
                                             <i class="bi bi-archive"></i> В архив
                                         </button>
                                     </form>
-                                @elseif(in_array($batch->status, ['used', 'returned']) && (float)$batch->remaining_quantity > 0)
+                                @elseif($canModify && in_array($batch->status, ['used', 'returned']) && (float)$batch->remaining_quantity > 0)
                                     <button class="btn btn-dark" disabled title="Сначала спишите остаток">
                                         <i class="bi bi-archive"></i> В архив
                                     </button>
                                 @endif
 
-                                @if($batch->canEditDetails())
+                                @if($canModify && $batch->canEditDetails())
                                     <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-secondary">
                                         <i class="bi bi-pencil"></i> Изменить партию
                                     </a>
                                 @endif
 
-                                @if($batch->canBeEditedOrDeleted())
+                                @if($canModify && $batch->canBeEditedOrDeleted())
                                     <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
                                           onsubmit="return confirm('Удалить партию #{{ $batch->id }}? Это действие необратимо.')">
                                         @csrf @method('DELETE')

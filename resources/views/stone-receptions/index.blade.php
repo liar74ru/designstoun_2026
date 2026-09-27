@@ -137,13 +137,13 @@
                                         </td>
                                         <td>
                                             <div class="d-flex gap-1 justify-content-end">
-                                                @if($reception->status == 'active')
+                                                @if($reception->status == 'active' && auth()->user()->can('modify', $reception))
                                                     <a href="{{ route('stone-receptions.edit', $reception) }}"
                                                        class="btn btn-sm btn-success" title="Редактировать">
                                                         <i class="bi bi-plus-lg"></i>
                                                     </a>
                                                 @endif
-                                                @if($reception->status == 'active')
+                                                @if($reception->status == 'active' && auth()->user()->can('modify', $reception))
                                                     <form method="POST" action="{{ route('stone-receptions.mark-completed', $reception) }}" class="d-inline"
                                                           onsubmit="return confirm('Завершить приёмку?')">
                                                         @csrf
@@ -164,7 +164,7 @@
                                                    class="btn btn-sm btn-outline-secondary" title="Просмотр">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                @if($reception->status != 'active')
+                                                @if($reception->status != 'active' && auth()->user()->can('modify', $reception))
                                                     <form action="{{ route('stone-receptions.reset-status', $reception) }}"
                                                           method="POST" class="d-inline"
                                                           onsubmit="return confirm('Сбросить статус на Активна?')">
@@ -175,7 +175,7 @@
                                                         </button>
                                                     </form>
                                                 @endif
-                                                @if($reception->status == 'active')
+                                                @if($reception->status == 'active' && auth()->user()->can('modify', $reception))
                                                     <form action="{{ route('stone-receptions.destroy', $reception) }}"
                                                           method="POST" class="d-inline"
                                                           onsubmit="return confirm('Удалить приёмку?')">
@@ -306,7 +306,7 @@
                                         </td>
                                         <td>
                                             <div class="d-flex gap-1 justify-content-end">
-                                                @if($log->stoneReception && $log->stoneReception->status === 'active')
+                                                @if($log->stoneReception && $log->stoneReception->status === 'active' && auth()->user()->can('modify', $log->stoneReception))
                                                     <a href="{{ route('stone-receptions.edit', $log->stone_reception_id) }}"
                                                        class="btn btn-sm btn-success" title="Редактировать">
                                                         <i class="bi bi-plus-lg"></i>

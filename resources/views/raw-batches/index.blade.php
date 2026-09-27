@@ -58,6 +58,9 @@
                     </thead>
                     <tbody>
                     @foreach($batches as $batch)
+                        @php
+                            $canModify = auth()->user()->can('modify', $batch);
+                        @endphp
                         <tr>
                             <td>
                                 <a href="{{ route('raw-batches.show', $batch->id) }}">
@@ -88,7 +91,7 @@
                                     <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-sm btn-outline-info" title="Просмотр">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    @if($batch->canBeEditedOrDeleted())
+                                    @if($canModify && $batch->canBeEditedOrDeleted())
                                         <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-sm btn-outline-secondary" title="Редактировать">
                                             <i class="bi bi-pencil"></i>
                                         </a>
@@ -101,7 +104,7 @@
                                             </button>
                                         </form>
                                     @endif
-                                    @if($batch->status !== 'archived')
+                                    @if($canModify && $batch->status !== 'archived')
                                         <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-sm btn-outline-success" title="Скорректировать количество">
                                             <i class="bi bi-plus-slash-minus"></i>
                                         </a>
@@ -109,7 +112,7 @@
                                     <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-sm btn-outline-primary" title="Создать копию">
                                         <i class="bi bi-copy"></i>
                                     </a>
-                                    @if($batch->canBeTransferredOrReturned())
+                                    @if($canModify && $batch->canBeTransferredOrReturned())
                                         <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-sm btn-outline-warning" title="Передать пильщику">
                                             <i class="bi bi-arrow-left-right"></i>
                                         </a>
@@ -117,7 +120,7 @@
                                             <i class="bi bi-arrow-return-left"></i>
                                         </a>
                                     @endif
-                                    @if($batch->canBeMarkedAsUsed())
+                                    @if($canModify && $batch->canBeMarkedAsUsed())
                                         <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline"
                                               onsubmit="return confirm('Отметить как «Израсходована»?')">
                                             @csrf
@@ -141,6 +144,7 @@
                 @php
                     $skuColor = \App\Models\Product::getColorBySku($batch->product->sku ?? null);
                     $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
+                    $canModify = auth()->user()->can('modify', $batch);
                 @endphp
                 <div class="info-block mb-2" style="border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};{{ $skuBg }}">
                     <div class="info-block-header d-flex justify-content-between align-items-center">
@@ -191,12 +195,12 @@
                             <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-sm btn-outline-info" style="min-width:90px">
                                 <i class="bi bi-eye"></i> Открыть
                             </a>
-                            @if($batch->canBeEditedOrDeleted())
+                            @if($canModify && $batch->canBeEditedOrDeleted())
                                 <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-sm btn-outline-secondary" style="min-width:90px">
                                     <i class="bi bi-pencil"></i> Изменить
                                 </a>
                             @endif
-                            @if($batch->status !== 'archived')
+                            @if($canModify && $batch->status !== 'archived')
                                 <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-sm btn-outline-success" style="min-width:90px">
                                     <i class="bi bi-plus-slash-minus"></i> Остаток
                                 </a>
@@ -204,7 +208,7 @@
                             <a href="{{ route('raw-batches.copy', $batch) }}" class="btn btn-sm btn-outline-primary" style="min-width:90px">
                                 <i class="bi bi-copy"></i> Копия
                             </a>
-                            @if($batch->canBeTransferredOrReturned())
+                            @if($canModify && $batch->canBeTransferredOrReturned())
                                 <a href="{{ route('raw-batches.transfer.form', $batch) }}" class="btn btn-sm btn-outline-warning" style="min-width:90px">
                                     <i class="bi bi-arrow-left-right"></i> Передать
                                 </a>
@@ -212,7 +216,7 @@
                                     <i class="bi bi-arrow-return-left"></i> Вернуть
                                 </a>
                             @endif
-                            @if($batch->canBeMarkedAsUsed())
+                            @if($canModify && $batch->canBeMarkedAsUsed())
                                 <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}"
                                       onsubmit="return confirm('Отметить как «Израсходована»?')">
                                     @csrf

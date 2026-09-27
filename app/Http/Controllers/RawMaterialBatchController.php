@@ -200,6 +200,8 @@ class RawMaterialBatchController extends Controller
 
     public function edit(RawMaterialBatch $batch): View|RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if (!$batch->canEditDetails()) {
             return redirect()->route('raw-batches.show', $batch)
                 ->with('error', 'Редактировать можно только партии в статусе «Новая», «Не уточнена» или «Уточнена».');
@@ -216,6 +218,8 @@ class RawMaterialBatchController extends Controller
 
     public function update(Request $request, RawMaterialBatch $batch): RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if (!$batch->canEditDetails()) {
             return redirect()->route('raw-batches.show', $batch)
                 ->with('error', 'Редактировать можно только партии в статусе «Новая», «Не уточнена» или «Уточнена».');
@@ -265,6 +269,8 @@ class RawMaterialBatchController extends Controller
 
     public function destroyNew(RawMaterialBatch $batch): RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if (!$batch->canBeEditedOrDeleted()) {
             return redirect()->route('raw-batches.show', $batch)
                 ->with('error', 'Удалить можно только партии в статусе «Новая».');
@@ -284,6 +290,8 @@ class RawMaterialBatchController extends Controller
 
     public function adjustForm(RawMaterialBatch $batch): View|RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if ($batch->status === 'archived') {
             return redirect()->route('raw-batches.show', $batch)
                 ->with('error', 'Архивная партия недоступна для редактирования.');
@@ -297,6 +305,8 @@ class RawMaterialBatchController extends Controller
 
     public function adjust(Request $request, RawMaterialBatch $batch): RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if ($batch->status === 'archived') {
             return back()->with('error', 'Архивная партия недоступна для редактирования.');
         }
@@ -338,6 +348,8 @@ class RawMaterialBatchController extends Controller
 
     public function markAsUsed(RawMaterialBatch $batch): JsonResponse|RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if (!in_array($batch->status, [
             RawMaterialBatch::STATUS_NEW,
             RawMaterialBatch::STATUS_IN_WORK,
@@ -369,6 +381,8 @@ class RawMaterialBatchController extends Controller
 
     public function markAsInWork(RawMaterialBatch $batch): RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if ($batch->status !== RawMaterialBatch::STATUS_USED) {
             return back()->with('error', 'Вернуть в работу можно только партию со статусом «Израсходована».');
         }
@@ -380,6 +394,8 @@ class RawMaterialBatchController extends Controller
 
     public function archive(RawMaterialBatch $batch): RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if ($batch->status === 'archived') {
             return back()->with('error', 'Партия уже в архиве.');
         }
@@ -400,6 +416,8 @@ class RawMaterialBatchController extends Controller
 
     public function destroy(RawMaterialBatch $batch): RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if ($batch->receptions()->exists()) {
             return back()->with('error', 'Нельзя удалить партию, к которой есть приемки.');
         }
@@ -411,6 +429,8 @@ class RawMaterialBatchController extends Controller
 
     public function transferForm(RawMaterialBatch $batch): View|RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if (!$batch->canBeTransferredOrReturned()) {
             return redirect()->route('raw-batches.show', $batch)
                 ->with('error', 'Передать можно только новую или уточнённую партию с ненулевым остатком.');
@@ -424,6 +444,8 @@ class RawMaterialBatchController extends Controller
 
     public function transfer(Request $request, RawMaterialBatch $batch): RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if (!$batch->canBeTransferredOrReturned()) {
             return back()->with('error', 'Передать можно только новую или уточнённую партию с ненулевым остатком.');
         }
@@ -444,6 +466,8 @@ class RawMaterialBatchController extends Controller
 
     public function returnForm(RawMaterialBatch $batch): View|RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if (!$batch->isWorkable()) {
             return redirect()->route('raw-batches.show', $batch)
                 ->with('error', 'Партия уже неактивна.');
@@ -457,6 +481,8 @@ class RawMaterialBatchController extends Controller
 
     public function return(Request $request, RawMaterialBatch $batch): RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         if (!$batch->canBeTransferredOrReturned()) {
             return back()->withErrors(['batch' => 'Вернуть можно только новую или уточнённую партию с ненулевым остатком.']);
         }
@@ -487,6 +513,8 @@ class RawMaterialBatchController extends Controller
 
     public function syncBatch(RawMaterialBatch $batch): RedirectResponse
     {
+        $this->authorize('modify', $batch);
+
         $result = $this->syncService->syncBatchMove($batch);
         $batch->refresh();
 

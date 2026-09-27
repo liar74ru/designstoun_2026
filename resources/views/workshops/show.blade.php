@@ -99,7 +99,7 @@
                     <span class="small fw-semibold text-muted">Склады</span>
                 </div>
                 <div class="info-block-body">
-                    @if($workshop->status === 'active')
+                    @if($workshop->status === 'active' && auth()->user()->can('modify', $workshop))
                         <form method="POST"
                               action="{{ route('workshops.update-stores', $workshop) }}"
                               data-submit-guard>
@@ -184,6 +184,7 @@
             <x-moysklad-sync-status
                 :model="$workshop"
                 :sync-route="route('workshops.sync', $workshop)"
+                :show-button="auth()->user()->can('modify', $workshop)"
                 wrapper="info-block" />
 
             {{-- Кнопки действий --}}
@@ -194,6 +195,7 @@
                 <div class="card-body py-2">
                     <div class="d-grid gap-2">
 
+                        @can('modify', $workshop)
                         @if($workshop->status === 'active')
                             <a href="{{ route('workshops.edit', $workshop) }}" class="btn btn-success">
                                 <i class="bi bi-pencil"></i> Редактировать
@@ -221,6 +223,7 @@
                                 </button>
                             </form>
                         @endif
+                        @endcan
 
                         <form method="POST" action="{{ route('workshops.copy', $workshop) }}" data-submit-guard>
                             @csrf
@@ -229,6 +232,7 @@
                             </button>
                         </form>
 
+                        @can('modify', $workshop)
                         <form method="POST"
                               action="{{ route('workshops.destroy', $workshop) }}"
                               onsubmit="return confirm('Удалить операцию Цех #{{ $workshop->id }}? Тара будет возвращена на склад.')"
@@ -239,6 +243,7 @@
                                 <i class="bi bi-trash"></i> Удалить
                             </button>
                         </form>
+                        @endcan
 
                     </div>
                 </div>
@@ -320,7 +325,7 @@
             <div class="card shadow-sm mb-3">
                 <div style="background:#f8f9fa;padding:.3rem .5rem;border-bottom:1px solid #dee2e6;border-radius:.35rem .35rem 0 0;display:flex;justify-content:space-between;align-items:center">
                     <span class="small fw-semibold"><i class="bi bi-check2-circle me-1"></i> Продукт</span>
-                    @if($productItems->isNotEmpty())
+                    @if($productItems->isNotEmpty() && auth()->user()->can('modify', $workshop))
                         <div class="d-flex gap-1">
                             <form method="POST"
                                   action="{{ route('workshops.refresh-item-coeffs', $workshop) }}"
@@ -443,6 +448,7 @@
                     </div>
 
                     {{-- Форма редактирования коэффициентов (скрыта по умолчанию) --}}
+                    @can('modify', $workshop)
                     <div id="coeffEditPanel" style="display:none" class="p-2 border-top bg-warning bg-opacity-10">
                         <div class="d-flex align-items-center gap-2 mb-2">
                             <i class="bi bi-exclamation-triangle-fill text-warning"></i>
@@ -529,6 +535,7 @@
                             </div>
                         </form>
                     </div>
+                    @endcan
                 @else
                     <div class="text-center py-4">
                         <i class="bi bi-check2-circle fs-3 text-muted d-block mb-1"></i>
