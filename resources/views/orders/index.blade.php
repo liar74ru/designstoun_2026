@@ -169,7 +169,7 @@
             // ссылки внутри (товары, номер заявки) работают как обычно.
             document.querySelectorAll('.order-row').forEach(function (row) {
                 row.addEventListener('click', function (e) {
-                    if (e.target.closest('a, button, input, label, .order-priority')) return;
+                    if (e.target.closest('a, button, input, label, summary, .order-priority')) return;
                     window.location = row.dataset.href;
                 });
             });

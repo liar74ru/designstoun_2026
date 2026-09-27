@@ -38,6 +38,9 @@
         .mpos-tile.is-edit { border: 1px solid #ced4da; background: #fff; box-shadow: 0 1px 1px rgba(0, 0, 0, .05); }
         .mpos-tile.is-edit > span[role=button] { justify-content: flex-start !important; }
         .mpos-tile .bi-pencil-square { display: none; }
+        /* Ссылка «приёмки за период производства» в подписи «изгот.»: иначе иконка теряется в мелкой подписи */
+        .mpos-tile small a { margin-left: .15rem; color: #1d4ed8 !important; }
+        .mpos-tile small a .bi { font-size: .8rem; vertical-align: -.1em; }
         .mpos-total { background: rgba(0, 0, 0, .05); }
         .mpos-total.is-ok { background: #dcf5e3; }
         .mpos-total.is-ok b { color: #15803d; }
