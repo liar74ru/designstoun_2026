@@ -75,6 +75,9 @@ Route::middleware(['auth'])->group(function () {
         // Ручная отметка «позиция готова» из списка заявок (AJAX)
         Route::post   ('orders/{moyskladId}/positions/{productId}/ready', [OrderController::class, 'updateReady'])
             ->name('orders.position.ready');
+        // Скрыть позицию смешанной заявки для отдела (AJAX из карточки)
+        Route::post   ('orders/{moyskladId}/positions/{productId}/hidden', [OrderController::class, 'updateHidden'])
+            ->name('orders.position.hidden');
         // Пересъёмка остатков: обнуляет изготовленное, поэтому отдельным действием
         Route::post   ('orders/{moyskladId}/recalculate', [OrderController::class, 'recalculate'])
             ->name('orders.recalculate');

@@ -17,6 +17,10 @@
     $sumShort   = $hasNumbers ? $rows->sum('short') : null;
     $percent    = $sumOrdered > 0 ? (int) round($sumShipped / $sumOrdered * 100) : 0;
 
+    // Позиция приглушена, если скрыта для всех отделов, которыми управляет пользователь.
+    $hideIds  = $hideDepartments->pluck('id')->all();
+    $isHidden = fn ($row) => $hideIds !== [] && array_diff($hideIds, $row['hiddenFor']) === [];
+
     $stateColor = $order->state_color;
     $stateTextColor = $order->state_text_color;
 @endphp
@@ -229,9 +233,10 @@
                                     @php
                                         $canMark = $row['product'] && ! $row['done'];
                                     @endphp
-                                    <tr class="order-pos {{ $row['isReady'] ? 'is-ready' : '' }}"
+                                    <tr class="order-pos {{ $row['isReady'] ? 'is-ready' : '' }} {{ $isHidden($row) ? 'is-hidden' : '' }}"
                                         style="{{ $row['color'] === '#FFFFFF' ? '' : '--bs-table-bg:' . $row['color'] . '18;' }}"
-                                        @if($canMark) data-position="{{ $order->id }}-{{ $row['product']->id }}" @endif>
+                                        @if($canMark) data-position="{{ $order->id }}-{{ $row['product']->id }}" @endif
+                                        @if($row['product']) data-hide-key="{{ $order->id }}-{{ $row['product']->id }}" @endif>
                                         <td>
                                             <div class="d-flex align-items-start gap-2">
                                                 @if($canMark)
@@ -259,6 +264,10 @@
                                                             {{ $row['product']->sku }}
                                                         </div>
                                                     @endif
+                                                    @include('orders.partials.hidden-badge', ['order' => $order, 'row' => $row, 'class' => 'mt-1'])
+                                                </div>
+                                                <div class="ms-auto">
+                                                    @include('orders.partials.hide-toggle', ['order' => $order, 'row' => $row, 'hideDepartments' => $hideDepartments])
                                                 </div>
                                             </div>
                                         </td>
@@ -313,9 +322,10 @@
                                 @php
                                     $canMark = $row['product'] && ! $row['done'];
                                 @endphp
-                                <div class="order-pos {{ $row['isReady'] ? 'is-ready' : '' }}"
+                                <div class="order-pos {{ $row['isReady'] ? 'is-ready' : '' }} {{ $isHidden($row) ? 'is-hidden' : '' }}"
                                      style="border-left:3px solid {{ $row['color'] }};{{ $row['color'] === '#FFFFFF' ? '' : 'background:' . $row['color'] . '18;' }}padding:.35rem .45rem;border-radius:.25rem;margin-bottom:.3rem"
-                                     @if($canMark) data-position="{{ $order->id }}-{{ $row['product']->id }}" @endif>
+                                     @if($canMark) data-position="{{ $order->id }}-{{ $row['product']->id }}" @endif
+                                     @if($row['product']) data-hide-key="{{ $order->id }}-{{ $row['product']->id }}" @endif>
                                     <div class="d-flex align-items-start gap-1">
                                         @if($canMark)
                                             @include('orders.partials.ready-toggle', ['order' => $order, 'product' => $row['product']])
@@ -338,7 +348,9 @@
                                             @include('orders.partials.change-mark', [
                                                 'change' => $order->position_changes[$row['item']->product_moysklad_id] ?? null,
                                             ])
+                                            @include('orders.partials.hidden-badge', ['order' => $order, 'row' => $row, 'class' => 'mt-1'])
                                         </div>
+                                        @include('orders.partials.hide-toggle', ['order' => $order, 'row' => $row, 'hideDepartments' => $hideDepartments])
                                     </div>
 
                                     @if($row['done'])
@@ -405,6 +417,7 @@
 @endsection
 
 @include('orders.partials.ready-toggle-assets')
+@include('orders.partials.hide-toggle-assets')
 
 @if($stores->isNotEmpty())
 @push('scripts')

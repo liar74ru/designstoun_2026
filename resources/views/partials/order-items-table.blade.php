@@ -1,14 +1,25 @@
 {{--
     Компактная таблица позиций для списка заявок и мобильной карточки.
     Числа приходят готовыми из OrderPositionService — своей арифметики здесь нет.
-    Параметры: $rows, $order (для ручной отметки «готово»).
+    Параметры: $rows, $order (для ручной отметки «готово»),
+    $hiddenCount — сколько позиций скрыто для отделов смотрящего (OrderService::getIndexData).
 
     Ручная отметка: строка получает .is-ready (стили и скрипт — orders.partials.ready-toggle-assets).
+    Скрытая позиция приходит в $rows только при «Показывать скрытые позиции» и получает
+    .is-hidden (стили — orders.partials.hide-toggle-assets).
 --}}
 @php
     $fmt1   = fn ($v) => number_format((float) $v, 1, '.', '');
     $fmtQty = fn ($v) => rtrim(rtrim(number_format((float) $v, 3), '0'), '.');
+
+    // Скрытые, но не показанные — о них напоминает строка под таблицей.
+    $hiddenLeft = ($hiddenCount ?? 0) - $rows->where('hidden', true)->count();
 @endphp
+@if($rows->isEmpty() && $hiddenLeft > 0)
+    <div class="text-muted small px-2 py-1">
+        <i class="bi bi-eye-slash"></i> Все позиции скрыты для вашего отдела ({{ $hiddenLeft }})
+    </div>
+@else
 <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
         <thead>
@@ -34,7 +45,7 @@
             @php
                 $canMark = $product && ! $row['done'] && isset($order);
             @endphp
-            <tr class="order-pos {{ $row['done'] ? 'text-decoration-line-through text-muted' : '' }} {{ $row['isReady'] ? 'is-ready' : '' }}"
+            <tr class="order-pos {{ $row['done'] ? 'text-decoration-line-through text-muted' : '' }} {{ $row['isReady'] ? 'is-ready' : '' }} {{ ($row['hidden'] ?? false) ? 'is-hidden' : '' }}"
                 style="{{ $rowStyle }}"
                 @if($canMark) data-position="{{ $order->id }}-{{ $product->id }}" @endif>
                 <td class="pe-1">
@@ -56,6 +67,9 @@
                                     {{ $row['name'] }}
                                 @endif
                             </div>
+                            @if(isset($order) && $row['hiddenFor'])
+                                @include('orders.partials.hidden-badge', ['order' => $order, 'row' => $row])
+                            @endif
                         </div>
                     </div>
                 </td>
@@ -87,3 +101,11 @@
         </tbody>
     </table>
 </div>
+@if($hiddenLeft > 0 && isset($order))
+    <div class="small px-2 py-1">
+        <a href="{{ route('orders.show', $order->moysklad_id) }}" class="text-muted text-decoration-none">
+            <i class="bi bi-eye-slash"></i> + {{ $hiddenLeft }} скрыто
+        </a>
+    </div>
+@endif
+@endif

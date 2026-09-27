@@ -43,6 +43,7 @@
         'filterDepartments'  => $filterDepartments,
         'departmentDefaults' => $departmentDefaults,
         'departmentNoneValue' => $noDepartmentOption,
+        'showHiddenOption'   => true,
     ])
 
     @include('partials.department-switcher', [
@@ -89,8 +90,9 @@
                             <td class="align-top">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</td>
                             <td class="align-top p-0">
                                 @include('partials.order-items-table', [
-                                    'rows'  => $rowsByOrder[$order->id] ?? collect(),
-                                    'order' => $order,
+                                    'rows'        => $rowsByOrder[$order->id] ?? collect(),
+                                    'order'       => $order,
+                                    'hiddenCount' => $hiddenCountByOrder[$order->id] ?? 0,
                                 ])
                             </td>
                             <td class="align-top">
@@ -116,6 +118,7 @@
                 @include('partials.order-card', [
                     'order'       => $order,
                     'rows'        => $rowsByOrder[$order->id] ?? collect(),
+                    'hiddenCount' => $hiddenCountByOrder[$order->id] ?? 0,
                     'orderStates' => $orderStates,
                 ])
             @endforeach
@@ -139,6 +142,7 @@
 @endsection
 
 @include('orders.partials.ready-toggle-assets')
+@include('orders.partials.hide-toggle-assets')
 
 @push('styles')
     <style>

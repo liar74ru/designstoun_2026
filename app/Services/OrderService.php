@@ -53,6 +53,23 @@ class OrderService
             ])
             ->all();
 
+        // Позиции, скрытые для отделов смотрящего. Режем уже посчитанные строки:
+        // доли остатка и изготовленного от отображения не зависят.
+        $viewDepartmentIds  = $this->viewDepartmentIds($request);
+        $showHidden         = $request->boolean('filter.show_hidden');
+        $hiddenCountByOrder = [];
+
+        foreach ($orders->getCollection() as $order) {
+            $orderDepartmentIds = $order->departments->pluck('id')->all();
+
+            $rows = $rowsByOrder[$order->id]->map(fn (array $row) => $row + [
+                'hidden' => $this->positions->isHiddenFor($row['hiddenFor'], $viewDepartmentIds, $orderDepartmentIds),
+            ]);
+
+            $hiddenCountByOrder[$order->id] = $rows->where('hidden', true)->count();
+            $rowsByOrder[$order->id] = $showHidden ? $rows : $rows->reject(fn ($row) => $row['hidden'])->values();
+        }
+
         $departments = Department::orderBy('name')->get();
 
         return [
@@ -69,6 +86,8 @@ class OrderService
                 ->orderBy('name')
                 ->get(),
             'rowsByOrder'        => $rowsByOrder,
+            'hiddenCountByOrder' => $hiddenCountByOrder,
+            'showHidden'         => $showHidden,
             'orderStates'        => $this->enabledStates(),
             'changedStateId'     => OrderState::changedId(),
         ];
@@ -100,6 +119,8 @@ class OrderService
                         }
                     });
                 }),
+                // Не фильтр выборки, а режим отображения позиций — см. getIndexData().
+                AllowedFilter::callback('show_hidden', fn ($q) => $q),
             ])
             // Заявки без отдела видны всем — их отдел назначают из списка — но по умолчанию
             // скрыты: показываются только при отмеченном «Без отдела».
@@ -114,6 +135,42 @@ class OrderService
             // Проверяем наличие ключа: пустой filter[status] форма не присылает вовсе.
             ->when(! $request->has('filter.status') && $defaults !== [], fn ($q) =>
                 $q->whereIn('state_name', $defaults));
+    }
+
+    /**
+     * Отделы, «чьими глазами» смотрят на список: от них зависит, какие позиции скрыты.
+     * Отдел выбран фильтром или переключателем — он; иначе отделы пользователя.
+     * Админ без выбранного отдела видит все позиции.
+     *
+     * @return array<int, int>
+     */
+    public function viewDepartmentIds(Request $request): array
+    {
+        $accessible = $request->user()?->accessibleDepartmentIds();
+
+        if (! $request->has('filter.department_id')) {
+            return $accessible ?? [];
+        }
+
+        $ids = array_map('intval', array_filter((array) $request->input('filter.department_id'), 'is_numeric'));
+
+        return array_values($accessible === null ? $ids : array_intersect($ids, $accessible));
+    }
+
+    /**
+     * Отделы заявки, для которых пользователь может скрывать позиции: админ — любой,
+     * остальные — только свои.
+     *
+     * @return Collection<int, Department>
+     */
+    public function hideableDepartments(Order $order, ?User $user): Collection
+    {
+        $accessible = $user?->accessibleDepartmentIds();
+
+        return $order->departments
+            ->when($accessible !== null, fn ($c) => $c->whereIn('id', $accessible))
+            ->sortBy('name')
+            ->values();
     }
 
     /**
@@ -205,6 +262,7 @@ class OrderService
             'defaultStoreId' => $defaultStoreId,
             'orderStates'    => $this->enabledStates(),
             'departments'    => Department::orderBy('name')->get(),
+            'hideDepartments' => $this->hideableDepartments($order, $request->user()),
             'changedStateId' => OrderState::changedId(),
             // Куда «Принято» вернёт заявку из статуса «Изменено»
             'returnState'    => $this->changes->isInChangedState($order) ? $this->changes->returnState($order) : null,

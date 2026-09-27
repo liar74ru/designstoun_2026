@@ -25,7 +25,7 @@
             @include('orders.partials.priority-controls', ['order' => $order, 'layout' => 'row'])
         </div>
 
-        @include('partials.order-items-table', ['rows' => $rows, 'order' => $order])
+        @include('partials.order-items-table', ['rows' => $rows, 'order' => $order, 'hiddenCount' => $hiddenCount ?? 0])
 
         <div class="mt-2">
             @include('orders.partials.departments-button', ['order' => $order, 'font' => '.7rem'])

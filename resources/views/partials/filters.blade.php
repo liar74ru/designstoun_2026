@@ -12,6 +12,7 @@
       $departmentDefaults — array (id отделов выбранных по умолчанию у мастера)
       $departmentNoneValue — string|null: значение чекбокса «Без отдела» (null = не показывать)
       $filterCounterparties — Collection|null  (null = скрыть select поставщиков)
+      $showHiddenOption   — bool: чекбокс «Показывать скрытые позиции» (filter[show_hidden], заявки)
 --}}
 @php
     $cutterParam        = $cutterParam        ?? 'cutter_id';
@@ -28,6 +29,7 @@
     $departmentDefaults = $departmentDefaults ?? [];
     $departmentNoneValue = $departmentNoneValue ?? null;
     $filterCounterparties = $filterCounterparties ?? null;
+    $showHiddenOption   = $showHiddenOption   ?? false;
     $selectedDepartments = (array) request('filter.department_id', $departmentDefaults);
     $filterCount   = ($filterCutters    ? 1 : 0)
                    + ($filterCounterparties ? 1 : 0)
@@ -230,6 +232,16 @@
                             </div>
                         @endif
                     </div>
+                    @if($showHiddenOption)
+                        <div class="form-check mt-2 mb-0">
+                            <input class="form-check-input" type="checkbox"
+                                   name="filter[show_hidden]" value="1" id="filter_show_hidden"
+                                {{ request()->boolean('filter.show_hidden') ? 'checked' : '' }}>
+                            <label class="form-check-label small" for="filter_show_hidden">
+                                Показывать скрытые позиции
+                            </label>
+                        </div>
+                    @endif
                 </div>
                 @endif
 
@@ -266,6 +278,7 @@
         'filter[{{ $rawProductParam }}]',
         @if($filterProducts) 'filter[product_id]', @endif
         @if($filterCounterparties) 'filter[counterparty_id]', @endif
+        @if($showHiddenOption) 'filter[show_hidden]', @endif
         'date_from', 'date_to'
     ];
     const activeFilters = filterKeys.filter(k => params.get(k) && params.get(k) !== '').length

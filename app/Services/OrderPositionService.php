@@ -104,6 +104,8 @@ class OrderPositionService
                 'frozen'          => (bool) $setting?->isFrozen(),
                 // Ручная отметка «готово»; не путать с 'ready' — долей закрытия остатка.
                 'isReady'         => (bool) $setting?->isReady(),
+                // Отделы, для которых позиция скрыта в списке заявок.
+                'hiddenFor'       => $setting?->hiddenDepartmentIds() ?? [],
                 // Заявки, с которыми позиция делит товар (выше и ниже по очереди).
                 'sharedWith'      => $share['sharedWith'] ?? [],
                 // Дефицит считаем от «Всего»: позиция, закрытая производством,
@@ -187,9 +189,49 @@ class OrderPositionService
     }
 
     /**
-     * Снять уточнения. Снимок остатка и отметка «готово» при этом сохраняются —
-     * они относятся не к правкам мастера: снимок — к моменту входа заявки
-     * в производство, готовность снимается только вручную.
+     * Скрыть позицию для отдела или вернуть её. Строка настроек создаётся при
+     * необходимости: пустой stores у неё означает склад заявки.
+     */
+    public function setHidden(Order $order, int $productId, int $departmentId, bool $hidden): OrderPositionSetting
+    {
+        $setting = OrderPositionSetting::firstOrNew([
+            'order_id'   => $order->id,
+            'product_id' => $productId,
+        ]);
+
+        $ids = array_diff($setting->hiddenDepartmentIds(), [$departmentId]);
+        if ($hidden) {
+            $ids[] = $departmentId;
+        }
+
+        sort($ids);
+        $setting->hidden_department_ids = $ids ? array_values($ids) : null;
+        $setting->save();
+
+        return $setting;
+    }
+
+    /**
+     * Скрыта ли позиция для тех, кто смотрит список. Смотрящих отделов может быть
+     * несколько (мастер в двух отделах, несколько отделов в фильтре) — позиция видна,
+     * если нужна хоть одному из них. В расчёт идут только отделы самой заявки:
+     * отметка отдела, снятого с заявки, ничего не прячет.
+     *
+     * @param  array<int, int>  $hiddenFor
+     * @param  array<int, int>  $viewDepartmentIds
+     * @param  array<int, int>  $orderDepartmentIds
+     */
+    public function isHiddenFor(array $hiddenFor, array $viewDepartmentIds, array $orderDepartmentIds): bool
+    {
+        $relevant = array_intersect($viewDepartmentIds, $orderDepartmentIds);
+
+        return $relevant !== [] && array_diff($relevant, $hiddenFor) === [];
+    }
+
+    /**
+     * Снять уточнения. Снимок остатка, отметка «готово» и скрытие для отделов при этом
+     * сохраняются — они относятся не к правкам мастера: снимок — к моменту входа заявки
+     * в производство, готовность и скрытие снимаются только вручную.
      */
     public function reset(Order $order, int $productId): void
     {
@@ -202,7 +244,7 @@ class OrderPositionService
             return;
         }
 
-        if ($setting->isFrozen() || $setting->isReady()) {
+        if ($setting->isFrozen() || $setting->isReady() || $setting->hiddenDepartmentIds() !== []) {
             $setting->update([
                 'stores'         => null,
                 'stock_delta'    => 0,

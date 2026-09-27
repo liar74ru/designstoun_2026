@@ -14,6 +14,7 @@ use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class OrderController extends Controller
@@ -166,6 +167,42 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'ready'   => $setting->isReady(),
+        ]);
+    }
+
+    /**
+     * Скрыть позицию для отдела или вернуть её — AJAX из карточки заявки.
+     * Скрытая позиция пропадает из списка заявок у этого отдела.
+     */
+    public function updateHidden(
+        Request $request,
+        OrderPositionService $positions,
+        string $moyskladId,
+        int $productId,
+    ): JsonResponse {
+        $data = $request->validate([
+            'department_id' => 'required|integer',
+            'hidden'        => 'required|boolean',
+        ]);
+
+        $order = $this->service->findForUser($request, $moyskladId, ['items']);
+
+        abort_unless($order->items->contains('product_id', $productId), 404);
+
+        if (! $order->departments->contains('id', $data['department_id'])) {
+            throw ValidationException::withMessages(['department_id' => 'Отдел не относится к заявке.']);
+        }
+
+        abort_unless(
+            $this->service->hideableDepartments($order, $request->user())->contains('id', $data['department_id']),
+            403,
+        );
+
+        $setting = $positions->setHidden($order, $productId, (int) $data['department_id'], (bool) $data['hidden']);
+
+        return response()->json([
+            'success'   => true,
+            'hiddenFor' => $setting->hiddenDepartmentIds(),
         ]);
     }
 

@@ -27,6 +27,7 @@ class OrderPositionSetting extends Model
         'user_id',
         'ready_at',
         'ready_user_id',
+        'hidden_department_ids',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class OrderPositionSetting extends Model
         'produced_delta' => 'decimal:3',
         'produced_base'  => 'decimal:3',
         'ready_at'       => 'datetime',
+        'hidden_department_ids' => 'array',
     ];
 
     public function order(): BelongsTo
@@ -64,6 +66,12 @@ class OrderPositionSetting extends Model
     public function isReady(): bool
     {
         return $this->ready_at !== null;
+    }
+
+    /** Отделы, для которых позиция скрыта в списке заявок. */
+    public function hiddenDepartmentIds(): array
+    {
+        return array_map('intval', $this->hidden_department_ids ?? []);
     }
 
     /** Мастер трогал числа руками. */
