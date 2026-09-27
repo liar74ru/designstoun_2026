@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Casts\PreciseFloat;
 use App\Models\Order;
+use App\Models\OrderState;
 use App\Support\OrderPriority;
 use Illuminate\Http\Request;
 
@@ -24,8 +25,8 @@ class OrderPriorityService
     }
 
     /**
-     * Сдвинуть заявку на одну позицию. Граница «срочные / обычные» не пересекается:
-     * срочность ставится отдельной отметкой.
+     * Сдвинуть заявку на одну позицию. Границы «срочные / обычные» и «в конце списка /
+     * остальные» не пересекаются: срочность ставится отметкой, конец списка — статусом.
      *
      * @return bool  false — двигать некуда (заявка уже крайняя)
      */
@@ -34,10 +35,20 @@ class OrderPriorityService
         $up  = $direction === self::UP;
         $key = PreciseFloat::toSql($order->priority_key);
 
+        // Заявки «в конце списка» (Order::listOrdered) — отдельная группа, как срочные:
+        // иначе стрелка перепрыгнула бы через весь список к соседу по ключу.
+        $bottom   = OrderState::listBottomIds();
+        $isBottom = in_array($order->state_moysklad_id, $bottom, true);
+
         // Соседи в направлении движения, ближайший первым. Сравниваем парой (ключ, id) —
         // так же сортирует prioritized().
         $neighbours = $this->orders->indexQuery($request)
             ->where('is_urgent', $order->is_urgent)
+            ->when($bottom !== [], fn ($q) => $isBottom
+                ? $q->whereIn('state_moysklad_id', $bottom)
+                : $q->where(fn ($w) => $w
+                    ->whereNotIn('state_moysklad_id', $bottom)
+                    ->orWhereNull('state_moysklad_id')))
             ->where('id', '!=', $order->id)
             ->where(fn ($q) => $q
                 ->where('priority_key', $up ? '<' : '>', $key)

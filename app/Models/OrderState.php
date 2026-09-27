@@ -28,6 +28,7 @@ class OrderState extends Model
         'is_enabled',
         'is_production',
         'is_default_filter',
+        'is_list_bottom',
         'track_changes',
         'is_changed',
         'archived',
@@ -39,6 +40,7 @@ class OrderState extends Model
         'is_enabled'        => 'boolean',
         'is_production'     => 'boolean',
         'is_default_filter' => 'boolean',
+        'is_list_bottom'    => 'boolean',
         'track_changes'     => 'boolean',
         'is_changed'        => 'boolean',
         'archived'          => 'boolean',
@@ -71,6 +73,12 @@ class OrderState extends Model
     public function scopeDefaultFilter(Builder $query): Builder
     {
         return $query->where('is_default_filter', true);
+    }
+
+    /** Статусы, заявки в которых список показывает в самом конце (например, «Собран»). */
+    public static function listBottomIds(): array
+    {
+        return static::where('is_list_bottom', true)->pluck('id')->all();
     }
 
     /** Статусы, в которых за составом заявки не следят (проект, отгружен, завершён). */

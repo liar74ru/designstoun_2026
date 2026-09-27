@@ -34,7 +34,7 @@ class OrderService
 
         $orders = $this->indexQuery($request)
             ->with(['items.product.stocks', 'departments', 'counterparty', 'positionSettings'])
-            ->prioritized()
+            ->listOrdered()
             ->paginate(20)
             ->withQueryString();
 

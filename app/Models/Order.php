@@ -77,6 +77,23 @@ class Order extends Model
         return $query->orderByDesc('is_urgent')->orderBy('priority_key')->orderBy('id');
     }
 
+    /**
+     * Порядок списка заявок: очередь prioritized(), но заявки в статусах «в конец списка»
+     * (OrderState::is_list_bottom) — после всех остальных, даже срочные. Только для показа:
+     * раздача остатка между заявками идёт по prioritized().
+     */
+    public function scopeListOrdered(Builder $query): Builder
+    {
+        $bottom = OrderState::listBottomIds();
+
+        if ($bottom !== []) {
+            $placeholders = implode(', ', array_fill(0, count($bottom), '?'));
+            $query->orderByRaw("CASE WHEN state_moysklad_id IN ({$placeholders}) THEN 1 ELSE 0 END", $bottom);
+        }
+
+        return $query->prioritized();
+    }
+
     private const STATE_CACHE_KEY = 'order_states.colors';
 
     /**

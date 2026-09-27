@@ -48,6 +48,11 @@
                 при заходе без фильтра. Если не отмечено ничего, показываются все используемые.
             </div>
             <div class="mt-1">
+                Колонка <strong>«Вниз»</strong> — заявки в этом статусе список показывает в самом конце,
+                после всех остальных, даже срочные (например, «Собран»). Стрелки очереди двигают их
+                только между собой. На раздачу остатка между заявками это не влияет.
+            </div>
+            <div class="mt-1">
                 Колонка <strong>«Следить»</strong> — замечать, что в МойСклад изменили количество
                 или состав позиций заявки: мастер увидит плашку «Изменена» и «было → стало».
                 Снимите у статусов, где правки нормальны (проект, отгружен, завершён).
@@ -84,6 +89,7 @@
                         <span class="text-center" style="width:44px">Исп.</span>
                         <span class="text-center" style="width:56px">Произв.</span>
                         <span class="text-center" style="width:58px">В списке</span>
+                        <span class="text-center" style="width:44px">Вниз</span>
                         <span class="text-center" style="width:52px">Следить</span>
                         <span class="text-center" style="width:40px">Изм.</span>
                     </div>
@@ -135,6 +141,13 @@
                                 <input type="checkbox" class="form-check-input mt-0"
                                        name="default_filter[]" value="{{ $state->id }}"
                                        {{ $state->is_default_filter ? 'checked' : '' }}>
+                            </label>
+
+                            <label class="d-flex justify-content-center m-0" style="width:44px; cursor:pointer"
+                                   title="Показывать заявки в этом статусе в конце списка">
+                                <input type="checkbox" class="form-check-input mt-0"
+                                       name="list_bottom[]" value="{{ $state->id }}"
+                                       {{ $state->is_list_bottom ? 'checked' : '' }}>
                             </label>
 
                             <label class="d-flex justify-content-center m-0" style="width:52px; cursor:pointer"
