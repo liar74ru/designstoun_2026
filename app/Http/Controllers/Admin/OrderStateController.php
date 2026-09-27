@@ -32,7 +32,10 @@ class OrderStateController extends Controller
             ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
-    /** Сохранить галочки «используется», «производственный» и «в списке по умолчанию». */
+    /**
+     * Сохранить галочки «используется», «производственный», «в списке по умолчанию»,
+     * «следить за изменениями» и выбор статуса «Изменено».
+     */
     public function update(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -42,11 +45,22 @@ class OrderStateController extends Controller
             'production.*'     => ['string', 'exists:order_states,id'],
             'default_filter'   => ['nullable', 'array'],
             'default_filter.*' => ['string', 'exists:order_states,id'],
+            'track_changes'    => ['nullable', 'array'],
+            'track_changes.*'  => ['string', 'exists:order_states,id'],
+            'changed_state'    => ['nullable', 'string', 'exists:order_states,id'],
         ]);
 
         $enabled       = $data['enabled'] ?? [];
         $production    = $data['production'] ?? [];
         $defaultFilter = $data['default_filter'] ?? [];
+        $trackChanges  = $data['track_changes'] ?? [];
+        $changedState  = $data['changed_state'] ?? null;
+
+        // Статус «Изменено» не может быть неиспользуемым: заявку в нём синхронизация
+        // удалила бы вместе с отметками мастера.
+        if ($changedState && ! in_array($changedState, $enabled, true)) {
+            $enabled[] = $changedState;
+        }
 
         OrderState::whereIn('id', $enabled)->update(['is_enabled' => true]);
         OrderState::whereNotIn('id', $enabled ?: ['-'])->update(['is_enabled' => false]);
@@ -56,6 +70,14 @@ class OrderStateController extends Controller
 
         OrderState::whereIn('id', $defaultFilter)->update(['is_default_filter' => true]);
         OrderState::whereNotIn('id', $defaultFilter ?: ['-'])->update(['is_default_filter' => false]);
+
+        OrderState::whereIn('id', $trackChanges)->update(['track_changes' => true]);
+        OrderState::whereNotIn('id', $trackChanges ?: ['-'])->update(['track_changes' => false]);
+
+        OrderState::where('id', '!=', $changedState ?? '-')->update(['is_changed' => false]);
+        if ($changedState) {
+            OrderState::where('id', $changedState)->update(['is_changed' => true]);
+        }
 
         // Массовый update событий модели не поднимает — чистим кэш явно.
         Order::forgetStateCache();

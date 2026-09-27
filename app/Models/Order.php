@@ -26,6 +26,9 @@ class Order extends Model
         'priority_manual',
         'production_started_at',
         'production_ended_at',
+        'positions_changed_at',
+        'position_changes',
+        'state_before_change',
         'attributes',
         'sync_hash',
     ];
@@ -38,6 +41,8 @@ class Order extends Model
         'priority_manual'       => 'boolean',
         'production_started_at' => 'datetime',
         'production_ended_at'   => 'datetime',
+        'positions_changed_at'  => 'datetime',
+        'position_changes'      => 'array',
         'attributes'            => 'array',
     ];
 

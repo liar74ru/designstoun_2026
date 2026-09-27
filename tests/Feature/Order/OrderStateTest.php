@@ -185,6 +185,34 @@ describe('Admin\OrderStateController', function () {
             ->and(OrderState::find(ST_A)->is_enabled)->toBeTrue();
     });
 
+    test('«следить» и статус «Изменено» сохраняются; «Изменено» всегда используется', function () {
+        OrderState::create(['id' => ST_A, 'name' => 'Отгружен', 'is_enabled' => true]);
+        OrderState::create(['id' => ST_B, 'name' => 'Изменено', 'is_enabled' => false]);
+
+        $this->actingAs(H::adminUser())->post(route('admin.order-states.update'), [
+            'enabled'       => [ST_A],
+            'track_changes' => [ST_B],
+            'changed_state' => ST_B,
+        ]);
+
+        expect(OrderState::find(ST_A)->track_changes)->toBeFalse()
+            ->and(OrderState::find(ST_B)->track_changes)->toBeTrue()
+            ->and(OrderState::find(ST_B)->is_changed)->toBeTrue()
+            ->and(OrderState::find(ST_B)->is_enabled)->toBeTrue()
+            ->and(OrderState::find(ST_A)->is_changed)->toBeFalse();
+    });
+
+    test('статус «Изменено» снимается выбором «нет»', function () {
+        OrderState::create(['id' => ST_A, 'name' => 'Изменено', 'is_enabled' => true, 'is_changed' => true]);
+
+        $this->actingAs(H::adminUser())->post(route('admin.order-states.update'), [
+            'enabled'       => [ST_A],
+            'changed_state' => '',
+        ]);
+
+        expect(OrderState::find(ST_A)->is_changed)->toBeFalse();
+    });
+
     test('галочка «в списке» сохраняется независимо от остальных', function () {
         OrderState::create(['id' => ST_A, 'name' => 'Новый', 'is_enabled' => true]);
         OrderState::create(['id' => ST_B, 'name' => 'Собран', 'is_enabled' => true]);

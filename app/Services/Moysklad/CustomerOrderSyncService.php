@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Order;
 use App\Models\OrderState;
 use App\Models\Product;
+use App\Services\OrderChangeService;
 use App\Services\OrderProductionService;
 use App\Support\OrderPriority;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
         private MoySkladService $moySkladService,
         private OrderStateSyncService $stateSync,
         private OrderProductionService $production,
+        private OrderChangeService $changes,
     ) {
         parent::__construct();
     }
@@ -68,6 +70,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
             $counterpartyMap   = $this->resolveCounterparties($rows);
             $productMap        = $this->resolveProducts($rows);
             $departmentNameMap = Department::pluck('id', 'name');
+            $untrackedStateIds = OrderState::untracked()->pluck('id')->all();
             $existingOrders    = Order::whereIn('moysklad_id', array_column($rows, 'id'))
                 ->get(['moysklad_id', 'state_moysklad_id', 'sync_hash'])
                 ->keyBy('moysklad_id')
@@ -75,8 +78,8 @@ class CustomerOrderSyncService extends MoySkladBaseService
                 ->all();
 
             foreach ($rows as $row) {
-                DB::transaction(function () use ($row, $counterpartyMap, $productMap, $departmentNameMap, $existingOrders) {
-                    $this->upsertOrder($row, $counterpartyMap, $productMap, $departmentNameMap, $existingOrders);
+                DB::transaction(function () use ($row, $counterpartyMap, $productMap, $departmentNameMap, $existingOrders, $untrackedStateIds) {
+                    $this->upsertOrder($row, $counterpartyMap, $productMap, $departmentNameMap, $existingOrders, $untrackedStateIds);
                 });
                 $count++;
             }
@@ -226,6 +229,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
         array $productMap,
         \Illuminate\Support\Collection $departmentNameMap,
         array $existingOrders,
+        array $untrackedStateIds,
     ): bool {
         $agentMoyskladId = $this->extractIdFromMeta($row['agent']['meta']['href'] ?? null);
         $stateMoyskladId = $this->extractIdFromMeta($row['state']['meta']['href'] ?? null);
@@ -295,12 +299,33 @@ class CustomerOrderSyncService extends MoySkladBaseService
             ]);
         }
 
+        $before = $existing ? $this->quantitiesByProduct($order->items()->get()->toArray()) : null;
+
         $order->items()->delete();
         foreach ($items as $item) {
             $order->items()->create($item);
         }
 
         $order->departments()->sync($departmentIds);
+
+        if ($before !== null) {
+            $after = $this->quantitiesByProduct($items);
+
+            // Правки в проекте до запуска и после отгрузки — не изменение для мастера.
+            if (! in_array($previousStateId, $untrackedStateIds, true)
+                && ! in_array($stateMoyskladId, $untrackedStateIds, true)) {
+                $this->changes->record($order, $before, $after);
+            }
+
+            // Окно открыто, а позиция новая — снимка по ней нет. До syncPeriod: при входе
+            // в производство снимок по всему составу снимет он сам.
+            $added = collect($items)
+                ->filter(fn ($item) => $item['product_id'] && ! isset($before[$item['product_moysklad_id']]))
+                ->pluck('product_id')->unique()->values()->all();
+            $this->production->freezeAdded($order, $added);
+        }
+
+        $this->changes->rememberStateBeforeChange($order, $previousStateId, $stateMoyskladId);
 
         if ($previousStateId !== $stateMoyskladId) {
             // Позиции только что пересозданы — снимок остатка ляжет по актуальному составу.
@@ -473,6 +498,28 @@ class CustomerOrderSyncService extends MoySkladBaseService
                 'order_id' => $order->id,
                 'error'    => $e->getMessage(),
             ]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Количество по товару: позиции одного товара складываются.
+     *
+     * @return array<string, array{name: ?string, quantity: float}>
+     */
+    private function quantitiesByProduct(array $items): array
+    {
+        $result = [];
+        foreach ($items as $item) {
+            $key = $item['product_moysklad_id'] ?? null;
+            if ($key === null) {
+                continue;
+            }
+            $result[$key] = [
+                'name'     => $item['product_name'] ?? null,
+                'quantity' => ($result[$key]['quantity'] ?? 0.0) + (float) $item['quantity'],
+            ];
         }
 
         return $result;

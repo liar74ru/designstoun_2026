@@ -6,6 +6,7 @@ use App\Models\OrderState;
 use App\Models\Product;
 use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\Moysklad\StockSyncService;
+use App\Services\OrderChangeService;
 use App\Services\OrderPositionService;
 use App\Services\OrderPriorityService;
 use App\Services\OrderProductionService;
@@ -38,7 +39,7 @@ class OrderController extends Controller
     /**
      * Перевести заявку в другой статус — с записью в МойСклад.
      */
-    public function updateState(Request $request, string $moyskladId): RedirectResponse
+    public function updateState(Request $request, OrderChangeService $changes, string $moyskladId): RedirectResponse
     {
         $data = $request->validate([
             'state_id' => 'required|string|exists:order_states,id',
@@ -57,11 +58,13 @@ class OrderController extends Controller
             return back()->with('warning', 'Заявка уже в статусе «' . $state->name . '».');
         }
 
+        $previousStateId = $order->state_moysklad_id;
         $result = $this->sync->updateState($order, $state);
 
         // Окно производства открывается/закрывается только после успешной записи
         // в МойСклад — иначе снимок остатка лёг бы под статус, которого там нет.
         if ($result['success']) {
+            $changes->rememberStateBeforeChange($order, $previousStateId, $state->id);
             $this->production->syncPeriod($order, $state->id);
         }
 
@@ -219,6 +222,39 @@ class OrderController extends Controller
         return back()->with('success', $order->is_urgent
             ? 'Заявка «' . $order->name . '» отмечена срочной.'
             : 'Отметка «срочно» снята с заявки «' . $order->name . '».');
+    }
+
+    /**
+     * «Принято»: мастер увидел изменение состава. Заявку в статусе «Изменено» возвращаем
+     * в прежний статус — сначала в МойСклад; не записалось — изменения остаются на виду.
+     */
+    public function acknowledgeChanges(
+        Request $request,
+        OrderChangeService $changes,
+        string $moyskladId,
+    ): RedirectResponse {
+        $order = $this->service->findForUser($request, $moyskladId);
+
+        $message = 'Изменения заявки «' . $order->name . '» приняты.';
+
+        if ($changes->isInChangedState($order)) {
+            $state = $changes->returnState($order);
+            if (! $state) {
+                return back()->with('error', 'Не выбран производственный статус — некуда вернуть заявку. Отметьте его в админке статусов.');
+            }
+
+            $result = $this->sync->updateState($order, $state);
+            if (! $result['success']) {
+                return back()->with('error', $result['message']);
+            }
+
+            $this->production->syncPeriod($order, $state->id);
+            $message .= ' Статус — «' . $state->name . '».';
+        }
+
+        $changes->acknowledge($order);
+
+        return back()->with('success', $message);
     }
 
     public function resetPriority(

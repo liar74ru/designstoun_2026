@@ -22,6 +22,7 @@ class OrderService
     public function __construct(
         private OrderPositionService $positions,
         private OrderProductionService $production,
+        private OrderChangeService $changes,
     ) {
     }
 
@@ -69,6 +70,7 @@ class OrderService
                 ->get(),
             'rowsByOrder'        => $rowsByOrder,
             'orderStates'        => $this->enabledStates(),
+            'changedStateId'     => OrderState::changedId(),
         ];
     }
 
@@ -203,6 +205,9 @@ class OrderService
             'defaultStoreId' => $defaultStoreId,
             'orderStates'    => $this->enabledStates(),
             'departments'    => Department::orderBy('name')->get(),
+            'changedStateId' => OrderState::changedId(),
+            // Куда «Принято» вернёт заявку из статуса «Изменено»
+            'returnState'    => $this->changes->isInChangedState($order) ? $this->changes->returnState($order) : null,
             'backUrl'        => url()->previous(route('orders.index')),
         ];
     }

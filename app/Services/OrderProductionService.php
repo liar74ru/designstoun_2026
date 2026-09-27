@@ -35,6 +35,12 @@ class OrderProductionService
      */
     public function syncPeriod(Order $order, ?string $newStateId): void
     {
+        // «Изменено» — пауза внутри производства: окно не закрываем, иначе возврат
+        // в работу снял бы новый снимок и обнулил изготовленное.
+        if ($newStateId !== null && $newStateId === OrderState::changedId()) {
+            return;
+        }
+
         $was = $order->production_started_at !== null && $order->production_ended_at === null;
         $is  = $newStateId !== null && in_array($newStateId, $this->productionStateIds(), true);
 
@@ -107,9 +113,12 @@ class OrderProductionService
      * Снимаем по всем складам, а не только по выбранным: иначе смена набора
      * складов после заморозки требовала бы пересъёмки.
      */
-    public function freezeStocks(Order $order): void
+    public function freezeStocks(Order $order, ?array $onlyProductIds = null, array $minus = []): void
     {
         $productIds = $order->items->pluck('product_id')->filter()->unique();
+        if ($onlyProductIds !== null) {
+            $productIds = $productIds->intersect($onlyProductIds);
+        }
 
         if ($productIds->isEmpty()) {
             return;
@@ -123,7 +132,9 @@ class OrderProductionService
 
         foreach ($productIds as $productId) {
             $snapshot = ($byProduct[$productId] ?? collect())
-                ->mapWithKeys(fn (ProductStock $s) => [$s->store_id => (float) $s->quantity])
+                ->mapWithKeys(fn (ProductStock $s) => [
+                    $s->store_id => max(0.0, (float) $s->quantity - ($minus[$productId][$s->store_id] ?? 0.0)),
+                ])
                 ->all();
 
             OrderPositionSetting::updateOrCreate(
@@ -131,6 +142,38 @@ class OrderProductionService
                 ['frozen_stocks' => $snapshot],
             );
         }
+    }
+
+    /**
+     * Снимок для позиций, добавленных в заявку, которая уже в производстве.
+     *
+     * Без снимка у товара нет якоря, и изготовленное по нему заявке не засчитывается.
+     * Пул якоря — снимок плюс изготовленное с начала окна, а сделанное до добавления
+     * позиции уже лежит в остатке: вычитаем его, иначе эти метры задвоятся.
+     *
+     * @param  array<int, int>  $productIds
+     */
+    public function freezeAdded(Order $order, array $productIds): void
+    {
+        if ($productIds === [] || ! $this->isOpen($order)) {
+            return;
+        }
+
+        $order->loadMissing('items.product');
+        $this->stockSync->refreshProducts(
+            $order->items->whereIn('product_id', $productIds)->pluck('product.moysklad_id')->filter()->all(),
+        );
+
+        $produced = [];
+        foreach ($this->productionRows($productIds, $order->production_started_at, now()) as $row) {
+            if (! $row->store_id) {
+                continue;
+            }
+            $produced[$row->product_id][$row->store_id]
+                = ($produced[$row->product_id][$row->store_id] ?? 0.0) + (float) $row->qty;
+        }
+
+        $this->freezeStocks($order, $productIds, $produced);
     }
 
     /**

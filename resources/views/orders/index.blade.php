@@ -78,6 +78,7 @@
                                 <a href="{{ route('orders.show', $order->moysklad_id) }}" class="text-reset">
                                     {{ $order->name }}
                                 </a>
+                                @include('orders.partials.changed-badge', ['order' => $order, 'class' => 'd-table mt-1'])
                             </td>
                             <td class="text-muted small align-top" style="white-space:nowrap">
                                 {{ $order->moment ? $order->moment->format('d.m.Y') : '—' }}

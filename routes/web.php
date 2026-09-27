@@ -85,6 +85,9 @@ Route::middleware(['auth'])->group(function () {
             ->name('orders.priority.urgent');
         Route::post   ('orders/{moyskladId}/priority/reset', [OrderController::class, 'resetPriority'])
             ->name('orders.priority.reset');
+        // «Принято»: мастер увидел изменение состава заявки в МойСклад
+        Route::post   ('orders/{moyskladId}/changes/acknowledge', [OrderController::class, 'acknowledgeChanges'])
+            ->name('orders.changes.acknowledge');
     });
 
     // Работники — список/CRUD доступен по can:see-workers; смена своего пароля — отдельно

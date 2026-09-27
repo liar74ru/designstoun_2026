@@ -618,3 +618,87 @@ describe('Раздача общего товара по очереди', functio
         expect($rows->first()['totalQty'])->toBe(20.0);
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Статус «Изменено» и изменение состава в производстве
+// ══════════════════════════════════════════════════════════════════════════════
+
+const CHANGED_STATE = '77777777-7777-7777-7777-777777777777';
+
+describe('Заявка изменена в производстве', function () {
+
+    beforeEach(function () {
+        // Снимок остатка перечитывает остатки из МойСклад — ответ не важен
+        Http::fake(['*' => Http::response([], 500)]);
+    });
+
+    test('«Изменено» не закрывает окно, возврат в работу его не перезапускает', function () {
+        ['order' => $order] = productionFixture();
+        OrderState::create(['id' => CHANGED_STATE, 'name' => 'Изменено', 'is_enabled' => true, 'is_changed' => true]);
+        $started = now()->subDays(3)->startOfSecond();
+        $order->update(['state_moysklad_id' => PROD_STATE, 'production_started_at' => $started]);
+
+        $service = app(OrderProductionService::class);
+        $service->syncPeriod($order, CHANGED_STATE);
+        $service->syncPeriod($order->fresh(), PROD_STATE);
+
+        $order->refresh();
+        expect($order->production_ended_at)->toBeNull()
+            ->and($order->production_started_at->equalTo($started))->toBeTrue();
+    });
+
+    test('выросло количество — заявка добирает изготовленное у следующей по очереди', function () {
+        ['order' => $seed, 'product' => $product, 'store' => $store] = productionFixture(0);
+        $seed->delete();
+
+        $first  = orderInProduction('Первая', $product, $store, 30, 0, now()->subDays(5), 100);
+        $second = orderInProduction('Вторая', $product, $store, 50, 0, now()->subDays(5), 200);
+        recordReception($product, $store, 60, now()->subDay());
+
+        expect(allocatedRow($first, $store->id)['producedQty'])->toBe(30.0);
+
+        $first->items()->update(['quantity' => 45]);
+
+        expect(allocatedRow($first, $store->id)['producedQty'])->toBe(45.0)
+            ->and(allocatedRow($second, $store->id)['producedQty'])->toBe(15.0);
+    });
+
+    test('добавленная позиция получает снимок без задвоения изготовленного', function () {
+        ['order' => $order, 'product' => $a, 'store' => $store] = productionFixture();
+        $order->update(['production_started_at' => now()->subDays(5)]);
+
+        // До добавления позиции напилили 20 — они уже в остатке 50
+        $b = Product::factory()->create();
+        recordReception($b, $store, 20, now()->subDays(2));
+        ProductStock::create(['product_id' => $b->id, 'store_id' => $store->id, 'quantity' => 50]);
+
+        $order->items()->create(['product_id' => $b->id, 'quantity' => 100, 'shipped' => 0]);
+        app(OrderProductionService::class)->freezeAdded($order->fresh(), [$b->id]);
+
+        expect(OrderPositionSetting::where('product_id', $b->id)->first()->frozen_stocks)
+            ->toEqual([$store->id => 30.0]);
+
+        recordReception($b, $store, 10, now());
+
+        $order = $order->fresh(['items.product.stocks', 'positionSettings', 'departments']);
+        $row = app(OrderPositionService::class)
+            ->rows(
+                $order,
+                $store->id,
+                app(OrderProductionService::class)->producedForOrder($order),
+                app(OrderService::class)->allocate(collect([$order]), null)[$order->id] ?? [],
+            )
+            ->firstWhere('product.id', $b->id);
+
+        // Физически 50 + 10 = 60
+        expect($row['totalQty'])->toBe(60.0);
+    });
+
+    test('заявка без открытого окна снимок добавленной позиции не получает', function () {
+        ['order' => $order, 'product' => $a] = productionFixture();
+
+        app(OrderProductionService::class)->freezeAdded($order, [$a->id]);
+
+        expect(OrderPositionSetting::count())->toBe(0);
+    });
+});

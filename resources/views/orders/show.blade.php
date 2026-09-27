@@ -56,6 +56,8 @@
         <div class="col-lg-4 order-lg-2">
             <div style="position: sticky; top: 1rem">
 
+                @include('orders.partials.changes-block', ['order' => $order, 'fmtQty' => $fmtQty])
+
                 <div class="info-block">
                     <div class="info-block-header small fw-semibold">Заявка</div>
                     <div class="info-block-body">
@@ -265,6 +267,10 @@
                                         </td>
                                         <td class="text-end" style="white-space:nowrap; font-variant-numeric: tabular-nums">
                                             {{ $fmtQty($row['ordered']) }}{{ $row['item']->uom_name ? ' ' . $row['item']->uom_name : '' }}
+                                            @include('orders.partials.change-mark', [
+                                                'change' => $order->position_changes[$row['item']->product_moysklad_id] ?? null,
+                                                'class'  => 'd-table ms-auto mt-1',
+                                            ])
                                         </td>
                                         <td class="text-end {{ $row['partial'] ? 'fw-semibold text-primary' : 'text-muted' }}"
                                             style="white-space:nowrap; font-variant-numeric: tabular-nums">
@@ -329,6 +335,9 @@
                                                     {{ $row['name'] }}
                                                 @endif
                                             </div>
+                                            @include('orders.partials.change-mark', [
+                                                'change' => $order->position_changes[$row['item']->product_moysklad_id] ?? null,
+                                            ])
                                         </div>
                                     </div>
 

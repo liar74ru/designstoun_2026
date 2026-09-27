@@ -28,6 +28,8 @@ class OrderState extends Model
         'is_enabled',
         'is_production',
         'is_default_filter',
+        'track_changes',
+        'is_changed',
         'archived',
     ];
 
@@ -37,6 +39,8 @@ class OrderState extends Model
         'is_enabled'        => 'boolean',
         'is_production'     => 'boolean',
         'is_default_filter' => 'boolean',
+        'track_changes'     => 'boolean',
+        'is_changed'        => 'boolean',
         'archived'          => 'boolean',
     ];
 
@@ -67,6 +71,18 @@ class OrderState extends Model
     public function scopeDefaultFilter(Builder $query): Builder
     {
         return $query->where('is_default_filter', true);
+    }
+
+    /** Статусы, в которых за составом заявки не следят (проект, отгружен, завершён). */
+    public function scopeUntracked(Builder $query): Builder
+    {
+        return $query->where('track_changes', false);
+    }
+
+    /** Статус «Изменено» — пауза внутри производства; не больше одного. */
+    public static function changedId(): ?string
+    {
+        return static::where('is_changed', true)->value('id');
     }
 
     /** Цвет плашки; у статуса без цвета — нейтральный серый. */

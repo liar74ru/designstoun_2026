@@ -5,6 +5,7 @@
             <a href="{{ route('orders.show', $order->moysklad_id) }}" class="text-reset text-decoration-none">
                 {{ $order->name }} <i class="bi bi-chevron-right" style="font-size:.7rem"></i>
             </a>
+            @include('orders.partials.changed-badge', ['order' => $order, 'class' => 'ms-1'])
             <span class="text-muted ms-1">{{ $order->moment?->format('d.m.Y') }}</span>
             @if($order->delivery_planned_at)
                 <span class="text-muted ms-1" title="Планируемая дата отгрузки">· отгр. {{ $order->delivery_planned_at->format('d.m.Y') }}</span>

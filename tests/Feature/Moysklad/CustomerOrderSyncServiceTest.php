@@ -10,6 +10,7 @@ use App\Models\Store;
 use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\Moysklad\MoySkladService;
 use App\Services\Moysklad\OrderStateSyncService;
+use App\Services\OrderChangeService;
 use App\Services\OrderProductionService;
 use App\Support\OrderPriority;
 use Illuminate\Support\Facades\Http;
@@ -23,6 +24,7 @@ function customerOrderSync(): CustomerOrderSyncService
         new MoySkladService(),
         new OrderStateSyncService(),
         app(OrderProductionService::class),
+        new OrderChangeService(),
     );
 }
 
@@ -500,5 +502,167 @@ describe('Неизменённые заявки не переписываютс�
         };
 
         expect($queriesOnRepeat(60))->toBe($queriesOnRepeat(5));
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Изменение состава заявки
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Изменение состава заявки', function () {
+
+    /** UUID товара МойСклад по короткому имени (регэксп синхронизации ждёт 36 символов). */
+    function chgProductId(string $key): string
+    {
+        return str_pad(bin2hex($key), 8, '0') . '-0000-0000-0000-000000000000';
+    }
+
+    /**
+     * Выгрузка одной заявки: [ключ товара => количество].
+     *
+     * @param  array<string, float>  $positions
+     * @param  array<string, float>  $shipped
+     */
+    function chgResponse(array $positions, string $stateId = SYNC_IDLE_STATE, array $shipped = []): array
+    {
+        $rows = [];
+        foreach ($positions as $key => $qty) {
+            $rows[] = [
+                'quantity'   => $qty,
+                'shipped'    => $shipped[$key] ?? 0,
+                'assortment' => [
+                    'meta' => ['href' => 'https://api.moysklad.ru/entity/product/' . chgProductId($key)],
+                    'name' => 'Товар ' . $key,
+                ],
+            ];
+        }
+
+        return [
+            'rows' => [[
+                'id'         => 'ms-1',
+                'name'       => 'Заявка 1',
+                'state'      => [
+                    'meta' => ['href' => 'https://api.moysklad.ru/entity/customerorder/metadata/states/' . $stateId],
+                    'name' => 'Статус',
+                ],
+                'positions'  => ['rows' => $rows],
+                'attributes' => [],
+            ]],
+            'meta' => ['size' => 1],
+        ];
+    }
+
+    function chgSync(array $positions, string $stateId = SYNC_IDLE_STATE, array $shipped = []): Order
+    {
+        fakeOrdersSync(chgResponse($positions, $stateId, $shipped));
+        customerOrderSync()->pullActive();
+
+        return Order::where('moysklad_id', 'ms-1')->first();
+    }
+
+    beforeEach(function () {
+        config()->set('services.moysklad.token', 'test-token');
+        OrderState::create(['id' => SYNC_IDLE_STATE, 'name' => 'Новый', 'is_enabled' => true]);
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            if (str_contains($request->url(), '/entity/customerorder/metadata')) {
+                return Http::response(syncStatesFake(), 200);
+            }
+            if (str_contains($request->url(), '/entity/customerorder?')) {
+                return Http::response($this->ordersResponse, 200);
+            }
+
+            return Http::response(['rows' => [], 'meta' => ['size' => 0]], 200);
+        });
+    });
+
+    test('новая заявка — изменений нет', function () {
+        $order = chgSync(['a' => 10]);
+
+        expect($order->positions_changed_at)->toBeNull()
+            ->and($order->position_changes)->toBeNull();
+    });
+
+    test('количество изменилось — было и стало записаны', function () {
+        chgSync(['a' => 10]);
+        $order = chgSync(['a' => 15]);
+
+        expect($order->positions_changed_at)->not->toBeNull()
+            ->and($order->position_changes)->toEqual([
+                chgProductId('a') => ['name' => 'Товар a', 'from' => 10, 'to' => 15],
+            ]);
+    });
+
+    test('позиция добавлена и удалена', function () {
+        chgSync(['a' => 10]);
+        $changes = chgSync(['b' => 5])->position_changes;
+
+        expect($changes[chgProductId('a')])->toMatchArray(['from' => 10, 'to' => 0])
+            ->and($changes[chgProductId('b')])->toMatchArray(['from' => 0, 'to' => 5]);
+    });
+
+    test('позиции одного товара складываются', function () {
+        chgSync(['a' => 10]);
+
+        // Тот же товар двумя строками: 4 + 6 = прежние 10
+        $response = chgResponse(['a' => 4]);
+        $response['rows'][0]['positions']['rows'][] = array_merge($response['rows'][0]['positions']['rows'][0], ['quantity' => 6]);
+        fakeOrdersSync($response);
+        customerOrderSync()->pullActive();
+
+        expect(Order::where('moysklad_id', 'ms-1')->first()->position_changes)->toBeNull();
+    });
+
+    test('изменилось только «отгружено» — не изменение', function () {
+        chgSync(['a' => 10]);
+        $order = chgSync(['a' => 10], SYNC_IDLE_STATE, ['a' => 4]);
+
+        expect((float) $order->items()->value('shipped'))->toBe(4.0)
+            ->and($order->positions_changed_at)->toBeNull();
+    });
+
+    test('повторное изменение хранит первоначальное «было», возврат снимает плашку', function () {
+        chgSync(['a' => 10]);
+        chgSync(['a' => 15]);
+        $order = chgSync(['a' => 20]);
+
+        expect($order->position_changes[chgProductId('a')])->toMatchArray(['from' => 10, 'to' => 20]);
+
+        $order = chgSync(['a' => 10]);
+
+        expect($order->position_changes)->toBeNull()
+            ->and($order->positions_changed_at)->toBeNull();
+    });
+
+    test('статус без слежения — ни новый, ни прежний — изменений нет', function () {
+        OrderState::create(['id' => SYNC_PROD_STATE, 'name' => 'Отгружен', 'is_enabled' => true, 'track_changes' => false]);
+
+        chgSync(['a' => 10]);
+        expect(chgSync(['a' => 15], SYNC_PROD_STATE)->positions_changed_at)->toBeNull();
+
+        expect(chgSync(['a' => 20])->positions_changed_at)->toBeNull();
+    });
+
+    test('количество выросло — отметка «готова» снимается, уменьшилось — остаётся', function () {
+        $a = Product::factory()->create(['moysklad_id' => chgProductId('a')]);
+        $b = Product::factory()->create(['moysklad_id' => chgProductId('b')]);
+        $order = chgSync(['a' => 10, 'b' => 10]);
+
+        foreach ([$a, $b] as $product) {
+            OrderPositionSetting::create(['order_id' => $order->id, 'product_id' => $product->id, 'ready_at' => now()]);
+        }
+
+        chgSync(['a' => 15, 'b' => 5]);
+
+        expect(OrderPositionSetting::where('product_id', $a->id)->first()->ready_at)->toBeNull()
+            ->and(OrderPositionSetting::where('product_id', $b->id)->first()->ready_at)->not->toBeNull();
+    });
+
+    test('переход в «Изменено» запоминает прежний статус', function () {
+        OrderState::create(['id' => SYNC_PROD_STATE, 'name' => 'Изменено', 'is_enabled' => true, 'is_changed' => true]);
+
+        chgSync(['a' => 10]);
+        $order = chgSync(['a' => 10], SYNC_PROD_STATE);
+
+        expect($order->state_before_change)->toBe(SYNC_IDLE_STATE);
     });
 });
