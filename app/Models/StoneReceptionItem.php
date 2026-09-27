@@ -2,9 +2,6 @@
 
 namespace App\Models;
 
-use App\Support\DepartmentSettings;
-use App\Support\ProductionRates;
-use App\Support\RateFormula;
 use Illuminate\Database\Eloquent\Model;
 
 class StoneReceptionItem extends Model
@@ -87,23 +84,6 @@ class StoneReceptionItem extends Model
     }
 
     /**
-     * Рассчитать итоговый коэффициент из базового и набора флагов-модификаторов.
-     * is_edging  — полная замена baseCoeff на EDGING_COEFF (для партий 04-XX).
-     * is_undercut — вычитает UNDERCUT_PENALTY (применяется поверх торцовки).
-     * SKU-бонус маски (04-07-xx) — добавляется к baseCoeff перед торцовкой/подколом.
-     */
-    public static function computeEffectiveCoeff(float $baseCoeff, bool $isUndercut, bool $isEdging = false, ?string $sku = null): float
-    {
-        $coeff = $isEdging
-            ? ProductionRates::edgingCoeff()
-            : $baseCoeff + (self::skuIsMaskTile($sku) ? ProductionRates::maskTileBonus() : 0.0);
-        if ($isUndercut) {
-            $coeff -= ProductionRates::undercutPenalty();
-        }
-        return $coeff;
-    }
-
-    /**
      * Стоимость единицы продукции для этой позиции,
      * рассчитанная по зафиксированному effective_cost_coeff.
      *
@@ -140,44 +120,6 @@ class StoneReceptionItem extends Model
         if (!$sku) return false;
         $parts = explode('-', $sku);
         return count($parts) >= 3 && $parts[2] === '30';
-    }
-
-    /**
-     * Проверяет, является ли SKU плиткой маской (04-07-xx).
-     */
-    public static function skuIsMaskTile(?string $sku): bool
-    {
-        if (!$sku) return false;
-        $parts = explode('-', $sku);
-        return ($parts[0] ?? '') === '04' && ($parts[1] ?? '') === '07';
-    }
-
-    /**
-     * Ставка мастера за м².
-     *
-     * Базовая ставка отдела масштабируется коэффициентом продукта
-     * (атрибут masterCostCoeff МойСклад) по той же ступенчатой формуле,
-     * что и зарплата пильщика: ОКРУГЛВНИЗ((ставка + ставка×17%×коэф)/10)×10.
-     * Коэффициент 0 (в т.ч. когда атрибут не заполнен) → базовая ставка.
-     *
-     * Надбавка за подкол — флаг-чекбокс, не зависит от SKU,
-     * поэтому прибавляется поверх, уже ПОСЛЕ округления по 10.
-     *
-     * @param int|null $departmentId Отдел документа; null → глобальные настройки
-     */
-    public static function computeMasterCost(
-        bool $isUndercut,
-        ?int $departmentId = null,
-        ?Product $product = null
-    ): float {
-        $rate = RateFormula::stepped(
-            DepartmentSettings::masterBaseRate($departmentId),
-            (float) ($product?->master_cost_coeff ?? 0)
-        );
-
-        return $isUndercut
-            ? $rate + DepartmentSettings::masterUndercutRate($departmentId)
-            : $rate;
     }
 
     /**

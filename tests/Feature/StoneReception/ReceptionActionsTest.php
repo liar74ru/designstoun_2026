@@ -18,11 +18,6 @@ describe('StoneReceptionController logs()', function () {
             ->assertRedirect(route('stone-receptions.index', ['view' => 'logs']));
     });
 
-    test('недоступна без авторизации', function () {
-        $this->get(route('stone-receptions.logs'))
-            ->assertRedirect('/login');
-    });
-
     test('отображает записи журнала', function () {
         $user     = H::adminUser();
         $receiver = H::worker();

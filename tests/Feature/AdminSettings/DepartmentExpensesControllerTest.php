@@ -6,15 +6,11 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Support\DepartmentSettings;
 use Illuminate\Support\Facades\Cache;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PATCH /admin/departments/{department}/expenses
 // ══════════════════════════════════════════════════════════════════════════════
-
-function makeExpenseAdmin(): User
-{
-    return User::factory()->create(['is_admin' => true, 'worker_id' => null]);
-}
 
 beforeEach(function () {
     Cache::flush();
@@ -23,7 +19,7 @@ beforeEach(function () {
 
 function saveExpenses($test, Department $dept, array $expenses)
 {
-    return $test->actingAs(makeExpenseAdmin())
+    return $test->actingAs(H::adminUser())
         ->patch(route('admin.departments.expenses.update', $dept), ['expenses' => $expenses]);
 }
 
@@ -98,7 +94,7 @@ test('пустой список очищает расходы отдела', fun
         'amount'        => 35,
     ]);
 
-    $this->actingAs(makeExpenseAdmin())
+    $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.expenses.update', $this->dept), [])
         ->assertRedirect(route('admin.departments.show', $this->dept));
 

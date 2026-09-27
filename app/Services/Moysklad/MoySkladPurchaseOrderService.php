@@ -130,7 +130,7 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
                 $result['success'] = true;
                 $result['message'] = 'Заказ удалён из МойСклад';
             } else {
-                $errorMsg = $response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка';
+                $errorMsg = $response->json()['errors'][0]['error'] ?? $response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка';
                 Log::error('Ошибка удаления заказа поставщику из МойСклад', [
                     'status'      => $response->status(),
                     'response'    => $response->json(),
@@ -203,7 +203,7 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
                 $result['message'] = 'Заказ обновлён в МойСклад';
                 Log::info('Заказ поставщику обновлён в МойСклад', ['moysklad_id' => $order->moysklad_id]);
             } else {
-                $errorMsg = $response->json()['errors'][0]['error'] ?? 'Неизвестная ошибка';
+                $errorMsg = $response->json()['errors'][0]['error'] ?? $response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка';
                 Log::error('Ошибка обновления заказа в МойСклад', [
                     'status'   => $response->status(),
                     'response' => $response->json(),

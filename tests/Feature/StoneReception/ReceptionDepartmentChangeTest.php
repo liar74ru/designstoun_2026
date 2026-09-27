@@ -1,31 +1,9 @@
 <?php
 
 use App\Models\Department;
-use App\Models\DepartmentOperationSetting;
 use App\Models\StoneReception;
-use App\Models\User;
-use App\Models\Worker;
 use Tests\Helpers\ReceptionTestHelper as H;
-
-/**
- * Мастер с доступом к операции stone-receptions в своём отделе.
- */
-function makeMasterForDeptChange(Department $dept): User
-{
-    DepartmentOperationSetting::updateOrCreate(
-        ['department_id' => $dept->id, 'operation_key' => 'stone-receptions'],
-        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
-    );
-    $dept->forgetOperationsCache();
-
-    $worker = Worker::create([
-        'name'          => 'Мастер Смены Отдела',
-        'position'      => 'Мастер',
-        'department_id' => $dept->id,
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
+use Tests\Helpers\AccessTestHelper as Access;
 
 function makeReceptionForDeptChange(?Department $dept = null): StoneReception
 {
@@ -84,7 +62,7 @@ describe('StoneReceptionController updateDepartment()', function () {
 
         $reception = makeReceptionForDeptChange($deptA);
 
-        $this->actingAs(makeMasterForDeptChange($deptA))
+        $this->actingAs(Access::master($deptA, 'stone-receptions'))
             ->patch(route('stone-receptions.update-department', $reception), [
                 'department_id' => $deptB->id,
             ])
@@ -258,7 +236,7 @@ describe('Форма создания [create()] — селект отдела',
         $deptA = Department::create(['name' => 'Цех',      'code' => 'TSEH']);
         $deptB = Department::create(['name' => 'Галтовка', 'code' => 'GALT']);
 
-        $this->actingAs(makeMasterForDeptChange($deptA))
+        $this->actingAs(Access::master($deptA, 'stone-receptions'))
             ->get(route('stone-receptions.create'))
             ->assertStatus(200)
             ->assertViewHas('departments', fn($departments) =>
@@ -286,7 +264,7 @@ describe('StoneReceptionController show() — блок «Отдел»', function
         $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
         $reception = makeReceptionForDeptChange($deptA);
 
-        $this->actingAs(makeMasterForDeptChange($deptA))
+        $this->actingAs(Access::master($deptA, 'stone-receptions'))
             ->get(route('stone-receptions.show', $reception))
             ->assertStatus(200)
             ->assertDontSee(route('stone-receptions.update-department', $reception))

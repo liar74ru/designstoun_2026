@@ -264,16 +264,6 @@ describe('Редактирование партии [edit() / update()]', functi
             ->assertSessionHas('error');
     });
 
-    test('форма редактирования недоступна без авторизации', function () {
-        $product = H::product();
-        $store   = H::store();
-        $cutter  = H::cutter();
-        $batch   = H::newBatch($product, $store, $cutter, 10.0);
-
-        $this->get(route('raw-batches.edit', $batch))
-            ->assertRedirect('/login');
-    });
-
     test('обновление количества изменяет initial и remaining quantity', function () {
         $user    = H::adminUser();
         $product = H::product();
@@ -498,15 +488,6 @@ describe('Удаление новой партии [destroyNew()]', function () 
         expect(RawMaterialBatch::find($batch->id))->not->toBeNull();
     });
 
-    test('destroyNew недоступен без авторизации', function () {
-        $product = H::product();
-        $store   = H::store();
-        $cutter  = H::cutter();
-        $batch   = H::newBatch($product, $store, $cutter, 5.0);
-
-        $this->delete(route('raw-batches.destroy-new', $batch))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

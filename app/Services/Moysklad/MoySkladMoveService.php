@@ -207,7 +207,7 @@ class MoySkladMoveService extends MoySkladBaseService
                 Log::info('Перемещение удалено в МойСклад', ['move_id' => $moveId]);
             } else {
                 $result['message'] = 'Ошибка API МойСклад: '
-                    . ($response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка')
+                    . ($response->json()['errors'][0]['error'] ?? $response->json()['errors'][0]['title'] ?? 'Неизвестная ошибка')
                     . ' (HTTP ' . $response->status() . ')';
                 Log::error('Ошибка удаления перемещения в МойСклад', [
                     'move_id'  => $moveId,

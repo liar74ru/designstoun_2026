@@ -207,6 +207,9 @@
             </div>
 
             <div class="form-check form-switch">
+                {{-- Снятый чекбокс не отправляется вовсе; без этого поля old() после ошибки
+                     валидации не отличал «сняли» от «не трогали» и возвращал галочку --}}
+                <input type="hidden" name="is_active" value="0">
                 <input class="form-check-input" type="checkbox" id="modIsActive" name="is_active" value="1"
                        {{ old('is_active', $modifier?->is_active ?? true) ? 'checked' : '' }}>
                 <label class="form-check-label fw-semibold" for="modIsActive">Правило активно</label>

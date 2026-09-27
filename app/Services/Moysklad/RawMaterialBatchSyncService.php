@@ -332,6 +332,12 @@ class RawMaterialBatchSyncService
                 }
             }
 
+            // МойСклад ответил успехом, но без id документа — считать синхронизацией нельзя:
+            // markSynced(null) упал бы TypeError'ом
+            if ($result['success'] && ! $moveId) {
+                $result = ['success' => false, 'code' => 'api_error', 'message' => 'МойСклад не вернул id перемещения'];
+            }
+
             if ($result['success']) {
                 $batch->markSynced($moveId, $moveName);
                 Log::info('Партия синхронизирована с МойСклад (retry)', [
@@ -349,7 +355,7 @@ class RawMaterialBatchSyncService
                 'message' => $result['message'],
             ];
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $batch->markSyncError($e->getMessage());
             Log::error('Исключение при синхронизации партии с МойСклад', [
                 'error'    => $e->getMessage(),
@@ -377,8 +383,9 @@ class RawMaterialBatchSyncService
         $qty = $quantity ?? (float) $batch->remaining_quantity;
 
         try {
+            // Первичное движение — как в syncBatchMove: партия может появиться и передачей работнику
             $originalMovement = $batch->movements()
-                ->where('movement_type', 'create')
+                ->whereIn('movement_type', ['create', 'transfer_to_worker'])
                 ->orderBy('created_at')
                 ->first();
 
@@ -387,6 +394,15 @@ class RawMaterialBatchSyncService
 
             if (!$moveId) {
                 Log::info('Нет MoySklad перемещения для обновления родительской партии', [
+                    'batch_id' => $batch->id,
+                ]);
+                return;
+            }
+
+            // Без складов перемещение не собрать: fallback на moysklad_processing_id даёт id,
+            // но не склады, а null в getEntityMeta — TypeError
+            if (! $originalMovement?->from_store_id || ! $originalMovement?->to_store_id) {
+                Log::warning('Нет складов перемещения родительской партии — обновление пропущено', [
                     'batch_id' => $batch->id,
                 ]);
                 return;
@@ -406,7 +422,7 @@ class RawMaterialBatchSyncService
                     'batch_id' => $batch->id,
                 ]);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Исключение при обновлении перемещения родительской партии', [
                 'error'    => $e->getMessage(),
                 'batch_id' => $batch->id,

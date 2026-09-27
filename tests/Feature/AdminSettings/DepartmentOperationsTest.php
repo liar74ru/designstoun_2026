@@ -2,24 +2,9 @@
 
 use App\Models\Department;
 use App\Models\DepartmentOperationSetting;
-use App\Models\User;
-use App\Models\Worker;
 use Illuminate\Support\Facades\Cache;
-
-function makeOpAdmin(): User
-{
-    return User::factory()->create(['is_admin' => true, 'worker_id' => null]);
-}
-
-function makeOpUser(Department $dept, string $position): User
-{
-    $worker = Worker::create([
-        'name'          => $position . ' ' . $dept->name,
-        'position'      => $position,
-        'department_id' => $dept->id,
-    ]);
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
+use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 beforeEach(fn () => Cache::flush());
 
@@ -28,7 +13,7 @@ describe('PATCH /admin/departments/{department}/operations', function () {
     test('администратор сохраняет позиции для операций', function () {
         $dept = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
 
-        $this->actingAs(makeOpAdmin())
+        $this->actingAs(H::adminUser())
             ->patch(route('admin.departments.operations.update', $dept), [
                 'operations' => [
                     'stone-receptions' => ['positions' => ['', 'Мастер']],
@@ -51,7 +36,7 @@ describe('PATCH /admin/departments/{department}/operations', function () {
 
     test('пустой список позиций выключает операцию', function () {
         $dept  = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-        $admin = makeOpAdmin();
+        $admin = H::adminUser();
 
         $this->actingAs($admin)->patch(
             route('admin.departments.operations.update', $dept),
@@ -72,7 +57,7 @@ describe('PATCH /admin/departments/{department}/operations', function () {
     test('недопустимые позиции в payload игнорируются', function () {
         $dept = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
 
-        $this->actingAs(makeOpAdmin())->patch(
+        $this->actingAs(H::adminUser())->patch(
             route('admin.departments.operations.update', $dept),
             ['operations' => [
                 'stone-receptions' => ['positions' => ['', 'Мастер', 'Работник']],
@@ -88,7 +73,7 @@ describe('PATCH /admin/departments/{department}/operations', function () {
         $dept = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
         Cache::put(Department::operationPositionsCacheKey($dept->id, 'stone-receptions'), ['stale'], 300);
 
-        $this->actingAs(makeOpAdmin())->patch(
+        $this->actingAs(H::adminUser())->patch(
             route('admin.departments.operations.update', $dept),
             ['operations' => ['stone-receptions' => ['positions' => ['', 'Мастер']]]]
         );
@@ -99,7 +84,7 @@ describe('PATCH /admin/departments/{department}/operations', function () {
     test('мастер не может изменить операции отдела', function () {
         $dept = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
 
-        $this->actingAs(makeOpUser($dept, 'Мастер'))->patch(
+        $this->actingAs(Access::userWithPosition('Мастер', $dept))->patch(
             route('admin.departments.operations.update', $dept),
             ['operations' => ['stone-receptions' => ['positions' => ['', 'Мастер']]]]
         )->assertForbidden();
@@ -112,7 +97,7 @@ describe('PATCH /admin/departments/{department}/operations', function () {
 describe('Header — видимость иконок по позиции и отделу', function () {
 
     test('админ видит все иконки реестра, даже без записей в БД', function () {
-        $admin = makeOpAdmin();
+        $admin = H::adminUser();
 
         $response = $this->actingAs($admin)->get('/admin/settings');
         $response->assertOk();
@@ -127,7 +112,7 @@ describe('Header — видимость иконок по позиции и от
 
     test('работник видит "Выраб." всегда (always_visible), независимо от конфига', function () {
         $dept   = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-        $worker = makeOpUser($dept, 'Работник');
+        $worker = Access::userWithPosition('Работник', $dept);
 
         $this->actingAs($worker)
             ->get(route('worker.dashboard.by-id', ['workerId' => $worker->worker->id]))
@@ -136,7 +121,7 @@ describe('Header — видимость иконок по позиции и от
 
     test('разнорабочий видит "Выраб." всегда', function () {
         $dept   = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-        $worker = makeOpUser($dept, 'Разнорабочий');
+        $worker = Access::userWithPosition('Разнорабочий', $dept);
 
         $this->actingAs($worker)
             ->get(route('worker.dashboard.by-id', ['workerId' => $worker->worker->id]))
@@ -145,7 +130,7 @@ describe('Header — видимость иконок по позиции и от
 
     test('мастер с пустым конфигом видит только всегда-видимый Дашборд, без других иконок', function () {
         $dept   = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-        $master = makeOpUser($dept, 'Мастер');
+        $master = Access::userWithPosition('Мастер', $dept);
 
         $response = $this->actingAs($master)->followingRedirects()->get('/');
 
@@ -156,8 +141,8 @@ describe('Header — видимость иконок по позиции и от
 
     test('мастер видит включённые в его отделе операции', function () {
         $dept   = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-        $master = makeOpUser($dept, 'Мастер');
-        $admin  = makeOpAdmin();
+        $master = Access::userWithPosition('Мастер', $dept);
+        $admin  = H::adminUser();
 
         $this->actingAs($admin)->patch(
             route('admin.departments.operations.update', $dept),
@@ -176,8 +161,8 @@ describe('Header — видимость иконок по позиции и от
 
     test('помощник мастера видит только разрешённое в его отделе', function () {
         $dept      = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-        $assistant = makeOpUser($dept, 'Помощник мастера');
-        $admin     = makeOpAdmin();
+        $assistant = Access::userWithPosition('Помощник мастера', $dept);
+        $admin     = H::adminUser();
 
         $this->actingAs($admin)->patch(
             route('admin.departments.operations.update', $dept),
@@ -195,8 +180,8 @@ describe('Header — видимость иконок по позиции и от
     test('мастер не видит иконку, включённую в чужом отделе', function () {
         $deptA   = Department::create(['name' => 'Цех А', 'is_active' => true]);
         $deptB   = Department::create(['name' => 'Цех Б', 'is_active' => true]);
-        $masterA = makeOpUser($deptA, 'Мастер');
-        $admin   = makeOpAdmin();
+        $masterA = Access::userWithPosition('Мастер', $deptA);
+        $admin   = H::adminUser();
 
         $this->actingAs($admin)->patch(
             route('admin.departments.operations.update', $deptB),

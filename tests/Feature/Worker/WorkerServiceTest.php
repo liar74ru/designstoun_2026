@@ -4,6 +4,7 @@ use App\Models\Department;
 use App\Models\User;
 use App\Models\Worker;
 use App\Services\WorkerService;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // WorkerService — buildIndexQuery()
@@ -14,7 +15,7 @@ describe('WorkerService::buildIndexQuery()', function () {
     test('фильтрует по position', function () {
         $cutter = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
         $master = Worker::create(['name' => 'Мастер', 'position' => 'Мастер']);
-        $admin = actingAsAdmin();
+        $admin = H::adminUser();
 
         $service = new WorkerService();
         $result = $service->buildIndexQuery(['position' => 'Работник'], $admin);
@@ -27,7 +28,7 @@ describe('WorkerService::buildIndexQuery()', function () {
         $dept = Department::create(['name' => 'Тест отдел', 'code' => 'TEST']);
         $worker1 = Worker::create(['name' => 'Работник 1', 'position' => 'Работник', 'department_id' => $dept->id]);
         $worker2 = Worker::create(['name' => 'Работник 2', 'position' => 'Работник', 'department_id' => null]);
-        $admin = actingAsAdmin();
+        $admin = H::adminUser();
 
         $service = new WorkerService();
         $result = $service->buildIndexQuery(['department_id' => $dept->id], $admin);
@@ -62,7 +63,7 @@ test('мастер видит только свой department', function () {
         $workerWithUser = Worker::create(['name' => 'С юзером', 'position' => 'Работник', 'phone' => '79000000001']);
         $workerWithoutUser = Worker::create(['name' => 'Без юзера', 'position' => 'Работник']);
         User::factory()->create(['worker_id' => $workerWithUser->id, 'phone' => '79000000001']);
-        $admin = actingAsAdmin();
+        $admin = H::adminUser();
 
         $service = new WorkerService();
         $result = $service->buildIndexQuery(['has_account' => '1'], $admin);
@@ -192,5 +193,5 @@ describe('WorkerService::updateUser()', function () {
 
 function actingAsAdmin(): User
 {
-    return User::factory()->create(['is_admin' => true]);
+    return H::adminUser();
 }

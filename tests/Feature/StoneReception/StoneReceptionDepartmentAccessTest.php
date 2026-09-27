@@ -2,9 +2,8 @@
 
 use App\Models\Department;
 use App\Models\StoneReception;
-use App\Models\User;
-use App\Models\Worker;
 use Tests\Helpers\ReceptionTestHelper as H;
+use Tests\Helpers\AccessTestHelper as Access;
 
 function makeReceptionInDept(?Department $dept, string $tag): StoneReception
 {
@@ -19,33 +18,6 @@ function makeReceptionInDept(?Department $dept, string $tag): StoneReception
     ]);
 }
 
-function makeMasterUserBoundToDept(Department $dept, string $name = 'Мастер Цеха'): User
-{
-    \App\Models\DepartmentOperationSetting::updateOrCreate(
-        ['department_id' => $dept->id, 'operation_key' => 'stone-receptions'],
-        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
-    );
-    $dept->forgetOperationsCache();
-
-    $worker = Worker::create([
-        'name'          => $name,
-        'position'      => 'Мастер',
-        'department_id' => $dept->id,
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
-
-function makeMasterUserNoDept(): User
-{
-    $worker = Worker::create([
-        'name'     => 'Мастер Без Отдела SR',
-        'position' => 'Мастер',
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 
 test('мастер видит только приёмки своего отдела', function () {
@@ -55,7 +27,7 @@ test('мастер видит только приёмки своего отде�
     makeReceptionInDept($deptA, 'OWN-SR');
     makeReceptionInDept($deptB, 'FOREIGN-SR');
 
-    $this->actingAs(makeMasterUserBoundToDept($deptA))
+    $this->actingAs(Access::master($deptA, 'stone-receptions'))
         ->get(route('stone-receptions.index'))
         ->assertStatus(200)
         ->assertSee('Приёмщик OWN-SR')
@@ -66,7 +38,7 @@ test('мастер без отдела не имеет доступа к при�
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
     makeReceptionInDept($deptA, 'ANY-SR');
 
-    $this->actingAs(makeMasterUserNoDept())
+    $this->actingAs(Access::masterWithoutDept())
         ->get(route('stone-receptions.index'))
         ->assertForbidden();
 });
@@ -78,7 +50,7 @@ test('мастер может через фильтр увидеть приём�
     makeReceptionInDept($deptA, 'MINE-SR');
     makeReceptionInDept($deptB, 'OTHER-SR');
 
-    $this->actingAs(makeMasterUserBoundToDept($deptA))
+    $this->actingAs(Access::master($deptA, 'stone-receptions'))
         ->get(route('stone-receptions.index', ['filter' => ['department_id' => [$deptB->id]]]))
         ->assertStatus(200)
         ->assertSee('Приёмщик OTHER-SR')
@@ -106,7 +78,7 @@ test('приёмка с department_id=NULL невидима мастеру', fun
 
     makeReceptionInDept(null, 'NULL-HIDDEN-SR');
 
-    $this->actingAs(makeMasterUserBoundToDept($deptA))
+    $this->actingAs(Access::master($deptA, 'stone-receptions'))
         ->get(route('stone-receptions.index'))
         ->assertStatus(200)
         ->assertDontSee('Приёмщик NULL-HIDDEN-SR');

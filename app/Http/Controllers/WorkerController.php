@@ -57,11 +57,6 @@ class WorkerController extends Controller
             ->with('success', 'Работник успешно добавлен');
     }
 
-    public function show(Worker $worker)
-    {
-        return view('workers.show', compact('worker'));
-    }
-
     public function edit(Worker $worker)
     {
         $departments = Department::where('is_active', true)->orderBy('name')->get();

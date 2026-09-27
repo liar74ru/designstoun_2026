@@ -1,16 +1,10 @@
 <?php
 
 use App\Models\Setting;
-use App\Models\User;
-use App\Models\Worker;
 use Illuminate\Support\Facades\Cache;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 beforeEach(fn () => Cache::flush());
-
-function makeEdgingAdminUser(): User
-{
-    return User::factory()->create(['is_admin' => true, 'worker_id' => null]);
-}
 
 function edgingSeedSetting(string $key, string $value, string $label = ''): void
 {
@@ -22,7 +16,7 @@ describe('POST /admin/settings — валидация EDGING_COEFF (whitelist о
     test('администратор сохраняет отрицательное значение EDGING_COEFF', function () {
         edgingSeedSetting('EDGING_COEFF', '-2.5', 'Торцовка');
 
-        $this->actingAs(makeEdgingAdminUser())
+        $this->actingAs(H::adminUser())
             ->post('/admin/settings', [
                 'settings' => [
                     ['key' => 'EDGING_COEFF', 'value' => '-3.5'],
@@ -37,7 +31,7 @@ describe('POST /admin/settings — валидация EDGING_COEFF (whitelist о
     test('UNDERCUT_PENALTY с отрицательным значением по-прежнему даёт ошибку (whitelist точечный)', function () {
         edgingSeedSetting('UNDERCUT_PENALTY', '1.5', 'Подкол');
 
-        $this->actingAs(makeEdgingAdminUser())
+        $this->actingAs(H::adminUser())
             ->post('/admin/settings', [
                 'settings' => [
                     ['key' => 'UNDERCUT_PENALTY', 'value' => '-1'],
@@ -49,7 +43,7 @@ describe('POST /admin/settings — валидация EDGING_COEFF (whitelist о
     test('EDGING_COEFF принимает положительное значение тоже', function () {
         edgingSeedSetting('EDGING_COEFF', '-2.5', 'Торцовка');
 
-        $this->actingAs(makeEdgingAdminUser())
+        $this->actingAs(H::adminUser())
             ->post('/admin/settings', [
                 'settings' => [
                     ['key' => 'EDGING_COEFF', 'value' => '0.5'],
@@ -64,7 +58,7 @@ describe('POST /admin/settings — валидация EDGING_COEFF (whitelist о
         edgingSeedSetting('EDGING_COEFF', '-2.5', 'Торцовка');
         edgingSeedSetting('PIECE_RATE',   '390',  'Ставка');
 
-        $this->actingAs(makeEdgingAdminUser())
+        $this->actingAs(H::adminUser())
             ->post('/admin/settings', [
                 'settings' => [
                     ['key' => 'EDGING_COEFF', 'value' => '-2.5'],
@@ -80,7 +74,7 @@ describe('POST /admin/settings — валидация EDGING_COEFF (whitelist о
     test('PIECE_RATE остаётся блокирующим: отрицательное значение даёт ошибку', function () {
         edgingSeedSetting('PIECE_RATE', '390', 'Ставка');
 
-        $this->actingAs(makeEdgingAdminUser())
+        $this->actingAs(H::adminUser())
             ->post('/admin/settings', [
                 'settings' => [
                     ['key' => 'PIECE_RATE', 'value' => '-1'],
@@ -97,7 +91,7 @@ describe('GET /admin/settings — отображение поля EDGING_COEFF',
         edgingSeedSetting('UNDERCUT_PENALTY', '1.5',  'Штраф подкол > 80%');
         edgingSeedSetting('EDGING_COEFF',     '-2.5', 'Коэффициент «Торцовка»');
 
-        $this->actingAs(makeEdgingAdminUser())
+        $this->actingAs(H::adminUser())
             ->get('/admin/settings')
             ->assertOk()
             ->assertSee('Коэффициент «Торцовка»', false)

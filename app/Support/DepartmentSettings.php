@@ -103,12 +103,6 @@ class DepartmentSettings
         return self::float($departmentId, 'MASTER_BASE_RATE', 100);
     }
 
-    /** Надбавка мастеру за флаг «подкол > 80%» (₽/м²). */
-    public static function masterUndercutRate(?int $departmentId): float
-    {
-        return self::float($departmentId, 'MASTER_UNDERCUT_RATE', 50);
-    }
-
     /**
      * Плоский список всех ключей, настраиваемых per-department (whitelist).
      *

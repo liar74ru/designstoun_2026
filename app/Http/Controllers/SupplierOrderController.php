@@ -74,7 +74,7 @@ class SupplierOrderController extends Controller
         }
 
         return redirect()->route('supplier-orders.index')
-            ->with('danger', "Поступление №{$order->number} сохранено, но не передано в МойСклад: {$syncResult['message']}");
+            ->with('error', "Поступление №{$order->number} сохранено, но не передано в МойСклад: {$syncResult['message']}");
     }
 
     public function edit(SupplierOrder $supplierOrder): View|RedirectResponse
@@ -115,7 +115,7 @@ class SupplierOrderController extends Controller
         }
 
         return redirect()->route('supplier-orders.index')
-            ->with('danger', "Поступление №{$order->number} сохранено, но не передано в МойСклад: {$syncResult['message']}");
+            ->with('error', "Поступление №{$order->number} сохранено, но не передано в МойСклад: {$syncResult['message']}");
     }
 
     public function destroy(SupplierOrder $supplierOrder): RedirectResponse
@@ -133,7 +133,7 @@ class SupplierOrderController extends Controller
             $result = $this->syncService->deleteOrderWithSupply($supplierOrder);
             if (!$result['success']) {
                 return redirect()->route('supplier-orders.show', $supplierOrder)
-                    ->with('danger', "Не удалось удалить поступление №{$number} из МойСклад: {$result['message']}");
+                    ->with('error', "Не удалось удалить поступление №{$number} из МойСклад: {$result['message']}");
             }
         }
 
@@ -166,7 +166,7 @@ class SupplierOrderController extends Controller
         }
 
         return redirect()->route('supplier-orders.index')
-            ->with('danger', "Не удалось создать приёмку для №{$supplierOrder->number}: {$result['message']}");
+            ->with('error', "Не удалось создать приёмку для №{$supplierOrder->number}: {$result['message']}");
     }
 
     public function syncConfirm(SupplierOrder $supplierOrder): View|RedirectResponse
@@ -190,7 +190,8 @@ class SupplierOrderController extends Controller
                 ->with('warning', 'Приёмка уже создана в МойСклад.');
         }
 
-        $mode = $request->input('mode');
+        // Без mode (форма без кнопки режима, прямой запрос) — отмена, а не TypeError в сервисе
+        $mode = (string) $request->input('mode', '');
         session()->forget("sync_confirm_{$supplierOrder->id}");
 
         $result = $this->syncService->forceSync($supplierOrder, $mode, $request->input('suggested_name'));
@@ -203,8 +204,8 @@ class SupplierOrderController extends Controller
         if ($result['status'] === 'error') {
             $route = $mode === 'create_order_only' ? 'supplier-orders.show' : 'supplier-orders.index';
             return $mode === 'create_order_only'
-                ? redirect()->route($route, $supplierOrder)->with('danger', $result['message'])
-                : redirect()->route($route)->with('danger', $result['message']);
+                ? redirect()->route($route, $supplierOrder)->with('error', $result['message'])
+                : redirect()->route($route)->with('error', $result['message']);
         }
 
         return match ($mode) {

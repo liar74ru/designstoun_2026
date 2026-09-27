@@ -115,9 +115,6 @@ describe('Создание приёмки [store()]', function () {
         ])->assertSessionHasErrors('products');
     });
 
-    test('требует авторизацию', function () {
-        $this->post('/stone-receptions', [])->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -6,10 +6,7 @@ use App\Models\StoneReceptionItem;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
-
-test('неавторизованный пользователь не может открыть /master-work', function () {
-    $this->get('/master-work')->assertRedirect('/login');
-});
+use Tests\Helpers\ReceptionTestHelper as H;
 
 test('работник без привязки к Worker получает 403', function () {
     $user = User::factory()->create(['worker_id' => null, 'is_admin' => false]);
@@ -25,7 +22,7 @@ test('мастер видит свою страницу дашборда', funct
 
 test('администратор может открыть страницу любого мастера', function () {
     $worker = Worker::create(['name' => 'Мастер Сидор', 'position' => 'Мастер']);
-    $admin = User::factory()->create(['is_admin' => true]);
+    $admin = H::adminUser();
 
     $this->actingAs($admin)->get("/master-work/{$worker->id}")->assertStatus(200);
 });

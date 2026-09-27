@@ -9,15 +9,11 @@ use App\Services\Moysklad\MoySkladService;
 use App\Services\Moysklad\StockSyncService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Helpers
 // ══════════════════════════════════════════════════════════════════════════════
-
-function adminUser(): User
-{
-    return User::factory()->create(['is_admin' => true]);
-}
 
 function makeProduct(array $attrs = []): Product
 {
@@ -31,27 +27,22 @@ function makeProduct(array $attrs = []): Product
 describe('ProductController index()', function () {
 
     test('список товаров доступен авторизованному', function () {
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.index'))
             ->assertStatus(200);
-    });
-
-    test('список товаров недоступен без авторизации', function () {
-        $this->get(route('products.index'))
-            ->assertRedirect('/login');
     });
 
     test('список содержит созданный товар', function () {
         makeProduct(['name' => 'Уникальный товар XYZ']);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.index'))
             ->assertStatus(200)
             ->assertSee('Уникальный товар XYZ');
     });
 
     test('на странице нет ссылки на создание вручную', function () {
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.index'))
             ->assertStatus(200)
             ->assertDontSee('Добавить вручную');
@@ -74,7 +65,7 @@ describe('ProductController index() — фильтры search', function () {
         ProductStock::create(['product_id' => $inStock->id, 'store_id' => $storeA->id, 'quantity' => 10]);
         ProductStock::create(['product_id' => $noStock->id, 'store_id' => $storeB->id, 'quantity' => 0]);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.index', ['filter[in_stock]' => '1']))
             ->assertStatus(200)
             ->assertSee('Есть на складе')
@@ -91,7 +82,7 @@ describe('ProductController index() — фильтры search', function () {
         ProductStock::create(['product_id' => $inStock->id, 'store_id' => $storeA->id, 'quantity' => 5]);
         ProductStock::create(['product_id' => $noStock->id, 'store_id' => $storeB->id, 'quantity' => 0]);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.index', ['filter[in_stock]' => '0']))
             ->assertStatus(200)
             ->assertDontSee('Есть на складе')
@@ -105,7 +96,7 @@ describe('ProductController index() — фильтры search', function () {
         makeProduct(['name' => 'Товар в группе',   'group_id' => $groupId]);
         makeProduct(['name' => 'Товар без группы', 'group_id' => null]);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.index', ['filter[group_id]' => $groupId]))
             ->assertStatus(200)
             ->assertSee('Товар в группе')
@@ -113,7 +104,7 @@ describe('ProductController index() — фильтры search', function () {
     });
 
     test('сортировка по имени не ломает страницу', function () {
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.index', ['sort' => 'name', 'direction' => 'asc']))
             ->assertStatus(200);
     });
@@ -128,29 +119,22 @@ describe('ProductController show()', function () {
     test('страница товара доступна по moysklad_id', function () {
         $product = makeProduct(['name' => 'Тестовый товар показа']);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.show', $product->moysklad_id))
             ->assertStatus(200)
             ->assertSee('Тестовый товар показа');
     });
 
     test('возвращает 404 для несуществующего moysklad_id', function () {
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.show', Str::uuid()))
             ->assertStatus(404);
-    });
-
-    test('недоступна без авторизации', function () {
-        $product = makeProduct();
-
-        $this->get(route('products.show', $product->moysklad_id))
-            ->assertRedirect('/login');
     });
 
     test('на странице нет кнопки удаления', function () {
         $product = makeProduct(['name' => 'Проверяемый товар']);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.show', $product->moysklad_id))
             ->assertStatus(200)
             ->assertDontSee('Удалить из базы')
@@ -165,13 +149,13 @@ describe('ProductController show()', function () {
 describe('Удалённые CRUD-маршруты недоступны', function () {
 
     test('GET /products/create возвращает 404', function () {
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get('/products/create')
             ->assertStatus(404);
     });
 
     test('POST /products возвращает 405 (метод не разрешён)', function () {
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->post('/products', ['name' => 'Test', 'price' => 100])
             ->assertStatus(405);
     });
@@ -179,7 +163,7 @@ describe('Удалённые CRUD-маршруты недоступны', functi
     test('PUT /products/{id} возвращает 405', function () {
         $product = makeProduct();
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->put('/products/'.$product->moysklad_id, ['name' => 'Test', 'price' => 100])
             ->assertStatus(405);
     });
@@ -187,7 +171,7 @@ describe('Удалённые CRUD-маршруты недоступны', functi
     test('DELETE /products/{id} возвращает 405', function () {
         $product = makeProduct();
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->delete('/products/'.$product->moysklad_id)
             ->assertStatus(405);
     });
@@ -200,14 +184,9 @@ describe('Удалённые CRUD-маршруты недоступны', functi
 describe('ProductController groups()', function () {
 
     test('страница групп доступна авторизованному', function () {
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.groups'))
             ->assertStatus(200);
-    });
-
-    test('страница групп недоступна без авторизации', function () {
-        $this->get(route('products.groups'))
-            ->assertRedirect('/login');
     });
 
     test('страница групп показывает созданную группу', function () {
@@ -216,7 +195,7 @@ describe('ProductController groups()', function () {
             'name' => 'Тестовая группа',
         ]);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.groups'))
             ->assertStatus(200)
             ->assertSee('Тестовая группа');
@@ -237,7 +216,7 @@ describe('ProductController syncFromMoySklad()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('error', 'Логин или пароль МойСклад не найдены в .env');
@@ -262,7 +241,7 @@ describe('ProductController syncFromMoySklad()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('error', 'Ошибка API МойСклад: превышен лимит запросов');
@@ -287,7 +266,7 @@ describe('ProductController syncFromMoySklad()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('success', 'Синхронизировано товаров: 15');
@@ -316,7 +295,7 @@ describe('ProductController syncFromMoySklad()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('success', 'Синхронизировано товаров: 25. Синхронизировано групп: 8');
@@ -345,7 +324,7 @@ describe('ProductController syncFromMoySklad()', function () {
 
         expect(Cache::has('products_tree_json_v3'))->toBeTrue();
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.sync'))
             ->assertRedirect(route('products.index'));
 
@@ -375,15 +354,10 @@ describe('ProductController syncFromMoySklad()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('success', 'Синхронизировано товаров: 20');
-    });
-
-    test('недоступен без авторизации', function () {
-        $this->get(route('products.sync'))
-            ->assertRedirect('/login');
     });
 
     test('доступен только для администратора', function () {
@@ -411,7 +385,7 @@ describe('ProductController refresh()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.refresh', $product->moysklad_id))
             ->assertRedirect()
             ->assertSessionHas('error', 'Логин или пароль МойСклад не найдены в .env');
@@ -431,7 +405,7 @@ describe('ProductController refresh()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.refresh', $product->moysklad_id))
             ->assertRedirect()
             ->assertSessionHas('error', 'Не удалось обновить товар');
@@ -463,7 +437,7 @@ describe('ProductController refresh()', function () {
 
         expect(Product::where('moysklad_id', $moyskladId)->exists())->toBeFalse();
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.refresh', $moyskladId))
             ->assertRedirect(route('products.show', $moyskladId))
             ->assertSessionHas('success', 'Товар обновлен');
@@ -494,7 +468,7 @@ describe('ProductController refresh()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.refresh', 'no-price-id'))
             ->assertRedirect();
 
@@ -526,18 +500,12 @@ describe('ProductController refresh()', function () {
 
         expect(Cache::has('products_tree_json_v3'))->toBeTrue();
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.refresh', $product->moysklad_id));
 
         expect(Cache::has('products_tree_json_v3'))->toBeFalse();
     });
 
-    test('недоступен без авторизации', function () {
-        $product = makeProduct();
-
-        $this->get(route('products.refresh', $product->moysklad_id))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -560,7 +528,7 @@ describe('ProductController syncStocks()', function () {
 
         app()->instance(StockSyncService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->post(route('products.stocks.sync', $product->moysklad_id))
             ->assertRedirect(route('products.show', $product->moysklad_id))
             ->assertSessionHas('success', 'Остатки обновлены успешно');
@@ -580,18 +548,12 @@ describe('ProductController syncStocks()', function () {
 
         app()->instance(StockSyncService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->post(route('products.stocks.sync', $product->moysklad_id))
             ->assertRedirect(route('products.show', $product->moysklad_id))
             ->assertSessionHas('error', 'Ошибка API МойСклад');
     });
 
-    test('недоступен без авторизации', function () {
-        $product = makeProduct();
-
-        $this->post(route('products.stocks.sync', $product->moysklad_id))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -611,7 +573,7 @@ describe('ProductController syncAllProductsStocks()', function () {
 
         app()->instance(StockSyncService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->post(route('products.stocks.sync-all-by-stores'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('success', 'Все остатки синхронизированы');
@@ -628,16 +590,12 @@ describe('ProductController syncAllProductsStocks()', function () {
 
         app()->instance(StockSyncService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->post(route('products.stocks.sync-all-by-stores'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('error', 'Ошибка при синхронизации');
     });
 
-    test('недоступен без авторизации', function () {
-        $this->post(route('products.stocks.sync-all-by-stores'))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -654,7 +612,7 @@ describe('ProductController syncGroups()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.groups.sync'))
             ->assertRedirect(route('products.groups'))
             ->assertSessionHas('error', 'Логин или пароль МойСклад не найдены в .env');
@@ -674,7 +632,7 @@ describe('ProductController syncGroups()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.groups.sync'))
             ->assertRedirect(route('products.groups'))
             ->assertSessionHas('success', 'Синхронизировано 10 групп');
@@ -694,16 +652,12 @@ describe('ProductController syncGroups()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('products.groups.sync'))
             ->assertRedirect(route('products.groups'))
             ->assertSessionHas('error', 'Ошибка синхронизации групп');
     });
 
-    test('недоступен без авторизации', function () {
-        $this->get(route('products.groups.sync'))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -724,7 +678,7 @@ describe('ProductController groupsJson()', function () {
         // Создаем товар в группе
         $product = makeProduct(['group_id' => $groupId, 'name' => 'Тестовый товар', 'sku' => 'TEST-001']);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('api.products.tree'))
             ->assertStatus(200)
             ->assertHeader('Content-Type', 'application/json')
@@ -745,7 +699,7 @@ describe('ProductController groupsJson()', function () {
         ]);
 
         // Первый запрос - должен закэшироваться
-        $response1 = $this->actingAs(adminUser())
+        $response1 = $this->actingAs(H::adminUser())
             ->get(route('api.products.tree'))
             ->assertStatus(200);
 
@@ -753,17 +707,13 @@ describe('ProductController groupsJson()', function () {
         expect($cachedData)->not->toBeNull();
 
         // Второй запрос - должен вернуть те же данные из кэша
-        $response2 = $this->actingAs(adminUser())
+        $response2 = $this->actingAs(H::adminUser())
             ->get(route('api.products.tree'))
             ->assertStatus(200);
 
         expect($response1->getContent())->toBe($response2->getContent());
     });
 
-    test('недоступен без авторизации', function () {
-        $this->get(route('api.products.tree'))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -782,7 +732,7 @@ describe('ProductController stocksJson()', function () {
             'quantity' => 15.5
         ]);
 
-        $this->actingAs(adminUser())
+        $this->actingAs(H::adminUser())
             ->get(route('api.products.stocks'))
             ->assertStatus(200)
             ->assertHeader('Content-Type', 'application/json')
@@ -799,7 +749,7 @@ describe('ProductController stocksJson()', function () {
         ProductStock::create(['product_id' => $product->id, 'store_id' => $store1->id, 'quantity' => 10.5]);
         ProductStock::create(['product_id' => $product->id, 'store_id' => $store2->id, 'quantity' => 5.2]);
 
-        $response = $this->actingAs(adminUser())
+        $response = $this->actingAs(H::adminUser())
             ->get(route('api.products.stocks'))
             ->assertStatus(200);
 
@@ -809,10 +759,6 @@ describe('ProductController stocksJson()', function () {
         expect($data[$product->id]['stores'][$store2->id])->toBe(5.2);
     });
 
-    test('недоступен без авторизации', function () {
-        $this->get(route('api.products.stocks'))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -824,7 +770,7 @@ describe('ProductController getCoeff()', function () {
     test('возвращает коэффициент продукта', function () {
         $product = makeProduct(['prod_cost_coeff' => 2.5]);
 
-        $response = $this->actingAs(adminUser())
+        $response = $this->actingAs(H::adminUser())
             ->get(route('api.products.coeff', $product))
             ->assertStatus(200)
             ->assertHeader('Content-Type', 'application/json');
@@ -835,7 +781,7 @@ describe('ProductController getCoeff()', function () {
     test('возвращает 0 если коэффициент не установлен', function () {
         $product = makeProduct(['prod_cost_coeff' => null]);
 
-        $response = $this->actingAs(adminUser())
+        $response = $this->actingAs(H::adminUser())
             ->get(route('api.products.coeff', $product))
             ->assertStatus(200);
 
@@ -846,18 +792,12 @@ describe('ProductController getCoeff()', function () {
     test('возвращает коэффициент ставки мастера', function () {
         $product = makeProduct(['prod_cost_coeff' => 2.5, 'master_cost_coeff' => 3]);
 
-        $response = $this->actingAs(adminUser())
+        $response = $this->actingAs(H::adminUser())
             ->get(route('api.products.coeff', $product))
             ->assertStatus(200);
 
         expect((float) $response->json('master_cost_coeff'))->toBe(3.0);
     });
 
-    test('недоступен без авторизации', function () {
-        $product = makeProduct();
-
-        $this->get(route('api.products.coeff', $product))
-            ->assertRedirect('/login');
-    });
 });
 

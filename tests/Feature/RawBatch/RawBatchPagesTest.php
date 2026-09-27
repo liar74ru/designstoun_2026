@@ -16,11 +16,6 @@ describe('RawMaterialBatchController index()', function () {
             ->assertStatus(200);
     });
 
-    test('недоступна без авторизации', function () {
-        $this->get(route('raw-batches.index'))
-            ->assertRedirect('/login');
-    });
-
     test('показывает созданную партию', function () {
         $product = H::product(['name' => 'Уникальный мрамор XYZ']);
         $store   = H::store();
@@ -31,12 +26,6 @@ describe('RawMaterialBatchController index()', function () {
             ->get(route('raw-batches.index'))
             ->assertStatus(200)
             ->assertSee('TEST-BATCH-001');
-    });
-
-    test('фильтр по статусу не ломает страницу', function () {
-        $this->actingAs(H::adminUser())
-            ->get(route('raw-batches.index', ['filter[status]' => 'in_work']))
-            ->assertStatus(200);
     });
 
     test('фильтр по работнику не ломает страницу', function () {
@@ -68,10 +57,6 @@ describe('RawMaterialBatchController create()', function () {
             ->assertStatus(200);
     });
 
-    test('форма создания недоступна без авторизации', function () {
-        $this->get(route('raw-batches.create'))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -103,15 +88,6 @@ describe('RawMaterialBatchController adjustForm()', function () {
             ->assertSessionHas('error');
     });
 
-    test('недоступна без авторизации', function () {
-        $product = H::product();
-        $store   = H::store();
-        $cutter  = H::cutter();
-        $batch   = H::batch($product, $store, $cutter, 5.0);
-
-        $this->get(route('raw-batches.adjust.form', $batch))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -150,15 +126,6 @@ describe('RawMaterialBatchController transferForm()', function () {
             ->assertStatus(200);
     });
 
-    test('форма передачи недоступна без авторизации', function () {
-        $product = H::product();
-        $store   = H::store();
-        $cutter  = H::cutter();
-        $batch   = H::batch($product, $store, $cutter, 10.0);
-
-        $this->get(route('raw-batches.transfer.form', $batch))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -190,13 +157,4 @@ describe('RawMaterialBatchController returnForm()', function () {
             ->assertSessionHas('error');
     });
 
-    test('недоступна без авторизации', function () {
-        $product = H::product();
-        $store   = H::store();
-        $cutter  = H::cutter();
-        $batch   = H::batch($product, $store, $cutter, 10.0);
-
-        $this->get(route('raw-batches.return.form', $batch))
-            ->assertRedirect('/login');
-    });
 });

@@ -1,40 +1,16 @@
 <?php
 
 use App\Models\Department;
-use App\Models\DepartmentOperationSetting;
 use App\Models\User;
 use App\Models\Worker;
 use Illuminate\Support\Facades\Cache;
+use Tests\Helpers\AccessTestHelper as Access;
 
 beforeEach(fn () => Cache::flush());
 
 function makeDepartment(string $name = 'Цех'): Department
 {
     return Department::create(['name' => $name, 'code' => strtoupper($name)]);
-}
-
-function allowMasterWorkers(Department $dept): void
-{
-    DepartmentOperationSetting::updateOrCreate(
-        ['department_id' => $dept->id, 'operation_key' => 'workers'],
-        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
-    );
-    $dept->forgetOperationsCache();
-}
-
-function makeMasterInDept(Department $dept): User
-{
-    allowMasterWorkers($dept);
-    $worker = Worker::create([
-        'name'          => 'Мастер Цехов',
-        'position'      => 'Мастер',
-        'department_id' => $dept->id,
-    ]);
-
-    return User::factory()->create([
-        'is_admin'  => false,
-        'worker_id' => $worker->id,
-    ]);
 }
 
 function makeCutterInDept(Department $dept): Worker
@@ -54,7 +30,7 @@ test('мастер с отделом видит только работнико�
     $dept1 = makeDepartment('Цех');
     $dept2 = makeDepartment('Склад');
 
-    $master  = makeMasterInDept($dept1);
+    $master  = Access::master($dept1, 'workers');
 
     $cutter1 = Worker::create([
         'name'          => 'Пильщик Свой',
@@ -76,7 +52,7 @@ test('мастер с отделом видит только работнико�
 
 test('мастер с отделом видит себя в списке', function () {
     $dept   = makeDepartment('Цех');
-    $master = makeMasterInDept($dept);
+    $master = Access::master($dept, 'workers');
 
     $this->actingAs($master)
         ->get(route('workers.index'))
@@ -95,7 +71,7 @@ test('мастер без отдела не имеет доступа к workers
 
 test('мастер не видит карточку работника с аккаунтом администратора', function () {
     $dept   = makeDepartment('Цех');
-    $master = makeMasterInDept($dept);
+    $master = Access::master($dept, 'workers');
 
     $adminWorker = Worker::create([
         'name'          => 'Директор Цеховой',
@@ -116,7 +92,7 @@ test('мастер не видит карточку работника с акк
 
 test('мастер с отделом может открыть дашборд пильщика из своего отдела', function () {
     $dept   = makeDepartment('Цех');
-    $master = makeMasterInDept($dept);
+    $master = Access::master($dept, 'workers');
     $cutter = makeCutterInDept($dept);
 
     $this->actingAs($master)
@@ -127,7 +103,7 @@ test('мастер с отделом может открыть дашборд п
 test('мастер с отделом не может открыть дашборд пильщика из другого отдела', function () {
     $dept1  = makeDepartment('Цех');
     $dept2  = makeDepartment('Склад');
-    $master = makeMasterInDept($dept1);
+    $master = Access::master($dept1, 'workers');
     $cutter = makeCutterInDept($dept2);
 
     $this->actingAs($master)
@@ -148,7 +124,7 @@ test('мастер без отдела не может открыть чужой
 
 test('дашборд мастера показывает имя просматриваемого работника', function () {
     $dept   = makeDepartment('Цех');
-    $master = makeMasterInDept($dept);
+    $master = Access::master($dept, 'workers');
     $cutter = makeCutterInDept($dept);
 
     $this->actingAs($master)

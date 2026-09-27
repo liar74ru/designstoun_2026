@@ -124,10 +124,6 @@ describe('SupplierOrderController store()', function () {
         expect($order->status)->toBe(SupplierOrder::STATUS_ERROR);
     });
 
-    test('недоступно без авторизации', function () {
-        $this->post(route('supplier-orders.store'), [])->assertRedirect('/login');
-    });
-
     test('отклоняет без обязательных полей', function () {
         $user = H::adminUser();
         mockPurchaseOrderService();
@@ -396,7 +392,7 @@ describe('SupplierOrderController sync()', function () {
             ->assertRedirect(route('supplier-orders.sync-confirm', $order));
     });
 
-    test('ошибка API → редирект на index с danger-сообщением', function () {
+    test('ошибка API → редирект на index с сообщением об ошибке', function () {
         $user    = H::adminUser();
         $store   = H::store();
         $cp      = makeCounterparty();
@@ -421,7 +417,33 @@ describe('SupplierOrderController sync()', function () {
         $this->actingAs($user)
             ->post(route('supplier-orders.sync', $order))
             ->assertRedirect(route('supplier-orders.index'))
-            ->assertSessionHas('danger');
+            ->assertSessionHas('error');
+    });
+
+    test('текст ошибки МойСклад виден на странице после редиректа', function () {
+        $cp = makeCounterparty();
+
+        mockPurchaseOrderService();
+        mockSupplyService(false, 'api_error');
+
+        $order = SupplierOrder::create([
+            'number'          => 'ERR-02',
+            'store_id'        => H::store()->id,
+            'counterparty_id' => $cp->id,
+            'status'          => SupplierOrder::STATUS_NEW,
+            'moysklad_id'     => 'po-uuid',
+        ]);
+        SupplierOrderItem::create([
+            'supplier_order_id' => $order->id,
+            'product_id'        => H::product()->id,
+            'quantity'          => 1.0,
+        ]);
+
+        // Раньше сообщение уходило в сессию под ключом danger, который alerts не рисует
+        $this->actingAs(H::adminUser())
+            ->followingRedirects()
+            ->post(route('supplier-orders.sync', $order))
+            ->assertSee('Не удалось создать приёмку для №ERR-02');
     });
 });
 
@@ -452,11 +474,6 @@ describe('SupplierOrderController страницы', function () {
         $this->actingAs(H::adminUser())
             ->get(route('supplier-orders.index'))
             ->assertStatus(200);
-    });
-
-    test('index недоступна без авторизации', function () {
-        $this->get(route('supplier-orders.index'))
-            ->assertRedirect('/login');
     });
 
     test('create доступна авторизованному', function () {

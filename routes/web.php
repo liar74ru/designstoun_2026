@@ -19,12 +19,8 @@ use App\Http\Controllers\CutterWorkerDashboardController;
 use App\Http\Controllers\EnterpriseDashboardController;
 use Illuminate\Support\Facades\Route;
 
-// Главная — редирект на login если не авторизован
-Route::get('/', function () {
-    return redirect()->route('login');
-});
-
-// Всё остальное — только для авторизованных
+// Всё, кроме входа, — только для авторизованных. Гостя на «/» отправляет на вход сам
+// middleware auth: отдельный гостевой маршрут «/» перекрывался этим и не срабатывал.
 Route::middleware(['auth'])->group(function () {
 
     Route::get('/', function () {

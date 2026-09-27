@@ -135,79 +135,11 @@ class StoneReception extends Model
     }
 
     /**
-     * Отметить как обработанную
-     */
-    public function markAsProcessed(string $processingId): void
-    {
-        $this->update([
-            'status' => self::STATUS_PROCESSED,
-            'moysklad_processing_id' => $processingId,
-            'synced_at' => now()
-        ]);
-    }
-
-    /**
      * Отметить как завершённую (партия израсходована, синхронизации ещё не было)
      */
     public function markAsCompleted(): void
     {
         $this->update(['status' => self::STATUS_COMPLETED]);
-    }
-
-    /**
-     * Отметить как активную
-     */
-    public function markAsActive(): void
-    {
-        $this->update([
-            'status' => self::STATUS_ACTIVE,
-            'moysklad_processing_id' => null,
-            'synced_at' => null
-        ]);
-    }
-
-    /**
-     * Отметить как ошибочную
-     */
-    public function markAsError(): void
-    {
-        $this->update([
-            'status' => self::STATUS_ERROR,
-            'synced_at' => now()
-        ]);
-    }
-
-    /**
-     * Получить только активные приемки
-     */
-    public function scopeActive($query)
-    {
-        return $query->where('status', self::STATUS_ACTIVE);
-    }
-
-    /**
-     * Получить только обработанные приемки
-     */
-    public function scopeProcessed($query)
-    {
-        return $query->where('status', self::STATUS_PROCESSED);
-    }
-
-    /**
-     * Получить последние приемки
-     */
-    public static function getLastReceptions($limit = 10)
-    {
-        return self::with([
-            'receiver',
-            'cutter',
-            'store',
-            'items.product',
-            'rawMaterialBatch.product'
-        ])
-            ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
     }
 
     /**

@@ -1,31 +1,10 @@
 <?php
 
 use App\Models\Department;
-use App\Models\DepartmentOperationSetting;
 use App\Models\RawMaterialBatch;
-use App\Models\User;
 use App\Models\Worker;
 use Tests\Helpers\ReceptionTestHelper as H;
-
-/**
- * Мастер с доступом к операции raw-batches в своём отделе.
- */
-function makeMasterForBatchDeptChange(Department $dept): User
-{
-    DepartmentOperationSetting::updateOrCreate(
-        ['department_id' => $dept->id, 'operation_key' => 'raw-batches'],
-        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
-    );
-    $dept->forgetOperationsCache();
-
-    $worker = Worker::create([
-        'name'          => 'Мастер Смены Отдела Партии',
-        'position'      => 'Мастер',
-        'department_id' => $dept->id,
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
+use Tests\Helpers\AccessTestHelper as Access;
 
 function makeBatchForDeptChange(?Department $dept = null): RawMaterialBatch
 {
@@ -136,7 +115,7 @@ describe('RawMaterialBatchController updateDepartment()', function () {
 
         $batch = makeBatchForDeptChange($deptA);
 
-        $this->actingAs(makeMasterForBatchDeptChange($deptA))
+        $this->actingAs(Access::master($deptA, 'raw-batches'))
             ->patch(route('raw-batches.update-department', $batch), [
                 'department_id' => $deptB->id,
             ])
@@ -181,7 +160,7 @@ describe('RawMaterialBatchController show() — строка «Отдел»', fu
         $deptA = Department::create(['name' => 'ЦехОсобый', 'code' => 'TSEH']);
         $batch = makeBatchForDeptChange($deptA);
 
-        $this->actingAs(makeMasterForBatchDeptChange($deptA))
+        $this->actingAs(Access::master($deptA, 'raw-batches'))
             ->get(route('raw-batches.show', $batch))
             ->assertStatus(200)
             ->assertDontSee(route('raw-batches.update-department', $batch))

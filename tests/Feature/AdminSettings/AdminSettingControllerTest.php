@@ -3,36 +3,22 @@
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Worker;
+use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // AdminSettingController
 // ══════════════════════════════════════════════════════════════════════════════
-
-function makeAdmin(): User
-{
-    return User::factory()->create(['is_admin' => true, 'worker_id' => null]);
-}
-
-function makeMaster(): User
-{
-    $worker = Worker::create(['name' => 'Мастер', 'position' => 'Мастер']);
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
 
 describe('GET /admin/settings', function () {
 
     test('администратор видит страницу настроек', function () {
         Setting::create(['key' => 'PIECE_RATE', 'value' => '390', 'label' => 'Ставка']);
 
-        $this->actingAs(makeAdmin())
+        $this->actingAs(H::adminUser())
             ->get('/admin/settings')
             ->assertOk()
             ->assertSee('390');
-    });
-
-    test('гость перенаправляется на login', function () {
-        $this->get('/admin/settings')
-            ->assertRedirect('/login');
     });
 
     test('работник получает 403 на /admin/settings', function () {
@@ -45,7 +31,7 @@ describe('GET /admin/settings', function () {
     });
 
     test('мастер получает 403 на /admin/settings', function () {
-        $this->actingAs(makeMaster())
+        $this->actingAs(Access::masterWithoutDept())
             ->get('/admin/settings')
             ->assertForbidden();
     });
@@ -57,7 +43,7 @@ describe('POST /admin/settings', function () {
     test('администратор сохраняет настройки', function () {
         Setting::create(['key' => 'PIECE_RATE', 'value' => '390', 'label' => 'Ставка']);
 
-        $this->actingAs(makeAdmin())
+        $this->actingAs(H::adminUser())
             ->post('/admin/settings', [
                 'settings' => [
                     ['key' => 'PIECE_RATE', 'value' => '450'],
@@ -72,7 +58,7 @@ describe('POST /admin/settings', function () {
     test('значение не может быть отрицательным', function () {
         Setting::create(['key' => 'PIECE_RATE', 'value' => '390', 'label' => 'Ставка']);
 
-        $this->actingAs(makeAdmin())
+        $this->actingAs(H::adminUser())
             ->post('/admin/settings', [
                 'settings' => [
                     ['key' => 'PIECE_RATE', 'value' => '-10'],

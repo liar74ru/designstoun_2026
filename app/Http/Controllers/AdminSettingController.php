@@ -76,9 +76,8 @@ class AdminSettingController extends Controller
             }
         }
 
-        return redirect()
-            ->route('admin.settings.index')
-            ->with('success', 'Склады отделов сохранены.');
+        // Форма складов живёт в карточке отдела — туда и возвращаемся
+        return back()->with('success', 'Склады отделов сохранены.');
     }
 
 }

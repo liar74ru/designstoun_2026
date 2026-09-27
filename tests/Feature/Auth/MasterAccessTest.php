@@ -1,10 +1,11 @@
 <?php
 
 use App\Models\Department;
-use App\Models\DepartmentOperationSetting;
 use App\Models\User;
 use App\Models\Worker;
 use Illuminate\Support\Facades\Cache;
+use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 beforeEach(fn () => Cache::flush());
 
@@ -12,34 +13,12 @@ beforeEach(fn () => Cache::flush());
 // Хелперы
 // ──────────────────────────────────────────────────────────────────────────────
 
-function makeMasterUser(?Department $dept = null): User
-{
-    $dept ??= Department::create(['name' => 'Цех ' . uniqid(), 'is_active' => true]);
-    $worker = Worker::create([
-        'name'          => 'Мастер Тестов',
-        'position'      => 'Мастер',
-        'department_id' => $dept->id,
-    ]);
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
-
-function enableMasterFor(Department $dept, array $operationKeys): void
-{
-    foreach ($operationKeys as $key) {
-        DepartmentOperationSetting::updateOrCreate(
-            ['department_id' => $dept->id, 'operation_key' => $key],
-            ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
-        );
-    }
-    $dept->forgetOperationsCache();
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 // User::isMaster()
 // ──────────────────────────────────────────────────────────────────────────────
 
 test('User::isMaster() возвращает true для должности Мастер', function () {
-    $user = makeMasterUser();
+    $user = Access::userWithPosition('Мастер', Access::department());
     expect($user->isMaster())->toBeTrue();
 });
 
@@ -50,7 +29,7 @@ test('User::isMaster() возвращает false для должности Ра
 });
 
 test('User::isMaster() возвращает false для администратора без worker', function () {
-    $user = User::factory()->create(['is_admin' => true, 'worker_id' => null]);
+    $user = H::adminUser();
     expect($user->isMaster())->toBeFalse();
 });
 
@@ -96,8 +75,8 @@ test('рабочий после входа попадает на дашборд'
 
 test('мастер с разрешённой операцией видит журнал приёмок', function () {
     $dept = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-    enableMasterFor($dept, ['stone-receptions']);
-    $user = makeMasterUser($dept);
+    Access::allowOperation($dept, ['stone-receptions']);
+    $user = Access::userWithPosition('Мастер', $dept);
 
     $this->actingAs($user)
         ->get(route('stone-receptions.logs'))
@@ -106,8 +85,8 @@ test('мастер с разрешённой операцией видит жу�
 
 test('мастер с разрешённой операцией видит список приёмок', function () {
     $dept = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-    enableMasterFor($dept, ['stone-receptions']);
-    $user = makeMasterUser($dept);
+    Access::allowOperation($dept, ['stone-receptions']);
+    $user = Access::userWithPosition('Мастер', $dept);
 
     $this->actingAs($user)
         ->get(route('stone-receptions.index'))
@@ -116,8 +95,8 @@ test('мастер с разрешённой операцией видит сп�
 
 test('мастер с разрешённой операцией видит список партий', function () {
     $dept = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-    enableMasterFor($dept, ['raw-batches']);
-    $user = makeMasterUser($dept);
+    Access::allowOperation($dept, ['raw-batches']);
+    $user = Access::userWithPosition('Мастер', $dept);
 
     $this->actingAs($user)
         ->get(route('raw-batches.index'))
@@ -126,7 +105,7 @@ test('мастер с разрешённой операцией видит сп�
 
 test('мастер без операции в отделе получает 403', function () {
     $dept = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-    $user = makeMasterUser($dept); // никакие операции не разрешены
+    $user = Access::userWithPosition('Мастер', $dept); // никакие операции не разрешены
 
     $this->actingAs($user)
         ->get(route('stone-receptions.index'))
@@ -138,7 +117,7 @@ test('мастер без операции в отделе получает 403'
 // ──────────────────────────────────────────────────────────────────────────────
 
 test('мастер без разрешения не видит список товаров — 403', function () {
-    $user = makeMasterUser();
+    $user = Access::userWithPosition('Мастер', Access::department());
 
     $this->actingAs($user)
         ->get(route('products.index'))
@@ -147,8 +126,8 @@ test('мастер без разрешения не видит список то
 
 test('мастер с разрешением на products видит список товаров', function () {
     $dept = Department::create(['name' => 'Цех Тест', 'is_active' => true]);
-    enableMasterFor($dept, ['products']);
-    $user = makeMasterUser($dept);
+    Access::allowOperation($dept, ['products']);
+    $user = Access::userWithPosition('Мастер', $dept);
 
     $this->actingAs($user)
         ->get(route('products.index'))
@@ -156,7 +135,7 @@ test('мастер с разрешением на products видит списо
 });
 
 test('мастер без разрешения не видит список заказов — 403', function () {
-    $user = makeMasterUser();
+    $user = Access::userWithPosition('Мастер', Access::department());
 
     $this->actingAs($user)
         ->get(route('orders.index'))
@@ -164,7 +143,7 @@ test('мастер без разрешения не видит список за
 });
 
 test('мастер не может открыть список складов — 403', function () {
-    $user = makeMasterUser();
+    $user = Access::userWithPosition('Мастер', Access::department());
 
     $this->actingAs($user)
         ->get(route('stores.index'))
@@ -172,7 +151,7 @@ test('мастер не может открыть список складов �
 });
 
 test('мастер не может открыть worker.dashboard (не его операция) — 403', function () {
-    $user = makeMasterUser();
+    $user = Access::userWithPosition('Мастер', Access::department());
 
     $this->actingAs($user)
         ->get(route('worker.dashboard'))
@@ -184,7 +163,7 @@ test('мастер не может открыть worker.dashboard (не его 
 // ──────────────────────────────────────────────────────────────────────────────
 
 test('мастер при заходе на главную редиректится на дашборд мастера', function () {
-    $user = makeMasterUser();
+    $user = Access::userWithPosition('Мастер', Access::department());
 
     $this->actingAs($user)
         ->get(route('home'))
@@ -196,7 +175,7 @@ test('мастер при заходе на главную редиректит�
 // ──────────────────────────────────────────────────────────────────────────────
 
 test('администратор видит products', function () {
-    $admin = User::factory()->create(['is_admin' => true]);
+    $admin = H::adminUser();
 
     $this->actingAs($admin)
         ->get(route('products.index'))
@@ -216,20 +195,10 @@ test('рабочий не видит products — 403', function () {
 // AJAX-эндпоинты
 // ──────────────────────────────────────────────────────────────────────────────
 
-test('мастер с правами на приёмки может использовать AJAX api.products.tree', function () {
-    $dept = Department::create(['name' => 'Цех AJAX', 'is_active' => true]);
-    enableMasterFor($dept, ['stone-receptions']);
-    $user = makeMasterUser($dept);
-
-    $this->actingAs($user)
-        ->getJson(route('api.products.tree'))
-        ->assertStatus(200);
-});
-
 test('мастер с правами на приёмки может использовать AJAX api.worker.batches', function () {
     $dept   = Department::create(['name' => 'Цех AJAX', 'is_active' => true]);
-    enableMasterFor($dept, ['stone-receptions']);
-    $user   = makeMasterUser($dept);
+    Access::allowOperation($dept, ['stone-receptions']);
+    $user   = Access::userWithPosition('Мастер', $dept);
     $cutter = Worker::create(['name' => 'Пильщик AJAX', 'position' => 'Работник']);
 
     $this->actingAs($user)

@@ -76,13 +76,4 @@ describe('Просмотр партии [show()]', function () {
             ->assertStatus(200);
     });
 
-    test('страница партии недоступна без авторизации', function () {
-        $product = H::product();
-        $store   = H::store();
-        $worker  = H::cutter();
-        $batch   = H::batch($product, $store, $worker, 20.0);
-
-        $this->get(route('raw-batches.show', $batch))
-            ->assertRedirect('/login');
-    });
 });

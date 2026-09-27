@@ -3,9 +3,9 @@
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\Store;
-use App\Models\User;
 use App\Models\Worker;
 use App\Services\RawMaterialBatchService;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // Хелпер: создать партию с заданными параметрами
 function makeWorkerProductBatch(array $attrs = []): RawMaterialBatch
@@ -109,7 +109,7 @@ test('API возвращает данные партии для авторизо
         'initial_quantity'   => 12,
         'remaining_quantity' => 5,
     ]);
-    $user = User::factory()->create(['is_admin' => true]);
+    $user = H::adminUser();
 
     $this->actingAs($user)
         ->getJson("/api/workers/{$worker->id}/batch-by-product?product_id={$product->id}")
@@ -123,7 +123,7 @@ test('API возвращает данные партии для авторизо
 test('API возвращает null если рабочей партии нет', function () {
     $worker  = Worker::create(['name' => 'Орлов', 'position' => 'Работник']);
     $product = Product::factory()->create();
-    $user    = User::factory()->create(['is_admin' => true]);
+    $user    = H::adminUser();
 
     $response = $this->actingAs($user)
         ->getJson("/api/workers/{$worker->id}/batch-by-product?product_id={$product->id}")
@@ -134,7 +134,7 @@ test('API возвращает null если рабочей партии нет'
 
 test('API возвращает null без product_id', function () {
     $worker = Worker::create(['name' => 'Гусев', 'position' => 'Работник']);
-    $user   = User::factory()->create(['is_admin' => true]);
+    $user   = H::adminUser();
 
     $response = $this->actingAs($user)
         ->getJson("/api/workers/{$worker->id}/batch-by-product")

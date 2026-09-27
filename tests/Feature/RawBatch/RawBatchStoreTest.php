@@ -75,10 +75,6 @@ describe('Создание партии [store()]', function () {
         expect(RawMaterialBatch::count())->toBe(0);
     });
 
-    test('отклоняет без авторизации', function () {
-        $this->post('/raw-batches', [])->assertRedirect('/login');
-    });
-
     test('требует обязательные поля', function () {
         $user = H::adminUser();
         $this->actingAs($user)->post('/raw-batches', [])

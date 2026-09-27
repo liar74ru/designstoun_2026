@@ -1,12 +1,12 @@
 <?php
 
-use App\Models\User;
 use App\Models\Worker;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\RawMaterialBatch;
 use App\Services\RawMaterialBatchService;
 use Carbon\Carbon;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // generateBatchNumber — автономер партии
@@ -81,7 +81,7 @@ test('партии прошлой недели не влияют на счётч
 
 test('API возвращает следующий номер партии для авторизованного', function () {
     $worker = Worker::create(['name' => 'Морозов', 'position' => 'Работник']);
-    $user   = User::factory()->create(['is_admin' => true]);
+    $user   = H::adminUser();
 
     $this->actingAs($user)
         ->getJson("/api/workers/{$worker->id}/next-batch-number")

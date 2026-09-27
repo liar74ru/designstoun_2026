@@ -7,6 +7,7 @@ use App\Models\StoneReception;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
  * Часть B: админ может точечно исправить приёмщика (receiver_id) в существующей записи
@@ -49,7 +50,7 @@ function makeReceptionLogForReceiverTest(int $receiverId): ReceptionLog
 test('админ меняет приёмщика в записи журнала', function () {
     $master1 = Worker::create(['name' => 'Мастер 1', 'position' => 'Мастер']);
     $master2 = Worker::create(['name' => 'Мастер 2', 'position' => 'Мастер']);
-    $admin   = User::factory()->create(['is_admin' => true]);
+    $admin   = H::adminUser();
 
     $log = makeReceptionLogForReceiverTest($master1->id);
 
@@ -77,7 +78,7 @@ test('не-администратор не может сменить приём�
 
 test('невалидный receiver_id отклоняется', function () {
     $master1 = Worker::create(['name' => 'Мастер 1', 'position' => 'Мастер']);
-    $admin   = User::factory()->create(['is_admin' => true]);
+    $admin   = H::adminUser();
 
     $log = makeReceptionLogForReceiverTest($master1->id);
 

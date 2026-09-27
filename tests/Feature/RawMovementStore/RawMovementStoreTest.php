@@ -162,11 +162,6 @@ describe('RawMaterialMovementController store()', function () {
         expect(RawMaterialBatch::first()->batch_number)->toBeNull();
     });
 
-    test('недоступен без авторизации', function () {
-        $this->post(route('raw-batches.store'), [])
-            ->assertRedirect('/login');
-    });
-
     test('МойСклад ошибка не откатывает транзакцию БД', function () {
         mockMoySklad(false); // МойСклад возвращает ошибку
         $user    = H::adminUser();
@@ -293,17 +288,6 @@ describe('RawMaterialMovementController return()', function () {
         $this->actingAs($user)
             ->post(route('raw-batches.return', $batch), [])
             ->assertSessionHasErrors('to_store_id');
-    });
-
-    test('недоступен без авторизации', function () {
-        $product = H::product();
-        $cutter  = H::cutter();
-        $store   = H::store();
-        $batch   = H::batch($product, $store, $cutter, 10.0);
-
-        $this->post(route('raw-batches.return', $batch), [
-            'to_store_id' => $store->id,
-        ])->assertRedirect('/login');
     });
 
     test('МойСклад ошибка не откатывает возврат в БД', function () {

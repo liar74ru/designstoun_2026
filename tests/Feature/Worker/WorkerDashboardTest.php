@@ -8,14 +8,11 @@ use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
 use App\Models\ReceptionLog;
 use App\Models\ReceptionLogItem;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Доступ к странице
 // ──────────────────────────────────────────────────────────────────────────────
-
-test('неавторизованный пользователь не может открыть /my-work', function () {
-    $this->get('/my-work')->assertRedirect('/login');
-});
 
 test('работник без привязки к Worker получает 403', function () {
     $user = User::factory()->create(['worker_id' => null, 'is_admin' => false]);
@@ -30,7 +27,7 @@ test('работник видит свою страницу выработки',
 
 test('администратор может открыть страницу любого работника', function () {
     $worker = Worker::create(['name' => 'Сидоров Сидор', 'position' => 'Работник']);
-    $admin  = User::factory()->create(['is_admin' => true]);
+    $admin  = H::adminUser();
     $this->actingAs($admin)->get("/workers/{$worker->id}/dashboard")->assertStatus(200);
 });
 

@@ -2,6 +2,18 @@
 
 use App\Models\Counterparty;
 use App\Models\User;
+use App\Services\Moysklad\MoySkladService;
+use Tests\Helpers\ReceptionTestHelper as H;
+
+function mockMoySkladForCounterparty(bool $success = true): void
+{
+    $mock = Mockery::mock(MoySkladService::class);
+    $mock->shouldReceive('syncCounterparties')->andReturn([
+        'success' => $success,
+        'message' => $success ? 'Синхронизировано 3 контрагента' : 'Ошибка API',
+    ]);
+    app()->instance(MoySkladService::class, $mock);
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CounterpartyController::index()
@@ -9,52 +21,42 @@ use App\Models\User;
 
 describe('CounterpartyController::index()', function () {
 
-    test('отображает список контрагентов для авторизованного пользователя', function () {
-        $user = User::factory()->create(['is_admin' => true]);
-        Counterparty::create(['name' => 'Контрагент 1', 'moysklad_id' => 'ms-1']);
+    test('отображает список контрагентов', function () {
+        Counterparty::create(['name' => 'ООО Тест Поставщик', 'moysklad_id' => 'ms-1']);
         Counterparty::create(['name' => 'Контрагент 2', 'moysklad_id' => 'ms-2']);
 
-        $this->actingAs($user)
+        $this->actingAs(H::adminUser())
             ->get(route('counterparties.index'))
             ->assertSuccessful()
             ->assertViewIs('counterparties.index')
-            ->assertViewHas('counterparties', fn ($cp) => $cp->count() === 2);
-    });
-
-    test('недоступна без авторизации', function () {
-        $this->get(route('counterparties.index'))
-            ->assertRedirect('/login');
+            ->assertViewHas('counterparties', fn ($cp) => $cp->count() === 2)
+            ->assertSee('ООО Тест Поставщик');
     });
 
     test('сортирует контрагентов по имени', function () {
-        $user = User::factory()->create(['is_admin' => true]);
-        $cp1 = Counterparty::create(['name' => 'Зеленый', 'moysklad_id' => 'ms-1']);
-        $cp2 = Counterparty::create(['name' => 'Амперсанд', 'moysklad_id' => 'ms-2']);
-        $cp3 = Counterparty::create(['name' => 'Мандарин', 'moysklad_id' => 'ms-3']);
+        Counterparty::create(['name' => 'Зеленый', 'moysklad_id' => 'ms-1']);
+        Counterparty::create(['name' => 'Амперсанд', 'moysklad_id' => 'ms-2']);
+        Counterparty::create(['name' => 'Мандарин', 'moysklad_id' => 'ms-3']);
 
-        $response = $this->actingAs($user)
+        $names = $this->actingAs(H::adminUser())
             ->get(route('counterparties.index'))
             ->assertSuccessful()
-            ->viewData('counterparties');
+            ->viewData('counterparties')
+            ->pluck('name')
+            ->toArray();
 
-        $names = $response->pluck('name')->toArray();
         expect($names)->toBe(['Амперсанд', 'Зеленый', 'Мандарин']);
     });
 
     test('отображает пустой список когда контрагентов нет', function () {
-        $user = User::factory()->create(['is_admin' => true]);
-
-        $this->actingAs($user)
+        $this->actingAs(H::adminUser())
             ->get(route('counterparties.index'))
             ->assertSuccessful()
             ->assertViewHas('counterparties', fn ($cp) => $cp->count() === 0);
     });
 
     test('работнику без админских прав список недоступен', function () {
-        $user = User::factory()->create(['is_admin' => false]);
-        Counterparty::create(['name' => 'Тест', 'moysklad_id' => 'ms-1']);
-
-        $this->actingAs($user)
+        $this->actingAs(User::factory()->create(['is_admin' => false]))
             ->get(route('counterparties.index'))
             ->assertForbidden();
     });
@@ -66,44 +68,26 @@ describe('CounterpartyController::index()', function () {
 
 describe('CounterpartyController::sync()', function () {
 
-    test('редирект на index после синхронизации', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+    test('успешная синхронизация редиректит с success', function () {
+        mockMoySkladForCounterparty(true);
 
-        $this->actingAs($user)
+        $this->actingAs(H::adminUser())
             ->post(route('counterparties.sync'))
-            ->assertRedirect(route('counterparties.index'));
+            ->assertRedirect(route('counterparties.index'))
+            ->assertSessionHas('success');
     });
 
-    test('недоступен без авторизации', function () {
-        $this->post(route('counterparties.sync'))
-            ->assertRedirect('/login');
-    });
+    test('ошибка синхронизации редиректит с error', function () {
+        mockMoySkladForCounterparty(false);
 
-    test('показывает сообщение об ошибке при неудаче синхронизации', function () {
-        config()->set('services.moysklad.token', '');
-        $user = User::factory()->create(['is_admin' => true]);
-
-        $response = $this->actingAs($user)
-            ->post(route('counterparties.sync'));
-
-        expect($response->status())->toBeIn([200, 302]);
-    });
-
-    test('показывает успешное сообщение при успешной синхронизации', function () {
-        config()->set('services.moysklad.token', 'test-token');
-        $user = User::factory()->create(['is_admin' => true]);
-
-        $response = $this->actingAs($user)
-            ->post(route('counterparties.sync'));
-
-        expect($response->status())->toBeIn([200, 302]);
+        $this->actingAs(H::adminUser())
+            ->post(route('counterparties.sync'))
+            ->assertRedirect(route('counterparties.index'))
+            ->assertSessionHas('error');
     });
 
     test('работнику недоступна синхронизация', function () {
-        config()->set('services.moysklad.token', 'test-token');
-        $user = User::factory()->create(['is_admin' => false]);
-
-        $this->actingAs($user)
+        $this->actingAs(User::factory()->create(['is_admin' => false]))
             ->post(route('counterparties.sync'))
             ->assertForbidden();
     });

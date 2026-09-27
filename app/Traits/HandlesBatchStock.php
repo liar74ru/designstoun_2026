@@ -29,15 +29,6 @@ trait HandlesBatchStock
     }
 
     /**
-     * Проверяет достаточно ли сырья в партии
-     */
-    protected function checkBatchStock(int $batchId, float $requiredQuantity): bool
-    {
-        $batch = RawMaterialBatch::find($batchId);
-        return $batch && $batch->remaining_quantity >= $requiredQuantity;
-    }
-
-    /**
      * Обрабатывает изменения в партии сырья при обновлении приёмки.
      * Возвращает старое количество в старую партию, списывает новое из новой.
      * Статус партии не меняется — только вручную через markAsUsed/markAsInWork.

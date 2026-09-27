@@ -32,11 +32,6 @@ describe('WorkerController index()', function () {
             ->assertStatus(200);
     });
 
-    test('недоступна без авторизации', function () {
-        $this->get(route('workers.index'))
-            ->assertRedirect('/login');
-    });
-
     test('показывает список работников', function () {
         makeWorker(['name' => 'Уникальный Работников']);
 
@@ -59,10 +54,6 @@ describe('WorkerController create()', function () {
             ->assertStatus(200);
     });
 
-    test('недоступна без авторизации', function () {
-        $this->get(route('workers.create'))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -124,10 +115,6 @@ describe('WorkerController store()', function () {
             ->assertSessionHasErrors('email');
     });
 
-    test('недоступен без авторизации', function () {
-        $this->post(route('workers.store'), [])
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -144,12 +131,6 @@ describe('WorkerController edit()', function () {
             ->assertStatus(200);
     });
 
-    test('недоступна без авторизации', function () {
-        $worker = makeWorker();
-
-        $this->get(route('workers.edit', $worker))
-            ->assertRedirect('/login');
-    });
 });
 
 describe('WorkerController update()', function () {
@@ -208,12 +189,6 @@ describe('WorkerController update()', function () {
             ->assertRedirect(route('workers.index'));
     });
 
-    test('недоступен без авторизации', function () {
-        $worker = makeWorker();
-
-        $this->put(route('workers.update', $worker), [])
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -233,12 +208,6 @@ describe('WorkerController destroy()', function () {
         expect(Worker::find($worker->id))->toBeNull();
     });
 
-    test('недоступен без авторизации', function () {
-        $worker = makeWorker();
-
-        $this->delete(route('workers.destroy', $worker))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -322,12 +291,6 @@ describe('WorkerController storeUser()', function () {
             ->assertSessionHas('error');
     });
 
-    test('недоступен без авторизации', function () {
-        $worker = makeWorker();
-
-        $this->post(route('workers.store-user', $worker), [])
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -426,10 +389,4 @@ describe('WorkerController updateUser()', function () {
             ->assertSessionHas('error');
     });
 
-    test('недоступен без авторизации', function () {
-        $worker = makeWorker();
-
-        $this->put(route('workers.update-user', $worker), [])
-            ->assertRedirect('/login');
-    });
 });

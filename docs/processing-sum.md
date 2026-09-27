@@ -47,19 +47,19 @@ masterSalaryTotal = Σ (item->master_cost_per_m2 × item->quantity)
 ```
 
 `master_cost_per_m2` фиксируется в момент создания позиции приёмки через
-`StoneReceptionItem::computeMasterCost(isUndercut, departmentId, product)`:
+`App\Support\ItemCost::compute()` (или `computeFromBase()` при правке коэффициента):
 
 ```
 base            = MASTER_BASE_RATE отдела (фолбэк — глобальная, default 100)
-masterCostPerM2 = ОКРУГЛВНИЗ((base + base×17%×product.master_cost_coeff) / 10) × 10
-                + (isUndercut ? MASTER_UNDERCUT_RATE отдела : 0)
+masterCoeff     = product.master_cost_coeff + Σ master_coeff_delta сработавших правил отдела
+masterCostPerM2 = ОКРУГЛВНИЗ((base + base×17%×masterCoeff) / 10) × 10
 ```
 
 - `master_cost_coeff` — атрибут `masterCostCoeff` продукта из МойСклад. Атрибут не заведён
   или не заполнен → `0` → ставка равна базовой. Так надбавки, зависящие от SKU
   (например, мелкая плитка), задаются точечно на продукте.
-- Надбавка за подкол — флаг-чекбокс, не зависит от SKU, поэтому прибавляется **после**
-  округления по 10.
+- Подкол и другие надбавки — правила отдела (`department_modifiers`), слагаемое к
+  коэффициенту мастера; считает `App\Support\ModifierEngine::masterCoeff()`.
 - Формула — общая с зарплатой пильщика: `App\Support\RateFormula::stepped()`.
 - Флаг `is_small_tile` на ставку больше не влияет и остаётся только UI-индикатором.
 

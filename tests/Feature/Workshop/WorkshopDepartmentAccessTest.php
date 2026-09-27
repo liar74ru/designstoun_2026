@@ -4,10 +4,10 @@ use App\Models\Department;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
 use App\Models\Product;
-use App\Models\User;
 use App\Models\Worker;
 use Illuminate\Support\Str;
 use Tests\Helpers\ReceptionTestHelper as H;
+use Tests\Helpers\AccessTestHelper as Access;
 
 function makeWorkshopInDept(?Department $dept, string $tag): Workshop
 {
@@ -58,33 +58,6 @@ function makeWorkshopInDept(?Department $dept, string $tag): Workshop
     return $workshop;
 }
 
-function makeMasterPkg(Department $dept, string $name = 'Мастер PKG'): User
-{
-    \App\Models\DepartmentOperationSetting::updateOrCreate(
-        ['department_id' => $dept->id, 'operation_key' => 'workshops'],
-        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
-    );
-    $dept->forgetOperationsCache();
-
-    $worker = Worker::create([
-        'name'          => $name,
-        'position'      => 'Мастер',
-        'department_id' => $dept->id,
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
-
-function makeMasterPkgNoDept(): User
-{
-    $worker = Worker::create([
-        'name'      => 'Мастер PKG без отдела',
-        'position' => 'Мастер',
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 
 test('мастер видит только операции своего отдела', function () {
@@ -94,7 +67,7 @@ test('мастер видит только операции своего отд�
     makeWorkshopInDept($deptA, 'PKG-OWN');
     makeWorkshopInDept($deptB, 'PKG-FOREIGN');
 
-    $this->actingAs(makeMasterPkg($deptA))
+    $this->actingAs(Access::master($deptA, 'workshops'))
         ->get(route('workshops.index'))
         ->assertStatus(200)
         ->assertSee('Продукт PKG-OWN')
@@ -105,7 +78,7 @@ test('мастер без отдела не имеет доступа к цех�
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
     makeWorkshopInDept($deptA, 'PKG-ANY');
 
-    $this->actingAs(makeMasterPkgNoDept())
+    $this->actingAs(Access::masterWithoutDept())
         ->get(route('workshops.index'))
         ->assertForbidden();
 });
@@ -117,7 +90,7 @@ test('мастер может через фильтр увидеть опера�
     makeWorkshopInDept($deptA, 'PKG-MINE');
     makeWorkshopInDept($deptB, 'PKG-OTHER');
 
-    $this->actingAs(makeMasterPkg($deptA))
+    $this->actingAs(Access::master($deptA, 'workshops'))
         ->get(route('workshops.index', ['filter' => ['department_id' => [$deptB->id]]]))
         ->assertStatus(200)
         ->assertSee('Продукт PKG-OTHER')
@@ -145,7 +118,7 @@ test('операция с department_id=NULL невидима мастеру', f
 
     makeWorkshopInDept(null, 'PKG-HIDDEN-NULL');
 
-    $this->actingAs(makeMasterPkg($deptA))
+    $this->actingAs(Access::master($deptA, 'workshops'))
         ->get(route('workshops.index'))
         ->assertStatus(200)
         ->assertDontSee('Продукт PKG-HIDDEN-NULL');

@@ -6,15 +6,11 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Support\ModifierEngine;
 use Illuminate\Support\Facades\Cache;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CRUD правил себестоимости: /admin/departments/{department}/modifiers
 // ══════════════════════════════════════════════════════════════════════════════
-
-function modifierAdmin(): User
-{
-    return User::factory()->create(['is_admin' => true, 'worker_id' => null]);
-}
 
 /** Минимально валидный набор полей формы. */
 function modifierPayload(array $overrides = []): array
@@ -32,7 +28,7 @@ function modifierPayload(array $overrides = []): array
 
 function storeModifier($test, Department $dept, array $overrides = [])
 {
-    return $test->actingAs(modifierAdmin())
+    return $test->actingAs(H::adminUser())
         ->post(route('admin.departments.modifiers.store', $dept), modifierPayload($overrides));
 }
 
@@ -74,7 +70,7 @@ describe('Создание', function () {
         $payload = modifierPayload();
         unset($payload['is_active']);
 
-        $this->actingAs(modifierAdmin())
+        $this->actingAs(H::adminUser())
             ->post(route('admin.departments.modifiers.store', $this->dept), $payload);
 
         expect($this->dept->modifiers()->first()->is_active)->toBeFalse();
@@ -142,7 +138,7 @@ describe('Правка и удаление', function () {
     });
 
     test('правка меняет значения и применяется сразу', function () {
-        $this->actingAs(modifierAdmin())
+        $this->actingAs(H::adminUser())
             ->patch(
                 route('admin.departments.modifiers.update', [$this->dept, $this->rule]),
                 modifierPayload(['key' => 'undercut', 'worker_coeff_delta' => '-3']),
@@ -156,7 +152,7 @@ describe('Правка и удаление', function () {
     });
 
     test('свой ключ при правке не считается дублем', function () {
-        $this->actingAs(modifierAdmin())
+        $this->actingAs(H::adminUser())
             ->patch(
                 route('admin.departments.modifiers.update', [$this->dept, $this->rule]),
                 modifierPayload(['key' => 'undercut', 'name' => 'Подкол > 80%']),
@@ -169,7 +165,7 @@ describe('Правка и удаление', function () {
     test('удаление убирает правило и сбрасывает кэш', function () {
         expect(ModifierEngine::rulesFor($this->dept->id, 'reception'))->toHaveCount(1);
 
-        $this->actingAs(modifierAdmin())
+        $this->actingAs(H::adminUser())
             ->delete(route('admin.departments.modifiers.destroy', [$this->dept, $this->rule]))
             ->assertRedirect(route('admin.departments.show', $this->dept));
 
@@ -180,7 +176,7 @@ describe('Правка и удаление', function () {
     test('правило чужого отдела — 404', function () {
         $other = Department::create(['name' => 'Чужой', 'is_active' => true]);
 
-        $this->actingAs(modifierAdmin())
+        $this->actingAs(H::adminUser())
             ->get(route('admin.departments.modifiers.edit', [$other, $this->rule]))
             ->assertNotFound();
     });
@@ -207,7 +203,7 @@ describe('Карточка отдела', function () {
     test('правила отдела показаны в списке', function () {
         storeModifier($this, $this->dept, ['key' => 'undercut', 'name' => 'Подкол > 80%']);
 
-        $this->actingAs(modifierAdmin())
+        $this->actingAs(H::adminUser())
             ->get(route('admin.departments.show', $this->dept))
             ->assertOk()
             ->assertViewHas('modifiers')
@@ -218,7 +214,7 @@ describe('Карточка отдела', function () {
         storeModifier($this, $this->dept, ['color' => '#FFC107']);
         $rule = $this->dept->modifiers()->first();
 
-        $html = $this->actingAs(modifierAdmin())
+        $html = $this->actingAs(H::adminUser())
             ->get(route('admin.departments.modifiers.edit', [$this->dept, $rule]))
             ->assertOk()
             ->getContent();
@@ -230,7 +226,7 @@ describe('Карточка отдела', function () {
     });
 
     test('отдел без правил показывает предупреждение', function () {
-        $this->actingAs(modifierAdmin())
+        $this->actingAs(H::adminUser())
             ->get(route('admin.departments.show', $this->dept))
             ->assertOk()
             ->assertSee('Правила не заданы', false);

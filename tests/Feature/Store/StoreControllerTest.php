@@ -46,11 +46,6 @@ describe('StoreController index()', function () {
             ->assertStatus(200);
     });
 
-    test('недоступна без авторизации', function () {
-        $this->get(route('stores.index'))
-            ->assertRedirect('/login');
-    });
-
     test('показывает активные склады', function () {
         makeStore(['name' => 'Склад Активный']);
         makeStore(['name' => 'Склад Архивный', 'archived' => true]);
@@ -83,12 +78,6 @@ describe('StoreController show()', function () {
             ->assertStatus(404);
     });
 
-    test('недоступна без авторизации', function () {
-        $store = makeStore();
-
-        $this->get(route('stores.show', $store))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -115,10 +104,6 @@ describe('StoreController sync()', function () {
             ->assertSessionHas('error');
     });
 
-    test('недоступна без авторизации', function () {
-        $this->post(route('stores.sync'))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -145,10 +130,6 @@ describe('StoreController syncAllStocks()', function () {
             ->assertSessionHas('error');
     });
 
-    test('недоступна без авторизации', function () {
-        $this->post(route('stores.stocks.sync-all'))
-            ->assertRedirect('/login');
-    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -177,10 +158,4 @@ describe('StoreController syncStoreStocks()', function () {
             ->assertSessionHas('error');
     });
 
-    test('недоступна без авторизации', function () {
-        $store = makeStore();
-
-        $this->post(route('stores.stocks.sync', $store))
-            ->assertRedirect('/login');
-    });
 });

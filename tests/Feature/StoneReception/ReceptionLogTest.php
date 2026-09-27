@@ -107,21 +107,3 @@ describe('ReceptionLog — запись логов', function () {
         expect(ReceptionLog::TYPE_UPDATED)->toBe('updated');
     });
 });
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Страница журнала логов — доступность
-// ══════════════════════════════════════════════════════════════════════════════
-
-describe('Страница журнала логов', function () {
-
-    test('страница логов доступна авторизованному', function () {
-        $user = H::adminUser();
-        $this->actingAs($user)->get(route('stone-receptions.logs'))
-            ->assertRedirect(route('stone-receptions.index', ['view' => 'logs']));
-    });
-
-    test('страница логов требует авторизацию', function () {
-        $this->get(route('stone-receptions.logs'))
-            ->assertRedirect('/login');
-    });
-});

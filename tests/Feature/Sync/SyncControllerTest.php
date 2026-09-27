@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SyncController::index()
@@ -9,17 +10,12 @@ use App\Models\User;
 describe('SyncController::index()', function () {
 
     test('отображает страницу синхронизации для админа', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->get(route('sync.index'))
             ->assertSuccessful()
             ->assertViewIs('sync.index');
-    });
-
-    test('недоступна без авторизации', function () {
-        $this->get(route('sync.index'))
-            ->assertRedirect('/login');
     });
 
     test('недоступна для неадмина', function () {

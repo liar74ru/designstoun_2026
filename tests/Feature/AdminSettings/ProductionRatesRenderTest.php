@@ -4,7 +4,6 @@ use App\Models\Department;
 use App\Models\DepartmentSetting;
 use App\Models\Product;
 use App\Models\Setting;
-use App\Models\User;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
 use App\Models\Worker;
@@ -21,11 +20,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  */
 
 beforeEach(fn () => Cache::flush());
-
-function ratesAdmin(): User
-{
-    return User::factory()->create(['is_admin' => true, 'worker_id' => null]);
-}
 
 function ratesWorkshop(?Department $dept = null): Workshop
 {
@@ -50,7 +44,7 @@ function ratesWorkshop(?Department $dept = null): Workshop
 }
 
 test('форма создания операции цеха рендерится и отдаёт ставки в JS', function () {
-    $this->actingAs(ratesAdmin())
+    $this->actingAs(H::adminUser())
         ->get(route('workshops.create'))
         ->assertOk()
         ->assertSee('window.ProductionRates', false)
@@ -58,7 +52,7 @@ test('форма создания операции цеха рендерится
 });
 
 test('страница операции цеха рендерится со ставками', function () {
-    $this->actingAs(ratesAdmin())
+    $this->actingAs(H::adminUser())
         ->get(route('workshops.show', ratesWorkshop()))
         ->assertOk()
         ->assertSee('window.ProductionRates', false);
@@ -74,7 +68,7 @@ test('в JS уходит ставка отдела, а не только гло�
     ]);
     $dept->forgetSettingsCache();
 
-    $this->actingAs(ratesAdmin())
+    $this->actingAs(H::adminUser())
         ->get(route('workshops.create'))
         ->assertOk()
         ->assertSee('"' . $dept->id . '":420', false);
@@ -83,7 +77,7 @@ test('в JS уходит ставка отдела, а не только гло�
 test('коэффициенты приходят актуальными после правки настройки', function () {
     Setting::set('UNDERCUT_PENALTY', '7.25');
 
-    $this->actingAs(ratesAdmin())
+    $this->actingAs(H::adminUser())
         ->get(route('workshops.create'))
         ->assertOk()
         ->assertSee('7.25', false);
@@ -104,7 +98,7 @@ function renderedRulesFor(string $html, int $departmentId): array
 
 test('в JS уходят правила отдела — без них форма не покажет чекбоксы', function () {
     $dept = H::departmentWithModifiers('Резка');
-    $this->actingAs(ratesAdmin());
+    $this->actingAs(H::adminUser());
 
     $rules = renderedRulesFor($this->get(route('workshops.create'))->assertOk()->getContent(), $dept->id);
 
@@ -126,7 +120,7 @@ test('выключенное правило в JS не уходит', function (
     $dept->forgetSettingsCache();
 
     $rules = renderedRulesFor(
-        $this->actingAs(ratesAdmin())->get(route('workshops.create'))->getContent(),
+        $this->actingAs(H::adminUser())->get(route('workshops.create'))->getContent(),
         $dept->id,
     );
 

@@ -6,15 +6,11 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Support\DepartmentSettings;
 use Illuminate\Support\Facades\Cache;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PATCH /admin/departments/{department}/cost-settings
 // ══════════════════════════════════════════════════════════════════════════════
-
-function makeCostAdmin(): User
-{
-    return User::factory()->create(['is_admin' => true, 'worker_id' => null]);
-}
 
 beforeEach(function () {
     Cache::flush();
@@ -22,7 +18,7 @@ beforeEach(function () {
 });
 
 test('администратор сохраняет переопределения отдела', function () {
-    $this->actingAs(makeCostAdmin())
+    $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => [
                 'MASTER_UNDERCUT_RATE' => '95',
@@ -43,7 +39,7 @@ test('пустое поле удаляет переопределение — з
         'value'         => '95',
     ]);
 
-    $this->actingAs(makeCostAdmin())
+    $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => ['MASTER_UNDERCUT_RATE' => ''],
         ])
@@ -54,7 +50,7 @@ test('пустое поле удаляет переопределение — з
 });
 
 test('ключ вне whitelist игнорируется (включая бывшие накладные)', function () {
-    $this->actingAs(makeCostAdmin())
+    $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => ['BLADE_WEAR' => '500', 'ELECTRICITY' => '95', 'HACK_KEY' => '1'],
         ])
@@ -64,7 +60,7 @@ test('ключ вне whitelist игнорируется (включая быв�
 });
 
 test('PIECE_RATE сохраняется как настройка отдела', function () {
-    $this->actingAs(makeCostAdmin())
+    $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => ['PIECE_RATE' => '420'],
         ])
@@ -75,7 +71,7 @@ test('PIECE_RATE сохраняется как настройка отдела',
 });
 
 test('отрицательное значение отклоняется', function () {
-    $this->actingAs(makeCostAdmin())
+    $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => ['MASTER_UNDERCUT_RATE' => '-5'],
         ])
@@ -85,7 +81,7 @@ test('отрицательное значение отклоняется', funct
 });
 
 test('нечисловое значение отклоняется', function () {
-    $this->actingAs(makeCostAdmin())
+    $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => ['MASTER_UNDERCUT_RATE' => 'abc'],
         ])
@@ -111,7 +107,7 @@ test('кэш отдела сбрасывается после сохранени
     // прогреваем кэш
     DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE');
 
-    $this->actingAs(makeCostAdmin())
+    $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => ['MASTER_UNDERCUT_RATE' => '95'],
         ]);

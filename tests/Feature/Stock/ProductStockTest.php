@@ -3,7 +3,6 @@
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\Store;
-use App\Models\User;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // total_quantity — суммирование остатков (тесты с БД, поэтому здесь в Feature)
@@ -99,13 +98,4 @@ test('total_quantity через withSum работает без N+1', function (
 
     $loaded = Product::withSum('stocks', 'quantity')->find($product->id);
     expect($loaded->total_quantity)->toBe(10.0);
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Доступ к списку товаров
-// ──────────────────────────────────────────────────────────────────────────────
-
-test('список товаров доступен авторизованному пользователю', function () {
-    $user = User::factory()->create(['is_admin' => true]);
-    $this->actingAs($user)->get('/products')->assertStatus(200);
 });

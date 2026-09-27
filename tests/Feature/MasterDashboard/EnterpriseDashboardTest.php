@@ -17,6 +17,7 @@ use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
 use Illuminate\Support\Facades\Cache;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
  * Общий дашборд предприятия: агрегация всего производства за период по всем приёмкам,
@@ -128,7 +129,7 @@ test('админ видит агрегированное производств�
     makeEnterpriseReception($deptA, 'Приёмщик А', 10.0);
     makeEnterpriseReception($deptB, 'Приёмщик Б', 5.0);
 
-    $admin = User::factory()->create(['is_admin' => true]);
+    $admin = H::adminUser();
 
     // Голый заход редиректит на текущую неделю — следуем за редиректом.
     $this->actingAs($admin)->followingRedirects()->get(route('admin.enterprise-dashboard'))
@@ -145,7 +146,7 @@ test('админ видит производство цеха на дашбор�
 
     makeEnterpriseWorkshop($dept, 'В', 7.0);
 
-    $admin = User::factory()->create(['is_admin' => true]);
+    $admin = H::adminUser();
 
     $this->actingAs($admin)->followingRedirects()->get(route('admin.enterprise-dashboard'))
         ->assertStatus(200)
@@ -161,7 +162,7 @@ test('производство приёмок и цеха суммируется
     makeEnterpriseReception($dept, 'Приёмщик Г', 10.0);
     makeEnterpriseWorkshop($dept, 'Г', 5.0);
 
-    $admin = User::factory()->create(['is_admin' => true]);
+    $admin = H::adminUser();
 
     $this->actingAs($admin)->followingRedirects()->get(route('admin.enterprise-dashboard'))
         ->assertStatus(200)
@@ -181,7 +182,7 @@ test('фильтр по камню отбирает цеха по сырьевы
     makeEnterpriseWorkshop($deptA, 'КА', 3.0, $stoneA);
     makeEnterpriseWorkshop($deptB, 'КБ', 4.0, $stoneB);
 
-    $admin = User::factory()->create(['is_admin' => true]);
+    $admin = H::adminUser();
 
     $response = $this->actingAs($admin)
         ->get(route('admin.enterprise-dashboard', ['filter' => ['raw_product_id' => $stoneA->id]]));
@@ -205,7 +206,7 @@ test('фильтр по продукту оставляет только стр�
     makeEnterpriseWorkshop($deptA, 'ПА', 5.0, null, $tileB);
     makeEnterpriseReception($deptB, 'Приёмщик ПБ', 4.0, $tileB);
 
-    $admin = User::factory()->create(['is_admin' => true]);
+    $admin = H::adminUser();
 
     $response = $this->actingAs($admin)
         ->get(route('admin.enterprise-dashboard', ['filter' => ['product_id' => $tileA->id]]));
@@ -455,7 +456,7 @@ test('документы без определяемого отдела видн
     entWorkshopNoDept(null, 2.0, 'I');          // упаковщик без отдела
 
     expect(entTotals(entDashboard($this, entMaster([$dept]))))->toBe(['Без отдела' => 5.0]);
-    expect(entTotals(entDashboard($this, User::factory()->create(['is_admin' => true]))))
+    expect(entTotals(entDashboard($this, H::adminUser())))
         ->toBe(['Без отдела' => 5.0]);
 });
 
@@ -507,7 +508,7 @@ test('вкладка «Сырьё»: мастер видит своё и без�
     expect((float) $response->viewData('incomingRawTotal'))->toEqual(15.0);
 
     // Админ видит всё.
-    $admin = entDashboard($this, User::factory()->create(['is_admin' => true]));
+    $admin = entDashboard($this, H::adminUser());
     expect((float) $admin->viewData('incomingRawTotal'))->toEqual(35.0);
 });
 
@@ -543,7 +544,7 @@ test('строки одного товара из приёмки и цеха о�
     makeEnterpriseReception($dept, 'Приёмщик Д', 10.0, $tile);
     makeEnterpriseWorkshop($dept, 'Д', 5.0, null, $tile);
 
-    $admin = User::factory()->create(['is_admin' => true]);
+    $admin = H::adminUser();
 
     $response = $this->actingAs($admin)->followingRedirects()->get(route('admin.enterprise-dashboard'));
     $response->assertStatus(200);

@@ -15,7 +15,9 @@ abstract class MoySkladBaseService
 
     public function __construct()
     {
-        $this->token   = config('services.moysklad.token');
+        // Без MOYSKLAD_TOKEN в .env конфиг отдаёт null — типизированное свойство упало бы
+        // TypeError'ом вместо штатного «токен не установлен».
+        $this->token   = (string) config('services.moysklad.token');
         $this->baseUrl = config('services.moysklad.base_url');
 
         if (empty($this->token)) {

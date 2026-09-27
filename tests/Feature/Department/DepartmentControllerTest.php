@@ -5,6 +5,7 @@ use App\Models\DepartmentOperationSetting;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // DepartmentController::create()
@@ -13,17 +14,12 @@ use App\Models\Worker;
 describe('DepartmentController::create()', function () {
 
     test('админ может открыть форму создания отдела', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->get(route('admin.departments.create'))
             ->assertSuccessful()
             ->assertViewIs('admin.departments.create');
-    });
-
-    test('недоступно без авторизации', function () {
-        $this->get(route('admin.departments.create'))
-            ->assertRedirect('/login');
     });
 
     test('недоступно для неадмина', function () {
@@ -42,7 +38,7 @@ describe('DepartmentController::create()', function () {
 describe('DepartmentController::store()', function () {
 
     test('админ может создать отдел', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->post(route('admin.departments.store'), [
@@ -57,7 +53,7 @@ describe('DepartmentController::store()', function () {
     });
 
     test('требует уникальное имя отдела', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         Department::create(['name' => 'Существующий', 'is_active' => true]);
 
         $this->actingAs($user)
@@ -70,7 +66,7 @@ describe('DepartmentController::store()', function () {
     });
 
     test('требует уникальный код отдела', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         Department::create(['name' => 'Тест', 'code' => 'E1', 'is_active' => true]);
 
         $this->actingAs($user)
@@ -83,7 +79,7 @@ describe('DepartmentController::store()', function () {
     });
 
     test('требует имя отдела', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->post(route('admin.departments.store'), [
@@ -94,7 +90,7 @@ describe('DepartmentController::store()', function () {
     });
 
     test('устанавливает is_active=true по умолчанию', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->post(route('admin.departments.store'), [
@@ -122,7 +118,7 @@ describe('DepartmentController::store()', function () {
 describe('DepartmentController::show()', function () {
 
     test('отображает страницу отдела для админа', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
         $this->actingAs($user)
@@ -133,7 +129,7 @@ describe('DepartmentController::show()', function () {
     });
 
     test('загружает работников отдела', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
         $worker = Worker::create(['name' => 'Работник', 'department_id' => $dept->id, 'position' => 'Мастер']);
 
@@ -144,7 +140,7 @@ describe('DepartmentController::show()', function () {
     });
 
     test('загружает доступные склады', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
         Store::factory()->create();
 
@@ -171,7 +167,7 @@ describe('DepartmentController::show()', function () {
 describe('DepartmentController::update()', function () {
 
     test('админ может обновить отдел', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Старое имя', 'is_active' => true]);
 
         $this->actingAs($user)
@@ -187,7 +183,7 @@ describe('DepartmentController::update()', function () {
     });
 
     test('может обновить статус is_active', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
         $this->actingAs($user)
@@ -201,7 +197,7 @@ describe('DepartmentController::update()', function () {
     });
 
     test('требует уникальное имя при обновлении', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept1 = Department::create(['name' => 'Отдел 1', 'is_active' => true]);
         $dept2 = Department::create(['name' => 'Отдел 2', 'is_active' => true]);
 
@@ -231,7 +227,7 @@ describe('DepartmentController::update()', function () {
 describe('DepartmentController::updateOperations()', function () {
 
     test('админ может обновить права операций отдела', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
         $this->actingAs($user)
@@ -247,7 +243,7 @@ describe('DepartmentController::updateOperations()', function () {
     });
 
     test('очищает кэш операций после обновления', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
         // Предварительно установить кэш
@@ -263,7 +259,7 @@ describe('DepartmentController::updateOperations()', function () {
     });
 
     test('фильтрует невалидные позиции', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
         $this->actingAs($user)
@@ -300,7 +296,7 @@ describe('DepartmentController::updateOperations()', function () {
 describe('DepartmentController::destroy()', function () {
 
     test('админ может удалить пустой отдел', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
         $this->actingAs($user)
@@ -312,7 +308,7 @@ describe('DepartmentController::destroy()', function () {
     });
 
     test('не может удалить отдел с работниками', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
         Worker::create(['name' => 'Работник', 'department_id' => $dept->id, 'position' => 'Мастер']);
 

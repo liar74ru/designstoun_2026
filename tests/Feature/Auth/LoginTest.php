@@ -97,8 +97,9 @@ test('работник после входа может перейти на my-w
     // Входим
     $this->post('/login', ['login' => '79991234567', 'password' => 'password']);
 
-    // Работник может открыть свою страницу выработки
-    $this->actingAs($user)->get('/my-work')->assertStatus(200);
+    // Страница открывается в сессии, созданной входом, — без actingAs
+    $this->assertAuthenticatedAs($user);
+    $this->get('/my-work')->assertStatus(200);
 });
 
 // ──────────────────────────────────────────────────────────────────────────────

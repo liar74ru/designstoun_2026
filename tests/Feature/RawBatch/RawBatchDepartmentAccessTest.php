@@ -2,9 +2,8 @@
 
 use App\Models\Department;
 use App\Models\RawMaterialBatch;
-use App\Models\User;
-use App\Models\Worker;
 use Tests\Helpers\ReceptionTestHelper as H;
+use Tests\Helpers\AccessTestHelper as Access;
 
 function makeBatchInDept(?Department $dept, string $batchNumber): RawMaterialBatch
 {
@@ -18,33 +17,6 @@ function makeBatchInDept(?Department $dept, string $batchNumber): RawMaterialBat
     ]);
 }
 
-function makeMasterRB(Department $dept, string $name = 'Мастер RB'): User
-{
-    \App\Models\DepartmentOperationSetting::updateOrCreate(
-        ['department_id' => $dept->id, 'operation_key' => 'raw-batches'],
-        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
-    );
-    $dept->forgetOperationsCache();
-
-    $worker = Worker::create([
-        'name'          => $name,
-        'position'      => 'Мастер',
-        'department_id' => $dept->id,
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
-
-function makeMasterRBNoDept(): User
-{
-    $worker = Worker::create([
-        'name'      => 'Мастер RB без отдела',
-        'position' => 'Мастер',
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 
 test('мастер видит только партии своего отдела', function () {
@@ -54,7 +26,7 @@ test('мастер видит только партии своего отдел�
     makeBatchInDept($deptA, 'BATCH-OWN');
     makeBatchInDept($deptB, 'BATCH-FOREIGN');
 
-    $this->actingAs(makeMasterRB($deptA))
+    $this->actingAs(Access::master($deptA, 'raw-batches'))
         ->get(route('raw-batches.index'))
         ->assertStatus(200)
         ->assertSee('BATCH-OWN')
@@ -65,7 +37,7 @@ test('мастер без отдела не имеет доступа к пар�
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
     makeBatchInDept($deptA, 'BATCH-ANY');
 
-    $this->actingAs(makeMasterRBNoDept())
+    $this->actingAs(Access::masterWithoutDept())
         ->get(route('raw-batches.index'))
         ->assertForbidden();
 });
@@ -77,7 +49,7 @@ test('мастер может через фильтр увидеть парти�
     makeBatchInDept($deptA, 'BATCH-MINE');
     makeBatchInDept($deptB, 'BATCH-OTHER');
 
-    $this->actingAs(makeMasterRB($deptA))
+    $this->actingAs(Access::master($deptA, 'raw-batches'))
         ->get(route('raw-batches.index', ['filter' => ['department_id' => [$deptB->id]]]))
         ->assertStatus(200)
         ->assertSee('BATCH-OTHER')
@@ -105,7 +77,7 @@ test('партия с department_id=NULL невидима мастеру', funct
 
     makeBatchInDept(null, 'BATCH-HIDDEN-NULL');
 
-    $this->actingAs(makeMasterRB($deptA))
+    $this->actingAs(Access::master($deptA, 'raw-batches'))
         ->get(route('raw-batches.index'))
         ->assertStatus(200)
         ->assertDontSee('BATCH-HIDDEN-NULL');

@@ -4,9 +4,9 @@ use App\Models\Counterparty;
 use App\Models\Department;
 use App\Models\SupplierOrder;
 use App\Models\SupplierOrderItem;
-use App\Models\User;
 use App\Models\Worker;
 use Tests\Helpers\ReceptionTestHelper as H;
+use Tests\Helpers\AccessTestHelper as Access;
 
 function makeOrderInDept(?Department $dept, string $number, ?Worker $receiver = null): SupplierOrder
 {
@@ -34,33 +34,6 @@ function makeOrderInDept(?Department $dept, string $number, ?Worker $receiver = 
     return $order;
 }
 
-function makeMasterUserInDept(Department $dept): User
-{
-    \App\Models\DepartmentOperationSetting::updateOrCreate(
-        ['department_id' => $dept->id, 'operation_key' => 'supplier-orders'],
-        ['enabled' => true, 'config' => ['positions' => ['Мастер']]],
-    );
-    $dept->forgetOperationsCache();
-
-    $worker = Worker::create([
-        'name'          => 'Мастер ' . $dept->name,
-        'position'      => 'Мастер',
-        'department_id' => $dept->id,
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
-
-function makeMasterUserWithoutDept(): User
-{
-    $worker = Worker::create([
-        'name'      => 'Мастер Без Отдела',
-        'position' => 'Мастер',
-    ]);
-
-    return User::factory()->create(['is_admin' => false, 'worker_id' => $worker->id]);
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 
 test('мастер видит только поступления своего отдела', function () {
@@ -70,7 +43,7 @@ test('мастер видит только поступления своего �
     $orderOwn     = makeOrderInDept($deptA, 'OWN-01');
     $orderForeign = makeOrderInDept($deptB, 'FOREIGN-01');
 
-    $this->actingAs(makeMasterUserInDept($deptA))
+    $this->actingAs(Access::master($deptA, 'supplier-orders'))
         ->get(route('supplier-orders.index'))
         ->assertStatus(200)
         ->assertSee('OWN-01')
@@ -81,7 +54,7 @@ test('мастер без отдела не имеет доступа к пос�
     $deptA = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
     makeOrderInDept($deptA, 'ANY-01');
 
-    $this->actingAs(makeMasterUserWithoutDept())
+    $this->actingAs(Access::masterWithoutDept())
         ->get(route('supplier-orders.index'))
         ->assertForbidden();
 });
@@ -93,7 +66,7 @@ test('мастер может выбрать чужой отдел в фильт
     makeOrderInDept($deptA, 'OWN-02');
     makeOrderInDept($deptB, 'FOREIGN-02');
 
-    $this->actingAs(makeMasterUserInDept($deptA))
+    $this->actingAs(Access::master($deptA, 'supplier-orders'))
         ->get(route('supplier-orders.index', ['filter' => ['department_id' => [$deptB->id]]]))
         ->assertStatus(200)
         ->assertSee('FOREIGN-02')
@@ -121,7 +94,7 @@ test('поступление с department_id=NULL невидимо мастер
 
     makeOrderInDept(null, 'NULL-02');
 
-    $this->actingAs(makeMasterUserInDept($deptA))
+    $this->actingAs(Access::master($deptA, 'supplier-orders'))
         ->get(route('supplier-orders.index'))
         ->assertStatus(200)
         ->assertDontSee('NULL-02');

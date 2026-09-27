@@ -128,12 +128,6 @@ class ModifierEngine
         return self::apply($masterBaseCoeff, $applied, DepartmentModifier::ROLE_MASTER);
     }
 
-    /** Сбросить кэш правил отдела. */
-    public static function forget(int $departmentId): void
-    {
-        Cache::forget(self::cacheKey($departmentId));
-    }
-
     /**
      * Ключи ручных правил, отмеченных для позиции ранее — из её снапшота.
      *

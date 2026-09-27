@@ -23,7 +23,7 @@ describe('MoySkladBaseService::hasCredentials()', function () {
     });
 
     test('возвращает false когда токен не установлен', function () {
-        config()->set('services.moysklad.token', '');
+        config()->set('services.moysklad.token', null);
 
         $service = new MoySkladService();
         expect($service->hasCredentials())->toBeFalse();
