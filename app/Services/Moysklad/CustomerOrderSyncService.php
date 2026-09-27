@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Services\OrderChangeService;
 use App\Services\OrderProductionService;
 use App\Support\OrderPriority;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -396,6 +397,80 @@ class CustomerOrderSyncService extends MoySkladBaseService
             $result['message'] = 'Ошибка: ' . $e->getMessage();
 
             Log::error('Исключение при смене статуса заявки', [
+                'order_id' => $order->id,
+                'error'    => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Задать заявке дату готовности — поле «Планируемая дата отгрузки» (deliveryPlannedMoment).
+     *
+     * Пишем без сдвига часового пояса (не через MoyskladMoment): синхронизация кладёт это поле
+     * в БД как есть, и со сдвигом дата после следующей выгрузки съехала бы на 2 часа, а полночь —
+     * на предыдущий день. Время прежней даты сохраняем — меняется только день.
+     *
+     * @return array{success: bool, code: string, message: string}
+     */
+    public function updateDeliveryDate(Order $order, Carbon $date): array
+    {
+        $result = ['success' => false, 'code' => '', 'message' => ''];
+
+        if (! $this->hasCredentials()) {
+            $result['code']    = 'no_credentials';
+            $result['message'] = 'MOYSKLAD_TOKEN не установлен';
+
+            return $result;
+        }
+
+        $current = $order->delivery_planned_at;
+        $moment  = $date->copy()->setTime(
+            $current?->hour ?? 0,
+            $current?->minute ?? 0,
+            $current?->second ?? 0,
+        );
+
+        try {
+            $response = $this->put('/entity/customerorder/' . $order->moysklad_id, [
+                'deliveryPlannedMoment' => $moment->format('Y-m-d H:i:s'),
+            ]);
+
+            if (! $response->successful()) {
+                $errors = $response->json()['errors'] ?? [];
+                $result['code']    = 'api_error';
+                $result['message'] = 'Ошибка МойСклад: ' . ($errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка');
+
+                Log::error('Ошибка смены даты готовности заявки в МойСклад', [
+                    'order_id' => $order->id,
+                    'date'     => $moment->format('Y-m-d H:i:s'),
+                    'status'   => $response->status(),
+                    'response' => $response->json(),
+                ]);
+
+                return $result;
+            }
+
+            $order->update(['delivery_planned_at' => $moment]);
+
+            // Как при синхронизации: ручное место в очереди не трогаем, авто-ключ пересчитываем
+            // сразу — иначе заявка встанет на новое место только после следующей выгрузки.
+            if (! $order->priority_manual) {
+                $order->update([
+                    'priority_key' => OrderPriority::autoKey($order->delivery_planned_at, $order->moment),
+                ]);
+            }
+
+            $result['success'] = true;
+            $result['message'] = 'Дата готовности заявки ' . $order->name . ' — ' . $moment->format('d.m.Y') . '.';
+
+            Log::info('Дата готовности заявки изменена', ['order_id' => $order->id, 'date' => $moment->format('Y-m-d H:i:s')]);
+        } catch (\Throwable $e) {
+            $result['code']    = 'exception';
+            $result['message'] = 'Ошибка: ' . $e->getMessage();
+
+            Log::error('Исключение при смене даты готовности заявки', [
                 'order_id' => $order->id,
                 'error'    => $e->getMessage(),
             ]);

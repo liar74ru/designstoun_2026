@@ -83,9 +83,16 @@
                             </td>
                             <td class="text-muted small align-top" style="white-space:nowrap">
                                 {{ $order->moment ? $order->moment->format('d.m.Y') : '—' }}
-                                @if($order->delivery_planned_at)
-                                    <div title="Планируемая дата отгрузки">отгр. {{ $order->delivery_planned_at->format('d.m.Y') }}</div>
-                                @endif
+                                <button type="button" class="btn btn-link btn-sm p-0 d-block text-decoration-none small
+                                               {{ $order->delivery_planned_at?->copy()->startOfDay()->lt(now()->startOfDay()) ? 'text-danger fw-semibold' : 'text-primary' }}"
+                                        data-bs-toggle="modal" data-bs-target="#order-delivery-date-modal"
+                                        data-action="{{ route('orders.delivery-date.update', $order->moysklad_id) }}"
+                                        data-name="{{ $order->name }}"
+                                        data-date="{{ $order->delivery_planned_at?->format('Y-m-d') }}"
+                                        title="Дата готовности — нажмите, чтобы изменить">
+                                    <i class="bi bi-flag-fill"></i>
+                                    {{ $order->delivery_planned_at ? $order->delivery_planned_at->format('d.m.Y') : 'срок' }}
+                                </button>
                             </td>
                             <td class="align-top">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</td>
                             <td class="align-top p-0">
@@ -129,6 +136,7 @@
         </div>
 
         @include('orders.partials.departments-modal', ['departments' => $assignDepartments])
+        @include('orders.partials.delivery-date-modal')
 
     @else
         <div class="text-center py-5">
@@ -143,6 +151,7 @@
 
 @include('orders.partials.ready-toggle-assets')
 @include('orders.partials.hide-toggle-assets')
+@include('partials.order-card-assets')
 
 @push('styles')
     <style>

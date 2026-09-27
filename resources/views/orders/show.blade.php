@@ -15,14 +15,10 @@
     $sumShipped = $rows->sum('shipped');
     $sumLeft    = $rows->sum('left');
     $sumShort   = $hasNumbers ? $rows->sum('short') : null;
-    $percent    = $sumOrdered > 0 ? (int) round($sumShipped / $sumOrdered * 100) : 0;
 
     // Позиция приглушена, если скрыта для всех отделов, которыми управляет пользователь.
     $hideIds  = $hideDepartments->pluck('id')->all();
     $isHidden = fn ($row) => $hideIds !== [] && array_diff($hideIds, $row['hiddenFor']) === [];
-
-    $stateColor = $order->state_color;
-    $stateTextColor = $order->state_text_color;
 @endphp
 
 <div class="container py-3 py-md-4">
@@ -31,18 +27,7 @@
         title="📋 Заявка {{ $order->name }}"
         mobileTitle="Заявка {{ $order->name }}"
         :backUrl="$backUrl"
-        backLabel="К списку">
-        <x-slot name="actions">
-            <span class="badge fs-6" style="background-color: {{ $stateColor }}; color: {{ $stateTextColor }}">
-                {{ $order->state_name ?? '—' }}
-            </span>
-        </x-slot>
-        <x-slot name="mobileActions">
-            <span class="badge" style="background-color: {{ $stateColor }}; color: {{ $stateTextColor }}">
-                {{ $order->state_name ?? '—' }}
-            </span>
-        </x-slot>
-    </x-page-header>
+        backLabel="К списку" />
 
     @include('partials.alerts')
 
@@ -62,124 +47,7 @@
 
                 @include('orders.partials.changes-block', ['order' => $order, 'fmtQty' => $fmtQty])
 
-                <div class="info-block">
-                    <div class="info-block-header small fw-semibold">Заявка</div>
-                    <div class="info-block-body">
-                        <div class="mb-2">
-                            @include('orders.partials.state-picker', [
-                                'order'  => $order,
-                                'states' => $orderStates,
-                            ])
-                        </div>
-
-                        <div class="mb-1">
-                            <div class="text-muted" style="font-size:.78rem">Контрагент</div>
-                            <div class="fw-semibold">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</div>
-                        </div>
-
-                        <div class="mb-1">
-                            <div class="text-muted" style="font-size:.78rem">Дата</div>
-                            <div style="font-variant-numeric: tabular-nums">
-                                {{ $order->moment ? $order->moment->format('d.m.Y') : '—' }}
-                            </div>
-                        </div>
-
-                        @if($order->delivery_planned_at)
-                            <div class="mb-1">
-                                <div class="text-muted" style="font-size:.78rem">Отгрузка (план)</div>
-                                <div style="font-variant-numeric: tabular-nums">
-                                    {{ $order->delivery_planned_at->format('d.m.Y') }}
-                                </div>
-                            </div>
-                        @endif
-
-                        <div class="mb-2">
-                            <div class="text-muted" style="font-size:.78rem">Очередь</div>
-                            <div class="d-flex flex-wrap gap-1 mt-1">
-                                <form method="POST" action="{{ route('orders.priority.urgent', $order->moysklad_id) }}" data-submit-guard>
-                                    @csrf
-                                    <input type="hidden" name="urgent" value="{{ $order->is_urgent ? 0 : 1 }}">
-                                    <button type="submit" class="btn btn-sm {{ $order->is_urgent ? 'btn-danger' : 'btn-outline-danger' }}">
-                                        <i class="bi {{ $order->is_urgent ? 'bi-fire' : 'bi-lightning' }}"></i>
-                                        {{ $order->is_urgent ? 'Срочная — снять' : 'Срочно' }}
-                                    </button>
-                                </form>
-                                @if($order->priority_manual)
-                                    <form method="POST" action="{{ route('orders.priority.reset', $order->moysklad_id) }}" data-submit-guard
-                                          onsubmit="return confirm('Вернуть заявку на место по сроку отгрузки?')">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-outline-primary"
-                                                title="Место в очереди задано вручную">
-                                            <i class="bi bi-pin-angle-fill"></i> Вернуть по сроку
-                                        </button>
-                                    </form>
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="mb-2">
-                            <div class="text-muted" style="font-size:.78rem">Отделы</div>
-                            <div class="mt-1">
-                                @include('orders.partials.departments-button', ['order' => $order])
-                            </div>
-                        </div>
-
-                        @if($order->production_started_at)
-                            <div class="mb-2">
-                                <div class="text-muted" style="font-size:.78rem">Производство</div>
-                                <div style="font-variant-numeric: tabular-nums">
-                                    с {{ $order->production_started_at->format('d.m.Y H:i') }}
-                                    @if($order->production_ended_at)
-                                        по {{ $order->production_ended_at->format('d.m.Y H:i') }}
-                                    @else
-                                        <span class="badge bg-success-subtle text-success-emphasis">идёт</span>
-                                    @endif
-                                </div>
-                            </div>
-                        @endif
-
-                        {{-- Отдельная форма: вкладывать её в форму переключателя статуса нельзя --}}
-                        <form method="POST" action="{{ route('orders.recalculate', $order->moysklad_id) }}"
-                              class="mb-2" data-submit-guard
-                              onsubmit="return confirm('Взять текущие остатки по складам и начать отсчёт изготовленного заново?')">
-                            @csrf
-                            <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
-                                <i class="bi bi-arrow-repeat"></i> Пересчитать по складам
-                            </button>
-                        </form>
-
-                        <div class="pt-2" style="border-top:1px solid #f1f3f5">
-                            <div class="d-flex justify-content-between small">
-                                <span class="text-muted">Отгружено</span>
-                                <span style="font-variant-numeric: tabular-nums">{{ $percent }}%</span>
-                            </div>
-                            <div class="progress mt-1 mb-2" style="height:6px">
-                                <div class="progress-bar bg-primary" style="width: {{ $percent }}%"></div>
-                            </div>
-
-                            @include('orders.partials.summary-row', [
-                                'label' => 'Заказано',
-                                'value' => $fmt1($sumOrdered),
-                                'class' => '',
-                                'last'  => false,
-                            ])
-                            @include('orders.partials.summary-row', [
-                                'label' => 'Осталось отгрузить',
-                                'value' => $fmt1($sumLeft),
-                                'class' => '',
-                                'last'  => ! $hasNumbers,
-                            ])
-                            @if($hasNumbers)
-                                @include('orders.partials.summary-row', [
-                                    'label' => 'Дефицит на производстве',
-                                    'value' => $fmt1($sumShort),
-                                    'class' => $sumShort > 0 ? 'text-danger fw-semibold' : 'text-success',
-                                    'last'  => true,
-                                ])
-                            @endif
-                        </div>
-                    </div>
-                </div>
+                @include('orders.partials.summary-block')
 
                 @if(! empty($attributes))
                     <div class="info-block">
@@ -320,79 +188,7 @@
                         {{-- Мобильный --}}
                         <div class="d-md-none" style="padding:.35rem .4rem">
                             @foreach($rows as $row)
-                                @php
-                                    $canMark = $row['product'] && ! $row['done'];
-                                @endphp
-                                <div class="order-pos {{ $row['isReady'] ? 'is-ready' : '' }} {{ $isHidden($row) ? 'is-hidden' : '' }}"
-                                     style="border-left:3px solid {{ $row['color'] }};{{ $row['color'] === '#FFFFFF' ? '' : 'background:' . $row['color'] . '18;' }}padding:.35rem .45rem;border-radius:.25rem;margin-bottom:.3rem"
-                                     @if($canMark) data-position="{{ $order->id }}-{{ $row['product']->id }}" @endif
-                                     @if($row['product']) data-hide-key="{{ $order->id }}-{{ $row['product']->id }}" @endif>
-                                    <div class="d-flex align-items-start gap-1">
-                                        @if($canMark)
-                                            @include('orders.partials.ready-toggle', ['order' => $order, 'product' => $row['product']])
-                                        @endif
-                                        <ion-icon name="{{ $row['icon'] }}" class="text-muted flex-shrink-0 mt-1"></ion-icon>
-                                        <div class="flex-grow-1" style="min-width:0">
-                                            <div class="fw-semibold {{ $row['done'] ? 'text-decoration-line-through text-muted' : '' }}"
-                                                 style="font-size:.82rem; line-height:1.25; word-break:break-word">
-                                                @if($row['product'])
-                                                    @can('see-products')
-                                                        <a href="{{ route('products.show', $row['product']->moysklad_id) }}"
-                                                           class="text-reset">{{ $row['name'] }}</a>
-                                                    @else
-                                                        {{ $row['name'] }}
-                                                    @endcan
-                                                @else
-                                                    {{ $row['name'] }}
-                                                @endif
-                                            </div>
-                                            @include('orders.partials.change-mark', [
-                                                'change' => $order->position_changes[$row['item']->product_moysklad_id] ?? null,
-                                            ])
-                                            @include('orders.partials.hidden-badge', ['order' => $order, 'row' => $row, 'class' => 'mt-1'])
-                                        </div>
-                                        @include('orders.partials.hide-toggle', ['order' => $order, 'row' => $row, 'hideDepartments' => $hideDepartments])
-                                    </div>
-
-                                    @if($row['done'])
-                                        <div class="text-muted mt-1" style="font-size:.74rem; font-variant-numeric: tabular-nums">
-                                            отгружено {{ $fmt1($row['shipped']) }} — полностью
-                                        </div>
-                                    @else
-                                        <div class="mt-1">
-                                            @include('orders.partials.readiness', ['row' => $row, 'fmt1' => $fmt1])
-                                        </div>
-                                        <div class="d-flex justify-content-between mt-1"
-                                             style="font-size:.74rem; font-variant-numeric: tabular-nums">
-                                            <span>
-                                                <span class="text-muted">заказ</span>
-                                                <b>{{ $fmtQty($row['ordered']) }}</b>
-                                            </span>
-                                            <span>
-                                                <span class="text-muted">склад</span>
-                                                @include('orders.partials.position-cell', [
-                                                    'row' => $row, 'fmt1' => $fmt1,
-                                                    'field' => 'warehouse', 'storeNames' => $storeNames,
-                                                ])
-                                            </span>
-                                            <span>
-                                                <span class="text-muted">изгот.</span>
-                                                @include('orders.partials.position-cell', [
-                                                    'row' => $row, 'fmt1' => $fmt1,
-                                                    'field' => 'produced', 'storeNames' => $storeNames,
-                                                ])
-                                                @include('orders.partials.receptions-link', ['order' => $order, 'row' => $row])
-                                            </span>
-                                            <span>
-                                                <span class="text-muted">всего</span>
-                                                <b class="total-value {{ $row['totalQty'] === null ? '' : ($row['totalQty'] >= $row['left'] ? 'text-success' : 'text-danger') }}">
-                                                    {{ $row['totalQty'] !== null ? $fmt1($row['totalQty']) : '—' }}
-                                                </b>
-                                                <span class="badge bg-success ready-badge">✓ готово</span>
-                                            </span>
-                                        </div>
-                                    @endif
-                                </div>
+                                @include('orders.partials.mobile-position', ['row' => $row])
                             @endforeach
 
                             <div class="d-flex justify-content-between align-items-center pt-1 mt-1"
@@ -416,10 +212,13 @@
     @include('orders.partials.position-modal', ['order' => $order, 'stores' => $stores])
 @endif
 @include('orders.partials.departments-modal', ['departments' => $departments])
+@include('orders.partials.delivery-date-modal')
 @endsection
 
 @include('orders.partials.ready-toggle-assets')
 @include('orders.partials.hide-toggle-assets')
+@include('orders.partials.mobile-position-assets')
+@include('orders.partials.summary-block-assets')
 
 @if($stores->isNotEmpty())
 @push('scripts')

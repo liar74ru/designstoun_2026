@@ -11,6 +11,7 @@ use App\Services\OrderPositionService;
 use App\Services\OrderPriorityService;
 use App\Services\OrderProductionService;
 use App\Services\OrderService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,6 +86,22 @@ class OrderController extends Controller
         $order = $this->service->findForUser($request, $moyskladId);
 
         $result = $this->sync->updateDepartments($order, $data['departments'] ?? []);
+
+        return back()->with($result['success'] ? 'success' : 'error', $result['message']);
+    }
+
+    /**
+     * Задать заявке дату готовности (плановую отгрузку) — с записью в МойСклад.
+     */
+    public function updateDeliveryDate(Request $request, string $moyskladId): RedirectResponse
+    {
+        $data = $request->validate([
+            'delivery_planned_at' => 'required|date_format:Y-m-d',
+        ]);
+
+        $order = $this->service->findForUser($request, $moyskladId);
+
+        $result = $this->sync->updateDeliveryDate($order, Carbon::createFromFormat('Y-m-d', $data['delivery_planned_at']));
 
         return back()->with($result['success'] ? 'success' : 'error', $result['message']);
     }

@@ -279,7 +279,8 @@ describe('Очередь в списке заявок', function () {
             ->assertSuccessful()
             ->assertSee(route('orders.priority.move', 'ms-A'), false)
             ->assertSee(route('orders.priority.urgent', 'ms-U'), false)
-            ->assertSee('отгр. 05.10.2026')
+            ->assertSee('05.10.2026')
+            ->assertSee(route('orders.delivery-date.update', 'ms-A'), false)
             ->assertSee('order-urgent', false);
     });
 
