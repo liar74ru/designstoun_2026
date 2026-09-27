@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\PreciseFloat;
 use App\Support\BadgeColor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -37,7 +38,7 @@ class Order extends Model
         'moment'                => 'datetime',
         'delivery_planned_at'   => 'datetime',
         'is_urgent'             => 'boolean',
-        'priority_key'          => 'float',
+        'priority_key'          => PreciseFloat::class,
         'priority_manual'       => 'boolean',
         'production_started_at' => 'datetime',
         'production_ended_at'   => 'datetime',

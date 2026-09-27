@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Casts\PreciseFloat;
 use App\Models\Order;
 use App\Support\OrderPriority;
 use Illuminate\Http\Request;
@@ -30,7 +31,8 @@ class OrderPriorityService
      */
     public function move(Order $order, string $direction, Request $request): bool
     {
-        $up = $direction === self::UP;
+        $up  = $direction === self::UP;
+        $key = PreciseFloat::toSql($order->priority_key);
 
         // Соседи в направлении движения, ближайший первым. Сравниваем парой (ключ, id) —
         // так же сортирует prioritized().
@@ -38,9 +40,9 @@ class OrderPriorityService
             ->where('is_urgent', $order->is_urgent)
             ->where('id', '!=', $order->id)
             ->where(fn ($q) => $q
-                ->where('priority_key', $up ? '<' : '>', $order->priority_key)
+                ->where('priority_key', $up ? '<' : '>', $key)
                 ->orWhere(fn ($w) => $w
-                    ->where('priority_key', $order->priority_key)
+                    ->where('priority_key', $key)
                     ->where('id', $up ? '<' : '>', $order->id)))
             ->orderBy('priority_key', $up ? 'desc' : 'asc')
             ->orderBy('id', $up ? 'desc' : 'asc')
