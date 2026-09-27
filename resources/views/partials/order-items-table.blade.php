@@ -3,7 +3,7 @@
     Числа приходят готовыми из OrderPositionService — своей арифметики здесь нет.
     Параметры: $rows, $order (для ручной отметки «готово»).
 
-    Ручная отметка: строка получает .is-ready (стили и скрипт — в orders/index).
+    Ручная отметка: строка получает .is-ready (стили и скрипт — orders.partials.ready-toggle-assets).
 --}}
 @php
     $fmt1   = fn ($v) => number_format((float) $v, 1, '.', '');
@@ -40,11 +40,7 @@
                 <td class="pe-1">
                     <div class="d-flex align-items-start gap-1">
                         @if($canMark)
-                            <button type="button" class="ready-toggle flex-shrink-0"
-                                    data-url="{{ route('orders.position.ready', [$order->moysklad_id, $product->id]) }}"
-                                    title="Отметить готовой / снять отметку">
-                                <i class="bi bi-check-lg"></i>
-                            </button>
+                            @include('orders.partials.ready-toggle', ['order' => $order, 'product' => $product])
                         @endif
                         <ion-icon name="{{ $row['icon'] }}" class="text-muted flex-shrink-0 mt-1"></ion-icon>
                         <div class="min-w-0">

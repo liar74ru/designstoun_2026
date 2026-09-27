@@ -534,6 +534,24 @@ describe('Отметка «позиция готова»', function () {
         );
     });
 
+    test('карточка заявки рисует готовую позицию с плашкой и кнопкой', function () {
+        ['order' => $order, 'product' => $product, 'dept' => $dept] = positionFixture(45);
+        $user = positionMaster($dept);
+
+        app(OrderPositionService::class)->setReady($order, $product->id, true, null);
+
+        $html = $this->actingAs($user)
+            ->get(route('orders.show', 'ms-1'))
+            ->assertSuccessful()
+            ->assertSee(route('orders.position.ready', ['ms-1', $product->id]), false)
+            ->assertSee('✓ готово')
+            ->getContent();
+
+        expect($html)->toMatch(
+            '/<tr class="order-pos[^"]*\bis-ready\b[^"]*"[^>]*data-position="' . $order->id . '-' . $product->id . '"/'
+        );
+    });
+
     test('у отгруженной позиции кнопки отметки нет', function () {
         ['order' => $order, 'product' => $product, 'dept' => $dept] = positionFixture(45);
         $user = positionMaster($dept);

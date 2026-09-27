@@ -191,9 +191,17 @@
                                 </thead>
                                 <tbody>
                                 @foreach($rows as $row)
-                                    <tr style="{{ $row['color'] === '#FFFFFF' ? '' : '--bs-table-bg:' . $row['color'] . '18;' }}">
+                                    @php
+                                        $canMark = $row['product'] && ! $row['done'];
+                                    @endphp
+                                    <tr class="order-pos {{ $row['isReady'] ? 'is-ready' : '' }}"
+                                        style="{{ $row['color'] === '#FFFFFF' ? '' : '--bs-table-bg:' . $row['color'] . '18;' }}"
+                                        @if($canMark) data-position="{{ $order->id }}-{{ $row['product']->id }}" @endif>
                                         <td>
                                             <div class="d-flex align-items-start gap-2">
+                                                @if($canMark)
+                                                    @include('orders.partials.ready-toggle', ['order' => $order, 'product' => $row['product']])
+                                                @endif
                                                 <span class="flex-shrink-0"
                                                       style="width:3px;align-self:stretch;border-radius:2px;background:{{ $row['color'] }}"></span>
                                                 <ion-icon name="{{ $row['icon'] }}" class="text-muted flex-shrink-0 mt-1"></ion-icon>
@@ -243,7 +251,8 @@
                                         </td>
                                         <td class="text-end fw-semibold {{ $row['done'] || $row['totalQty'] === null ? '' : ($row['totalQty'] >= $row['left'] ? 'text-success' : 'text-danger') }}"
                                             style="white-space:nowrap; font-variant-numeric: tabular-nums">
-                                            {{ $row['totalQty'] !== null ? $fmt1($row['totalQty']) : '—' }}
+                                            <span class="total-value">{{ $row['totalQty'] !== null ? $fmt1($row['totalQty']) : '—' }}</span>
+                                            <span class="badge bg-success ready-badge">✓ готово</span>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -262,8 +271,16 @@
                         {{-- Мобильный --}}
                         <div class="d-md-none" style="padding:.35rem .4rem">
                             @foreach($rows as $row)
-                                <div style="border-left:3px solid {{ $row['color'] }};{{ $row['color'] === '#FFFFFF' ? '' : 'background:' . $row['color'] . '18;' }}padding:.35rem .45rem;border-radius:.25rem;margin-bottom:.3rem">
+                                @php
+                                    $canMark = $row['product'] && ! $row['done'];
+                                @endphp
+                                <div class="order-pos {{ $row['isReady'] ? 'is-ready' : '' }}"
+                                     style="border-left:3px solid {{ $row['color'] }};{{ $row['color'] === '#FFFFFF' ? '' : 'background:' . $row['color'] . '18;' }}padding:.35rem .45rem;border-radius:.25rem;margin-bottom:.3rem"
+                                     @if($canMark) data-position="{{ $order->id }}-{{ $row['product']->id }}" @endif>
                                     <div class="d-flex align-items-start gap-1">
+                                        @if($canMark)
+                                            @include('orders.partials.ready-toggle', ['order' => $order, 'product' => $row['product']])
+                                        @endif
                                         <ion-icon name="{{ $row['icon'] }}" class="text-muted flex-shrink-0 mt-1"></ion-icon>
                                         <div class="flex-grow-1" style="min-width:0">
                                             <div class="fw-semibold {{ $row['done'] ? 'text-decoration-line-through text-muted' : '' }}"
@@ -312,9 +329,10 @@
                                             </span>
                                             <span>
                                                 <span class="text-muted">всего</span>
-                                                <b class="{{ $row['totalQty'] === null ? '' : ($row['totalQty'] >= $row['left'] ? 'text-success' : 'text-danger') }}">
+                                                <b class="total-value {{ $row['totalQty'] === null ? '' : ($row['totalQty'] >= $row['left'] ? 'text-success' : 'text-danger') }}">
                                                     {{ $row['totalQty'] !== null ? $fmt1($row['totalQty']) : '—' }}
                                                 </b>
+                                                <span class="badge bg-success ready-badge">✓ готово</span>
                                             </span>
                                         </div>
                                     @endif
@@ -343,6 +361,8 @@
 @endif
 @include('orders.partials.departments-modal', ['departments' => $departments])
 @endsection
+
+@include('orders.partials.ready-toggle-assets')
 
 @if($stores->isNotEmpty())
 @push('scripts')
