@@ -51,6 +51,7 @@
     ])
 
     @if($orders->count() > 0)
+    <div class="orders-list">
 
         {{-- Десктоп --}}
         <div class="d-none d-md-block card shadow-sm">
@@ -81,7 +82,8 @@
                             <td class="align-top">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</td>
                             <td class="align-top p-0">
                                 @include('partials.order-items-table', [
-                                    'rows' => $rowsByOrder[$order->id] ?? collect(),
+                                    'rows'  => $rowsByOrder[$order->id] ?? collect(),
+                                    'order' => $order,
                                 ])
                             </td>
                             <td class="align-top">
@@ -118,6 +120,7 @@
 
         @include('orders.partials.departments-modal', ['departments' => $assignDepartments])
 
+    </div>
     @else
         <div class="text-center py-5">
             <i class="bi bi-inbox display-1 text-muted"></i>
@@ -135,6 +138,36 @@
             opacity: .7;
             cursor: wait;
         }
+
+        /* Кнопка ручной отметки «готово» */
+        .ready-toggle {
+            width: 18px;
+            height: 18px;
+            margin-top: 2px;
+            padding: 0;
+            border: 1px solid #ced4da;
+            border-radius: 50%;
+            background: #fff;
+            color: #ced4da;
+            font-size: .7rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ready-toggle:hover { color: #16a34a; border-color: #16a34a; }
+        .ready-toggle[disabled] { opacity: .5; cursor: wait; }
+        .order-pos.is-ready .ready-toggle {
+            background: #16a34a;
+            border-color: #16a34a;
+            color: #fff;
+        }
+
+        /* Готовая позиция: приглушённая строка, вместо «Всего» — плашка «готово» */
+        .ready-badge { display: none; }
+        .order-pos.is-ready > td { opacity: .55; }
+        .order-pos.is-ready .total-value { display: none; }
+        .order-pos.is-ready .ready-badge { display: inline-block; }
     </style>
 @endpush
 
@@ -149,6 +182,43 @@
                     window.location = row.dataset.href;
                 });
             });
+
+            const list = document.querySelector('.orders-list');
+            if (list) {
+                // Ручная отметка позиции: позиция нарисована дважды (десктоп и мобильная
+                // карточка), поэтому перекрашиваем все строки с тем же data-position.
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+                list.addEventListener('click', function (e) {
+                    const btn = e.target.closest('.ready-toggle');
+                    if (!btn) return;
+
+                    const row = btn.closest('.order-pos');
+                    const ready = !row.classList.contains('is-ready');
+                    btn.disabled = true;
+
+                    fetch(btn.dataset.url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ ready: ready }),
+                    })
+                        .then(function (r) {
+                            if (!r.ok) throw new Error(r.status);
+                            return r.json();
+                        })
+                        .then(function (data) {
+                            list.querySelectorAll('.order-pos[data-position="' + row.dataset.position + '"]')
+                                .forEach(function (tr) { tr.classList.toggle('is-ready', data.ready); });
+                        })
+                        .catch(function () {
+                            alert('Не удалось сохранить отметку. Обновите страницу и попробуйте снова.');
+                        })
+                        .finally(function () { btn.disabled = false; });
+                });
+            }
 
             document.querySelectorAll('form.sync-form').forEach(function (form) {
                 form.addEventListener('submit', function () {

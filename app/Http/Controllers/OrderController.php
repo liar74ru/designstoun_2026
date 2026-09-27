@@ -9,6 +9,7 @@ use App\Services\Moysklad\StockSyncService;
 use App\Services\OrderPositionService;
 use App\Services\OrderProductionService;
 use App\Services\OrderService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -135,6 +136,31 @@ class OrderController extends Controller
 
         return redirect()->route('orders.show', $moyskladId)
             ->with('success', 'Остатки пересчитаны по складам, отсчёт изготовленного начат заново.');
+    }
+
+    /**
+     * Отметить позицию готовой или снять отметку — AJAX из списка заявок.
+     */
+    public function updateReady(
+        Request $request,
+        OrderPositionService $positions,
+        string $moyskladId,
+        int $productId,
+    ): JsonResponse {
+        $data = $request->validate([
+            'ready' => 'required|boolean',
+        ]);
+
+        $order = $this->service->findForUser($request, $moyskladId, ['items']);
+
+        abort_unless($order->items->contains('product_id', $productId), 404);
+
+        $setting = $positions->setReady($order, $productId, (bool) $data['ready'], $request->user());
+
+        return response()->json([
+            'success' => true,
+            'ready'   => $setting->isReady(),
+        ]);
     }
 
     public function destroyPosition(

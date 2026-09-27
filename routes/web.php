@@ -76,6 +76,9 @@ Route::middleware(['auth'])->group(function () {
             ->name('orders.position.update');
         Route::delete ('orders/{moyskladId}/positions/{productId}', [OrderController::class, 'destroyPosition'])
             ->name('orders.position.destroy');
+        // Ручная отметка «позиция готова» из списка заявок (AJAX)
+        Route::post   ('orders/{moyskladId}/positions/{productId}/ready', [OrderController::class, 'updateReady'])
+            ->name('orders.position.ready');
         // Пересъёмка остатков: обнуляет изготовленное, поэтому отдельным действием
         Route::post   ('orders/{moyskladId}/recalculate', [OrderController::class, 'recalculate'])
             ->name('orders.recalculate');

@@ -91,6 +91,8 @@ class OrderPositionService
                 'totalQty'        => $totalQty,
                 'setting'         => $setting,
                 'frozen'          => (bool) $setting?->isFrozen(),
+                // Ручная отметка «готово»; не путать с 'ready' — долей закрытия остатка.
+                'isReady'         => (bool) $setting?->isReady(),
                 // Дефицит считаем от «Всего»: позиция, закрытая производством,
                 // не должна показывать нехватку.
                 'short'           => $totalQty === null ? null : (float) max(0, $left - $totalQty),
@@ -149,8 +151,27 @@ class OrderPositionService
     }
 
     /**
-     * Снять уточнения. Снимок остатка при этом сохраняется — он относится не к
-     * правкам мастера, а к моменту входа заявки в производство.
+     * Отметить позицию готовой или снять отметку. Строка настроек создаётся при
+     * необходимости: пустой stores у неё означает склад заявки.
+     */
+    public function setReady(Order $order, int $productId, bool $ready, ?User $user): OrderPositionSetting
+    {
+        $setting = OrderPositionSetting::firstOrNew([
+            'order_id'   => $order->id,
+            'product_id' => $productId,
+        ]);
+
+        $setting->ready_at      = $ready ? now() : null;
+        $setting->ready_user_id = $ready ? $user?->id : null;
+        $setting->save();
+
+        return $setting;
+    }
+
+    /**
+     * Снять уточнения. Снимок остатка и отметка «готово» при этом сохраняются —
+     * они относятся не к правкам мастера: снимок — к моменту входа заявки
+     * в производство, готовность снимается только вручную.
      */
     public function reset(Order $order, int $productId): void
     {
@@ -163,7 +184,7 @@ class OrderPositionService
             return;
         }
 
-        if ($setting->isFrozen()) {
+        if ($setting->isFrozen() || $setting->isReady()) {
             $setting->update([
                 'stores'         => null,
                 'stock_delta'    => 0,

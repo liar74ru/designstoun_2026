@@ -391,3 +391,157 @@ describe('Уточнённые числа в интерфейсе', function () 
             ->assertSee('55.0');
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Ручная отметка «готово»
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Отметка «позиция готова»', function () {
+
+    test('без отметки позиция не готова', function () {
+        ['order' => $order, 'main' => $main] = positionFixture(45);
+
+        expect(positionRow($order, $main->id)['isReady'])->toBeFalse();
+    });
+
+    test('отметка создаёт настройки позиции и помечает её готовой', function () {
+        ['order' => $order, 'product' => $product, 'main' => $main, 'dept' => $dept] = positionFixture(45);
+        $user = positionMaster($dept);
+
+        app(OrderPositionService::class)->setReady($order, $product->id, true, $user);
+
+        $setting = OrderPositionSetting::first();
+        expect($setting->isReady())->toBeTrue()
+            ->and($setting->ready_user_id)->toBe($user->id)
+            // Новая строка без складов — остаток по-прежнему со склада заявки
+            ->and($setting->stores)->toBeNull()
+            ->and(positionRow($order, $main->id)['isReady'])->toBeTrue()
+            ->and(positionRow($order, $main->id)['warehouseQty'])->toBe(45.0);
+    });
+
+    test('снятие отметки не трогает поправки мастера', function () {
+        ['order' => $order, 'product' => $product, 'main' => $main] = positionFixture(45);
+        $service = app(OrderPositionService::class);
+
+        $service->save($order, $product, [$main->id], 38, null, null, null);
+        $service->setReady($order, $product->id, true, null);
+        $service->setReady($order, $product->id, false, null);
+
+        $setting = OrderPositionSetting::first();
+        expect($setting->isReady())->toBeFalse()
+            ->and($setting->ready_user_id)->toBeNull()
+            ->and((float) $setting->stock_delta)->toBe(-7.0);
+    });
+
+    test('«Снять уточнения» отметку не снимает', function () {
+        ['order' => $order, 'product' => $product, 'main' => $main] = positionFixture(45);
+        $service = app(OrderPositionService::class);
+
+        $service->save($order, $product, [$main->id], 38, null, 'бой', null);
+        $service->setReady($order, $product->id, true, null);
+        $service->reset($order, $product->id);
+
+        $setting = OrderPositionSetting::first();
+        expect($setting)->not->toBeNull()
+            ->and($setting->isReady())->toBeTrue()
+            ->and((float) $setting->stock_delta)->toBe(0.0)
+            ->and($setting->note)->toBeNull();
+    });
+
+    test('мастер отмечает позицию и снимает отметку через AJAX', function () {
+        ['order' => $order, 'product' => $product, 'main' => $main, 'dept' => $dept] = positionFixture(45);
+        $user = positionMaster($dept);
+        $url = route('orders.position.ready', ['ms-1', $product->id]);
+
+        $this->actingAs($user)
+            ->postJson($url, ['ready' => true])
+            ->assertOk()
+            ->assertJson(['success' => true, 'ready' => true]);
+
+        expect(positionRow($order, $main->id)['isReady'])->toBeTrue();
+
+        $this->actingAs($user)
+            ->postJson($url, ['ready' => false])
+            ->assertOk()
+            ->assertJson(['success' => true, 'ready' => false]);
+
+        expect(positionRow($order, $main->id)['isReady'])->toBeFalse();
+    });
+
+    test('без поля ready запрос отклоняется', function () {
+        ['product' => $product, 'dept' => $dept] = positionFixture(45);
+        $user = positionMaster($dept);
+
+        $this->actingAs($user)
+            ->postJson(route('orders.position.ready', ['ms-1', $product->id]), [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('ready');
+
+        expect(OrderPositionSetting::count())->toBe(0);
+    });
+
+    test('товар не из этой заявки — 404', function () {
+        ['dept' => $dept] = positionFixture(45);
+        $user = positionMaster($dept);
+        $alien = Product::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson(route('orders.position.ready', ['ms-1', $alien->id]), ['ready' => true])
+            ->assertNotFound();
+
+        expect(OrderPositionSetting::count())->toBe(0);
+    });
+
+    test('мастер чужого отдела получает 403', function () {
+        ['product' => $product] = positionFixture(45);
+        $other = Department::create(['name' => 'Отдел 2', 'is_active' => true]);
+        $user = positionMaster($other);
+
+        $this->actingAs($user)
+            ->postJson(route('orders.position.ready', ['ms-1', $product->id]), ['ready' => true])
+            ->assertForbidden();
+
+        expect(OrderPositionSetting::count())->toBe(0);
+    });
+
+    test('отметка переживает синхронизацию: позиции заявки пересоздаются', function () {
+        ['order' => $order, 'product' => $product, 'main' => $main] = positionFixture(45);
+
+        app(OrderPositionService::class)->setReady($order, $product->id, true, null);
+
+        $order->items()->delete();
+        $order->items()->create(['product_id' => $product->id, 'quantity' => 100, 'shipped' => 0]);
+
+        expect(positionRow($order, $main->id)['isReady'])->toBeTrue();
+    });
+
+    test('список заявок рисует готовую позицию с плашкой и кнопкой', function () {
+        ['order' => $order, 'product' => $product, 'dept' => $dept] = positionFixture(45);
+        $user = positionMaster($dept);
+
+        app(OrderPositionService::class)->setReady($order, $product->id, true, null);
+
+        $html = $this->actingAs($user)
+            ->get(route('orders.index'))
+            ->assertSuccessful()
+            ->assertSee(route('orders.position.ready', ['ms-1', $product->id]), false)
+            ->assertSee('✓ готово')
+            ->getContent();
+
+        // Класс проверяем у самой строки: «is-ready» есть и в CSS страницы
+        expect($html)->toMatch(
+            '/<tr class="order-pos[^"]*\bis-ready\b[^"]*"[^>]*data-position="' . $order->id . '-' . $product->id . '"/'
+        );
+    });
+
+    test('у отгруженной позиции кнопки отметки нет', function () {
+        ['order' => $order, 'product' => $product, 'dept' => $dept] = positionFixture(45);
+        $user = positionMaster($dept);
+        $order->items()->update(['shipped' => 100]);
+
+        $this->actingAs($user)
+            ->get(route('orders.index'))
+            ->assertSuccessful()
+            ->assertDontSee(route('orders.position.ready', ['ms-1', $product->id]), false);
+    });
+});

@@ -1,7 +1,9 @@
 {{--
     Компактная таблица позиций для списка заявок и мобильной карточки.
     Числа приходят готовыми из OrderPositionService — своей арифметики здесь нет.
-    Параметры: $rows.
+    Параметры: $rows, $order (для ручной отметки «готово»).
+
+    Ручная отметка: строка получает .is-ready (стили и скрипт — в orders/index).
 --}}
 @php
     $fmt1   = fn ($v) => number_format((float) $v, 1, '.', '');
@@ -29,9 +31,21 @@
                     $totalClass = $row['totalQty'] >= $row['left'] ? 'text-success' : 'text-danger';
                 }
             @endphp
-            <tr class="{{ $row['done'] ? 'text-decoration-line-through text-muted' : '' }}" style="{{ $rowStyle }}">
+            @php
+                $canMark = $product && ! $row['done'] && isset($order);
+            @endphp
+            <tr class="order-pos {{ $row['done'] ? 'text-decoration-line-through text-muted' : '' }} {{ $row['isReady'] ? 'is-ready' : '' }}"
+                style="{{ $rowStyle }}"
+                @if($canMark) data-position="{{ $order->id }}-{{ $product->id }}" @endif>
                 <td class="pe-1">
                     <div class="d-flex align-items-start gap-1">
+                        @if($canMark)
+                            <button type="button" class="ready-toggle flex-shrink-0"
+                                    data-url="{{ route('orders.position.ready', [$order->moysklad_id, $product->id]) }}"
+                                    title="Отметить готовой / снять отметку">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        @endif
                         <ion-icon name="{{ $row['icon'] }}" class="text-muted flex-shrink-0 mt-1"></ion-icon>
                         <div class="min-w-0">
                             <div style="font-size:.78rem; line-height:1.25; word-break:break-word">
@@ -69,7 +83,8 @@
                 </td>
                 <td class="text-end fw-semibold ps-2 {{ $totalClass }}"
                     style="white-space:nowrap; font-size:.82rem; font-variant-numeric:tabular-nums">
-                    {{ $row['totalQty'] !== null ? $fmt1($row['totalQty']) : '—' }}
+                    <span class="total-value">{{ $row['totalQty'] !== null ? $fmt1($row['totalQty']) : '—' }}</span>
+                    <span class="badge bg-success ready-badge">✓ готово</span>
                 </td>
             </tr>
         @endforeach

@@ -25,6 +25,8 @@ class OrderPositionSetting extends Model
         'produced_base',
         'note',
         'user_id',
+        'ready_at',
+        'ready_user_id',
     ];
 
     protected $casts = [
@@ -34,6 +36,7 @@ class OrderPositionSetting extends Model
         'stock_base'     => 'decimal:3',
         'produced_delta' => 'decimal:3',
         'produced_base'  => 'decimal:3',
+        'ready_at'       => 'datetime',
     ];
 
     public function order(): BelongsTo
@@ -55,6 +58,12 @@ class OrderPositionSetting extends Model
     public function isFrozen(): bool
     {
         return ! empty($this->frozen_stocks);
+    }
+
+    /** Позиция вручную отмечена готовой. */
+    public function isReady(): bool
+    {
+        return $this->ready_at !== null;
     }
 
     /** Мастер трогал числа руками. */

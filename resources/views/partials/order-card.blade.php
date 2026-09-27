@@ -18,7 +18,7 @@
             {{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}
         </div>
 
-        @include('partials.order-items-table', ['rows' => $rows])
+        @include('partials.order-items-table', ['rows' => $rows, 'order' => $order])
 
         <div class="mt-2">
             @include('orders.partials.departments-button', ['order' => $order, 'font' => '.7rem'])
