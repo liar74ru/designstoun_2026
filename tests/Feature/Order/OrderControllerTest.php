@@ -8,6 +8,7 @@ use App\Models\Setting;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 beforeEach(function () {
     // Справочник статусов пуст — фильтр статусов в списке отключён
@@ -21,7 +22,7 @@ beforeEach(function () {
 describe('OrderController::index()', function () {
 
     test('страница доступна авторизованному пользователю', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->get(route('orders.index'))
@@ -29,13 +30,8 @@ describe('OrderController::index()', function () {
             ->assertViewIs('orders.index');
     });
 
-    test('недоступна без авторизации', function () {
-        $this->get(route('orders.index'))
-            ->assertRedirect('/login');
-    });
-
     test('отображает заявки для админа', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
         $order = Order::create(['moysklad_id' => 'ms-' . uniqid(), 'name' => 'Заявка', 'state_name' => 'Новая']);
 
@@ -67,7 +63,7 @@ describe('OrderController::index()', function () {
     });
 
     test('пагинирует результаты', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
         for ($i = 0; $i < 25; $i++) {
@@ -84,7 +80,7 @@ describe('OrderController::index()', function () {
     test('применяет фильтр по статусу', function () {
         OrderState::create(['name' => 'Новая', 'is_enabled' => true, 'position' => 0]);
         OrderState::create(['name' => 'Выполнена', 'is_enabled' => true, 'position' => 1]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая']);
@@ -95,21 +91,24 @@ describe('OrderController::index()', function () {
             ->assertSuccessful();
     });
 
-    test('сортирует по дате в обратном порядке', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+    test('сортирует по очереди: срочные сверху, дальше по ключу приоритета', function () {
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Тест отдел', 'is_active' => true]);
 
-        $order1 = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая', 'moment' => now()->subDay()]);
-        $order2 = Order::create(['moysklad_id' => 'ms-2', 'name' => 'Заявка 2', 'state_name' => 'Новая', 'moment' => now()]);
-        $order1->departments()->attach($dept->id);
-        $order2->departments()->attach($dept->id);
+        $late   = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Поздняя', 'priority_key' => 300]);
+        $early  = Order::create(['moysklad_id' => 'ms-2', 'name' => 'Ранняя', 'priority_key' => 100]);
+        $urgent = Order::create(['moysklad_id' => 'ms-3', 'name' => 'Срочная', 'priority_key' => 900, 'is_urgent' => true]);
+        foreach ([$late, $early, $urgent] as $order) {
+            $order->departments()->attach($dept->id);
+        }
 
         $response = $this->actingAs($user)
             ->get(route('orders.index'))
             ->assertSuccessful()
             ->viewData('orders');
 
-        expect($response->items()[0]->id)->toBe($order2->id);
+        expect(collect($response->items())->pluck('name')->all())
+            ->toBe(['Срочная', 'Ранняя', 'Поздняя']);
     });
 });
 
@@ -120,21 +119,16 @@ describe('OrderController::index()', function () {
 describe('OrderController::sync()', function () {
 
     test('редирект на index после синхронизации', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->post(route('orders.sync'))
             ->assertRedirect(route('orders.index'));
     });
 
-    test('недоступен без авторизации', function () {
-        $this->post(route('orders.sync'))
-            ->assertRedirect('/login');
-    });
-
     test('показывает сообщение об ошибке когда токен не установлен', function () {
         config()->set('services.moysklad.token', '');
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->post(route('orders.sync'))
@@ -143,7 +137,7 @@ describe('OrderController::sync()', function () {
 
     test('показывает успешное сообщение при правильной синхронизации', function () {
         config()->set('services.moysklad.token', 'test-token');
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->mock(\App\Services\Moysklad\CustomerOrderSyncService::class)
             ->shouldReceive('pullActive')

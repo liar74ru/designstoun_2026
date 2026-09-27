@@ -1,14 +1,13 @@
 <?php
 
 use App\Models\Department;
-use App\Models\DepartmentOperationSetting;
 use App\Models\Order;
 use App\Models\OrderState;
 use App\Models\Setting;
-use App\Models\User;
-use App\Models\Worker;
 use App\Services\Moysklad\OrderStateSyncService;
 use Illuminate\Support\Facades\Http;
+use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 /** Ответ /entity/customerorder/metadata с заданными статусами. */
 function statesMetadata(array $states): array
@@ -19,25 +18,6 @@ function statesMetadata(array $states): array
 function stateRow(string $id, string $name, int $color = 15280409): array
 {
     return ['id' => $id, 'name' => $name, 'color' => $color, 'stateType' => 'Regular'];
-}
-
-/** Мастер с включённой операцией «Заказы» в своём отделе. */
-function orderStateMaster(Department $dept): User
-{
-    DepartmentOperationSetting::create([
-        'department_id' => $dept->id,
-        'operation_key' => 'orders',
-        'config'        => ['positions' => ['Мастер']],
-        'enabled'       => true,
-    ]);
-
-    $worker = Worker::create([
-        'name'          => 'Мастер',
-        'department_id' => $dept->id,
-        'position'      => 'Мастер',
-    ]);
-
-    return User::factory()->for($worker)->create(['is_admin' => false]);
 }
 
 const ST_A = '11111111-1111-1111-1111-111111111111';
@@ -160,7 +140,7 @@ describe('Admin\OrderStateController', function () {
 
     test('страница доступна админу', function () {
         OrderState::create(['id' => ST_A, 'name' => 'Новый']);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->get(route('admin.order-states.index'))
@@ -172,7 +152,7 @@ describe('Admin\OrderStateController', function () {
     test('мастеру недоступна', function () {
         $dept = Department::create(['name' => 'Отдел', 'is_active' => true]);
 
-        $this->actingAs(orderStateMaster($dept))
+        $this->actingAs(Access::master($dept, 'orders'))
             ->get(route('admin.order-states.index'))
             ->assertForbidden();
     });
@@ -180,7 +160,7 @@ describe('Admin\OrderStateController', function () {
     test('сохранение галочек включает отмеченные и снимает остальные', function () {
         OrderState::create(['id' => ST_A, 'name' => 'Новый', 'is_enabled' => true]);
         OrderState::create(['id' => ST_B, 'name' => 'Собран', 'is_enabled' => false]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->post(route('admin.order-states.update'), ['enabled' => [ST_B]])
@@ -193,7 +173,7 @@ describe('Admin\OrderStateController', function () {
     test('галочка «производственный» сохраняется отдельно от «используется»', function () {
         OrderState::create(['id' => ST_A, 'name' => 'Новый', 'is_enabled' => true]);
         OrderState::create(['id' => ST_B, 'name' => 'В процессе', 'is_enabled' => true]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)->post(route('admin.order-states.update'), [
             'enabled'    => [ST_A, ST_B],
@@ -208,7 +188,7 @@ describe('Admin\OrderStateController', function () {
     test('галочка «в списке» сохраняется независимо от остальных', function () {
         OrderState::create(['id' => ST_A, 'name' => 'Новый', 'is_enabled' => true]);
         OrderState::create(['id' => ST_B, 'name' => 'Собран', 'is_enabled' => true]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)->post(route('admin.order-states.update'), [
             'enabled'        => [ST_A, ST_B],
@@ -224,7 +204,7 @@ describe('Admin\OrderStateController', function () {
 
     test('снятая галочка «в списке» сбрасывается', function () {
         OrderState::create(['id' => ST_A, 'name' => 'Собран', 'is_enabled' => true, 'is_default_filter' => true]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)->post(route('admin.order-states.update'), ['enabled' => [ST_A]]);
 
@@ -242,7 +222,7 @@ describe('Admin\OrderStateController', function () {
 
     test('снятая галочка «производственный» сбрасывается', function () {
         OrderState::create(['id' => ST_A, 'name' => 'В процессе', 'is_enabled' => true, 'is_production' => true]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)->post(route('admin.order-states.update'), ['enabled' => [ST_A]]);
 
@@ -260,7 +240,7 @@ describe('Admin\OrderStateController', function () {
 
     test('пустой список снимает все галочки', function () {
         OrderState::create(['id' => ST_A, 'name' => 'Новый', 'is_enabled' => true]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)->post(route('admin.order-states.update'), []);
 
@@ -284,7 +264,7 @@ describe('OrderController::updateState()', function () {
             'state_moysklad_id' => ST_A,
             'state_name'        => 'Новый',
         ]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->from(route('orders.show', 'ms-1'))
@@ -313,7 +293,7 @@ describe('OrderController::updateState()', function () {
             'state_moysklad_id' => ST_A,
             'state_name'        => 'Новый',
         ]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->from(route('orders.show', 'ms-1'))
@@ -330,7 +310,7 @@ describe('OrderController::updateState()', function () {
 
         OrderState::create(['id' => ST_B, 'name' => 'Отменен', 'is_enabled' => false]);
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новый']);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->from(route('orders.show', 'ms-1'))
@@ -342,7 +322,7 @@ describe('OrderController::updateState()', function () {
 
     test('несуществующий статус отклоняется валидацией', function () {
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->from(route('orders.show', 'ms-1'))
@@ -355,7 +335,7 @@ describe('OrderController::updateState()', function () {
 
         $own = Department::create(['name' => 'Отдел 1', 'is_active' => true]);
         $other = Department::create(['name' => 'Отдел 2', 'is_active' => true]);
-        $user = orderStateMaster($own);
+        $user = Access::master($own, 'orders');
 
         OrderState::create(['id' => ST_B, 'name' => 'Собран', 'is_enabled' => true]);
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
@@ -378,7 +358,7 @@ describe('OrderController::updateState()', function () {
             'state_moysklad_id' => ST_B,
             'state_name'        => 'Собран',
         ]);
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->from(route('orders.show', 'ms-1'))

@@ -82,6 +82,13 @@ Route::middleware(['auth'])->group(function () {
         // Пересъёмка остатков: обнуляет изготовленное, поэтому отдельным действием
         Route::post   ('orders/{moyskladId}/recalculate', [OrderController::class, 'recalculate'])
             ->name('orders.recalculate');
+        // Очередь заявок: по ней сортируется список и делится изготовленное
+        Route::post   ('orders/{moyskladId}/priority/move', [OrderController::class, 'movePriority'])
+            ->name('orders.priority.move');
+        Route::post   ('orders/{moyskladId}/priority/urgent', [OrderController::class, 'updateUrgent'])
+            ->name('orders.priority.urgent');
+        Route::post   ('orders/{moyskladId}/priority/reset', [OrderController::class, 'resetPriority'])
+            ->name('orders.priority.reset');
     });
 
     // Работники — список/CRUD доступен по can:see-workers; смена своего пароля — отдельно

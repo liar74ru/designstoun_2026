@@ -23,8 +23,10 @@ use Illuminate\Support\Facades\DB;
  */
 class OrderProductionService
 {
-    public function __construct(private StockSyncService $stockSync)
-    {
+    public function __construct(
+        private StockSyncService $stockSync,
+        private OrderPositionService $positions,
+    ) {
     }
 
     /**
@@ -182,6 +184,149 @@ class OrderProductionService
         }
 
         return $result;
+    }
+
+    /**
+     * Раздать общий объём товара между заявками в производстве по приоритету.
+     *
+     * Без раздачи каждая заявка видела весь остаток и всё изготовленное по своему
+     * товару, и одни и те же метры засчитывались нескольким заявкам сразу.
+     *
+     * Группа товара — все заявки с открытым окном производства, где он есть (не только
+     * переданные: соседи по очереди могут быть на другой странице списка). Пул группы —
+     * снимок остатка самой ранней заявки плюс изготовленное с её старта: снимки
+     * остальных заявок уже включают эти же метры. Заявки по очереди `prioritized()`
+     * берут не больше остатка к отгрузке — сначала со склада, затем из изготовленного;
+     * последняя забирает всё, что осталось, поэтому одиночная заявка считается ровно
+     * как раньше, а перепроизводство видно.
+     *
+     * Склады, не выбранные заявкой, в раздаче не участвуют, но в карте показаны тем,
+     * что на них осталось к её очереди: мастеру видно, откуда можно добрать.
+     *
+     * @param  Collection<int, Order>  $orders
+     * @param  callable(Order): ?string  $defaultStoreFor  склад заявки по умолчанию
+     * @return array<int, array<int, array{stock: array<string, float>, produced: array<string, float>, sharedWith: array<int, string>}>>
+     *         [order_id => [product_id => …]]; заявки и товары вне раздачи отсутствуют
+     */
+    public function allocate(Collection $orders, callable $defaultStoreFor): array
+    {
+        $productIds = $orders
+            ->filter(fn (Order $o) => $this->isOpen($o))
+            ->flatMap(fn (Order $o) => $o->items->pluck('product_id'))
+            ->filter()->unique()->values();
+
+        if ($productIds->isEmpty()) {
+            return [];
+        }
+
+        $group = Order::query()
+            ->whereNotNull('production_started_at')
+            ->whereNull('production_ended_at')
+            ->whereHas('items', fn ($q) => $q->whereIn('product_id', $productIds))
+            ->with(['items', 'positionSettings', 'departments'])
+            ->prioritized()
+            ->get();
+
+        // Якорь товара — самая ранняя заявка группы со снимком остатка по нему.
+        $anchors = [];
+        foreach ($productIds as $productId) {
+            $anchor = $group
+                ->filter(fn (Order $o) => $o->positionSettings
+                    ->firstWhere('product_id', $productId)?->isFrozen())
+                ->sortBy(fn (Order $o) => $o->production_started_at)
+                ->first();
+
+            if ($anchor) {
+                $anchors[$productId] = $anchor;
+            }
+        }
+
+        if ($anchors === []) {
+            return [];
+        }
+
+        $from = collect($anchors)->min(fn (Order $o) => $o->production_started_at);
+        $rows = $this->productionRows(array_keys($anchors), $from, now());
+
+        $result = [];
+
+        foreach ($anchors as $productId => $anchor) {
+            $pool = $this->pool($anchor, $productId, $rows);
+            $members = $group->filter(fn (Order $o) => $o->items->contains('product_id', $productId))->values();
+            $names = $members->pluck('name', 'id');
+
+            foreach ($members as $i => $order) {
+                $setting  = $order->positionSettings->firstWhere('product_id', $productId);
+                $storeIds = $this->positions->storeIds($setting, $defaultStoreFor($order));
+                $isLast   = $i === $members->count() - 1;
+
+                $need = $order->items
+                    ->where('product_id', $productId)
+                    ->sum(fn ($item) => max(0, (float) $item->quantity - (float) $item->shipped));
+
+                $taken = ['stock' => [], 'produced' => []];
+
+                foreach (['stock', 'produced'] as $part) {
+                    foreach (array_keys($pool[$part]) as $storeId) {
+                        $available = $pool[$part][$storeId];
+
+                        if (! in_array($storeId, $storeIds, true)) {
+                            // Не выбранный склад: показываем остаток, но не расходуем.
+                            $taken[$part][$storeId] = $available;
+                            continue;
+                        }
+
+                        $take = $isLast ? $available : max(0.0, min($need, $available));
+                        $taken[$part][$storeId] = $take;
+                        $pool[$part][$storeId] -= $take;
+                        $need -= $take;
+                    }
+                }
+
+                $result[$order->id][$productId] = $taken + [
+                    'sharedWith' => $names->except($order->id)->values()->all(),
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Пул товара по складам: снимок якорной заявки и изготовленное с её старта.
+     *
+     * @param  array<int, object>  $rows
+     * @return array{stock: array<string, float>, produced: array<string, float>}
+     */
+    private function pool(Order $anchor, int $productId, array $rows): array
+    {
+        $frozen = $anchor->positionSettings->firstWhere('product_id', $productId)->frozen_stocks;
+
+        $stock = [];
+        foreach ($frozen as $storeId => $qty) {
+            $stock[$storeId] = (float) $qty;
+        }
+
+        $produced = [];
+        foreach ($rows as $row) {
+            if ((int) $row->product_id !== $productId || ! $row->store_id) {
+                continue;
+            }
+
+            if (Carbon::parse($row->created_at)->lt($anchor->production_started_at)) {
+                continue;
+            }
+
+            $produced[$row->store_id] = ($produced[$row->store_id] ?? 0.0) + (float) $row->qty;
+        }
+
+        return ['stock' => $stock, 'produced' => $produced];
+    }
+
+    /** Окно производства открыто: заявка сейчас в производственном статусе. */
+    private function isOpen(Order $order): bool
+    {
+        return $order->production_started_at !== null && $order->production_ended_at === null;
     }
 
     /** Изготовленное по одной заявке: [product_id => [store_id => qty]] */

@@ -20,14 +20,17 @@ class OrderPositionService
 {
     /**
      * @param  array<int, array<string, float>>  $produced  [product_id => [store_id => qty]]
+     * @param  array<int, array<string, mixed>>  $allocation  доля позиции в общем объёме товара
+     *         (OrderProductionService::allocate) — [product_id => ['stock', 'produced', 'sharedWith']];
+     *         позиции без доли считаются по снимку заявки и её окну
      * @return Collection<int, array<string, mixed>>
      */
-    public function rows(Order $order, ?string $defaultStoreId, array $produced = []): Collection
+    public function rows(Order $order, ?string $defaultStoreId, array $produced = [], array $allocation = []): Collection
     {
         $settings = $order->positionSettings->keyBy('product_id');
         $inProduction = $order->production_started_at !== null;
 
-        return $order->items->map(function (OrderItem $item) use ($settings, $defaultStoreId, $produced, $inProduction) {
+        return $order->items->map(function (OrderItem $item) use ($settings, $defaultStoreId, $produced, $allocation, $inProduction) {
             $product = $item->product;
             $setting = $product ? $settings->get($product->id) : null;
 
@@ -43,17 +46,25 @@ class OrderPositionService
             $totalQty     = null;
             $storeQty     = [];
             $producedByStore = [];
+            $share = $product ? ($allocation[$product->id] ?? null) : null;
 
             if ($product && $storeIds) {
                 // После входа в производство показываем снимок: изготовленное
                 // приходуется на склад, и живой остаток задвоил бы «Всего».
-                $storeQty = $setting?->isFrozen()
-                    ? $setting->frozen_stocks
-                    : $product->stocks->mapWithKeys(
+                // Товар общий с другими заявками в производстве — берём свою долю.
+                $storeQty = match (true) {
+                    $share !== null       => $share['stock'],
+                    $setting?->isFrozen() => $setting->frozen_stocks,
+                    default               => $product->stocks->mapWithKeys(
                         fn ($s) => [$s->store_id => (float) $s->quantity],
-                    )->all();
+                    )->all(),
+                };
 
-                $producedByStore = $inProduction ? ($produced[$product->id] ?? []) : [];
+                $producedByStore = match (true) {
+                    $share !== null => $share['produced'],
+                    $inProduction   => $produced[$product->id] ?? [],
+                    default         => [],
+                };
 
                 // Приведение к float обязательно: max(0, 0.0) возвращает int,
                 // и тип числа в строке плавал бы от данных.
@@ -93,6 +104,8 @@ class OrderPositionService
                 'frozen'          => (bool) $setting?->isFrozen(),
                 // Ручная отметка «готово»; не путать с 'ready' — долей закрытия остатка.
                 'isReady'         => (bool) $setting?->isReady(),
+                // Заявки, с которыми позиция делит товар (выше и ниже по очереди).
+                'sharedWith'      => $share['sharedWith'] ?? [],
                 // Дефицит считаем от «Всего»: позиция, закрытая производством,
                 // не должна показывать нехватку.
                 'short'           => $totalQty === null ? null : (float) max(0, $left - $totalQty),
@@ -109,6 +122,8 @@ class OrderPositionService
      *
      * @param  array<int, string>  $storeIds
      * @param  array<string, float>  $producedForProduct  [store_id => qty]
+     * @param  array<string, float>|null  $stockForProduct  доля остатка, если товар делится
+     *         с другими заявками; null — база от снимка или живого остатка
      */
     public function save(
         Order $order,
@@ -119,6 +134,7 @@ class OrderPositionService
         ?string $note,
         ?User $user,
         array $producedForProduct = [],
+        ?array $stockForProduct = null,
     ): OrderPositionSetting {
         $setting = OrderPositionSetting::firstOrNew([
             'order_id'   => $order->id,
@@ -128,9 +144,11 @@ class OrderPositionService
         $setting->stores = array_values(array_unique($storeIds));
 
         if ($stockFact !== null) {
-            $base = $setting->isFrozen()
-                ? $this->sumMap($setting->frozen_stocks, $setting->stores)
-                : $this->sumStocks($product, $setting->stores);
+            $base = match (true) {
+                $stockForProduct !== null => $this->sumMap($stockForProduct, $setting->stores),
+                $setting->isFrozen()      => $this->sumMap($setting->frozen_stocks, $setting->stores),
+                default                   => $this->sumStocks($product, $setting->stores),
+            };
 
             $setting->stock_base  = $base;
             $setting->stock_delta = round($stockFact - $base, 3);

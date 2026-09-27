@@ -10,6 +10,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection as SupportCollection;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -30,8 +31,58 @@ class OrderService
         $statuses   = $this->statuses();
         $defaults   = $this->defaultStatuses();
 
-        $orders = QueryBuilder::for(Order::class)
+        $orders = $this->indexQuery($request)
             ->with(['items.product.stocks', 'departments', 'counterparty', 'positionSettings'])
+            ->prioritized()
+            ->paginate(20)
+            ->withQueryString();
+
+        // Изготовленное — двумя выборками на всю страницу, а не по заявке.
+        $produced   = $this->production->producedForOrders($orders->getCollection());
+        $allocation = $this->allocate($orders->getCollection(), $request->user());
+
+        $rowsByOrder = $orders->getCollection()
+            ->mapWithKeys(fn (Order $order) => [
+                $order->id => $this->positions->rows(
+                    $order,
+                    $this->effectiveStoreId($order, $request->user()),
+                    $produced[$order->id] ?? [],
+                    $allocation[$order->id] ?? [],
+                ),
+            ])
+            ->all();
+
+        $departments = Department::orderBy('name')->get();
+
+        return [
+            'orders'             => $orders,
+            'statusOptions'      => array_combine($statuses, $statuses),
+            'statusDefaults'     => $defaults,
+            'filterDepartments'  => $departments,
+            'noDepartmentOption' => self::NO_DEPARTMENT,
+            'assignDepartments'  => $departments,
+            'departmentDefaults' => $accessible ?? [],
+            'switchDepartments'  => Department::query()
+                ->when($accessible !== null, fn ($q) => $q->whereIn('id', $accessible ?: [-1]))
+                ->whereHas('orders')
+                ->orderBy('name')
+                ->get(),
+            'rowsByOrder'        => $rowsByOrder,
+            'orderStates'        => $this->enabledStates(),
+        ];
+    }
+
+    /**
+     * Заявки списка с фильтрами и ограничением по отделам — без порядка и пагинации.
+     * Тот же запрос ищет соседа при ручном перемещении: «выше/ниже» считается
+     * в том списке, который видит пользователь.
+     */
+    public function indexQuery(Request $request): QueryBuilder
+    {
+        $accessible = $request->user()?->accessibleDepartmentIds();
+        $defaults   = $this->defaultStatuses();
+
+        return QueryBuilder::for(Order::class)
             ->allowedFilters([
                 AllowedFilter::callback('status', fn ($q, $v) =>
                     $q->whereIn('state_name', (array) $v)),
@@ -60,42 +111,21 @@ class OrderService
             // Фильтр статусов не пришёл — показываем набор, отмеченный админом «по умолчанию».
             // Проверяем наличие ключа: пустой filter[status] форма не присылает вовсе.
             ->when(! $request->has('filter.status') && $defaults !== [], fn ($q) =>
-                $q->whereIn('state_name', $defaults))
-            ->orderByDesc('moment')
-            ->paginate(20)
-            ->withQueryString();
+                $q->whereIn('state_name', $defaults));
+    }
 
-        // Изготовленное — двумя выборками на всю страницу, а не по заявке.
-        $produced = $this->production->producedForOrders($orders->getCollection());
-
-        $rowsByOrder = $orders->getCollection()
-            ->mapWithKeys(fn (Order $order) => [
-                $order->id => $this->positions->rows(
-                    $order,
-                    $this->effectiveStoreId($order, $request->user()),
-                    $produced[$order->id] ?? [],
-                ),
-            ])
-            ->all();
-
-        $departments = Department::orderBy('name')->get();
-
-        return [
-            'orders'             => $orders,
-            'statusOptions'      => array_combine($statuses, $statuses),
-            'statusDefaults'     => $defaults,
-            'filterDepartments'  => $departments,
-            'noDepartmentOption' => self::NO_DEPARTMENT,
-            'assignDepartments'  => $departments,
-            'departmentDefaults' => $accessible ?? [],
-            'switchDepartments'  => Department::query()
-                ->when($accessible !== null, fn ($q) => $q->whereIn('id', $accessible ?: [-1]))
-                ->whereHas('orders')
-                ->orderBy('name')
-                ->get(),
-            'rowsByOrder'        => $rowsByOrder,
-            'orderStates'        => $this->enabledStates(),
-        ];
+    /**
+     * Доли заявок в общем объёме товара — по очереди приоритета.
+     *
+     * @param  SupportCollection<int, Order>  $orders
+     * @return array<int, array<int, array<string, mixed>>>  [order_id => [product_id => доля]]
+     */
+    public function allocate(SupportCollection $orders, ?User $user): array
+    {
+        return $this->production->allocate(
+            $orders,
+            fn (Order $order) => $this->effectiveStoreId($order, $user),
+        );
     }
 
     /** Используемые статусы — для переключателя статуса заявки. */
@@ -166,6 +196,7 @@ class OrderService
                 $order,
                 $defaultStoreId,
                 $this->production->producedForOrder($order),
+                $this->allocate(collect([$order]), $request->user())[$order->id] ?? [],
             ),
             // Полный список складов нужен модалке: мастер выбирает, откуда собирает позицию.
             'stores'         => Store::where('archived', false)->orderBy('name')->get(),

@@ -1,15 +1,13 @@
 <?php
 
 use App\Models\Department;
-use App\Models\DepartmentOperationSetting;
 use App\Models\Order;
 use App\Models\OrderPositionSetting;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\Store;
-use App\Models\User;
-use App\Models\Worker;
 use App\Services\OrderPositionService;
+use Tests\Helpers\AccessTestHelper as Access;
 
 /**
  * Заявка отдела с товаром и остатками на двух складах.
@@ -36,24 +34,6 @@ function positionFixture(float $mainStock = 45.0, float $extraStock = 10.0): arr
     $order->items()->create(['product_id' => $product->id, 'quantity' => 100, 'shipped' => 0]);
 
     return compact('order', 'product', 'main', 'extra', 'dept');
-}
-
-function positionMaster(Department $dept): User
-{
-    DepartmentOperationSetting::create([
-        'department_id' => $dept->id,
-        'operation_key' => 'orders',
-        'config'        => ['positions' => ['Мастер']],
-        'enabled'       => true,
-    ]);
-
-    $worker = Worker::create([
-        'name'          => 'Мастер',
-        'department_id' => $dept->id,
-        'position'      => 'Мастер',
-    ]);
-
-    return User::factory()->for($worker)->create(['is_admin' => false]);
 }
 
 /** Строка позиции так, как её увидит шаблон. */
@@ -267,7 +247,7 @@ describe('OrderController: настройка позиции', function () {
     test('мастер сохраняет склады и уточнение', function () {
         ['order' => $order, 'product' => $product, 'main' => $main, 'extra' => $extra, 'dept' => $dept]
             = positionFixture(45, 10);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $this->actingAs($user)
             ->from(route('orders.show', 'ms-1'))
@@ -288,7 +268,7 @@ describe('OrderController: настройка позиции', function () {
 
     test('без складов запрос отклоняется', function () {
         ['product' => $product, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $this->actingAs($user)
             ->from(route('orders.show', 'ms-1'))
@@ -304,7 +284,7 @@ describe('OrderController: настройка позиции', function () {
 
     test('отрицательный факт отклоняется', function () {
         ['product' => $product, 'main' => $main, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $this->actingAs($user)
             ->from(route('orders.show', 'ms-1'))
@@ -321,7 +301,7 @@ describe('OrderController: настройка позиции', function () {
     test('мастер чужого отдела получает 403', function () {
         ['product' => $product, 'main' => $main] = positionFixture(45);
         $other = Department::create(['name' => 'Отдел 2', 'is_active' => true]);
-        $user = positionMaster($other);
+        $user = Access::master($other, 'orders');
 
         $this->actingAs($user)
             ->post(route('orders.position.update', 'ms-1'), [
@@ -336,7 +316,7 @@ describe('OrderController: настройка позиции', function () {
 
     test('сброс снимает уточнение', function () {
         ['order' => $order, 'product' => $product, 'main' => $main, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
         app(OrderPositionService::class)->save($order, $product, [$main->id], 38, null, null, null);
 
         $this->actingAs($user)
@@ -356,7 +336,7 @@ describe('Уточнённые числа в интерфейсе', function () 
 
     test('карточка показывает поправленный остаток и дефицит от него', function () {
         ['order' => $order, 'product' => $product, 'main' => $main, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         // Нужно 100, на складе 45 → не хватает 55. После уточнения 38 → не хватает 62.
         app(OrderPositionService::class)->save($order, $product, [$main->id], 38, null, null, null);
@@ -370,7 +350,7 @@ describe('Уточнённые числа в интерфейсе', function () 
 
     test('без уточнения показывается расчётный остаток', function () {
         ['dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $this->actingAs($user)
             ->get(route('orders.show', 'ms-1'))
@@ -381,7 +361,7 @@ describe('Уточнённые числа в интерфейсе', function () 
     test('список заявок показывает то же «Всего»', function () {
         ['order' => $order, 'product' => $product, 'main' => $main, 'extra' => $extra, 'dept' => $dept]
             = positionFixture(45, 10);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         app(OrderPositionService::class)->save($order, $product, [$main->id, $extra->id], null, null, null, null);
 
@@ -406,7 +386,7 @@ describe('Отметка «позиция готова»', function () {
 
     test('отметка создаёт настройки позиции и помечает её готовой', function () {
         ['order' => $order, 'product' => $product, 'main' => $main, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         app(OrderPositionService::class)->setReady($order, $product->id, true, $user);
 
@@ -450,7 +430,7 @@ describe('Отметка «позиция готова»', function () {
 
     test('мастер отмечает позицию и снимает отметку через AJAX', function () {
         ['order' => $order, 'product' => $product, 'main' => $main, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
         $url = route('orders.position.ready', ['ms-1', $product->id]);
 
         $this->actingAs($user)
@@ -470,7 +450,7 @@ describe('Отметка «позиция готова»', function () {
 
     test('без поля ready запрос отклоняется', function () {
         ['product' => $product, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $this->actingAs($user)
             ->postJson(route('orders.position.ready', ['ms-1', $product->id]), [])
@@ -482,7 +462,7 @@ describe('Отметка «позиция готова»', function () {
 
     test('товар не из этой заявки — 404', function () {
         ['dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
         $alien = Product::factory()->create();
 
         $this->actingAs($user)
@@ -495,7 +475,7 @@ describe('Отметка «позиция готова»', function () {
     test('мастер чужого отдела получает 403', function () {
         ['product' => $product] = positionFixture(45);
         $other = Department::create(['name' => 'Отдел 2', 'is_active' => true]);
-        $user = positionMaster($other);
+        $user = Access::master($other, 'orders');
 
         $this->actingAs($user)
             ->postJson(route('orders.position.ready', ['ms-1', $product->id]), ['ready' => true])
@@ -517,7 +497,7 @@ describe('Отметка «позиция готова»', function () {
 
     test('список заявок рисует готовую позицию с плашкой и кнопкой', function () {
         ['order' => $order, 'product' => $product, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         app(OrderPositionService::class)->setReady($order, $product->id, true, null);
 
@@ -536,7 +516,7 @@ describe('Отметка «позиция готова»', function () {
 
     test('карточка заявки рисует готовую позицию с плашкой и кнопкой', function () {
         ['order' => $order, 'product' => $product, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         app(OrderPositionService::class)->setReady($order, $product->id, true, null);
 
@@ -554,7 +534,7 @@ describe('Отметка «позиция готова»', function () {
 
     test('у отгруженной позиции кнопки отметки нет', function () {
         ['order' => $order, 'product' => $product, 'dept' => $dept] = positionFixture(45);
-        $user = positionMaster($dept);
+        $user = Access::master($dept, 'orders');
         $order->items()->update(['shipped' => 100]);
 
         $this->actingAs($user)

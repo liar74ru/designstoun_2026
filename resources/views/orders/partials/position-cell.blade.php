@@ -25,6 +25,10 @@
         $hint = 'По документам производства: ' . $fmt1($row['producedAuto'] ?? 0);
     }
 
+    if (! empty($row['sharedWith'])) {
+        $hint .= ' · доля в общем объёме с заявками ' . implode(', ', $row['sharedWith']);
+    }
+
     if ($delta != 0) {
         $hint .= ' · поправка ' . ($delta > 0 ? '+' : '−') . $fmt1(abs($delta))
             . ($author ? ' · ' . $author : '')
@@ -49,6 +53,7 @@
           data-visible-stores="{{ json_encode($row['visibleStores']) }}"
           data-store-qty="{{ json_encode($row['storeQty']) }}"
           data-produced-store="{{ json_encode($row['producedByStore']) }}"
+          data-shared-with="{{ implode(', ', $row['sharedWith'] ?? []) }}"
           data-warehouse="{{ $fmt1($row['warehouseQty']) }}"
           data-produced="{{ $fmt1($row['producedQty']) }}"
           data-produced-auto="{{ $fmt1($row['producedAuto'] ?? 0) }}"
@@ -60,6 +65,11 @@
     @if($field === 'warehouse' && $row['frozen'])
         <i class="bi bi-snow text-primary" style="font-size:.62rem"
            title="Остаток зафиксирован на входе в производство"></i>
+    @endif
+
+    @if($field === 'warehouse' && ! empty($row['sharedWith']))
+        <i class="bi bi-people text-info" style="font-size:.7rem"
+           title="Товар делится по очереди с заявками: {{ implode(', ', $row['sharedWith']) }}"></i>
     @endif
 
     @if($delta != 0)

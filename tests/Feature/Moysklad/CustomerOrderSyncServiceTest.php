@@ -11,6 +11,7 @@ use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\Moysklad\MoySkladService;
 use App\Services\Moysklad\OrderStateSyncService;
 use App\Services\OrderProductionService;
+use App\Support\OrderPriority;
 use Illuminate\Support\Facades\Http;
 
 const SYNC_PROD_STATE = '55555555-5555-5555-5555-555555555555';
@@ -216,5 +217,90 @@ describe('Окно производства по данным синхрониз
         customerOrderSync()->pullActive();
 
         expect(Order::where('moysklad_id', 'ms-1')->first()->production_ended_at)->not->toBeNull();
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Приоритет заявки по данным синхронизации
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Приоритет по данным синхронизации', function () {
+
+    /** Выгрузка заявки со сроком отгрузки и датой документа. */
+    function fakePrioritySync(Product $product, ?string $deliveryPlanned = '2026-10-05 00:00:00.000'): void
+    {
+        $response = ordersResponse(SYNC_IDLE_STATE, 'Новый', $product);
+        $response['rows'][0]['moment'] = '2026-09-01 10:00:00.000';
+        if ($deliveryPlanned !== null) {
+            $response['rows'][0]['deliveryPlannedMoment'] = $deliveryPlanned;
+        }
+
+        Http::fake([
+            '*/entity/customerorder/metadata' => Http::response(syncStatesFake(), 200),
+            '*/entity/customerorder?*'        => Http::response($response, 200),
+            '*' => Http::response(['rows' => [], 'meta' => ['size' => 0]], 200),
+        ]);
+    }
+
+    beforeEach(function () {
+        config()->set('services.moysklad.token', 'test-token');
+        OrderState::create(['id' => SYNC_IDLE_STATE, 'name' => 'Новый', 'is_enabled' => true]);
+    });
+
+    test('срок отгрузки сохраняется, ключ считается по нему', function () {
+        fakePrioritySync(Product::factory()->create());
+
+        customerOrderSync()->pullActive();
+
+        $order = Order::where('moysklad_id', 'ms-1')->first();
+        expect($order->delivery_planned_at->format('Y-m-d'))->toBe('2026-10-05')
+            ->and($order->priority_key)->toEqual(OrderPriority::autoKey($order->delivery_planned_at, $order->moment));
+    });
+
+    test('ручной ключ синхронизация не трогает', function () {
+        Order::create([
+            'moysklad_id'       => 'ms-1',
+            'name'              => 'Заявка 1',
+            'state_moysklad_id' => SYNC_IDLE_STATE,
+            'priority_key'      => 42,
+            'priority_manual'   => true,
+        ]);
+        fakePrioritySync(Product::factory()->create());
+
+        customerOrderSync()->pullActive();
+
+        $order = Order::where('moysklad_id', 'ms-1')->first();
+        expect($order->priority_key)->toEqual(42.0)
+            ->and($order->delivery_planned_at)->not->toBeNull();
+    });
+
+    test('заявка без срока встаёт после заявок со сроком', function () {
+        fakePrioritySync(Product::factory()->create(), null);
+
+        customerOrderSync()->pullActive();
+
+        $order = Order::where('moysklad_id', 'ms-1')->first();
+        expect($order->delivery_planned_at)->toBeNull()
+            ->and($order->priority_key)->toEqual(OrderPriority::autoKey(null, $order->moment))
+            ->and($order->priority_key)->toBeGreaterThan(
+                OrderPriority::autoKey(now()->addYears(50), $order->moment),
+            );
+    });
+
+    test('срок, изменённый в МойСклад, пересчитывает авто-ключ', function () {
+        Order::create([
+            'moysklad_id'         => 'ms-1',
+            'name'                => 'Заявка 1',
+            'state_moysklad_id'   => SYNC_IDLE_STATE,
+            'delivery_planned_at' => '2026-12-31 00:00:00',
+            'priority_key'        => 42,
+        ]);
+        fakePrioritySync(Product::factory()->create());
+
+        customerOrderSync()->pullActive();
+
+        $order = Order::where('moysklad_id', 'ms-1')->first();
+        expect($order->delivery_planned_at->format('Y-m-d'))->toBe('2026-10-05')
+            ->and($order->priority_key)->toEqual(OrderPriority::autoKey($order->delivery_planned_at, $order->moment));
     });
 });

@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\Moysklad\StockSyncService;
 use App\Services\OrderPositionService;
+use App\Services\OrderPriorityService;
 use App\Services\OrderProductionService;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
@@ -108,6 +109,7 @@ class OrderController extends Controller
 
         $order   = $this->service->findForUser($request, $moyskladId, ['items']);
         $product = Product::findOrFail($data['product_id']);
+        $share   = $this->service->allocate(collect([$order]), $request->user())[$order->id][$product->id] ?? null;
 
         $positions->save(
             $order,
@@ -117,7 +119,8 @@ class OrderController extends Controller
             isset($data['produced']) ? (float) $data['produced'] : null,
             $data['note'] ?? null,
             $request->user(),
-            $this->production->producedForOrder($order)[$product->id] ?? [],
+            $share['produced'] ?? $this->production->producedForOrder($order)[$product->id] ?? [],
+            $share['stock'] ?? null,
         );
 
         return redirect()->route('orders.show', $moyskladId)
@@ -175,6 +178,59 @@ class OrderController extends Controller
 
         return redirect()->route('orders.show', $moyskladId)
             ->with('success', 'Уточнения сняты — показаны расчётные значения.');
+    }
+
+    /**
+     * Сдвинуть заявку в очереди на одну позицию. Фильтры списка приходят в query
+     * string: соседом считается заявка, которую пользователь видит выше/ниже.
+     */
+    public function movePriority(
+        Request $request,
+        OrderPriorityService $priority,
+        string $moyskladId,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'direction' => 'required|in:' . OrderPriorityService::UP . ',' . OrderPriorityService::DOWN,
+        ]);
+
+        $order = $this->service->findForUser($request, $moyskladId);
+
+        if (! $priority->move($order, $data['direction'], $request)) {
+            return back()->with('warning', 'Заявка «' . $order->name . '» уже '
+                . ($data['direction'] === OrderPriorityService::UP ? 'первая' : 'последняя') . ' в очереди.');
+        }
+
+        return back();
+    }
+
+    public function updateUrgent(
+        Request $request,
+        OrderPriorityService $priority,
+        string $moyskladId,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'urgent' => 'required|boolean',
+        ]);
+
+        $order = $this->service->findForUser($request, $moyskladId);
+
+        $priority->setUrgent($order, (bool) $data['urgent']);
+
+        return back()->with('success', $order->is_urgent
+            ? 'Заявка «' . $order->name . '» отмечена срочной.'
+            : 'Отметка «срочно» снята с заявки «' . $order->name . '».');
+    }
+
+    public function resetPriority(
+        Request $request,
+        OrderPriorityService $priority,
+        string $moyskladId,
+    ): RedirectResponse {
+        $order = $this->service->findForUser($request, $moyskladId);
+
+        $priority->resetManual($order);
+
+        return back()->with('success', 'Заявка «' . $order->name . '» возвращена на место по сроку отгрузки.');
     }
 
     public function sync(): RedirectResponse

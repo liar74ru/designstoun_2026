@@ -1,32 +1,12 @@
 <?php
 
 use App\Models\Department;
-use App\Models\DepartmentOperationSetting;
 use App\Models\Order;
 use App\Models\OrderState;
-use App\Models\User;
-use App\Models\Worker;
 use App\Services\OrderService;
 use Illuminate\Support\Facades\Http;
-
-/** Мастер с включённой операцией «Заявки» в своём отделе. */
-function orderDeptMaster(Department $dept): User
-{
-    DepartmentOperationSetting::create([
-        'department_id' => $dept->id,
-        'operation_key' => 'orders',
-        'config'        => ['positions' => ['Мастер']],
-        'enabled'       => true,
-    ]);
-
-    $worker = Worker::create([
-        'name'          => 'Мастер',
-        'department_id' => $dept->id,
-        'position'      => 'Мастер',
-    ]);
-
-    return User::factory()->for($worker)->create(['is_admin' => false]);
-}
+use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 /** Строка метаданных доп. реквизита заказа покупателя. */
 function orderDeptAttribute(string $id, string $name, string $type = 'boolean'): array
@@ -75,7 +55,7 @@ describe('Список заявок: «Без отдела»', function () {
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'С отделом'])->departments()->attach($dept->id);
         Order::create(['moysklad_id' => 'ms-2', 'name' => 'Без отдела']);
 
-        $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $response = $this->actingAs(H::adminUser())
             ->get(route('orders.index'))
             ->assertSuccessful();
 
@@ -87,7 +67,7 @@ describe('Список заявок: «Без отдела»', function () {
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'С отделом'])->departments()->attach($dept->id);
         Order::create(['moysklad_id' => 'ms-2', 'name' => 'Без отдела']);
 
-        $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $response = $this->actingAs(H::adminUser())
             ->get(route('orders.index', ['filter' => ['department_id' => [OrderService::NO_DEPARTMENT]]]))
             ->assertSuccessful();
 
@@ -101,7 +81,7 @@ describe('Список заявок: «Без отдела»', function () {
         Order::create(['moysklad_id' => 'ms-2', 'name' => 'Отдел 2'])->departments()->attach($dept2->id);
         Order::create(['moysklad_id' => 'ms-3', 'name' => 'Без отдела']);
 
-        $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $response = $this->actingAs(H::adminUser())
             ->get(route('orders.index', ['filter' => ['department_id' => [$dept1->id, OrderService::NO_DEPARTMENT]]]))
             ->assertSuccessful();
 
@@ -115,7 +95,7 @@ describe('Список заявок: «Без отдела»', function () {
         Order::create(['moysklad_id' => 'ms-2', 'name' => 'Чужой'])->departments()->attach($other->id);
         Order::create(['moysklad_id' => 'ms-3', 'name' => 'Без отдела']);
 
-        $response = $this->actingAs(orderDeptMaster($own))
+        $response = $this->actingAs(Access::master($own, 'orders'))
             ->get(route('orders.index', ['filter' => ['department_id' => [$own->id, $other->id, OrderService::NO_DEPARTMENT]]]))
             ->assertSuccessful();
 
@@ -125,7 +105,7 @@ describe('Список заявок: «Без отдела»', function () {
     test('пункт «Без отдела» выводится в фильтре', function () {
         Department::create(['name' => 'Отдел 1', 'is_active' => true]);
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $this->actingAs(H::adminUser())
             ->get(route('orders.index'))
             ->assertSuccessful()
             ->assertSee('value="' . OrderService::NO_DEPARTMENT . '"', false)
@@ -151,7 +131,7 @@ describe('OrderController::updateDepartments()', function () {
             orderDeptAttribute('attr-3', 'Комментарий', 'string'),
         ]);
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $this->actingAs(H::adminUser())
             ->from(route('orders.index'))
             ->post(route('orders.departments.update', 'ms-1'), ['departments' => [$dept1->id]])
             ->assertRedirect(route('orders.index'))
@@ -180,7 +160,7 @@ describe('OrderController::updateDepartments()', function () {
 
         fakeOrderDeptMoysklad([orderDeptAttribute('attr-1', 'Резка')]);
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $this->actingAs(H::adminUser())
             ->from(route('orders.index'))
             ->post(route('orders.departments.update', 'ms-1'))
             ->assertSessionHas('success');
@@ -197,7 +177,7 @@ describe('OrderController::updateDepartments()', function () {
 
         fakeOrderDeptMoysklad([orderDeptAttribute('attr-9', 'Другой')]);
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $this->actingAs(H::adminUser())
             ->from(route('orders.index'))
             ->post(route('orders.departments.update', 'ms-1'), ['departments' => [$dept->id]])
             ->assertSessionHas('error', fn ($message) => str_contains($message, '«Резка»'));
@@ -218,7 +198,7 @@ describe('OrderController::updateDepartments()', function () {
             ['errors' => [['error' => 'Нет прав на изменение']]],
         );
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $this->actingAs(H::adminUser())
             ->from(route('orders.index'))
             ->post(route('orders.departments.update', 'ms-1'), ['departments' => [$dept2->id]])
             ->assertSessionHas('error', fn ($message) => str_contains($message, 'Нет прав на изменение'));
@@ -233,7 +213,7 @@ describe('OrderController::updateDepartments()', function () {
         $dept = Department::create(['name' => 'Резка', 'is_active' => true]);
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $this->actingAs(H::adminUser())
             ->from(route('orders.index'))
             ->post(route('orders.departments.update', 'ms-1'), ['departments' => [$dept->id]])
             ->assertSessionHas('error');
@@ -245,7 +225,7 @@ describe('OrderController::updateDepartments()', function () {
         Http::fake();
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]))
+        $this->actingAs(H::adminUser())
             ->from(route('orders.index'))
             ->post(route('orders.departments.update', 'ms-1'), ['departments' => [999999]])
             ->assertSessionHasErrors('departments.0');
@@ -259,7 +239,7 @@ describe('OrderController::updateDepartments()', function () {
 
         fakeOrderDeptMoysklad([orderDeptAttribute('attr-1', 'Резка')]);
 
-        $this->actingAs(orderDeptMaster($own))
+        $this->actingAs(Access::master($own, 'orders'))
             ->from(route('orders.index'))
             ->post(route('orders.departments.update', 'ms-1'), ['departments' => [$own->id]])
             ->assertSessionHas('success');
@@ -275,7 +255,7 @@ describe('OrderController::updateDepartments()', function () {
 
         Http::fake();
 
-        $this->actingAs(orderDeptMaster($own))
+        $this->actingAs(Access::master($own, 'orders'))
             ->post(route('orders.departments.update', 'ms-1'), ['departments' => [$own->id]])
             ->assertForbidden();
 

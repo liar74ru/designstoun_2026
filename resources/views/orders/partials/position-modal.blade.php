@@ -18,6 +18,11 @@
 
                 <div class="modal-body">
                     <div class="fw-semibold mb-2" id="position_name"></div>
+                    <div class="alert alert-info py-1 px-2 small mb-2" id="position_shared" style="display:none">
+                        <i class="bi bi-people"></i>
+                        Товар делится по очереди с заявками: <span id="position_shared_list"></span>.
+                        Показана доля этой заявки.
+                    </div>
 
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center">

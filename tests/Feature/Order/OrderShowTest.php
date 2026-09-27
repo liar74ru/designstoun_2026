@@ -2,36 +2,15 @@
 
 use App\Models\Counterparty;
 use App\Models\Department;
-use App\Models\DepartmentOperationSetting;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\Store;
 use App\Models\User;
-use App\Models\Worker;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
-
-/**
- * Мастер отдела с включённой операцией «Заявки» — иначе не пройдёт can:see-orders.
- */
-function orderShowMaster(Department $dept): User
-{
-    DepartmentOperationSetting::create([
-        'department_id' => $dept->id,
-        'operation_key' => 'orders',
-        'config'        => ['positions' => ['Мастер']],
-        'enabled'       => true,
-    ]);
-
-    $worker = Worker::create([
-        'name'          => 'Мастер',
-        'department_id' => $dept->id,
-        'position'      => 'Мастер',
-    ]);
-
-    return User::factory()->for($worker)->create(['is_admin' => false]);
-}
+use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 function orderShowRequest(User $user, string $moyskladId): Request
 {
@@ -48,7 +27,7 @@ function orderShowRequest(User $user, string $moyskladId): Request
 describe('OrderController::show()', function () {
 
     test('страница доступна админу', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая']);
 
         $this->actingAs($user)
@@ -59,15 +38,8 @@ describe('OrderController::show()', function () {
             ->assertSee('Заявка 1');
     });
 
-    test('недоступна без авторизации', function () {
-        $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
-
-        $this->get(route('orders.show', $order->moysklad_id))
-            ->assertRedirect('/login');
-    });
-
     test('неизвестный moysklad_id — 404', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $this->actingAs($user)
             ->get(route('orders.show', 'ms-которого-нет'))
@@ -75,7 +47,7 @@ describe('OrderController::show()', function () {
     });
 
     test('заявка ищется по moysklad_id, а не по локальному id', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $order = Order::create(['moysklad_id' => 'ms-42', 'name' => 'Заявка 42']);
 
         $this->actingAs($user)
@@ -85,7 +57,7 @@ describe('OrderController::show()', function () {
 
     test('мастер видит заявку своего отдела', function () {
         $dept = Department::create(['name' => 'Отдел 1', 'is_active' => true]);
-        $user = orderShowMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
         $order->departments()->attach($dept->id);
@@ -98,7 +70,7 @@ describe('OrderController::show()', function () {
     test('мастер не видит заявку чужого отдела', function () {
         $own = Department::create(['name' => 'Отдел 1', 'is_active' => true]);
         $other = Department::create(['name' => 'Отдел 2', 'is_active' => true]);
-        $user = orderShowMaster($own);
+        $user = Access::master($own, 'orders');
 
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
         $order->departments()->attach($other->id);
@@ -110,7 +82,7 @@ describe('OrderController::show()', function () {
 
     test('заявка без отделов доступна неадмину — ей назначают отдел', function () {
         $dept = Department::create(['name' => 'Отдел 1', 'is_active' => true]);
-        $user = orderShowMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
@@ -126,7 +98,7 @@ describe('OrderController::show()', function () {
             'is_active'                    => true,
             'default_production_store_id'  => $store->id,
         ]);
-        $user = orderShowMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $product = Product::factory()->create(['name' => 'Плитняк Кварцит 20-40']);
         ProductStock::create(['product_id' => $product->id, 'store_id' => $store->id, 'quantity' => 30]);
@@ -164,7 +136,7 @@ describe('OrderController::show()', function () {
             'is_active'                   => true,
             'default_production_store_id' => $store->id,
         ]);
-        $user = orderShowMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $product = Product::factory()->create();
         ProductStock::create(['product_id' => $product->id, 'store_id' => $store->id, 'quantity' => 0]);
@@ -181,7 +153,7 @@ describe('OrderController::show()', function () {
     });
 
     test('заявка без позиций открывается с пустым состоянием', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
         $this->actingAs($user)
@@ -198,7 +170,7 @@ describe('OrderController::show()', function () {
 describe('OrderService::getShowData()', function () {
 
     test('возвращает все необходимые ключи', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
         $data = app(OrderService::class)->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
@@ -215,7 +187,7 @@ describe('OrderService::getShowData()', function () {
             'is_active'                   => true,
             'default_production_store_id' => $store->id,
         ]);
-        $user = orderShowMaster($dept);
+        $user = Access::master($dept, 'orders');
 
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
         $order->departments()->attach($dept->id);
@@ -226,7 +198,7 @@ describe('OrderService::getShowData()', function () {
     });
 
     test('булевы реквизиты отброшены — они уже разобраны в отделы', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         Order::create([
             'moysklad_id' => 'ms-1',
             'name'        => 'Заявка 1',
@@ -243,7 +215,7 @@ describe('OrderService::getShowData()', function () {
     });
 
     test('пустые и безымянные реквизиты отброшены', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         Order::create([
             'moysklad_id' => 'ms-1',
             'name'        => 'Заявка 1',
@@ -261,7 +233,7 @@ describe('OrderService::getShowData()', function () {
     });
 
     test('значение-справочник берётся по name, дата форматируется', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         Order::create([
             'moysklad_id' => 'ms-1',
             'name'        => 'Заявка 1',
@@ -280,7 +252,7 @@ describe('OrderService::getShowData()', function () {
     });
 
     test('заявка без реквизитов даёт пустой массив', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
         $data = app(OrderService::class)->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\BadgeColor;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -19,6 +20,10 @@ class Order extends Model
         'counterparty_id',
         'agent_name',
         'moment',
+        'delivery_planned_at',
+        'is_urgent',
+        'priority_key',
+        'priority_manual',
         'production_started_at',
         'production_ended_at',
         'attributes',
@@ -26,6 +31,10 @@ class Order extends Model
 
     protected $casts = [
         'moment'                => 'datetime',
+        'delivery_planned_at'   => 'datetime',
+        'is_urgent'             => 'boolean',
+        'priority_key'          => 'float',
+        'priority_manual'       => 'boolean',
         'production_started_at' => 'datetime',
         'production_ended_at'   => 'datetime',
         'attributes'            => 'array',
@@ -50,6 +59,15 @@ class Order extends Model
     public function departments(): BelongsToMany
     {
         return $this->belongsToMany(Department::class, 'order_department');
+    }
+
+    /**
+     * Очередь заявок: срочные сверху, дальше по ключу приоритета (App\Support\OrderPriority).
+     * Этот же порядок делит изготовленное между заявками с общим товаром.
+     */
+    public function scopePrioritized(Builder $query): Builder
+    {
+        return $query->orderByDesc('is_urgent')->orderBy('priority_key')->orderBy('id');
     }
 
     private const STATE_CACHE_KEY = 'order_states.colors';

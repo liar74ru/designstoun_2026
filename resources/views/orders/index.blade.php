@@ -58,6 +58,7 @@
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th style="width:1%" title="Очередь: срочные, затем по сроку отгрузки и дате">Очередь</th>
                             <th>Номер</th>
                             <th>Дата</th>
                             <th>Контрагент</th>
@@ -68,15 +69,21 @@
                     </thead>
                     <tbody>
                     @foreach($orders as $order)
-                        <tr class="order-row" style="cursor:pointer"
+                        <tr class="order-row {{ $order->is_urgent ? 'order-urgent' : '' }}" style="cursor:pointer"
                             data-href="{{ route('orders.show', $order->moysklad_id) }}">
+                            <td class="align-top">
+                                @include('orders.partials.priority-controls', ['order' => $order])
+                            </td>
                             <td class="fw-semibold align-top">
                                 <a href="{{ route('orders.show', $order->moysklad_id) }}" class="text-reset">
                                     {{ $order->name }}
                                 </a>
                             </td>
-                            <td class="text-muted small align-top">
+                            <td class="text-muted small align-top" style="white-space:nowrap">
                                 {{ $order->moment ? $order->moment->format('d.m.Y') : '—' }}
+                                @if($order->delivery_planned_at)
+                                    <div title="Планируемая дата отгрузки">отгр. {{ $order->delivery_planned_at->format('d.m.Y') }}</div>
+                                @endif
                             </td>
                             <td class="align-top">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</td>
                             <td class="align-top p-0">
@@ -148,7 +155,7 @@
             // ссылки внутри (товары, номер заявки) работают как обычно.
             document.querySelectorAll('.order-row').forEach(function (row) {
                 row.addEventListener('click', function (e) {
-                    if (e.target.closest('a, button, input, label')) return;
+                    if (e.target.closest('a, button, input, label, .order-priority')) return;
                     window.location = row.dataset.href;
                 });
             });

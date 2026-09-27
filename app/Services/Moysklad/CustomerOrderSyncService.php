@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderState;
 use App\Models\Product;
 use App\Services\OrderProductionService;
+use App\Support\OrderPriority;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -209,15 +210,24 @@ class CustomerOrderSyncService extends MoySkladBaseService
         $order = Order::updateOrCreate(
             ['moysklad_id' => $row['id']],
             [
-                'name'              => $row['name'] ?? '',
-                'state_moysklad_id' => $stateMoyskladId,
-                'state_name'        => $row['state']['name'] ?? null,
-                'counterparty_id'   => $agentMoyskladId ? ($counterpartyMap[$agentMoyskladId] ?? null) : null,
-                'agent_name'        => $row['agent']['name'] ?? null,
-                'moment'            => $row['moment'] ?? null,
-                'attributes'        => $row['attributes'] ?? [],
+                'name'                => $row['name'] ?? '',
+                'state_moysklad_id'   => $stateMoyskladId,
+                'state_name'          => $row['state']['name'] ?? null,
+                'counterparty_id'     => $agentMoyskladId ? ($counterpartyMap[$agentMoyskladId] ?? null) : null,
+                'agent_name'          => $row['agent']['name'] ?? null,
+                'moment'              => $row['moment'] ?? null,
+                'delivery_planned_at' => $row['deliveryPlannedMoment'] ?? null,
+                'attributes'          => $row['attributes'] ?? [],
             ],
         );
+
+        // Ручной ключ не трогаем: мастер переставил заявку осознанно, и смена срока
+        // в МойСклад не должна молча вернуть её на авто-место.
+        if (! $order->priority_manual) {
+            $order->update([
+                'priority_key' => OrderPriority::autoKey($order->delivery_planned_at, $order->moment),
+            ]);
+        }
 
         $order->items()->delete();
         foreach ($row['positions']['rows'] ?? [] as $pos) {

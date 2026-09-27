@@ -11,6 +11,7 @@ use App\Models\Worker;
 use App\Models\OrderState;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 /** Статус в справочнике: имя + отмечен ли как используемый. */
 function orderState(string $name, bool $enabled = true, int $position = 0): OrderState
@@ -85,7 +86,7 @@ describe('OrderService::getIndexData()', function () {
     });
 
     test('возвращает все необходимые ключи', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
 
@@ -103,7 +104,7 @@ describe('OrderService::getIndexData()', function () {
     });
 
     test('админ видит заявки из всех отделов', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept1 = Department::create(['name' => 'Отдел 1', 'is_active' => true]);
         $dept2 = Department::create(['name' => 'Отдел 2', 'is_active' => true]);
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая'])
@@ -141,7 +142,7 @@ describe('OrderService::getIndexData()', function () {
     });
 
     test('возвращает доступные отделы для фильтра', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept1 = Department::create(['name' => 'Отдел 1', 'is_active' => true]);
         $dept2 = Department::create(['name' => 'Отдел 2', 'is_active' => true]);
 
@@ -163,7 +164,7 @@ describe('OrderService::getIndexData()', function () {
         $order->items()->create(['product_id' => Product::factory()->create()->id, 'quantity' => 10, 'shipped' => 0]);
 
         // Админ без отдела — склад всё равно определяется, потому что берётся от заявки
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
 
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
@@ -175,7 +176,7 @@ describe('OrderService::getIndexData()', function () {
     });
 
     test('фильтрует по статусу через querystring', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Отдел', 'is_active' => true]);
 
         Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая'])
@@ -194,7 +195,7 @@ describe('OrderService::getIndexData()', function () {
     });
 
     test('без фильтра показывает только статусы, отмеченные «в списке»', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         orderState('Новый', true, position: 0);
         orderState('Собран', true, position: 1)->update(['is_default_filter' => true]);
 
@@ -217,7 +218,7 @@ describe('OrderService::getIndexData()', function () {
     });
 
     test('явный фильтр перебивает статусы по умолчанию', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         orderState('Новый', true, position: 0);
         orderState('Собран', true, position: 1)->update(['is_default_filter' => true]);
 
@@ -238,7 +239,7 @@ describe('OrderService::getIndexData()', function () {
     });
 
     test('без отметок «в списке» показываются все заявки', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = H::adminUser();
         orderState('Новый', true, position: 0);
         orderState('Собран', true, position: 1);
 
@@ -254,20 +255,19 @@ describe('OrderService::getIndexData()', function () {
         expect(app(OrderService::class)->getIndexData($request)['orders']->total())->toBe(2);
     });
 
-    test('загружает отношения для оптимизации', function () {
-        $user = User::factory()->create(['is_admin' => true]);
+    test('загружает отношения заранее — без N+1 в шаблоне', function () {
+        $user = H::adminUser();
         $dept = Department::create(['name' => 'Отдел', 'is_active' => true]);
-        $product = Product::factory()->create();
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка', 'state_name' => 'Новая']);
+        $order->departments()->attach($dept->id);
 
         $request = Request::create('/', 'GET');
         $request->setUserResolver(fn () => $user);
 
-        $service = app(OrderService::class);
-        $data = $service->getIndexData($request);
+        $loaded = app(OrderService::class)->getIndexData($request)['orders']->first();
 
-        // Проверяем, что отношения загружены
-        $order->refresh();
-        expect($order->items)->not->toBeNull();
+        foreach (['items', 'departments', 'counterparty', 'positionSettings'] as $relation) {
+            expect($loaded->relationLoaded($relation))->toBeTrue();
+        }
     });
 });

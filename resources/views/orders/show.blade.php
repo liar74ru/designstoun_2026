@@ -78,6 +78,39 @@
                             </div>
                         </div>
 
+                        @if($order->delivery_planned_at)
+                            <div class="mb-1">
+                                <div class="text-muted" style="font-size:.78rem">Отгрузка (план)</div>
+                                <div style="font-variant-numeric: tabular-nums">
+                                    {{ $order->delivery_planned_at->format('d.m.Y') }}
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="mb-2">
+                            <div class="text-muted" style="font-size:.78rem">Очередь</div>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                <form method="POST" action="{{ route('orders.priority.urgent', $order->moysklad_id) }}" data-submit-guard>
+                                    @csrf
+                                    <input type="hidden" name="urgent" value="{{ $order->is_urgent ? 0 : 1 }}">
+                                    <button type="submit" class="btn btn-sm {{ $order->is_urgent ? 'btn-danger' : 'btn-outline-danger' }}">
+                                        <i class="bi {{ $order->is_urgent ? 'bi-fire' : 'bi-lightning' }}"></i>
+                                        {{ $order->is_urgent ? 'Срочная — снять' : 'Срочно' }}
+                                    </button>
+                                </form>
+                                @if($order->priority_manual)
+                                    <form method="POST" action="{{ route('orders.priority.reset', $order->moysklad_id) }}" data-submit-guard
+                                          onsubmit="return confirm('Вернуть заявку на место по сроку отгрузки?')">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-outline-primary"
+                                                title="Место в очереди задано вручную">
+                                            <i class="bi bi-pin-angle-fill"></i> Вернуть по сроку
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+
                         <div class="mb-2">
                             <div class="text-muted" style="font-size:.78rem">Отделы</div>
                             <div class="mt-1">
@@ -381,6 +414,8 @@
             const noteInput    = document.getElementById('position_note');
             const resetBtn     = document.getElementById('position_reset_btn');
             const allStoresBox = document.getElementById('position_all_stores');
+            const sharedBox    = document.getElementById('position_shared');
+            const sharedList   = document.getElementById('position_shared_list');
             const checkboxes   = Array.from(modal.querySelectorAll('.position-store'));
 
             // Шаблон маршрута сброса: последний сегмент — id товара, подставляем по клику.
@@ -443,6 +478,9 @@
                 factInput.value      = btn.dataset.warehouse;
                 producedInput.value  = btn.dataset.produced;
                 noteInput.value      = btn.dataset.note || '';
+
+                sharedList.textContent  = btn.dataset.sharedWith || '';
+                sharedBox.style.display = btn.dataset.sharedWith ? '' : 'none';
 
                 checkboxes.forEach(c => { c.checked = selected.includes(c.value); });
 
