@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Product\ProductCoeffRequest;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Services\Moysklad\MoySkladService;
@@ -144,6 +145,25 @@ class ProductController extends Controller
 
         return redirect()->route('products.show', $result['product']->moysklad_id)
             ->with('success', 'Товар обновлен');
+    }
+
+    /**
+     * Записать коэффициенты prodCostCoeff / masterCostCoeff в МойСклад.
+     */
+    public function updateCoeffs(ProductCoeffRequest $request, $moyskladId)
+    {
+        $product = Product::where('moysklad_id', $moyskladId)->firstOrFail();
+
+        $result = $this->productService->updateCostCoeffs($product, $request->validated());
+
+        if (! $result['success']) {
+            return redirect()->route('products.show', $moyskladId)
+                ->withInput()
+                ->with('error', $result['message']);
+        }
+
+        return redirect()->route('products.show', $moyskladId)
+            ->with('success', $result['message']);
     }
 
     /**

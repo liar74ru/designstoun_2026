@@ -52,4 +52,22 @@ class ProductService
 
         return ['success' => true, 'product' => $product];
     }
+
+    /**
+     * Записать коэффициенты ставок пильщика и мастера в МойСклад и локально.
+     */
+    public function updateCostCoeffs(Product $product, array $data): array
+    {
+        $result = $this->moySkladService->updateProductCostCoeffs(
+            $product,
+            (float) $data['prod_cost_coeff'],
+            (float) $data['master_cost_coeff'],
+        );
+
+        if ($result['success']) {
+            cache()->forget('products_tree_json_v3');
+        }
+
+        return $result;
+    }
 }

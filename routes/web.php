@@ -55,6 +55,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/products/groups/tree', [ProductController::class, 'groups'])->name('products.groups');
         Route::get('/products/groups/sync', [ProductController::class, 'syncGroups'])->name('products.groups.sync');
         Route::post('/products/{moyskladId}/stocks-sync', [ProductController::class, 'syncStocks'])->name('products.stocks.sync');
+        // Коэффициенты ставок влияют на зарплату — правит только админ
+        Route::patch('/products/{moyskladId}/coeffs', [ProductController::class, 'updateCoeffs'])
+            ->name('products.coeffs.update')
+            ->middleware('can:manage-admin');
     });
 
     // Заявки — операция orders

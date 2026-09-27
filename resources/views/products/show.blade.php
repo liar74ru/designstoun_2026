@@ -42,6 +42,9 @@
         $visibleStocks     = $product->stocks->reject(fn ($s) => $s->quantity == 0 && $s->reserved == 0 && $s->in_transit == 0);
         $hiddenStocksCount = $product->stocks->count() - $visibleStocks->count();
         $refreshConfirm  = "return confirm('Обновить данные товара из МойСклад?')";
+
+        // После неудачного сохранения коэффициентов блок с формой остаётся раскрытым.
+        $coeffFormOpen = $errors->hasAny(['prod_cost_coeff', 'master_cost_coeff']) || old('prod_cost_coeff') !== null;
     @endphp
 
     <div class="container py-3 py-md-4">
@@ -231,8 +234,9 @@
                     'hint'   => ($product->sku ?? '—') . ' · коэф. '
                         . \App\Support\RateFormula::formatCoeff($product->prod_cost_coeff) . ' / '
                         . \App\Support\RateFormula::formatCoeff($product->master_cost_coeff),
+                    'open'   => $coeffFormOpen,
                 ])
-                <div class="collapse" id="product-main-info">
+                <div class="collapse {{ $coeffFormOpen ? 'show' : '' }}" id="product-main-info">
                     <div class="info-block-body">
                         <dl class="row mb-0 small">
                             <dt class="col-5 col-md-3 fw-normal text-muted">Артикул</dt>
@@ -247,11 +251,13 @@
                             <dt class="col-5 col-md-3 fw-normal text-muted">ID в МойСклад</dt>
                             <dd class="col-7 col-md-9 text-break"><code class="text-muted">{{ $product->moysklad_id }}</code></dd>
 
-                            <dt class="col-5 col-md-3 fw-normal text-muted">prodCostCoeff</dt>
-                            <dd class="col-7 col-md-9">{{ \App\Support\RateFormula::formatCoeff($product->prod_cost_coeff) }}</dd>
+                            @cannot('manage-admin')
+                                <dt class="col-5 col-md-3 fw-normal text-muted">prodCostCoeff</dt>
+                                <dd class="col-7 col-md-9">{{ \App\Support\RateFormula::formatCoeff($product->prod_cost_coeff) }}</dd>
 
-                            <dt class="col-5 col-md-3 fw-normal text-muted">masterCostCoeff</dt>
-                            <dd class="col-7 col-md-9">{{ \App\Support\RateFormula::formatCoeff($product->master_cost_coeff) }}</dd>
+                                <dt class="col-5 col-md-3 fw-normal text-muted">masterCostCoeff</dt>
+                                <dd class="col-7 col-md-9">{{ \App\Support\RateFormula::formatCoeff($product->master_cost_coeff) }}</dd>
+                            @endcannot
 
                             <dt class="col-5 col-md-3 fw-normal text-muted">Статус</dt>
                             <dd class="col-7 col-md-9">
@@ -268,6 +274,48 @@
                             <dt class="col-5 col-md-3 fw-normal text-muted">Обновлён</dt>
                             <dd class="col-7 col-md-9 mb-0">{{ $product->updated_at->format('d.m.Y H:i') }}</dd>
                         </dl>
+
+                        @can('manage-admin')
+                            <form action="{{ route('products.coeffs.update', $product->moysklad_id) }}"
+                                  method="POST"
+                                  class="border-top mt-3 pt-3"
+                                  data-submit-guard
+                                  onsubmit="return confirm('Записать коэффициенты в МойСклад?')">
+                                @csrf
+                                @method('PATCH')
+                                <div class="row g-2 align-items-end small">
+                                    <div class="col-6 col-md-3">
+                                        <label for="prod_cost_coeff" class="form-label text-muted mb-1">prodCostCoeff</label>
+                                        <input type="number" step="0.0001" min="-100" max="100"
+                                               id="prod_cost_coeff" name="prod_cost_coeff"
+                                               class="form-control form-control-sm @error('prod_cost_coeff') is-invalid @enderror"
+                                               style="border-radius:.4rem"
+                                               value="{{ old('prod_cost_coeff', (float) $product->prod_cost_coeff) }}"
+                                               required>
+                                        @error('prod_cost_coeff')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label for="master_cost_coeff" class="form-label text-muted mb-1">masterCostCoeff</label>
+                                        <input type="number" step="0.0001" min="-100" max="100"
+                                               id="master_cost_coeff" name="master_cost_coeff"
+                                               class="form-control form-control-sm @error('master_cost_coeff') is-invalid @enderror"
+                                               style="border-radius:.4rem"
+                                               value="{{ old('master_cost_coeff', (float) $product->master_cost_coeff) }}"
+                                               required>
+                                        @error('master_cost_coeff')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div class="col-12 col-md-auto">
+                                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                                            <i class="bi bi-cloud-upload"></i> Сохранить в МойСклад
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        @endcan
                     </div>
                 </div>
             </div>

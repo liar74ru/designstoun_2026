@@ -1,12 +1,14 @@
 {{--
     Шапка сворачиваемого info-block (Bootstrap collapse, по умолчанию свёрнут).
-    Параметры: $target — id блока с содержимым, $title, $hint — подсказка в свёрнутом виде.
+    Параметры: $target — id блока с содержимым, $title, $hint — подсказка в свёрнутом виде,
+    $open — отрисовать раскрытым (блок с содержимым тогда тоже должен иметь класс show).
 --}}
+@php($open = $open ?? false)
 <button type="button"
-        class="info-block-header info-block-toggle collapsed small"
+        class="info-block-header info-block-toggle {{ $open ? '' : 'collapsed' }} small"
         data-bs-toggle="collapse"
         data-bs-target="#{{ $target }}"
-        aria-expanded="false"
+        aria-expanded="{{ $open ? 'true' : 'false' }}"
         aria-controls="{{ $target }}">
     <i class="bi bi-chevron-right text-muted"></i>
     <span class="text-nowrap">{{ $title }}</span>

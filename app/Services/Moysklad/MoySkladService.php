@@ -491,6 +491,98 @@ class MoySkladService extends MoySkladBaseService
     }
 
     /**
+     * Записать коэффициенты ставок (реквизиты prodCostCoeff и masterCostCoeff) в товар МойСклад.
+     * Локальная запись обновляется только после успешного ответа API.
+     */
+    public function updateProductCostCoeffs(Product $product, float $prodCoeff, float $masterCoeff): array
+    {
+        $result = ['success' => false, 'code' => '', 'message' => ''];
+
+        if (! $this->hasCredentials()) {
+            $result['code']    = 'no_credentials';
+            $result['message'] = 'MOYSKLAD_TOKEN не установлен';
+
+            return $result;
+        }
+
+        try {
+            // Метаданные реквизитов берём из справочника: незаполненный реквизит в самом товаре не приходит.
+            $metadata = $this->get('/entity/product/metadata/attributes');
+            if ($metadata === null) {
+                $result['code']    = 'api_error';
+                $result['message'] = 'Не удалось получить реквизиты товаров из МойСклад';
+
+                return $result;
+            }
+
+            $attributeMeta = [];
+            foreach ($metadata['rows'] ?? [] as $attr) {
+                if (isset($attr['name'], $attr['meta'])) {
+                    $attributeMeta[$attr['name']] = $attr['meta'];
+                }
+            }
+
+            $values = [
+                'prodCostCoeff'   => $prodCoeff,
+                'masterCostCoeff' => $masterCoeff,
+            ];
+
+            $missing = array_diff(array_keys($values), array_keys($attributeMeta));
+            if ($missing) {
+                $result['code']    = 'no_attribute';
+                $result['message'] = 'В МойСклад нет реквизита товара: «' . implode('», «', $missing) . '»';
+
+                return $result;
+            }
+
+            $attributes = [];
+            foreach ($values as $name => $value) {
+                $attributes[] = ['meta' => $attributeMeta[$name], 'value' => $value];
+            }
+
+            $response = $this->put('/entity/product/' . $product->moysklad_id, ['attributes' => $attributes]);
+
+            if (! $response->successful()) {
+                $errors = $response->json()['errors'] ?? [];
+                $result['code']    = 'api_error';
+                $result['message'] = 'Ошибка МойСклад: ' . ($errors[0]['error'] ?? 'Неизвестная ошибка');
+
+                Log::error('Ошибка записи коэффициентов товара в МойСклад', [
+                    'product_id' => $product->id,
+                    'status'     => $response->status(),
+                    'response'   => $response->json(),
+                ]);
+
+                return $result;
+            }
+
+            $product->update([
+                'prod_cost_coeff'   => $prodCoeff,
+                'master_cost_coeff' => $masterCoeff,
+            ]);
+
+            $result['success'] = true;
+            $result['message'] = 'Коэффициенты товара сохранены в МойСклад';
+
+            Log::info('Коэффициенты товара изменены', [
+                'product_id'        => $product->id,
+                'prod_cost_coeff'   => $prodCoeff,
+                'master_cost_coeff' => $masterCoeff,
+            ]);
+        } catch (\Throwable $e) {
+            $result['code']    = 'exception';
+            $result['message'] = 'Ошибка: ' . $e->getMessage();
+
+            Log::error('Исключение при записи коэффициентов товара', [
+                'product_id' => $product->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
+    }
+
+    /**
      * Синхронизация контрагентов
      */
     public function syncCounterparties(): array
