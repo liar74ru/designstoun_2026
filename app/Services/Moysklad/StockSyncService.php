@@ -23,45 +23,85 @@ class StockSyncService extends MoySkladBaseService
     }
 
     /**
-     * Обновить product_stocks из одной строки API /report/stock/bystore.
+     * Применить строки отчёта /report/stock/bystore к product_stocks.
      * Поле products.quantity НЕ обновляется.
+     *
+     * Товары, склады и текущие остатки берутся тремя выборками на всю пачку строк,
+     * в базу пишутся только изменившиеся ячейки — одним upsert на 500 строк. Раньше
+     * каждая ячейка «товар × склад» стоила 2–3 запроса: 11 тысяч ячеек — ~30 000
+     * запросов и ~20 секунд на синхронизацию.
+     *
+     * upsert обходит события модели, поэтому available (хук saving в ProductStock)
+     * считается здесь.
+     *
+     * @return int  число изменённых ячеек
      */
-    private function updateStocksFromRow(array $row, ?string $filterStoreId = null): int
+    private function applyRows(array $rows, ?string $filterStoreId = null): int
     {
-        $moyskladId = $this->extractProductIdFromHref($row['meta']['href'] ?? '');
-        if (!$moyskladId) return 0;
-
-        $product = Product::where('moysklad_id', $moyskladId)->first();
-        if (!$product) return 0;
-
-        $updated = 0;
-
-        foreach ($row['stockByStore'] ?? [] as $storeStock) {
-            $storeId = basename($storeStock['meta']['href'] ?? '');
-
-            if ($filterStoreId && $storeId !== $filterStoreId) continue;
-            if (!Store::find($storeId)) continue;
-
-            $values = [
-                'quantity'   => (float)($storeStock['stock']     ?? 0),
-                'reserved'   => (float)($storeStock['reserve']   ?? 0),
-                'in_transit' => (float)($storeStock['inTransit'] ?? 0),
-            ];
-
-            // stockMode=all отдаёт и пустые склады: пустую строку не создаём,
-            // но существующую обнуляем — иначе списанный до нуля остаток остаётся старым.
-            if (!array_filter($values)) {
-                $stock = ProductStock::where('product_id', $product->id)->where('store_id', $storeId)->first();
-                if (!$stock) continue;
-                $stock->fill($values)->save();
-            } else {
-                ProductStock::updateOrCreate(['product_id' => $product->id, 'store_id' => $storeId], $values);
+        $rowsByProduct = [];
+        foreach ($rows as $row) {
+            if ($moyskladId = $this->extractProductIdFromHref($row['meta']['href'] ?? '')) {
+                $rowsByProduct[$moyskladId] = $row;
             }
-
-            $updated++;
         }
 
-        return $updated;
+        if ($rowsByProduct === []) {
+            return 0;
+        }
+
+        $productIds = Product::whereIn('moysklad_id', array_keys($rowsByProduct))->pluck('id', 'moysklad_id');
+        $storeIds   = Store::pluck('id')->flip();
+
+        $existing = ProductStock::query()
+            ->whereIn('product_id', $productIds->values())
+            ->when($filterStoreId, fn ($q) => $q->where('store_id', $filterStoreId))
+            ->get(['product_id', 'store_id', 'quantity', 'reserved', 'in_transit'])
+            ->keyBy(fn (ProductStock $s) => $s->product_id . '|' . $s->store_id);
+
+        $changes = [];
+
+        foreach ($rowsByProduct as $moyskladId => $row) {
+            $productId = $productIds[$moyskladId] ?? null;
+            if (!$productId) continue;
+
+            foreach ($row['stockByStore'] ?? [] as $storeStock) {
+                $storeId = basename($storeStock['meta']['href'] ?? '');
+
+                if ($filterStoreId && $storeId !== $filterStoreId) continue;
+                if (!isset($storeIds[$storeId])) continue;
+
+                $values = [
+                    'quantity'   => round((float) ($storeStock['stock']     ?? 0), 3),
+                    'reserved'   => round((float) ($storeStock['reserve']   ?? 0), 3),
+                    'in_transit' => round((float) ($storeStock['inTransit'] ?? 0), 3),
+                ];
+
+                $current = $existing[$productId . '|' . $storeId] ?? null;
+
+                // stockMode=all отдаёт и пустые склады: пустую строку не создаём,
+                // но существующую обнуляем — иначе списанный до нуля остаток остаётся старым.
+                if (!$current && !array_filter($values)) continue;
+
+                if ($current
+                    && round($current->quantity, 3) === $values['quantity']
+                    && round($current->reserved, 3) === $values['reserved']
+                    && round($current->in_transit, 3) === $values['in_transit']) {
+                    continue;
+                }
+
+                $changes[] = [
+                    'product_id' => $productId,
+                    'store_id'   => $storeId,
+                    'available'  => $values['quantity'] - $values['reserved'],
+                ] + $values;
+            }
+        }
+
+        foreach (array_chunk($changes, 500) as $chunk) {
+            ProductStock::upsert($chunk, ['product_id', 'store_id'], ['quantity', 'reserved', 'in_transit', 'available']);
+        }
+
+        return count($changes);
     }
 
     /**
@@ -70,11 +110,13 @@ class StockSyncService extends MoySkladBaseService
      */
     public function syncAllProductsStocksByStores(?string $storeId = null): array
     {
-        $result = ['success' => false, 'message' => '', 'updated' => 0, 'errors' => 0];
+        $result = ['success' => false, 'message' => '', 'updated' => 0];
 
         try {
             $offset = 0;
-            $limit  = 100;
+            // Максимум МойСклад для отчётов: весь каталог (~900 товаров) — одна страница
+            // вместо девяти, ~3 секунды вместо ~24.
+            $limit  = 1000;
             $total  = 0;
 
             do {
@@ -91,14 +133,7 @@ class StockSyncService extends MoySkladBaseService
 
                 $rows = $data['rows'] ?? [];
 
-                foreach ($rows as $row) {
-                    try {
-                        $total += $this->updateStocksFromRow($row, $storeId);
-                    } catch (\Exception $e) {
-                        Log::error('Ошибка обработки строки остатков', ['error' => $e->getMessage()]);
-                        $result['errors']++;
-                    }
-                }
+                $total += $this->applyRows($rows, $storeId);
 
                 $offset += $limit;
 
@@ -106,8 +141,7 @@ class StockSyncService extends MoySkladBaseService
 
             $result['success'] = true;
             $result['updated'] = $total;
-            $result['message'] = "Обновлено остатков: {$total}"
-                . ($result['errors'] ? ", ошибок: {$result['errors']}" : '');
+            $result['message'] = "Обновлено остатков: {$total}";
 
         } catch (\Exception $e) {
             Log::error('Ошибка синхронизации остатков', ['error' => $e->getMessage()]);
@@ -139,7 +173,7 @@ class StockSyncService extends MoySkladBaseService
             return ['success' => false, 'message' => 'Нет данных об остатках', 'updated' => 0];
         }
 
-        $updated = $this->updateStocksFromRow($data['rows'][0]);
+        $updated = $this->applyRows([$data['rows'][0]]);
 
         return [
             'success' => true,

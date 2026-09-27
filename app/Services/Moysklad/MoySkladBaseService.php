@@ -3,6 +3,7 @@
 namespace App\Services\Moysklad;
 
 use App\Models\SupplierOrder;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +44,48 @@ abstract class MoySkladBaseService
             Log::error('МойСклад GET ошибка', ['endpoint' => $endpoint, 'error' => $e->getMessage()]);
             return null;
         }
+    }
+
+    /**
+     * Несколько GET одновременно (Http::pool) — для постраничных выгрузок, где страницы
+     * друг от друга не зависят. Ключи результата — ключи $requests, в том же порядке;
+     * неудачный запрос — null, как у get().
+     *
+     * @param  array<int|string, array{0: string, 1: array}>  $requests  [ключ => [endpoint, query]]
+     * @return array<int|string, ?array>
+     */
+    protected function getMany(array $requests): array
+    {
+        if ($requests === []) {
+            return [];
+        }
+
+        try {
+            $responses = Http::pool(fn (Pool $pool) => collect($requests)
+                ->map(fn (array $request, $key) => $pool->as((string) $key)
+                    ->withHeaders([
+                        'Authorization'   => 'Bearer ' . $this->token,
+                        'Accept-Encoding' => 'gzip',
+                    ])
+                    ->get($this->baseUrl . $request[0], $request[1]))
+                ->all());
+        } catch (\Throwable $e) {
+            Log::error('МойСклад GET (пул) ошибка', ['error' => $e->getMessage()]);
+
+            return array_fill_keys(array_keys($requests), null);
+        }
+
+        $result = [];
+        foreach (array_keys($requests) as $key) {
+            $response = $responses[(string) $key] ?? null;
+
+            // В пуле сетевая ошибка приходит объектом исключения, а не бросается
+            $result[$key] = $response instanceof Response && $response->successful()
+                ? $response->json()
+                : null;
+        }
+
+        return $result;
     }
 
     protected function post(string $endpoint, array $body): Response

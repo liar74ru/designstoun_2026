@@ -5,6 +5,7 @@ use App\Models\ProductStock;
 use App\Models\Store;
 use App\Services\Moysklad\StockSyncService;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 const SSBS_P1 = 'aaaa0000-0000-0000-0000-00000000000a';
@@ -57,7 +58,6 @@ describe('StockSyncService::syncAllStocksByStores()', function () {
 
         expect($result['success'])->toBeTrue()
             ->and($result['updated'])->toBe(3)
-            ->and($result['errors'])->toBe(0)
             ->and($result['message'])->toBe('Обновлено остатков: 3');
 
         $a = ssbsStock($this->p1, 'store-a');
@@ -90,11 +90,11 @@ describe('StockSyncService::syncAllStocksByStores()', function () {
             && ($r->data()['filter'] ?? null) === 'stockMode=all'
             && !array_key_exists('store', $r->data())
             && (int) $r->data()['offset'] === 0
-            && (int) $r->data()['limit'] === 100);
+            && (int) $r->data()['limit'] === 1000);
     });
 
     test('листает страницы, пока приходит полная страница', function () {
-        $fullPage = array_fill(0, 100, ssbsRow('cccc0000-0000-0000-0000-00000000000c', []));
+        $fullPage = array_fill(0, 1000, ssbsRow('cccc0000-0000-0000-0000-00000000000c', []));
         Http::fakeSequence('*/report/stock/bystore*')
             ->push(['rows' => $fullPage])
             ->push(['rows' => [ssbsRow(SSBS_P1, ['store-a' => [5, 0, 0]])]]);
@@ -103,7 +103,7 @@ describe('StockSyncService::syncAllStocksByStores()', function () {
 
         expect($result['success'])->toBeTrue()->and($result['updated'])->toBe(1);
         Http::assertSentCount(2);
-        Http::assertSent(fn (Request $r) => (int) $r->data()['offset'] === 100);
+        Http::assertSent(fn (Request $r) => (int) $r->data()['offset'] === 1000);
     });
 
     test('ошибка API — success=false, остатки не меняются', function () {
@@ -181,5 +181,88 @@ describe('StockSyncService::syncStocksByStore()', function () {
         $result = (new StockSyncService())->syncStocksByStore('store-a');
 
         expect($result['success'])->toBeFalse()->and(ProductStock::count())->toBe(0);
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Запись пачкой
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('StockSyncService — запись остатков пачкой', function () {
+
+    test('неизменившаяся ячейка не перезаписывается и не считается', function () {
+        $stock = ProductStock::create(['product_id' => $this->p1->id, 'store_id' => 'store-a', 'quantity' => 5, 'reserved' => 1]);
+        $stock->timestamps = false;
+        $stock->forceFill(['updated_at' => now()->subDay()])->save();
+
+        Http::fake(['*/report/stock/bystore*' => Http::response(['rows' => [
+            ssbsRow(SSBS_P1, ['store-a' => [5, 1, 0]]),
+        ]])]);
+
+        $result = (new StockSyncService())->syncAllStocksByStores();
+
+        expect($result['updated'])->toBe(0)
+            ->and(ssbsStock($this->p1, 'store-a')->updated_at->lt(now()->subHours(12)))->toBeTrue();
+    });
+
+    test('available считается при записи пачкой — как хук saving модели', function () {
+        ProductStock::create(['product_id' => $this->p1->id, 'store_id' => 'store-a', 'quantity' => 1]);
+        Http::fake(['*/report/stock/bystore*' => Http::response(['rows' => [
+            ssbsRow(SSBS_P1, ['store-a' => [10, 3, 0], 'store-b' => [4, 1.5, 0]]),
+        ]])]);
+
+        (new StockSyncService())->syncAllStocksByStores();
+
+        expect((float) ssbsStock($this->p1, 'store-a')->available)->toBe(7.0)
+            ->and((float) ssbsStock($this->p1, 'store-b')->available)->toBe(2.5);
+    });
+
+    test('пустая существующая ячейка обнуляется, пустая отсутствующая не создаётся', function () {
+        ProductStock::create(['product_id' => $this->p1->id, 'store_id' => 'store-a', 'quantity' => 8, 'reserved' => 2]);
+        Http::fake(['*/report/stock/bystore*' => Http::response(['rows' => [
+            ssbsRow(SSBS_P1, ['store-a' => [0, 0, 0], 'store-b' => [0, 0, 0]]),
+        ]])]);
+
+        $result = (new StockSyncService())->syncAllStocksByStores();
+
+        $a = ssbsStock($this->p1, 'store-a');
+        expect($result['updated'])->toBe(1)
+            ->and((float) $a->quantity)->toBe(0.0)
+            ->and((float) $a->reserved)->toBe(0.0)
+            ->and((float) $a->available)->toBe(0.0)
+            ->and(ssbsStock($this->p1, 'store-b'))->toBeNull();
+    });
+
+    test('число запросов к БД не зависит от числа ячеек', function () {
+        $rows = [];
+        foreach (range(1, 200) as $i) {
+            $msId = sprintf('eeee0000-0000-0000-0000-%012d', $i);
+            Product::factory()->create(['moysklad_id' => $msId]);
+            $rows[] = ssbsRow($msId, ['store-a' => [$i, 0, 0], 'store-b' => [$i * 2, 1, 0]]);
+        }
+        Http::fake(['*/report/stock/bystore*' => Http::response(['rows' => $rows])]);
+
+        DB::enableQueryLog();
+        $result = (new StockSyncService())->syncAllStocksByStores();
+        $queries = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        // 400 ячеек: раньше ~1200 запросов, теперь три выборки и один upsert
+        expect($result['updated'])->toBe(400)
+            ->and($queries)->toBeLessThan(10)
+            ->and(ProductStock::count())->toBe(400);
+    });
+
+    test('остатки одного товара после документа — тем же правилом', function () {
+        ProductStock::create(['product_id' => $this->p1->id, 'store_id' => 'store-a', 'quantity' => 6]);
+        Http::fake(['*/report/stock/bystore*' => Http::response(['rows' => [
+            ssbsRow(SSBS_P1, ['store-a' => [0, 0, 0], 'store-b' => [2, 0, 0]]),
+        ]])]);
+
+        $result = (new StockSyncService())->updateProductStocksByMoyskladId(SSBS_P1);
+
+        expect($result['updated'])->toBe(2)
+            ->and((float) ssbsStock($this->p1, 'store-a')->quantity)->toBe(0.0)
+            ->and((float) ssbsStock($this->p1, 'store-b')->quantity)->toBe(2.0);
     });
 });

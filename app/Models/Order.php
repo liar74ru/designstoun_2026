@@ -27,6 +27,7 @@ class Order extends Model
         'production_started_at',
         'production_ended_at',
         'attributes',
+        'sync_hash',
     ];
 
     protected $casts = [

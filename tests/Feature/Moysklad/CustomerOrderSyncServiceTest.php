@@ -304,3 +304,201 @@ describe('Приоритет по данным синхронизации', func
             ->and($order->priority_key)->toEqual(OrderPriority::autoKey($order->delivery_planned_at, $order->moment));
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Постраничная выгрузка заявок
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Выгрузка заявок страницами', function () {
+
+    /** Заявка МойСклад без позиций. */
+    function pagedOrderRow(int $n): array
+    {
+        return [
+            'id'         => 'ms-page-' . $n,
+            'name'       => 'Заявка ' . $n,
+            'state'      => [
+                'meta' => ['href' => 'https://api.moysklad.ru/entity/customerorder/metadata/states/' . SYNC_IDLE_STATE],
+                'name' => 'Новый',
+            ],
+            'positions'  => ['rows' => []],
+            'attributes' => [],
+        ];
+    }
+
+    /**
+     * Фейк МойСклад: 250 заявок страницами по 100; $failOffset — страница, которая отвечает 500.
+     */
+    function fakePagedOrders(?int $failOffset = null): void
+    {
+        Http::fake(function (\Illuminate\Http\Client\Request $request) use ($failOffset) {
+            if (str_contains($request->url(), '/entity/customerorder/metadata')) {
+                return Http::response(syncStatesFake(), 200);
+            }
+            if (! str_contains($request->url(), '/entity/customerorder?')) {
+                return Http::response(['rows' => [], 'meta' => ['size' => 0]], 200);
+            }
+
+            // Пробный запрос числа заявок — limit=1 без offset и expand
+            if ((int) $request->data()['limit'] === 1) {
+                return Http::response(['rows' => [pagedOrderRow(1)], 'meta' => ['size' => 250]], 200);
+            }
+
+            $offset = (int) $request->data()['offset'];
+            if ($offset === $failOffset) {
+                return Http::response(['errors' => [['error' => 'Сбой']]], 500);
+            }
+
+            $rows = array_map('pagedOrderRow', range($offset + 1, min($offset + 100, 250)));
+
+            return Http::response(['rows' => $rows, 'meta' => ['size' => 250]], 200);
+        });
+    }
+
+    beforeEach(function () {
+        config()->set('services.moysklad.token', 'test-token');
+        OrderState::create(['id' => SYNC_IDLE_STATE, 'name' => 'Новый', 'is_enabled' => true]);
+    });
+
+    test('все страницы загружаются, заявки сохраняются', function () {
+        fakePagedOrders();
+
+        $result = customerOrderSync()->pullActive();
+
+        expect($result['success'])->toBeTrue()
+            ->and($result['count'])->toBe(250)
+            ->and(Order::count())->toBe(250);
+
+        foreach ([0, 100, 200] as $offset) {
+            Http::assertSent(fn ($r) => str_contains($r->url(), '/entity/customerorder?')
+                && (int) ($r->data()['offset'] ?? -1) === $offset
+                && (int) $r->data()['limit'] === 100);
+        }
+
+        // Пробный запрос — без expand: он только узнаёт число заявок
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/entity/customerorder?')
+            && (int) $r->data()['limit'] === 1
+            && ! isset($r->data()['expand']));
+    });
+
+    test('сбой средней страницы — ни одна заявка не удалена', function () {
+        Order::create(['moysklad_id' => 'ms-local-1', 'name' => 'Локальная 1', 'state_name' => 'Новый']);
+        Order::create(['moysklad_id' => 'ms-local-2', 'name' => 'Локальная 2', 'state_name' => 'Новый']);
+        fakePagedOrders(failOffset: 100);
+
+        $result = customerOrderSync()->pullActive();
+
+        // Раньше выгрузка обрывалась на сбойной странице, и заявки вне первых 100 удалялись
+        expect($result['success'])->toBeFalse()
+            ->and($result['message'])->toContain('Локальные заявки не изменены')
+            ->and(Order::whereIn('moysklad_id', ['ms-local-1', 'ms-local-2'])->count())->toBe(2);
+    });
+
+    test('сбой первой страницы — локальные заявки не стираются', function () {
+        Order::create(['moysklad_id' => 'ms-local-1', 'name' => 'Локальная', 'state_name' => 'Новый']);
+        fakePagedOrders(failOffset: 0);
+
+        $result = customerOrderSync()->pullActive();
+
+        expect($result['success'])->toBeFalse()
+            ->and(Order::where('moysklad_id', 'ms-local-1')->exists())->toBeTrue();
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Пропуск неизменённых заявок
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Неизменённые заявки не переписываются', function () {
+
+    /** Ответ МойСклад на следующие синхронизации: повторный Http::fake прежний не заменяет. */
+    function fakeOrdersSync(array $response): void
+    {
+        test()->ordersResponse = $response;
+    }
+
+    beforeEach(function () {
+        config()->set('services.moysklad.token', 'test-token');
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            if (str_contains($request->url(), '/entity/customerorder/metadata')) {
+                return Http::response(syncStatesFake(), 200);
+            }
+            if (str_contains($request->url(), '/entity/customerorder?')) {
+                return Http::response($this->ordersResponse, 200);
+            }
+
+            return Http::response(['rows' => [], 'meta' => ['size' => 0]], 200);
+        });
+        OrderState::create(['id' => SYNC_PROD_STATE, 'name' => 'В процессе', 'is_enabled' => true, 'is_production' => true]);
+        OrderState::create(['id' => SYNC_IDLE_STATE, 'name' => 'Новый', 'is_enabled' => true]);
+    });
+
+    test('повторная синхронизация тех же данных не пересоздаёт позиции', function () {
+        fakeOrdersSync(ordersResponse(SYNC_IDLE_STATE, 'Новый', Product::factory()->create()));
+        customerOrderSync()->pullActive();
+
+        $order  = Order::where('moysklad_id', 'ms-1')->first();
+        $itemId = $order->items()->value('id');
+
+        $this->travel(1)->hour();
+        $result = customerOrderSync()->pullActive();
+
+        expect($result['success'])->toBeTrue()
+            ->and($order->items()->pluck('id')->all())->toBe([$itemId])
+            ->and($order->fresh()->updated_at->equalTo($order->updated_at))->toBeTrue();
+    });
+
+    test('изменилось «отгружено» у позиции — заявка обновляется', function () {
+        $response = ordersResponse(SYNC_IDLE_STATE, 'Новый', Product::factory()->create());
+        fakeOrdersSync($response);
+        customerOrderSync()->pullActive();
+
+        $response['rows'][0]['positions']['rows'][0]['shipped'] = 30;
+        fakeOrdersSync($response);
+        customerOrderSync()->pullActive();
+
+        expect((float) Order::where('moysklad_id', 'ms-1')->first()->items()->value('shipped'))->toBe(30.0);
+    });
+
+    test('товар, появившийся в программе позже, привязывается к позиции', function () {
+        $product = Product::factory()->make(['moysklad_id' => '77777777-7777-7777-7777-777777777777']);
+        fakeOrdersSync(ordersResponse(SYNC_IDLE_STATE, 'Новый', $product));
+        customerOrderSync()->pullActive();
+
+        $order = Order::where('moysklad_id', 'ms-1')->first();
+        expect($order->items()->value('product_id'))->toBeNull();
+
+        $product->save();
+        customerOrderSync()->pullActive();
+
+        expect($order->items()->value('product_id'))->toBe($product->id);
+    });
+
+    test('смена статуса на производственный после синхронизации открывает окно', function () {
+        $product = Product::factory()->create();
+        fakeOrdersSync(ordersResponse(SYNC_IDLE_STATE, 'Новый', $product));
+        customerOrderSync()->pullActive();
+
+        fakeOrdersSync(ordersResponse(SYNC_PROD_STATE, 'В процессе', $product));
+        customerOrderSync()->pullActive();
+
+        expect(Order::where('moysklad_id', 'ms-1')->first()->production_started_at)->not->toBeNull();
+    });
+
+    test('число запросов к БД на повторной синхронизации не растёт с числом заявок', function () {
+        $queriesOnRepeat = function (int $n): int {
+            Order::query()->delete();
+            fakeOrdersSync(['rows' => array_map('pagedOrderRow', range(1, $n)), 'meta' => ['size' => $n]]);
+            customerOrderSync()->pullActive();
+
+            \Illuminate\Support\Facades\DB::flushQueryLog();
+            \Illuminate\Support\Facades\DB::enableQueryLog();
+            customerOrderSync()->pullActive();
+            \Illuminate\Support\Facades\DB::disableQueryLog();
+
+            return count(\Illuminate\Support\Facades\DB::getQueryLog());
+        };
+
+        expect($queriesOnRepeat(60))->toBe($queriesOnRepeat(5));
+    });
+});

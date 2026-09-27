@@ -53,18 +53,32 @@ class CustomerOrderSyncService extends MoySkladBaseService
             return ['success' => false, 'count' => 0, 'message' => 'Ошибка API: ' . $e->getMessage()];
         }
 
+        // Неполная выгрузка: удалять «выпавшие» заявки по ней нельзя — не трогаем ничего
+        if ($rows === null) {
+            return [
+                'success' => false,
+                'count'   => 0,
+                'message' => 'Не удалось получить заявки из МойСклад. Локальные заявки не изменены.',
+            ];
+        }
+
         $count = 0;
 
         if (! empty($rows)) {
             $counterpartyMap   = $this->resolveCounterparties($rows);
             $productMap        = $this->resolveProducts($rows);
             $departmentNameMap = Department::pluck('id', 'name');
+            $existingOrders    = Order::whereIn('moysklad_id', array_column($rows, 'id'))
+                ->get(['moysklad_id', 'state_moysklad_id', 'sync_hash'])
+                ->keyBy('moysklad_id')
+                ->map(fn (Order $o) => $o->only(['state_moysklad_id', 'sync_hash']))
+                ->all();
 
             foreach ($rows as $row) {
-                DB::transaction(function () use ($row, $counterpartyMap, $productMap, $departmentNameMap, &$count) {
-                    $this->upsertOrder($row, $counterpartyMap, $productMap, $departmentNameMap);
-                    $count++;
+                DB::transaction(function () use ($row, $counterpartyMap, $productMap, $departmentNameMap, $existingOrders) {
+                    $this->upsertOrder($row, $counterpartyMap, $productMap, $departmentNameMap, $existingOrders);
                 });
+                $count++;
             }
         }
 
@@ -90,35 +104,47 @@ class CustomerOrderSyncService extends MoySkladBaseService
     /**
      * Тянем все заявки с нужными state. МойСклад поддерживает фильтр через несколько state=
      * параметров, разделённых ';' внутри строки фильтра.
+     *
+     * С expand МойСклад отдаёт не больше 100 строк на страницу. Число заявок узнаём
+     * лёгким запросом без expand (limit=1, ~0,7 с), затем все страницы запрашиваем разом
+     * (Http::pool): время выгрузки — время одной страницы, а не сумма (~21 с → ~6 с).
+     *
+     * Любая неудачная страница — null, а не частичный список: по выгрузке pullActive()
+     * удаляет выпавшие заявки, и неполный список стёр бы живые заявки с их настройками.
+     *
+     * @return array<int, array>|null
      */
-    private function fetchOrders(array $stateIds): array
+    private function fetchOrders(array $stateIds): ?array
     {
         $stateFilter = implode(';', array_map(
             fn ($id) => 'state=' . $this->baseUrl . '/entity/customerorder/metadata/states/' . $id,
             $stateIds,
         ));
 
-        $rows   = [];
-        $offset = 0;
-        $limit  = 100;
+        $probe = $this->get('/entity/customerorder', ['limit' => 1, 'filter' => $stateFilter]);
+        if (! $probe || ! isset($probe['meta']['size'])) {
+            return null;
+        }
 
-        do {
-            $data = $this->get('/entity/customerorder', [
+        $limit    = 100;
+        $requests = [];
+        for ($offset = 0; $offset < $probe['meta']['size']; $offset += $limit) {
+            $requests[$offset] = ['/entity/customerorder', [
                 'limit'  => $limit,
                 'offset' => $offset,
                 'order'  => 'moment,desc',
                 'expand' => 'positions.assortment,state,agent',
                 'filter' => $stateFilter,
-            ]);
+            ]];
+        }
 
-            if (! $data || ! isset($data['rows'])) {
-                break;
+        $rows = [];
+        foreach ($this->getMany($requests) as $page) {
+            if (! $page || ! isset($page['rows'])) {
+                return null;
             }
-
-            $rows  = array_merge($rows, $data['rows']);
-            $total = $data['meta']['size'] ?? count($rows);
-            $offset += $limit;
-        } while ($offset < $total);
+            $rows = array_merge($rows, $page['rows']);
+        }
 
         return $rows;
     }
@@ -199,49 +225,35 @@ class CustomerOrderSyncService extends MoySkladBaseService
         array $counterpartyMap,
         array $productMap,
         \Illuminate\Support\Collection $departmentNameMap,
-    ): void {
+        array $existingOrders,
+    ): bool {
         $agentMoyskladId = $this->extractIdFromMeta($row['agent']['meta']['href'] ?? null);
         $stateMoyskladId = $this->extractIdFromMeta($row['state']['meta']['href'] ?? null);
 
-        // Статус меняют и прямо в МойСклад, минуя программу, — сравниваем до upsert,
-        // иначе вход в производство останется незамеченным.
-        $previousStateId = Order::where('moysklad_id', $row['id'])->value('state_moysklad_id');
+        $attributes = [
+            'name'                => $row['name'] ?? '',
+            'state_moysklad_id'   => $stateMoyskladId,
+            'state_name'          => $row['state']['name'] ?? null,
+            'counterparty_id'     => $agentMoyskladId ? ($counterpartyMap[$agentMoyskladId] ?? null) : null,
+            'agent_name'          => $row['agent']['name'] ?? null,
+            'moment'              => $row['moment'] ?? null,
+            'delivery_planned_at' => $row['deliveryPlannedMoment'] ?? null,
+            'attributes'          => $row['attributes'] ?? [],
+        ];
 
-        $order = Order::updateOrCreate(
-            ['moysklad_id' => $row['id']],
-            [
-                'name'                => $row['name'] ?? '',
-                'state_moysklad_id'   => $stateMoyskladId,
-                'state_name'          => $row['state']['name'] ?? null,
-                'counterparty_id'     => $agentMoyskladId ? ($counterpartyMap[$agentMoyskladId] ?? null) : null,
-                'agent_name'          => $row['agent']['name'] ?? null,
-                'moment'              => $row['moment'] ?? null,
-                'delivery_planned_at' => $row['deliveryPlannedMoment'] ?? null,
-                'attributes'          => $row['attributes'] ?? [],
-            ],
-        );
-
-        // Ручной ключ не трогаем: мастер переставил заявку осознанно, и смена срока
-        // в МойСклад не должна молча вернуть её на авто-место.
-        if (! $order->priority_manual) {
-            $order->update([
-                'priority_key' => OrderPriority::autoKey($order->delivery_planned_at, $order->moment),
-            ]);
-        }
-
-        $order->items()->delete();
+        $items = [];
         foreach ($row['positions']['rows'] ?? [] as $pos) {
             $assortment = $pos['assortment'] ?? [];
             $productMoyskladId = $this->extractIdFromMeta($assortment['meta']['href'] ?? null);
 
-            $order->items()->create([
+            $items[] = [
                 'product_id'          => $productMoyskladId ? ($productMap[$productMoyskladId] ?? null) : null,
                 'product_moysklad_id' => $productMoyskladId,
                 'product_name'        => $assortment['name'] ?? null,
                 'quantity'            => $pos['quantity'] ?? 0,
                 'shipped'             => $pos['shipped'] ?? 0,
                 'uom_name'            => $assortment['uom']['name'] ?? null,
-            ]);
+            ];
         }
 
         $matchedIds = [];
@@ -255,12 +267,47 @@ class CustomerOrderSyncService extends MoySkladBaseService
                 }
             }
         }
-        $order->departments()->sync(array_values(array_unique($matchedIds)));
+        $departmentIds = array_values(array_unique($matchedIds));
+
+        // Отпечаток ровно того, что пишем, — а не поле updated МойСклад: shipped позиций
+        // меняется отгрузками без правки заявки, а товар, контрагент или отдел могут
+        // появиться в программе позже. Совпал — заявка та же, пропускаем.
+        $hash = md5(json_encode([$attributes, $items, $departmentIds]));
+
+        // Статус меняют и прямо в МойСклад, минуя программу, — сравниваем до upsert,
+        // иначе вход в производство останется незамеченным.
+        $existing = $existingOrders[$row['id']] ?? null;
+        if ($existing && $existing['sync_hash'] === $hash) {
+            return false;
+        }
+        $previousStateId = $existing['state_moysklad_id'] ?? null;
+
+        $order = Order::updateOrCreate(
+            ['moysklad_id' => $row['id']],
+            $attributes + ['sync_hash' => $hash],
+        );
+
+        // Ручной ключ не трогаем: мастер переставил заявку осознанно, и смена срока
+        // в МойСклад не должна молча вернуть её на авто-место.
+        if (! $order->priority_manual) {
+            $order->update([
+                'priority_key' => OrderPriority::autoKey($order->delivery_planned_at, $order->moment),
+            ]);
+        }
+
+        $order->items()->delete();
+        foreach ($items as $item) {
+            $order->items()->create($item);
+        }
+
+        $order->departments()->sync($departmentIds);
 
         if ($previousStateId !== $stateMoyskladId) {
             // Позиции только что пересозданы — снимок остатка ляжет по актуальному составу.
             $this->production->syncPeriod($order->load('items.product'), $stateMoyskladId);
         }
+
+        return true;
     }
 
     /**
