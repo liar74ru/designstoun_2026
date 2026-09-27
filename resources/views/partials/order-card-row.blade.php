@@ -58,7 +58,10 @@
             @elseif($enough)
                 <i class="bi bi-check-lg ocard-ok" title="Хватает"></i>
             @else
-                <span class="ocard-bad" title="Не хватает {{ $fmt1($row['short']) }}">−{{ $fmt1($row['short']) }}</span>
+                {{-- «заказ / не хватает»: заказ зелёным, нехватка красным --}}
+                <span class="ocard-lack" title="Заказ {{ $num($row['ordered']) }}{{ $uom ? ' ' . $uom : '' }}, не хватает {{ $fmt1($row['short']) }}">
+                    {{ $num($row['ordered']) }} <span class="sep">/</span> <b>{{ $fmt1($row['short']) }}</b>
+                </span>
             @endif
         </span>
     </span>

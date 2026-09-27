@@ -74,10 +74,12 @@
         .ocard-sub b { color: #495057; }
         .ocard-row.is-done .ocard-name { text-decoration: line-through; color: #adb5bd; }
 
-        /* Метка справа: ✓ — хватает, «−N» — нехватка */
+        /* Метка справа: ✓ — хватает, «заказ / не хватает» — нехватка */
         .ocard-status { flex-shrink: 0; text-align: right; }
         .ocard-ok { font-size: 1.05rem; color: #16a34a; }
-        .ocard-bad { font-size: .82rem; font-weight: 700; color: #dc3545; white-space: nowrap; }
+        .ocard-lack { font-size: .8rem; font-weight: 600; color: #16a34a; white-space: nowrap; }
+        .ocard-lack .sep { color: #adb5bd; }
+        .ocard-lack b { color: #dc3545; }
         .ocard-muted { font-size: .7rem; color: #adb5bd; }
 
         /* Отмеченная готовой: вместо общего затемнения .order-pos — зелёное название и «✓ Готово» */
@@ -86,5 +88,27 @@
         .ocard-row.is-ready .ocard-state { display: none; }
         .ocard-row.is-ready .ocard-ready { display: inline; }
         .ocard-row.is-ready .ocard-name { color: #15803d; }
+
+        /* Краткий вид (по умолчанию): первая строка и незакрытые позиции; шеврон разворачивает */
+        .ocard.is-compact .ocard-client,
+        .ocard.is-compact .ocard-meta,
+        .ocard.is-compact .ocard-summary,
+        .ocard.is-compact .ocard-more,
+        .ocard.is-compact .ocard-sub,
+        .ocard.is-compact .ocard-note { display: none; }
+        .ocard.is-compact .ocard-head { padding-bottom: .45rem; }
+        .ocard.is-compact .ocard-row:first-child { margin-top: 0; }
+        .ocard-toggle {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: #f1f3f5;
+            color: #495057;
+        }
+        .ocard-toggle .bi { display: inline-block; transition: transform .15s; }
+        .ocard:not(.is-compact) .ocard-toggle .bi { transform: rotate(180deg); }
     </style>
 @endpush

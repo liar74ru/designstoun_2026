@@ -174,6 +174,13 @@
                 });
             });
 
+            // Мобильная карточка свёрнута по умолчанию — шеврон разворачивает её
+            document.querySelectorAll('[data-ocard-toggle]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    btn.closest('.ocard').classList.toggle('is-compact');
+                });
+            });
+
             document.querySelectorAll('form.sync-form').forEach(function (form) {
                 form.addEventListener('submit', function () {
                     const btn = form.querySelector('button[type=submit]');

@@ -6,6 +6,9 @@
     (с формулой «склад + изгот.»), остальные свёрнуты в «ещё N в порядке». Фон строки — градиент
     цвета камня; отмеченная готовой — зелёная, с меткой «✓ Готово».
 
+    По умолчанию карточка свёрнута (.is-compact): первая строка и незакрытые позиции без формулы;
+    шеврон у статуса разворачивает её до полного вида (скрипт — в orders/index).
+
     Параметры: $order, $rows, $hiddenCount, $orderStates.
     Стили — partials.order-card-assets; строка позиции — partials.order-card-row.
 --}}
@@ -27,7 +30,7 @@
     $okRows   = $rows->filter($isOk);
     $sumShort = $problems->sum('short');
 @endphp
-<div class="info-block mb-2 order-row ocard {{ $order->is_urgent ? 'order-urgent' : '' }}" style="cursor:pointer"
+<div class="info-block mb-2 order-row ocard is-compact {{ $order->is_urgent ? 'order-urgent' : '' }}" style="cursor:pointer"
      data-href="{{ route('orders.show', $order->moysklad_id) }}">
 
     <div class="ocard-head">
@@ -38,6 +41,9 @@
             <span class="ms-auto">
                 @include('orders.partials.state-picker', ['order' => $order, 'states' => $orderStates ?? collect(), 'size' => 'sm'])
             </span>
+            <button type="button" class="ocard-toggle" data-ocard-toggle title="Подробнее">
+                <i class="bi bi-chevron-down"></i>
+            </button>
         </div>
         <div class="ocard-client">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</div>
         <div class="ocard-meta">
