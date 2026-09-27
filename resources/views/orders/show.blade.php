@@ -296,6 +296,7 @@
                                                 'row' => $row, 'fmt1' => $fmt1,
                                                 'field' => 'produced', 'storeNames' => $storeNames,
                                             ])
+                                            @include('orders.partials.receptions-link', ['order' => $order, 'row' => $row, 'class' => 'ms-1'])
                                         </td>
                                         <td class="text-end fw-semibold {{ $row['done'] || $row['totalQty'] === null ? '' : ($row['totalQty'] >= $row['left'] ? 'text-success' : 'text-danger') }}"
                                             style="white-space:nowrap; font-variant-numeric: tabular-nums">
@@ -380,6 +381,7 @@
                                                     'row' => $row, 'fmt1' => $fmt1,
                                                     'field' => 'produced', 'storeNames' => $storeNames,
                                                 ])
+                                                @include('orders.partials.receptions-link', ['order' => $order, 'row' => $row])
                                             </span>
                                             <span>
                                                 <span class="text-muted">всего</span>
