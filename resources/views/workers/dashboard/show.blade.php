@@ -7,13 +7,16 @@
 
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="fs-2 mb-0 fw-bold">{{ $worker->name }}</h1>
-            @if($worker->user)
-                <a href="{{ route('workers.edit-user', $worker) }}"
-                   class="btn btn-sm btn-outline-secondary"
-                   title="Учётная запись / смена пароля">
-                    <i class="bi bi-key"></i>
-                </a>
-            @endif
+            <div class="d-flex gap-1">
+                @include('partials.help-button', ['page' => 'pay', 'class' => 'btn-sm btn-outline-secondary'])
+                @if($worker->user)
+                    <a href="{{ route('workers.edit-user', $worker) }}"
+                       class="btn btn-sm btn-outline-secondary"
+                       title="Учётная запись / смена пароля">
+                        <i class="bi bi-key"></i>
+                    </a>
+                @endif
+            </div>
         </div>
 
         @include('partials.alerts')

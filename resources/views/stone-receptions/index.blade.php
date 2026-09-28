@@ -6,6 +6,7 @@
 
         <x-page-header title="📦 Приёмки камня" :hide-mobile="true">
             <x-slot:actions>
+                @include('partials.help-button', ['page' => 'stone-receptions', 'class' => 'btn-outline-secondary btn-lg'])
                 <a href="{{ route('stone-receptions.create') }}" class="btn btn-success btn-lg px-4">
                     <i class="bi bi-plus-circle"></i> Новая приёмка
                 </a>
@@ -27,9 +28,12 @@
                     <i class="bi bi-journal-text"></i> По приёмкам
                 </button>
             </div>
-            <a href="{{ route('stone-receptions.create') }}" class="btn btn-success d-md-none w-100">
-                <i class="bi bi-plus-circle"></i> Новая приёмка
-            </a>
+            <div class="d-flex d-md-none gap-2">
+                <a href="{{ route('stone-receptions.create') }}" class="btn btn-success flex-grow-1">
+                    <i class="bi bi-plus-circle"></i> Новая приёмка
+                </a>
+                @include('partials.help-button', ['page' => 'stone-receptions'])
+            </div>
         </div>
 
         {{-- ═══════════════════════ ФИЛЬТРЫ ═══════════════════════ --}}

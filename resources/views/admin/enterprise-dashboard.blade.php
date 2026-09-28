@@ -7,8 +7,14 @@
 
         <x-page-header
             title="📊 Общий дашборд предприятия"
-            mobile-title="📊 Общий дашборд"
-        />
+            mobile-title="📊 Общий дашборд">
+            <x-slot name="actions">
+                @include('partials.help-button', ['page' => 'enterprise-dashboard'])
+            </x-slot>
+            <x-slot name="mobileActions">
+                @include('partials.help-button', ['page' => 'enterprise-dashboard', 'class' => 'btn-outline-secondary btn-sm'])
+            </x-slot>
+        </x-page-header>
 
         @include('partials.alerts')
 

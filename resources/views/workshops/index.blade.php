@@ -6,6 +6,7 @@
 
     <x-page-header title="🏭 Цех" :hide-mobile="true">
         <x-slot:actions>
+            @include('partials.help-button', ['page' => 'workshops', 'class' => 'btn-outline-secondary btn-lg'])
             <a href="{{ route('workshops.create') }}" class="btn btn-success btn-lg px-4">
                 <i class="bi bi-plus-circle"></i> Новая операция
             </a>
@@ -14,9 +15,12 @@
 
     @include('partials.alerts')
 
-    <a href="{{ route('workshops.create') }}" class="btn btn-success d-md-none w-100 mb-3">
-        <i class="bi bi-plus-circle"></i> Новая операция
-    </a>
+    <div class="d-flex d-md-none gap-2 mb-3">
+        <a href="{{ route('workshops.create') }}" class="btn btn-success flex-grow-1">
+            <i class="bi bi-plus-circle"></i> Новая операция
+        </a>
+        @include('partials.help-button', ['page' => 'workshops'])
+    </div>
 
     {{-- ═══════════════════════ ФИЛЬТРЫ ═══════════════════════ --}}
     <form method="GET" id="filter-form" class="card shadow-sm mb-2 mb-md-4" data-filter-memory>

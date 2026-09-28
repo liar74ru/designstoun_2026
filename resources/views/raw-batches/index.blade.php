@@ -10,6 +10,7 @@
         mobileTitle="Партии сырья"
         :hide-mobile="true">
         <x-slot name="actions">
+            @include('partials.help-button', ['page' => 'raw-batches', 'class' => 'btn-outline-secondary btn-lg'])
             <a href="{{ route('raw-batches.create') }}" class="btn btn-success btn-lg px-4">
                 <i class="bi bi-plus-circle"></i> Новая партия
             </a>
@@ -17,10 +18,11 @@
     </x-page-header>
 
     {{-- Мобильная кнопка --}}
-    <div class="d-md-none mb-2">
-        <a href="{{ route('raw-batches.create') }}" class="btn btn-success w-100">
+    <div class="d-md-none mb-2 d-flex gap-2">
+        <a href="{{ route('raw-batches.create') }}" class="btn btn-success flex-grow-1">
             <i class="bi bi-plus-circle"></i> Новая партия
         </a>
+        @include('partials.help-button', ['page' => 'raw-batches'])
     </div>
 
     @include('partials.alerts')

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CounterpartyController;
+use App\Http\Controllers\HelpController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RawMaterialBatchController;
@@ -41,6 +42,11 @@ Route::middleware(['auth'])->group(function () {
         ->name('master.dashboard.by-id');
     Route::get('/workers/{workerId}/dashboard', [CutterWorkerDashboardController::class, 'showWorker'])
         ->name('worker.dashboard.by-id');
+
+    // Справка по разделам (docs/*.md). Неизвестная страница и доступ — в контроллере по
+    // реестру HelpService::PAGES (whereIn на роуте отдал бы гостю 404 раньше auth).
+    Route::get('/help', [HelpController::class, 'index'])->name('help.index');
+    Route::get('/help/{page}', [HelpController::class, 'show'])->name('help.show');
 
     // Товары — операция products
     Route::middleware('can:see-products')->group(function () {

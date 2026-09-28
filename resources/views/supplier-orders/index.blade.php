@@ -17,6 +17,7 @@
         mobileTitle="Поступления сырья"
         :hide-mobile="true">
         <x-slot name="actions">
+            @include('partials.help-button', ['page' => 'supplier-orders', 'class' => 'btn-outline-secondary btn-lg'])
             <a href="{{ route('supplier-orders.create') }}" class="btn btn-success btn-lg px-4">
                 <i class="bi bi-plus-circle"></i> Поступление сырья
             </a>
@@ -24,10 +25,11 @@
     </x-page-header>
 
     {{-- Мобильная кнопка --}}
-    <div class="d-md-none mb-2">
-        <a href="{{ route('supplier-orders.create') }}" class="btn btn-success w-100">
+    <div class="d-md-none mb-2 d-flex gap-2">
+        <a href="{{ route('supplier-orders.create') }}" class="btn btn-success flex-grow-1">
             <i class="bi bi-plus-circle"></i> Поступление сырья
         </a>
+        @include('partials.help-button', ['page' => 'supplier-orders'])
     </div>
 
     @include('partials.alerts')

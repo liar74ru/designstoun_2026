@@ -12,6 +12,8 @@
 
             <!-- КНОПКИ: синхронизации -->
             <div class="btn-group">
+                @include('partials.help-button', ['page' => 'products', 'class' => 'btn-outline-secondary me-2'])
+
                 <!-- КНОПКА: синхронизация остатков по складам -->
                 <form action="{{ route('products.stocks.sync-all-by-stores') }}" method="POST" class="d-inline">
                     @csrf

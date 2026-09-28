@@ -55,6 +55,12 @@
                     @auth
                         @php $user = auth()->user(); @endphp
 
+                        <a href="{{ route('help.index') }}"
+                           class="btn btn-sm btn-outline-secondary {{ request()->routeIs('help.*') ? 'active' : '' }}"
+                           title="Справка">
+                            <i class="bi bi-question-circle"></i>
+                        </a>
+
                         @if($user->worker)
                             <a href="{{ route('workers.edit-user', $user->worker) }}"
                                class="btn btn-sm btn-outline-secondary"
