@@ -8,6 +8,7 @@ use App\Models\Setting;
 use App\Models\SupplierOrder;
 use App\Services\Moysklad\SupplierOrderSyncService;
 use App\Services\SupplierOrderService;
+use App\Support\DepartmentAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,6 +66,11 @@ class SupplierOrderController extends Controller
     {
         $data = $request->validated();
         $data['created_by_user_id'] = auth()->id();
+
+        if ($error = $this->departmentError($request, $data)) {
+            return back()->withErrors($error)->withInput();
+        }
+
         $order      = $this->service->create($data, auth()->user()?->isAdmin() ?? false);
         $syncResult = $this->syncService->syncOrderToMoysklad($order);
 
@@ -108,6 +114,10 @@ class SupplierOrderController extends Controller
         if (!$supplierOrder->isNew()) {
             return redirect()->route('supplier-orders.index')
                 ->with('warning', 'Редактировать можно только поступления в статусе «Новый».');
+        }
+
+        if ($error = $this->departmentError($request, $request->validated(), $supplierOrder)) {
+            return back()->withErrors($error)->withInput();
         }
 
         $order      = $this->service->update($supplierOrder, $request->validated(), auth()->user()?->isAdmin() ?? false);
@@ -235,5 +245,29 @@ class SupplierOrderController extends Controller
     public function nextOrderNumber(): JsonResponse
     {
         return response()->json(['number' => $this->service->nextOrderNumber()]);
+    }
+
+    /**
+     * Отдел поступления берётся из приёмщика (поля отдела в форме нет): не-админ не
+     * создаёт поступление без отдела или в чужом отделе и не переносит его в чужой.
+     *
+     * @return array<string, string>|null
+     */
+    private function departmentError(Request $request, array $data, ?SupplierOrder $order = null): ?array
+    {
+        $departmentId = $this->service->resolveDepartmentId($data, $order);
+
+        // Правка без смены отдела — не перенос: старое поступление без отдела править можно
+        $unchanged = $order !== null && $departmentId === ($order->department_id ? (int) $order->department_id : null);
+
+        if ($unchanged || DepartmentAccess::canAssign($request->user(), $departmentId)) {
+            return null;
+        }
+
+        return [
+            'receiver_id' => $departmentId === null
+                ? 'Выберите приёмщика с отделом — по нему определяется отдел поступления.'
+                : 'Приёмщик из другого отдела — выберите приёмщика своего отдела.',
+        ];
     }
 }

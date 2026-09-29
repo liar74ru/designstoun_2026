@@ -507,10 +507,16 @@ class WorkshopService
             ?? Worker::find($data['packer_id'] ?? null)?->department_id;
     }
 
+    /** Отдел, который получит операция из формы: выбранный → отдел упаковщика. */
+    public function formDepartmentId(array $data): ?int
+    {
+        return $data['department_id']
+            ?? Worker::find($data['packer_id'] ?? null)?->department_id;
+    }
+
     private function prepareWorkshopData(array $data, bool $forCreate = true): array
     {
-        $departmentId = $data['department_id']
-            ?? Worker::find($data['packer_id'] ?? null)?->department_id;
+        $departmentId = $this->formDepartmentId($data);
 
         $prepared = [
             'packer_id'             => $data['packer_id'],

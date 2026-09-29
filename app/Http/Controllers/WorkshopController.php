@@ -9,6 +9,7 @@ use App\Models\Workshop;
 use App\Models\Worker;
 use App\Services\WorkshopPresetService;
 use App\Services\WorkshopService;
+use App\Support\DepartmentAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -77,6 +78,9 @@ class WorkshopController extends Controller
                 'Не удалось определить отдел операции. Выберите отдел или упаковщика с отделом.'])
                 ->withInput();
         }
+        if (! DepartmentAccess::canAssign($request->user(), $data['department_id'])) {
+            return back()->withErrors(['department_id' => 'Можно выбрать только свой отдел.'])->withInput();
+        }
 
         try {
             $workshop = $this->service->create(
@@ -134,6 +138,14 @@ class WorkshopController extends Controller
         $this->authorize('modify', $workshop);
 
         $data = $request->validated();
+
+        // Отдел из формы, а без него — отдел упаковщика: перенести операцию в чужой отдел нельзя.
+        // Отдел не меняется — не перенос (старая операция без отдела правится как раньше).
+        $departmentId = $this->service->formDepartmentId($data);
+        if ($departmentId !== ($workshop->department_id ? (int) $workshop->department_id : null)
+            && ! DepartmentAccess::canAssign($request->user(), $departmentId)) {
+            return back()->withErrors(['department_id' => 'Можно выбрать только свой отдел.'])->withInput();
+        }
 
         try {
             $this->service->update($workshop, $data, auth()->user()?->isAdmin() ?? false);

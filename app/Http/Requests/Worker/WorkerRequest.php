@@ -6,6 +6,7 @@ use App\Models\Worker;
 use App\Services\WorkerService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * Создание и правка карточки работника.
@@ -55,6 +56,34 @@ class WorkerRequest extends FormRequest
             'department_ids'   => 'nullable|array',
             'department_ids.*' => ['exists:departments,id', ...$departmentRule],
         ];
+    }
+
+    /**
+     * Не-админ не оставляет работника без отдела: такую карточку потом смог бы менять
+     * любой (DepartmentAccess::allowsAny пропускает пустой отдел). Старую карточку без
+     * отделов править можно и дальше, не назначая отдел.
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator) {
+            $user   = $this->user();
+            $worker = $this->worker();
+
+            if ($user->isAdmin() || !app(WorkerService::class)->canChangeAssignment($user, $worker)) {
+                return;
+            }
+
+            $selected = array_filter(array_merge(
+                (array) $this->input('department_ids', []),
+                [$this->input('department_id')],
+            ));
+            $kept = $worker ? array_diff($worker->departmentIds(), $user->accessibleDepartmentIds()) : [];
+            $hadDepartments = $worker !== null && $worker->departmentIds() !== [];
+
+            if ($selected === [] && $kept === [] && ($worker === null || $hadDepartments)) {
+                $validator->errors()->add('department_ids', 'Выберите хотя бы один свой отдел.');
+            }
+        }];
     }
 
     public function messages(): array

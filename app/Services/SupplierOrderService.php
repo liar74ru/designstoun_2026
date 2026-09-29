@@ -87,14 +87,24 @@ class SupplierOrderService
         return SupplierOrder::with(['counterparty', 'items.product'])->find($id);
     }
 
+    /**
+     * Отдел поступления: выбранный → отдел приёмщика; при правке без приёмщика — прежний.
+     */
+    public function resolveDepartmentId(array $data, ?SupplierOrder $order = null): ?int
+    {
+        return $data['department_id']
+            ?? (isset($data['receiver_id'])
+                ? Worker::find($data['receiver_id'])?->department_id
+                : $order?->department_id);
+    }
+
     public function create(array $data, bool $isAdmin): SupplierOrder
     {
         $createdAt = ($isAdmin && !empty($data['manual_created_at']))
             ? Carbon::parse($data['manual_created_at'])
             : now();
 
-        $departmentId = $data['department_id']
-            ?? (isset($data['receiver_id']) ? Worker::find($data['receiver_id'])?->department_id : null);
+        $departmentId = $this->resolveDepartmentId($data);
 
         DB::transaction(function () use ($data, $createdAt, $departmentId, &$order) {
             $order = SupplierOrder::create([
@@ -128,8 +138,7 @@ class SupplierOrderService
             ? Carbon::parse($data['manual_created_at'])
             : $order->created_at;
 
-        $departmentId = $data['department_id']
-            ?? (isset($data['receiver_id']) ? Worker::find($data['receiver_id'])?->department_id : $order->department_id);
+        $departmentId = $this->resolveDepartmentId($data, $order);
 
         DB::transaction(function () use ($data, $createdAt, $departmentId, $order) {
             $order->update([

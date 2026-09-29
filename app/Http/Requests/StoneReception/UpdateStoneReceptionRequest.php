@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StoneReception;
 
+use App\Rules\ModifiableBatch;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateStoneReceptionRequest extends FormRequest
@@ -33,7 +34,11 @@ class UpdateStoneReceptionRequest extends FormRequest
             'receiver_id'            => 'required|exists:workers,id',
             'cutter_id'              => 'nullable|exists:workers,id',
             'store_id'               => 'required|exists:stores,id',
-            'raw_material_batch_id'  => 'required|exists:raw_material_batches,id',
+            'raw_material_batch_id'  => [
+                'required',
+                'exists:raw_material_batches,id',
+                new ModifiableBatch($this->user(), (int) $this->route('stone_reception')->raw_material_batch_id ?: null),
+            ],
             'raw_quantity_used'      => 'required|numeric|min:0',
             'notes'                  => 'nullable|string',
             'manual_created_at'      => 'nullable|date',

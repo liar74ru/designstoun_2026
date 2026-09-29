@@ -9,6 +9,7 @@ use App\Models\Store;
 use App\Models\Worker;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\RawMaterialBatchService;
+use App\Support\DepartmentAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -169,6 +170,9 @@ class RawMaterialBatchController extends Controller
             return back()
                 ->withErrors(['department_id' => 'Не удалось определить отдел партии. Выберите отдел или работника с отделом.'])
                 ->withInput();
+        }
+        if (! DepartmentAccess::canAssign($request->user(), $data['department_id'])) {
+            return back()->withErrors(['department_id' => 'Можно выбрать только свой отдел.'])->withInput();
         }
 
         // Нехватка на складе-источнике (в т.ч. если её успела забрать параллельная партия) —

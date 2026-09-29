@@ -12,6 +12,7 @@ use App\Models\StoneReception;
 use App\Models\Worker;
 use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\StoneReceptionService;
+use App\Support\DepartmentAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -103,6 +104,9 @@ class StoneReceptionController extends Controller
             return back()->withErrors(['error' =>
                 'Не удалось определить отдел приёмки. Назначьте отдел пильщику или приёмщику.'])
                 ->withInput();
+        }
+        if (! DepartmentAccess::canAssign($request->user(), $data['department_id'])) {
+            return back()->withErrors(['department_id' => 'Можно выбрать только свой отдел.'])->withInput();
         }
 
         try {

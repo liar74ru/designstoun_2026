@@ -119,6 +119,24 @@ isCutter() // $this->worker?->position === 'Пильщик'
 - В формах операций работники фильтруются по выбранному отделу
   (`resources/js/worker-picker.js`, `data-department-ids`), чекбокс «все работники» снимает фильтр
 
+### Отдел новых и переносимых записей
+
+Смотреть чужие записи можно, менять — нет (`DepartmentAccess::allowsAny`, политики `modify`).
+Отдел, который запись **получает** (создание, перенос при правке), проверяет
+`DepartmentAccess::canAssign()`: админ — любой и без отдела, не-админ — только свой.
+
+- Приёмка, цех, партия: итоговый отдел после подстановок (`resolveDepartmentId`,
+  `WorkshopService::formDepartmentId`) проверяется в контроллере → ошибка поля `department_id`.
+- Поступление: отдел берётся из приёмщика (`SupplierOrderService::resolveDepartmentId`) →
+  ошибка поля `receiver_id`.
+- Приёмка оформляется только на «свою» партию — правило `App\Rules\ModifiableBatch`
+  (при правке прежняя партия приёмки проходит без проверки).
+- Работник: не-админ не создаёт работника без отдела и не снимает последний отдел
+  (`WorkerRequest::after`).
+- Заявки покупателей: мастер ставит и снимает только свои отделы
+  (`OrderService::assignableDepartments`, `resolveDepartments`).
+- **Старые записи без отдела** правятся как раньше: правка без смены отдела — не перенос.
+
 ---
 
 ## Тесты
@@ -127,3 +145,5 @@ isCutter() // $this->worker?->position === 'Пильщик'
 - `tests/Feature/Auth/LoginTest.php` — логин по телефону/email, редиректы
 - `tests/Feature/Worker/MasterDepartmentAccessTest.php` — отдел мастера
 - `tests/Feature/Worker/WorkerAssignmentAccessTest.php` — назначение отделов и должностей
+- `tests/Feature/Access/DepartmentAssignTest.php` — отдел новых и переносимых записей
+- `tests/Feature/Access/RecordDepartmentAccessTest.php` — изменение чужих записей и заявок (403)
