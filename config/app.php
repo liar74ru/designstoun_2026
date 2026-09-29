@@ -125,4 +125,13 @@ return [
 
     'default_store_code' => env('DEFAULT_STORE_CODE'),
 
+    /*
+    | Первый администратор (AdminUserSeeder). В production пароль обязателен —
+    | стандартного нет; вне production без пароля берётся 12345678.
+    */
+    'admin' => [
+        'phone'    => env('ADMIN_PHONE', '89123456789'),
+        'password' => env('ADMIN_PASSWORD'),
+    ],
+
 ];

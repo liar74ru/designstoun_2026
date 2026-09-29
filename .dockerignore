@@ -1,0 +1,31 @@
+# Секреты: .env контейнера генерирует entrypoint.sh из переменных окружения
+.env
+.env.*
+!.env.example
+
+# Зависимости и сборка — ставятся в отдельных стадиях Dockerfile
+vendor
+node_modules
+public/build
+public/hot
+
+# Локальные кэши, логи, сессии (каталоги storage создаёт entrypoint.sh)
+bootstrap/cache/*.php
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/app/private/*
+
+# Разработка
+.git
+.github
+.idea
+.vscode
+.claude
+tests
+coverage-report
+.phpunit.cache
+.phpunit.result.cache
+*.log
+install_claude.sh

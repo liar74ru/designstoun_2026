@@ -62,7 +62,11 @@ php artisan migrate --force --no-interaction
 
 # Seed — только если таблица users пустая
 USER_COUNT=$(php artisan tinker --no-interaction --execute="echo \App\Models\User::count();" 2>/dev/null | tail -1 || echo "0")
-if [ "${USER_COUNT}" = "0" ]; then
+# Пароль первого администратора — только из ENV (ADMIN_PASSWORD, ADMIN_PHONE), в .env не пишется.
+if [ "${USER_COUNT}" = "0" ] && [ -z "${ADMIN_PASSWORD}" ]; then
+    echo "⚠️  БД пустая, но ADMIN_PASSWORD не задан — seed пропущен, войти в систему будет некому."
+    echo "⚠️  Задайте ADMIN_PASSWORD (от 8 символов) и ADMIN_PHONE в переменных окружения Timeweb и перезапустите."
+elif [ "${USER_COUNT}" = "0" ]; then
     echo "→ Запускаем seed (БД пустая)..."
     php artisan db:seed --force --no-interaction
     echo "  ✓ Seed выполнен"
