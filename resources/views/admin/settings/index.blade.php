@@ -5,16 +5,24 @@
 @section('content')
 <div class="container py-3" style="max-width:720px">
 
-    <x-page-header title="Настройки системы" mobileTitle="Настройки" />
+    <x-page-header title="Настройки системы" mobileTitle="Настройки">
+        <x-slot name="actions">
+            @include('partials.help-button', ['page' => 'settings'])
+        </x-slot>
+        <x-slot name="mobileActions">
+            @include('partials.help-button', ['page' => 'settings', 'class' => 'btn-outline-secondary btn-sm'])
+        </x-slot>
+    </x-page-header>
 
     @include('partials.alerts')
 
     <form method="POST" action="{{ route('admin.settings.update') }}">
         @csrf
 
-        {{-- Ставки и коэффициенты себестоимости --}}
+        {{-- Базовая ставка пильщика. Общие коэффициенты (подкол, торцовка, плитка-маска)
+             в расчёте не участвуют — надбавки задаются правилами отдела, поля убраны. --}}
         @php
-            $rateKeys     = array_merge(['PIECE_RATE'], \App\Support\ProductionRates::keys());
+            $rateKeys     = ['PIECE_RATE'];
             $rateSettings = $settings->filter(fn($s) => in_array($s->key, $rateKeys, true));
         @endphp
         @if($rateSettings->isNotEmpty())
@@ -27,12 +35,9 @@
             </div>
             <div class="collapse-content" id="block-piece-rate" style="display: none;">
                 <div class="card-body">
-                    <div class="alert alert-warning py-2 px-3 mb-3 small">
-                        <i class="bi bi-diagram-3"></i>
-                        Базовая ставка пильщика — значение по умолчанию: каждый отдел может
-                        переопределить её в своей карточке (Настройки → отдел → «Ставки себестоимости»).
-                        Остальные коэффициенты действуют одинаково во всех отделах.
-                    </div>
+                    <p class="text-muted small mb-3">
+                        По умолчанию для отделов — отдел может задать своё в карточке («Ставки себестоимости»).
+                    </p>
 
                     @foreach($rateSettings as $setting)
                         @php $i = $settings->search(fn($s) => $s->key === $setting->key); @endphp
@@ -65,7 +70,8 @@
 
         {{-- Ставки мастера --}}
         @php
-            $masterKeys     = ['MASTER_BASE_RATE', 'MASTER_UNDERCUT_RATE'];
+            // MASTER_UNDERCUT_RATE не используется: подкол мастеру — правило отдела
+            $masterKeys     = ['MASTER_BASE_RATE'];
             $masterSettings = $settings->filter(fn($s) => in_array($s->key, $masterKeys));
         @endphp
         @if($masterSettings->isNotEmpty())
@@ -78,11 +84,9 @@
             </div>
             <div class="collapse-content" id="block-master-rates" style="display: none;">
                 <div class="card-body">
-                    <div class="alert alert-warning py-2 px-3 mb-3 small">
-                        <i class="bi bi-diagram-3"></i>
-                        Значения по умолчанию. Каждый отдел может переопределить их в своей карточке
-                        (Настройки → отдел → «Ставки мастера»).
-                    </div>
+                    <p class="text-muted small mb-3">
+                        По умолчанию для отделов — отдел может задать своё в карточке («Ставки себестоимости»).
+                    </p>
                     @foreach($masterSettings as $setting)
                         @php $i = $settings->search(fn($s) => $s->key === $setting->key); @endphp
                         <div class="mb-3">
@@ -301,9 +305,7 @@
         <div class="collapse-content" id="block-order-statuses" style="display: none;">
             <div class="card-body">
                 <p class="text-muted small mb-3">
-                    Справочник статусов <strong>customerorder</strong> тянется из МойСклад
-                    вместе с именами и цветами. Галочками отмечается, какие статусы
-                    подгружаются при синхронизации заявок.
+                    Какие статусы заявок МойСклад использует программа и как.
                 </p>
                 <a href="{{ route('admin.order-states.index') }}"
                    class="btn btn-sm btn-outline-secondary">

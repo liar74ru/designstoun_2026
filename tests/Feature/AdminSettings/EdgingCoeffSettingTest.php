@@ -84,17 +84,24 @@ describe('POST /admin/settings — валидация EDGING_COEFF (whitelist о
     });
 });
 
-describe('GET /admin/settings — отображение поля EDGING_COEFF', function () {
+describe('GET /admin/settings — неиспользуемые коэффициенты не показываются', function () {
 
-    test('поле «Торцовка» с текущим значением видно в блоке «Расчёт зарплаты»', function () {
-        edgingSeedSetting('PIECE_RATE',       '390',  'Ставка пильщика');
-        edgingSeedSetting('UNDERCUT_PENALTY', '1.5',  'Штраф подкол > 80%');
-        edgingSeedSetting('EDGING_COEFF',     '-2.5', 'Коэффициент «Торцовка»');
+    // Надбавки за подкол, торцовку и плитку-маску задаются правилами отдела; общие
+    // коэффициенты в расчёте не участвуют, и поле на странице выглядело бы рабочим.
+    test('в «Расчёте зарплаты» только базовая ставка пильщика', function () {
+        edgingSeedSetting('PIECE_RATE',            '390',  'Ставка пильщика');
+        edgingSeedSetting('UNDERCUT_PENALTY',      '1.5',  'Штраф подкол > 80%');
+        edgingSeedSetting('EDGING_COEFF',          '-2.5', 'Коэффициент «Торцовка»');
+        edgingSeedSetting('MASK_TILE_COEFF_BONUS', '2',    'Бонус плитки-маски');
+        edgingSeedSetting('MASTER_UNDERCUT_RATE',  '50',   'Надбавка мастеру за подкол');
 
         $this->actingAs(H::adminUser())
             ->get('/admin/settings')
             ->assertOk()
-            ->assertSee('Коэффициент «Торцовка»', false)
-            ->assertSee('-2.5');
+            ->assertSee('Ставка пильщика')
+            ->assertDontSee('Штраф подкол > 80%', false)
+            ->assertDontSee('Коэффициент «Торцовка»', false)
+            ->assertDontSee('Бонус плитки-маски')
+            ->assertDontSee('Надбавка мастеру за подкол');
     });
 });

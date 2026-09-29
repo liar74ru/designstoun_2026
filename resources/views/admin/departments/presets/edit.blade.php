@@ -9,7 +9,14 @@
         title="Пресет «{{ $preset->name }}»"
         mobileTitle="Пресет"
         :backUrl="route('admin.departments.show', $department)"
-        backLabel="К отделу" />
+        backLabel="К отделу">
+        <x-slot name="actions">
+            @include('partials.help-button', ['page' => 'settings'])
+        </x-slot>
+        <x-slot name="mobileActions">
+            @include('partials.help-button', ['page' => 'settings', 'class' => 'btn-outline-secondary btn-sm'])
+        </x-slot>
+    </x-page-header>
 
     @include('partials.alerts')
 

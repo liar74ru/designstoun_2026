@@ -83,6 +83,14 @@ class HelpService
             'operations' => ['enterprise-dashboard'],
             'back'       => 'admin.enterprise-dashboard',
         ],
+        // admin-settings — admin_only-операция реестра: справку видит только админ
+        'settings' => [
+            'title'      => 'Настройки',
+            'icon'       => 'bi-gear',
+            'file'       => 'settings.md',
+            'operations' => ['admin-settings'],
+            'back'       => 'admin.settings.index',
+        ],
     ];
 
     /**

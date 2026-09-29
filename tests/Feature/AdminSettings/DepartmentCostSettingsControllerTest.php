@@ -21,38 +21,38 @@ test('администратор сохраняет переопределени
     $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => [
-                'MASTER_UNDERCUT_RATE' => '95',
-                'MASTER_BASE_RATE'     => '150',
+                'PIECE_RATE'       => '420',
+                'MASTER_BASE_RATE' => '150',
             ],
         ])
         ->assertRedirect(route('admin.departments.show', $this->dept))
         ->assertSessionHas('success');
 
-    expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(95.0);
+    expect(DepartmentSettings::pieceRate($this->dept->id))->toBe(420.0);
     expect(DepartmentSettings::masterBaseRate($this->dept->id))->toBe(150.0);
 });
 
 test('пустое поле удаляет переопределение — значение снова наследуется', function () {
     DepartmentSetting::create([
         'department_id' => $this->dept->id,
-        'key'           => 'MASTER_UNDERCUT_RATE',
+        'key'           => 'MASTER_BASE_RATE',
         'value'         => '95',
     ]);
 
     $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
-            'settings' => ['MASTER_UNDERCUT_RATE' => ''],
+            'settings' => ['MASTER_BASE_RATE' => ''],
         ])
         ->assertRedirect(route('admin.departments.show', $this->dept));
 
-    expect(DepartmentSetting::where('department_id', $this->dept->id)->where('key', 'MASTER_UNDERCUT_RATE')->exists())
+    expect(DepartmentSetting::where('department_id', $this->dept->id)->where('key', 'MASTER_BASE_RATE')->exists())
         ->toBeFalse();
 });
 
 test('ключ вне whitelist игнорируется (включая бывшие накладные)', function () {
     $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
-            'settings' => ['BLADE_WEAR' => '500', 'ELECTRICITY' => '95', 'HACK_KEY' => '1'],
+            'settings' => ['BLADE_WEAR' => '500', 'ELECTRICITY' => '95', 'HACK_KEY' => '1', 'MASTER_UNDERCUT_RATE' => '50'],
         ])
         ->assertRedirect(route('admin.departments.show', $this->dept));
 
@@ -73,9 +73,9 @@ test('PIECE_RATE сохраняется как настройка отдела',
 test('отрицательное значение отклоняется', function () {
     $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
-            'settings' => ['MASTER_UNDERCUT_RATE' => '-5'],
+            'settings' => ['MASTER_BASE_RATE' => '-5'],
         ])
-        ->assertSessionHasErrors('settings.MASTER_UNDERCUT_RATE');
+        ->assertSessionHasErrors('settings.MASTER_BASE_RATE');
 
     expect(DepartmentSetting::where('department_id', $this->dept->id)->count())->toBe(0);
 });
@@ -83,9 +83,9 @@ test('отрицательное значение отклоняется', funct
 test('нечисловое значение отклоняется', function () {
     $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
-            'settings' => ['MASTER_UNDERCUT_RATE' => 'abc'],
+            'settings' => ['MASTER_BASE_RATE' => 'abc'],
         ])
-        ->assertSessionHasErrors('settings.MASTER_UNDERCUT_RATE');
+        ->assertSessionHasErrors('settings.MASTER_BASE_RATE');
 });
 
 test('не-админ получает 403', function () {
@@ -98,19 +98,19 @@ test('не-админ получает 403', function () {
 
     $this->actingAs($user)
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
-            'settings' => ['MASTER_UNDERCUT_RATE' => '95'],
+            'settings' => ['MASTER_BASE_RATE' => '95'],
         ])
         ->assertForbidden();
 });
 
 test('кэш отдела сбрасывается после сохранения', function () {
     // прогреваем кэш
-    DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE');
+    DepartmentSettings::float($this->dept->id, 'MASTER_BASE_RATE');
 
     $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
-            'settings' => ['MASTER_UNDERCUT_RATE' => '95'],
+            'settings' => ['MASTER_BASE_RATE' => '95'],
         ]);
 
-    expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(95.0);
+    expect(DepartmentSettings::masterBaseRate($this->dept->id))->toBe(95.0);
 });

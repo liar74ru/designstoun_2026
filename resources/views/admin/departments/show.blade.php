@@ -9,7 +9,14 @@
         title="{{ $department->name }}"
         mobileTitle="{{ $department->name }}"
         :backUrl="route('admin.settings.index')"
-        backLabel="К настройкам" />
+        backLabel="К настройкам">
+        <x-slot name="actions">
+            @include('partials.help-button', ['page' => 'settings'])
+        </x-slot>
+        <x-slot name="mobileActions">
+            @include('partials.help-button', ['page' => 'settings', 'class' => 'btn-outline-secondary btn-sm'])
+        </x-slot>
+    </x-page-header>
 
     @include('partials.alerts')
 
@@ -172,11 +179,6 @@
                     </tbody>
                 </table>
 
-                <div class="text-muted mt-2" style="font-size:.75rem">
-                    <span class="badge bg-secondary" style="font-size:.65rem">админ</span> — операция доступна только администратору.
-                    <span class="badge bg-info text-dark" style="font-size:.65rem">всегда</span> — захардкоженная видимость, не настраивается.
-                </div>
-
                 <div class="mt-3 d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary px-4">
                         <i class="bi bi-check-lg"></i> Сохранить
@@ -211,8 +213,7 @@
                 @method('PATCH')
 
                 <p class="text-muted small mb-3">
-                    Сумма всех строк входит в себестоимость производства (processingSum техоперации МойСклад).
-                    Пустое имя сохранится как «Расход №N».
+                    Сумма строк входит в себестоимость техоперации. Пустое имя — «Расход №N».
                 </p>
 
                 <template x-for="(row, i) in rows" :key="i">

@@ -68,6 +68,15 @@ describe('доступ', function () {
             ->assertSee(route('help.show', 'pay'))
             ->assertDontSee(route('help.show', 'orders'));
     });
+
+    test('справка по настройкам — только админу', function () {
+        $master = Access::master(Access::department(), ['orders', 'workers', 'enterprise-dashboard']);
+
+        $this->actingAs($master)->get(route('help.show', 'settings'))->assertForbidden();
+        $this->actingAs($master)->get(route('help.index'))->assertDontSee(route('help.show', 'settings'));
+
+        $this->actingAs(H::adminUser())->get(route('help.index'))->assertSee(route('help.show', 'settings'));
+    });
 });
 
 describe('перекрёстные ссылки', function () {
@@ -109,7 +118,22 @@ describe('кнопка «?» в разделах', function () {
         'сырьё'    => ['raw-batches.index', 'raw-batches'],
         'приход'   => ['supplier-orders.index', 'supplier-orders'],
         'товары'   => ['products.index', 'products'],
+        'настройки'      => ['admin.settings.index', 'settings'],
+        'новый отдел'    => ['admin.departments.create', 'settings'],
     ]);
+
+    test('карточка отдела, правило и шаблон цеха ведут на справку по настройкам', function () {
+        $dept = Access::department();
+        $this->actingAs(H::adminUser());
+
+        foreach ([
+            route('admin.departments.show', $dept),
+            route('admin.departments.modifiers.create', $dept),
+            route('admin.departments.presets.create', $dept),
+        ] as $url) {
+            $this->get($url)->assertSuccessful()->assertSee(route('help.show', 'settings'));
+        }
+    });
 
     test('шапка сайта ведёт на оглавление', function () {
         $this->actingAs(H::adminUser())

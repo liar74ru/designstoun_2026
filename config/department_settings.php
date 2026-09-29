@@ -24,8 +24,8 @@ return [
         'label' => 'Ставки мастера, ₽/м²',
         'hint'  => 'Базовая ставка масштабируется коэффициентом продукта master_cost_coeff.',
         'keys'  => [
-            'MASTER_BASE_RATE'     => ['label' => 'Базовая ставка', 'default' => 100],
-            'MASTER_UNDERCUT_RATE' => ['label' => 'Надбавка за подкол > 80%', 'default' => 50],
+            'MASTER_BASE_RATE' => ['label' => 'Базовая ставка', 'default' => 100],
+            // MASTER_UNDERCUT_RATE убрана: подкол мастеру — правило отдела (master_coeff_delta)
         ],
     ],
 ];

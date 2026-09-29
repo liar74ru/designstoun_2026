@@ -112,7 +112,7 @@ class DepartmentController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
-            ->with('success', 'Ставки мастера обновлены.');
+            ->with('success', 'Ставки себестоимости обновлены.');
     }
 
     public function updateOperations(Request $request, Department $department)
