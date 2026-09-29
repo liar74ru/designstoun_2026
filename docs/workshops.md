@@ -129,10 +129,10 @@
 | **Закрыта** | Работа завершена; техоперация в МойСклад в завершающем статусе. |
 
 - **«Закрыть»** — перевести в «Закрыта».
-- **«Сбросить»** (в списке) / **«Активировать»** (на странице) возвращает операцию в «Активна» и
-  **отвязывает её от прежней техоперации**: та возвращается в МойСклад в статус «в работе», а
-  при следующем сохранении или синхронизации создаётся **новая** техоперация. Прежнюю при
-  необходимости удалите в МойСклад вручную, иначе списание задвоится.
+- **«Сбросить»** (в списке) / **«Активировать»** (на странице) возвращает операцию в «Активна»,
+  а её техоперацию в МойСклад — в статус «в работе». Операция остаётся связана с той же
+  техоперацией: следующее сохранение правит её, новая не создаётся. Если МойСклад не ответил,
+  операция всё равно становится активной, а ошибка видна у операции — нажмите «Синхронизировать».
 - **«Удалить»** — в списке у активной операции, на странице операции — при любом статусе. Тара
   возвращается на склад, техоперация удаляется из МойСклад. Вместе с операцией удаляется её история — **выработка по ней пропадает из всех
   недель**, в том числе прошлых.
@@ -161,7 +161,7 @@
 | 6. Правка | `WorkshopService::update`, `syncRoleItems`, `diffItemDeltas`, `writeWorkshopLog`; JS «Итого продукта» в `workshops/edit.blade.php` (спека `docs/superpowers/specs/2026-07-19-workshop-edit-proportional-scaling-design.md`) | `WorkshopServiceTest` |
 | 7. Зарплата | `WorkshopService::createProductItem`, `updateItemCoeff`, `refreshItemCoeffs`; `WorkshopItem::effectiveProdCost` | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest` |
 | 8. МойСклад | `Moysklad\WorkshopSyncService::syncWorkshop`, `createProcessingForWorkshop`, `updateProcessingProducts`, `computeProcessingSum`, `buildWorkshopDescription` | `tests/Feature/Moysklad/WorkshopSyncServiceTest`, `WorkshopProcessingUpdateTest` |
-| 9. Статусы, удаление | `WorkshopService::markCompleted`, `resetStatus`, `delete` | `WorkshopServiceTest` |
+| 9. Статусы, удаление | `WorkshopService::markCompleted`, `resetStatus`, `delete` | `WorkshopServiceTest`, `WorkshopResetStatusTest` |
 | 10. Доступ | `WorkshopService::getFilteredWorkshops`, `WorkshopPolicy::modify` | `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
 
 Заметки:
@@ -169,8 +169,10 @@
 - Себестоимостные поля и снапшот правил есть только у строк `role = product`; `ItemCost::compute`
   зовётся без ручных ключей и без SKU партии (правило с `available_when_batch_sku` в цехе не
   отсекается).
-- `resetStatus` обнуляет `moysklad_processing_id` и зовёт `reactivateProcessing` для старой
-  техоперации — следующий `syncWorkshop` создаёт новую, старая остаётся в МойСклад.
+- `resetStatus` сохраняет `moysklad_processing_id` и зовёт `reactivateProcessing`: успех →
+  `markSynced`, ошибка → `markSyncError`; следующий `syncWorkshop` идёт по ветке
+  `updateProcessingProducts`. До 3.47.5 ID обнулялся, и повторная синхронизация создавала вторую
+  техоперацию — старые дубли в МойСклад это исправление не убирает.
 - Автозаполнение `manual_processing_sum` в create-форме — `recomputeSuggestedCost()` (флаг
   `costTouched`); подсказка считает по коэффициенту товара без правил отдела.
 - В логе `receiver_id` берётся из формы; у не-админа в edit-форме это скрытое поле с текущим

@@ -414,20 +414,18 @@ class WorkshopService
     {
         $processingId = $workshop->moysklad_processing_id;
 
+        // Связь с техоперацией не рвём: её же переводим обратно «в работу», и следующая
+        // синхронизация правит её, а не создаёт вторую (остатки в МойСклад задвоились бы).
         DB::transaction(function () use ($workshop) {
-            $workshop->update([
-                'status'                   => Workshop::STATUS_ACTIVE,
-                'moysklad_processing_id'   => null,
-                'moysklad_processing_name' => null,
-                'moysklad_sync_status'     => null,
-                'moysklad_sync_error'      => null,
-                'synced_at'                => null,
-            ]);
+            $workshop->update(['status' => Workshop::STATUS_ACTIVE]);
         });
 
         if ($processingId) {
             $result = $this->syncService->reactivateProcessing($processingId);
-            if (!$result['success']) {
+            if ($result['success']) {
+                $workshop->markSynced($processingId);
+            } else {
+                $workshop->markSyncError($result['message']);
                 return 'Статус сброшен локально, но ошибка синхронизации с МойСклад: ' . $result['message'];
             }
         }
