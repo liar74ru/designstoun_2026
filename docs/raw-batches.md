@@ -167,12 +167,20 @@
 | 5. Передача / возврат | `RawMaterialBatchService::transfer`, `returnToStore`; `RawMaterialBatch::canBeTransferredOrReturned` | `RawBatch/RawBatchTransferTest`, `RawMovementStore/RawMovementStoreTest` |
 | 6. Разделение | `RawMaterialBatchService::split`, `StoneReceptionService::create` | `RawBatch/RawBatchSplitTest` |
 | 7. МойСклад | `Moysklad\RawMaterialBatchSyncService` (`syncCreated`, `syncEdited`, `syncAdjusted`, `syncReturned`, `updateParentMove`, `syncBatchMove`, `deleteMove`) | `RawBatch/RawBatchSyncActionTest` |
+| Одновременная работа | `App\Support\BatchStock` (`lock`, `ensureAvailable`, `syncStatus`), `App\Exceptions\InsufficientRawMaterialException`, `ManagesStock::adjustStock` | `RawBatch/BatchStockConcurrencyTest` |
 | 8. Видимость | `RawMaterialBatchService::getIndexData`, `updateDepartment`; `DepartmentAccess` | `RawBatch/RawBatchDepartmentAccessTest`, `RawBatch/RawBatchDepartmentChangeTest`, `Access/RecordDepartmentAccessTest` |
 
 Заметки:
 
 - Статус пересчитывается при списании в `StoneReception::updateStocks` (хук `created`) и в
-  `HandlesBatchStock::handleBatchChanges` при правке приёмки. В `used` сам по себе не уходит.
+  `HandlesBatchStock::handleBatchChanges` при правке приёмки — одним `BatchStock::syncStatus`.
+  В `used` сам по себе не уходит.
+- Любое изменение `remaining_quantity` — в транзакции после `BatchStock::lock()` (SELECT … FOR
+  UPDATE): расчёт идёт от остатка в БД, а не от модели из начала запроса. Проверки в контроллерах
+  (с цифрами в тексте ошибки) — предварительные; окончательная — под блокировкой, нехватка
+  бросает `InsufficientRawMaterialException` → ошибка поля формы. Списание приёмки больше не
+  обрезает остаток до нуля молча. Остатки складов (`product_stocks`) меняются атомарным
+  `increment`.
 - Контроллер `markAsUsed` пускает и статус `new` с нулевым остатком, а кнопку рисует
   `canBeMarkedAsUsed()` — только `in_work`/`confirmed`. В `partials/raw-batch-card` кнопка
   «Завершить партию» — по `new`/`in_work`.

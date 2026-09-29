@@ -497,7 +497,7 @@ describe('StoneReceptionService::closeBatch()', function () {
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
-            'remaining_quantity' => 0.0,
+            'remaining_quantity' => 100.0, // приёмка ниже спишет всё — остаток 0
             'current_store_id' => $store->id,
             'current_worker_id' => $cutter->id,
             'status' => RawMaterialBatch::STATUS_IN_WORK,
@@ -555,7 +555,7 @@ describe('StoneReceptionService::closeBatch()', function () {
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
-            'remaining_quantity' => 0.0,
+            'remaining_quantity' => 100.0, // приёмка ниже спишет всё — остаток 0
             'current_store_id' => $store->id,
             'current_worker_id' => $cutter->id,
             'status' => RawMaterialBatch::STATUS_IN_WORK,
@@ -595,7 +595,7 @@ describe('StoneReceptionService::closeBatch()', function () {
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
-            'remaining_quantity' => 0.0,
+            'remaining_quantity' => 100.0, // приёмка ниже спишет всё — остаток 0
             'current_store_id' => $store->id,
             'current_worker_id' => $cutter->id,
             'status' => RawMaterialBatch::STATUS_IN_WORK,

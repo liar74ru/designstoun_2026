@@ -268,7 +268,12 @@ describe('Редактирование приёмки [update()]', function () {
             'products'              => [
                 ['product_id' => $product->id, 'quantity' => 1.0],
             ],
-        ])->assertSessionHasErrors('error');
+        ])->assertSessionHasErrors(['raw_quantity_used' => 'Недостаточно сырья']);
+
+        // Откат транзакции: приёмка осталась на прежней партии, остатки не тронуты
+        expect($reception->fresh()->raw_material_batch_id)->toBe($batch->id);
+        expect((float) $scarce->fresh()->remaining_quantity)->toBe(1.0);
+        expect((float) $batch->fresh()->remaining_quantity)->toBe(45.0);
     });
 });
 

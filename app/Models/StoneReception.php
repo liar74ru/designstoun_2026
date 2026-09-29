@@ -4,9 +4,9 @@ namespace App\Models;
 
 use App\Models\Concerns\HasEffectiveDepartment;
 use App\Models\Concerns\HasMoyskladSync;
+use App\Support\BatchStock;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Models\RawMaterialBatch;
 
 class StoneReception extends Model
@@ -167,59 +167,30 @@ class StoneReception extends Model
     public function updateStocks()
     {
         DB::transaction(function () {
-            // Списываем сырье из партии
-            if ($this->rawMaterialBatch) {
-                $batch = $this->rawMaterialBatch;
-
-                // ДИАГНОСТИКА: логируем ДО изменения
-                Log::info('updateStocks - ДО списания', [
-                    'batch_id' => $batch->id,
-                    'old_remaining' => $batch->remaining_quantity,
-                    'used' => $this->raw_quantity_used,
-                    'status_before' => $batch->status
-                ]);
-
-                $batch->remaining_quantity -= $this->raw_quantity_used;
-
-                if ($batch->remaining_quantity <= 0) {
-                    $batch->remaining_quantity = 0;
-                }
-
-                // Пересчитываем статус партии после списания:
-                // - остаток > 0  → confirmed (Уточнена)
-                // - остаток = 0  → in_work (Не уточнена, ожидает ручного закрытия)
-                // Статус 'used'/'returned'/'archived' не трогаем.
-                if (in_array($batch->status, [
-                    RawMaterialBatch::STATUS_NEW,
-                    RawMaterialBatch::STATUS_IN_WORK,
-                    RawMaterialBatch::STATUS_CONFIRMED,
-                ])) {
-                    $batch->status = (float) $batch->remaining_quantity > 0
-                        ? RawMaterialBatch::STATUS_CONFIRMED
-                        : RawMaterialBatch::STATUS_IN_WORK;
-                }
-
-                $batch->save();
-
-                // ДИАГНОСТИКА: логируем ПОСЛЕ изменения
-                Log::info('updateStocks - ПОСЛЕ списания', [
-                    'batch_id' => $batch->id,
-                    'new_remaining' => $batch->remaining_quantity,
-                    'status_after' => $batch->status
-                ]);
-
-                // Создаем запись о списании сырья
-                RawMaterialMovement::create([
-                    'batch_id' => $batch->id,
-                    'from_store_id' => $this->store_id,
-                    'to_store_id' => null,
-                    'from_worker_id' => $this->cutter_id,
-                    'to_worker_id' => null,
-                    'moved_by' => $this->receiver_id,
-                    'movement_type' => 'use',
-                    'quantity' => $this->raw_quantity_used,
-                ]);
+            // Списываем сырье из партии — от свежего остатка под блокировкой строки
+            $batch = BatchStock::lockById($this->raw_material_batch_id);
+            if (!$batch) {
+                return;
             }
+
+            BatchStock::ensureAvailable($batch, (float) $this->raw_quantity_used);
+
+            $batch->remaining_quantity = max(0, (float) $batch->remaining_quantity - (float) $this->raw_quantity_used);
+            BatchStock::syncStatus($batch);
+            $batch->save();
+            $this->setRelation('rawMaterialBatch', $batch);
+
+            // Создаем запись о списании сырья
+            RawMaterialMovement::create([
+                'batch_id' => $batch->id,
+                'from_store_id' => $this->store_id,
+                'to_store_id' => null,
+                'from_worker_id' => $this->cutter_id,
+                'to_worker_id' => null,
+                'moved_by' => $this->receiver_id,
+                'movement_type' => 'use',
+                'quantity' => $this->raw_quantity_used,
+            ]);
         });
     }
 
@@ -236,9 +207,9 @@ class StoneReception extends Model
             // (StoneReceptionSyncService::deleteProcessingForReception).
 
             // Возвращаем сырье обратно в партию
-            if ($reception->rawMaterialBatch) {
-                $batch = $reception->rawMaterialBatch;
-                $batch->remaining_quantity += $reception->raw_quantity_used;
+            $batch = BatchStock::lockById($reception->raw_material_batch_id);
+            if ($batch) {
+                $batch->remaining_quantity = (float) $batch->remaining_quantity + (float) $reception->raw_quantity_used;
                 // Статус партии при удалении приёмки НЕ меняется автоматически.
                 // Управление статусом — только вручную.
                 $batch->save();

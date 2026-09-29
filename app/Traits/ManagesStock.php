@@ -7,7 +7,7 @@ use App\Models\ProductStock;
 trait ManagesStock
 {
     /**
-     * Изменяет количество товара на складе.
+     * Изменяет количество товара на складе. Строки остатка нет — создаётся с нулём.
      *
      * @param int $productId ID товара
      * @param string $storeId UUID склада
@@ -21,7 +21,8 @@ trait ManagesStock
             'store_id' => $storeId,
         ]);
 
-        $stock->quantity += $change;
-        $stock->save();
+        // Атомарно на стороне БД: «прочитать → прибавить → записать» в PHP теряет
+        // одно из двух одновременных изменений одного остатка
+        $stock->increment('quantity', $change);
     }
 }

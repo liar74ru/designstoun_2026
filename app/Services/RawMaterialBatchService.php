@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\InsufficientRawMaterialException;
 use App\Models\Department;
 use App\Models\Product;
 use App\Models\ProductStock;
@@ -10,6 +11,7 @@ use App\Models\RawMaterialMovement;
 use App\Models\Store;
 use App\Models\StoneReception;
 use App\Models\Worker;
+use App\Support\BatchStock;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -130,7 +132,7 @@ class RawMaterialBatchService
      *
      * @return array{batch: RawMaterialBatch, movement: RawMaterialMovement}
      */
-    public function create(array $data, bool $isAdmin): array
+    public function create(array $data, bool $isAdmin, bool $checkSourceStock = true): array
     {
         $createdAt = ($isAdmin && !empty($data['manual_created_at']))
             ? Carbon::parse($data['manual_created_at'])
@@ -143,7 +145,11 @@ class RawMaterialBatchService
 
         $departmentId = $this->resolveDepartmentId($data);
 
-        DB::transaction(function () use ($data, $createdAt, $movedBy, $departmentId, &$batch, &$movement) {
+        DB::transaction(function () use ($data, $createdAt, $movedBy, $departmentId, $checkSourceStock, &$batch, &$movement) {
+            if ($checkSourceStock) {
+                $this->ensureSourceStock($data['product_id'], $data['from_store_id'], (float) $data['quantity']);
+            }
+
             $batch = RawMaterialBatch::create([
                 'product_id'         => $data['product_id'],
                 'initial_quantity'   => $data['quantity'],
@@ -175,6 +181,25 @@ class RawMaterialBatchService
         });
 
         return ['batch' => $batch, 'movement' => $movement];
+    }
+
+    /**
+     * На складе-источнике хватает сырья. Внутри create() — под блокировкой строки остатка,
+     * чтобы две одновременно созданные партии не списали одно и то же; контроллер зовёт
+     * заранее, чтобы нехватка показывалась раньше прочих ошибок формы.
+     *
+     * @throws InsufficientRawMaterialException
+     */
+    public function ensureSourceStock(int $productId, string $storeId, float $qty): void
+    {
+        $stock = ProductStock::where('product_id', $productId)
+            ->where('store_id', $storeId)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$stock || (float) $stock->quantity < $qty) {
+            throw new InsufficientRawMaterialException('quantity', 'Недостаточно сырья на складе-источнике.');
+        }
     }
 
     /**
@@ -237,6 +262,14 @@ class RawMaterialBatchService
             $oldFromStoreId, $oldToStoreId, $newFromStoreId, $newToStoreId,
             $fromStoreChanged, $toStoreChanged
         ) {
+            // Пока шла форма, приёмка могла списать сырьё — считаем от свежего остатка
+            BatchStock::lock($batch);
+            $oldRemaining = (float) $batch->remaining_quantity;
+            $newRemaining = $newQuantity - ((float) $batch->initial_quantity - $oldRemaining);
+            if ($newRemaining < 0) {
+                throw new InsufficientRawMaterialException('quantity', 'Новое количество меньше уже израсходованного.');
+            }
+
             $storeId = $batch->current_store_id;
 
             if ($productChanged) {
@@ -307,6 +340,7 @@ class RawMaterialBatchService
         $moyskladMoveId = $originalMovement?->moysklad_move_id;
 
         DB::transaction(function () use ($batch) {
+            BatchStock::lock($batch);
             if ($batch->remaining_quantity > 0) {
                 $this->adjustStock($batch->product_id, $batch->current_store_id, -$batch->remaining_quantity);
             }
@@ -324,16 +358,21 @@ class RawMaterialBatchService
      */
     public function adjust(RawMaterialBatch $batch, float $delta, ?string $notes, bool $isAdmin, ?string $manualDate): array
     {
-        $newRemaining  = (float) $batch->remaining_quantity + $delta;
-        $batchStoreId  = $batch->current_store_id;
-
         $createdAt = ($isAdmin && $manualDate)
             ? Carbon::parse($manualDate)
             : now();
 
-        $movement = null;
+        $movement     = null;
+        $newRemaining = null;
 
-        DB::transaction(function () use ($batch, $delta, $newRemaining, $notes, $batchStoreId, $createdAt, &$movement) {
+        DB::transaction(function () use ($batch, $delta, $notes, $createdAt, &$movement, &$newRemaining) {
+            BatchStock::lock($batch);
+            $batchStoreId = $batch->current_store_id;
+            $newRemaining = (float) $batch->remaining_quantity + $delta;
+            if ($newRemaining < 0) {
+                throw new InsufficientRawMaterialException('delta', 'Нельзя убрать больше чем есть в партии.');
+            }
+
             $batch->update([
                 'remaining_quantity' => $newRemaining,
                 'initial_quantity'   => (float) $batch->initial_quantity + $delta,
@@ -405,6 +444,7 @@ class RawMaterialBatchService
     public function delete(RawMaterialBatch $batch): void
     {
         DB::transaction(function () use ($batch) {
+            BatchStock::lock($batch);
             if ($batch->isWorkable() && $batch->remaining_quantity > 0) {
                 $this->adjustStock($batch->product_id, $batch->current_store_id, -$batch->remaining_quantity);
             }
@@ -425,18 +465,19 @@ class RawMaterialBatchService
      */
     public function split(RawMaterialBatch $batch): array
     {
-        $qty = (float) $batch->remaining_quantity;
+        return DB::transaction(function () use ($batch) {
+            BatchStock::lock($batch);
+            $qty = (float) $batch->remaining_quantity;
 
-        if ($qty <= 0) {
-            throw new \RuntimeException('Партия не имеет остатка для разделения');
-        }
+            if ($qty <= 0) {
+                throw new \RuntimeException('Партия не имеет остатка для разделения');
+            }
 
-        $workerId = $batch->current_worker_id;
-        if (!$workerId) {
-            throw new \RuntimeException('У партии не назначен работник для split');
-        }
+            $workerId = $batch->current_worker_id;
+            if (!$workerId) {
+                throw new \RuntimeException('У партии не назначен работник для split');
+            }
 
-        return DB::transaction(function () use ($batch, $qty, $workerId) {
             $result = $this->transfer($batch, [
                 'quantity'     => $qty,
                 'to_worker_id' => $workerId,
@@ -475,6 +516,8 @@ class RawMaterialBatchService
         $newMovement  = null;
 
         DB::transaction(function () use ($batch, $data, $qty, $toStoreId, $fromStoreId, $targetWorker, &$newBatch, &$newMovement) {
+            BatchStock::lock($batch);
+            BatchStock::ensureAvailable($batch, $qty, 'quantity');
             $fromWorkerId = $batch->current_worker_id;
 
             $batch->update([
@@ -534,11 +577,11 @@ class RawMaterialBatchService
         $movement  = null;
 
         DB::transaction(function () use ($batch, $data, $qty, $oldStore, $oldWorker, &$newBatch, &$movement) {
+            BatchStock::lock($batch);
+            BatchStock::ensureAvailable($batch, $qty, 'quantity');
             $newRemaining = (float) $batch->remaining_quantity - $qty;
             $batch->remaining_quantity = $newRemaining;
-            $batch->status = $newRemaining > 0
-                ? RawMaterialBatch::STATUS_CONFIRMED
-                : RawMaterialBatch::STATUS_IN_WORK;
+            BatchStock::syncStatus($batch);
             $batch->save();
 
             RawMaterialMovement::create([

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InsufficientRawMaterialException;
 use App\Http\Requests\StoneReception\StoreStoneReceptionRequest;
 use App\Http\Requests\StoneReception\UpdateStoneReceptionRequest;
 use App\Models\RawMaterialBatch;
@@ -95,13 +96,7 @@ class StoneReceptionController extends Controller
             return back()->withErrors(['cutter_id' => 'Выберите пильщика'])->withInput();
         }
 
-        $batch = \App\Models\RawMaterialBatch::find($data['raw_material_batch_id']);
-        if (!$batch) {
-            return back()->withErrors(['raw_material_batch_id' => 'Партия сырья не найдена'])->withInput();
-        }
-        if ($batch->remaining_quantity < $data['raw_quantity_used']) {
-            return back()->withErrors(['raw_quantity_used' => 'Недостаточно сырья'])->withInput();
-        }
+        $this->service->ensureRawAvailable((int) $data['raw_material_batch_id'], (float) $data['raw_quantity_used']);
 
         $data['department_id'] = $this->service->resolveDepartmentId($data);
         if (! $data['department_id']) {
@@ -128,6 +123,8 @@ class StoneReceptionController extends Controller
 
             return $this->withSyncFlash($redirect, $reception, 'Приемка создана');
 
+        } catch (InsufficientRawMaterialException $e) {
+            return $e->render();
         } catch (\Exception $e) {
             Log::error('Ошибка создания приёмки:', ['error' => $e->getMessage(), 'data' => $data]);
             return back()->withErrors(['error' => 'Ошибка: ' . $e->getMessage()])->withInput();
@@ -196,6 +193,8 @@ class StoneReceptionController extends Controller
 
             return $this->withSyncFlash($redirect, $stoneReception, 'Приемка обновлена');
 
+        } catch (InsufficientRawMaterialException $e) {
+            return $e->render();
         } catch (\Exception $e) {
             Log::error('Ошибка обновления приёмки:', ['error' => $e->getMessage()]);
             return back()->withErrors(['error' => 'Ошибка: ' . $e->getMessage()])->withInput();

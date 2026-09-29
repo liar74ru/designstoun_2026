@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\InsufficientRawMaterialException;
 use App\Models\Department;
 use App\Models\DepartmentModifier;
 use App\Models\Product;
@@ -14,6 +15,7 @@ use App\Models\StoneReceptionItem;
 use App\Models\Worker;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\Moysklad\StoneReceptionSyncService;
+use App\Support\BatchStock;
 use App\Support\DepartmentSettings;
 use App\Support\ItemCost;
 use App\Support\ModifierEngine;
@@ -236,6 +238,19 @@ class StoneReceptionService
             ->withQueryString();
     }
 
+    /**
+     * Предварительная проверка остатка партии — до закрытия активной приёмки и split.
+     * Окончательно остаток проверяется под блокировкой партии при списании
+     * (StoneReception::updateStocks): между проверкой и сохранением его могла забрать
+     * другая приёмка.
+     *
+     * @throws InsufficientRawMaterialException
+     */
+    public function ensureRawAvailable(int $batchId, float $qty): void
+    {
+        BatchStock::ensureAvailable(RawMaterialBatch::findOrFail($batchId), $qty);
+    }
+
     public function create(array $data, bool $isAdmin, ?string $processingName = null): StoneReception
     {
         $batch = RawMaterialBatch::findOrFail($data['raw_material_batch_id']);
@@ -436,6 +451,7 @@ class StoneReceptionService
             ->get();
 
         DB::transaction(function () use ($batch) {
+            BatchStock::lock($batch);
             $newStatus = (float) $batch->remaining_quantity <= 0
                 ? RawMaterialBatch::STATUS_USED
                 : RawMaterialBatch::STATUS_CONFIRMED;
@@ -482,6 +498,7 @@ class StoneReceptionService
 
             $batch = $reception->rawMaterialBatch;
             if ($batch) {
+                BatchStock::lock($batch);
                 $newStatus = (float) $batch->remaining_quantity <= 0
                     ? RawMaterialBatch::STATUS_USED
                     : RawMaterialBatch::STATUS_CONFIRMED;

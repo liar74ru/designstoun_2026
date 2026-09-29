@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
-use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
 use App\Models\Store;
@@ -162,15 +161,7 @@ class RawMaterialBatchController extends Controller
         $ignoreStockCheck = $request->boolean('ignore_stock_check') && $canIgnoreStock;
 
         if (!$ignoreStockCheck) {
-            $sourceStock = ProductStock::where('product_id', $data['product_id'])
-                ->where('store_id', $data['from_store_id'])
-                ->first();
-
-            if (!$sourceStock || $sourceStock->quantity < $data['quantity']) {
-                return back()
-                    ->withErrors(['quantity' => 'Недостаточно сырья на складе-источнике.'])
-                    ->withInput();
-            }
+            $this->service->ensureSourceStock((int) $data['product_id'], $data['from_store_id'], (float) $data['quantity']);
         }
 
         $data['department_id'] = $this->service->resolveDepartmentId($data);
@@ -180,9 +171,12 @@ class RawMaterialBatchController extends Controller
                 ->withInput();
         }
 
+        // Нехватка на складе-источнике (в т.ч. если её успела забрать параллельная партия) —
+        // InsufficientRawMaterialException → ошибка поля quantity
         ['batch' => $batch, 'movement' => $movement] = $this->service->create(
             $data,
-            auth()->user()?->isAdmin() ?? false
+            auth()->user()?->isAdmin() ?? false,
+            checkSourceStock: !$ignoreStockCheck
         );
 
         $this->syncService->syncCreated($batch, $movement);

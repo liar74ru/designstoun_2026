@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasEffectiveDepartment;
 use App\Models\Concerns\HasMoyskladSync;
+use App\Traits\ManagesStock;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -11,6 +12,7 @@ class Workshop extends Model
 {
     use HasMoyskladSync;
     use HasEffectiveDepartment;
+    use ManagesStock;
 
     protected $table = 'workshops';
 
@@ -162,13 +164,7 @@ class Workshop extends Model
             return;
         }
 
-        $stock = ProductStock::firstOrCreate([
-            'product_id' => $productId,
-            'store_id'   => $storeId,
-        ]);
-
-        $stock->quantity = (float) $stock->quantity - $delta;
-        $stock->save();
+        $this->adjustStock($productId, $storeId, -$delta);
     }
 
     /**
