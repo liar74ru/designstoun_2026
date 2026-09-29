@@ -380,9 +380,10 @@ class RawMaterialBatchService
 
             $this->adjustStock($batch->product_id, $batchStoreId, $delta);
 
-            $envStoreId     = env('DEFAULT_STORE_ID') ?: null;
-            $defaultStoreId = ($envStoreId && Store::where('id', $envStoreId)->exists())
-                ? $envStoreId
+            // Через config, не env(): после config:cache env() вне config/ отдаёт null
+            $configStoreId  = config('app.default_store_id') ?: null;
+            $defaultStoreId = ($configStoreId && Store::where('id', $configStoreId)->exists())
+                ? $configStoreId
                 : $batchStoreId;
 
             $movement = RawMaterialMovement::create([

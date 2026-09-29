@@ -125,6 +125,10 @@ return [
 
     'default_store_code' => env('DEFAULT_STORE_CODE'),
 
+    // UUID склада-источника/назначения при корректировке партии (RawMaterialBatchService::adjust);
+    // не задан или не найден — склад партии
+    'default_store_id' => env('DEFAULT_STORE_ID'),
+
     /*
     | Первый администратор (AdminUserSeeder). В production пароль обязателен —
     | стандартного нет; вне production без пароля берётся 12345678.

@@ -181,6 +181,26 @@ describe('RawMaterialBatchService::adjust()', function () {
         expect($result['movement']->movement_type)->toBe('adjust_decrease');
         expect((float) $result['movement']->quantity)->toBe(5.0);
     });
+
+    test('списание уходит на склад по умолчанию из config(app.default_store_id)', function () {
+        $store        = Store::factory()->create();
+        $defaultStore = Store::factory()->create(['name' => 'Склад по умолчанию']);
+        config()->set('app.default_store_id', $defaultStore->id);
+
+        $batch = RawMaterialBatch::create([
+            'product_id'         => Product::factory()->create()->id,
+            'initial_quantity'   => 50.0,
+            'remaining_quantity' => 50.0,
+            'current_store_id'   => $store->id,
+            'current_worker_id'  => Worker::create(['name' => 'Пильщик', 'position' => 'Работник'])->id,
+            'status'             => RawMaterialBatch::STATUS_IN_WORK,
+        ]);
+
+        $result = (new RawMaterialBatchService())->adjust($batch, -5.0, null, false, null);
+
+        expect($result['movement']->from_store_id)->toBe($store->id)
+            ->and($result['movement']->to_store_id)->toBe($defaultStore->id);
+    });
 });
 
 // ═════════════════════��════════════════════════════════════════════════════════
