@@ -251,43 +251,52 @@ class StoneReceptionService
         BatchStock::ensureAvailable(RawMaterialBatch::findOrFail($batchId), $qty);
     }
 
+    /**
+     * Создать приёмку. Всё локальное — закрытие прежней активной приёмки, split партии,
+     * сама приёмка и списание сырья — одна транзакция под блокировкой партии: если
+     * приёмка не сохранилась (например, сырья уже не хватает), партия не разделена.
+     * МойСклад — только после commit: иначе при откате в нём остались бы документы
+     * разделения, которых нет в БД.
+     */
     public function create(array $data, bool $isAdmin, ?string $processingName = null): StoneReception
     {
-        $batch = RawMaterialBatch::findOrFail($data['raw_material_batch_id']);
-        $existingActive = $batch->getActiveReception();
-        if ($existingActive) {
-            $existingActive->markAsCompleted();
-        }
-
-        // Если у партии уже есть завершённые/обработанные приёмки и остаётся сырьё —
-        // разделяем партию: родитель сжимается до фактически использованного объёма,
-        // дочерняя получает остаток и принимает новую приёмку.
-        $hasCompletedReceptions = $batch->receptions()
-            ->whereIn('status', [
-                StoneReception::STATUS_COMPLETED,
-                StoneReception::STATUS_PROCESSED,
-                StoneReception::STATUS_ERROR,
-            ])
-            ->exists();
-
-        if ($hasCompletedReceptions && (float) $batch->remaining_quantity > 0) {
-            $split = $this->batchService->split($batch);
-            $data['raw_material_batch_id'] = $split['newBatch']->id;
-
-            $this->batchSyncService->syncCreated($split['newBatch'], $split['newMovement']);
-            $this->batchSyncService->updateParentMove($batch, (float) $batch->fresh()->initial_quantity);
-
-            $batch = $split['newBatch'];
-        }
-
-        $batchSnapshotBefore = (float) $batch->remaining_quantity;
-        $reception           = null;
-
         if ($isAdmin && !empty($data['manual_created_at'])) {
             $data['manual_created_at'] = Carbon::parse($data['manual_created_at']);
         }
 
-        DB::transaction(function () use ($data, $batch, $batchSnapshotBefore, &$reception) {
+        $reception   = null;
+        $split       = null;
+        $parentBatch = null;
+
+        DB::transaction(function () use (&$data, &$reception, &$split, &$parentBatch) {
+            $batch = RawMaterialBatch::whereKey($data['raw_material_batch_id'])->lockForUpdate()->firstOrFail();
+
+            $existingActive = $batch->getActiveReception();
+            if ($existingActive) {
+                $existingActive->markAsCompleted();
+            }
+
+            // Если у партии уже есть завершённые/обработанные приёмки и остаётся сырьё —
+            // разделяем партию: родитель сжимается до фактически использованного объёма,
+            // дочерняя получает остаток и принимает новую приёмку.
+            $hasCompletedReceptions = $batch->receptions()
+                ->whereIn('status', [
+                    StoneReception::STATUS_COMPLETED,
+                    StoneReception::STATUS_PROCESSED,
+                    StoneReception::STATUS_ERROR,
+                ])
+                ->exists();
+
+            if ($hasCompletedReceptions && (float) $batch->remaining_quantity > 0) {
+                $split       = $this->batchService->split($batch);
+                $parentBatch = $batch;
+                $batch       = $split['newBatch'];
+
+                $data['raw_material_batch_id'] = $batch->id;
+            }
+
+            $batchSnapshotBefore = (float) $batch->remaining_quantity;
+
             $reception = StoneReception::create($this->prepareReceptionData($data));
             $this->createReceptionItems($reception, $data['products']);
 
@@ -312,7 +321,11 @@ class StoneReceptionService
             );
         });
 
-        $batch->refresh();
+        if ($split) {
+            $this->batchSyncService->syncCreated($split['newBatch'], $split['newMovement']);
+            $this->batchSyncService->updateParentMove($parentBatch, (float) $parentBatch->fresh()->initial_quantity);
+        }
+
         $this->syncService->syncReception($reception, $processingName);
 
         return $reception;

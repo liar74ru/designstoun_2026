@@ -124,6 +124,9 @@
 - остаток уходит в новую партию с номером `номер/код` и пометкой «Выделена из партии №…» —
   на неё и оформляется приёмка.
 
+Если приёмка не сохранилась (например, сырья уже не хватило), партия не разделяется:
+ничего не меняется ни в программе, ни в МойСклад.
+
 Так приёмки разных периодов не смешиваются в одной партии. Подробнее — в справке по
 [приёмке](stone-receptions.md).
 
@@ -165,7 +168,7 @@
 | 3. Статусы | `RawMaterialBatch` (`statusLabel`, `canBeMarkedAsUsed`, `canBeArchived`); `RawMaterialBatchController::markAsUsed`, `markAsInWork`, `archive`; `StoneReception::updateStocks`; `StoneReceptionService::closeBatch`, `markCompleted` | `RawBatch/BatchStatusTest`, `RawBatch/RawBatchNewStatusTest`, `RawBatch/RawBatchModelTest` |
 | 4. Изменение | `RawMaterialBatchController::adjust`, `update`, `destroyNew`, `destroy`; `RawMaterialBatchService::adjust`, `update`, `deleteNew` | `RawBatch/RawMaterialBatchServiceTest`, `RawBatch/RawBatchNewStatusTest`, `RawBatch/RawBatchPagesTest` |
 | 5. Передача / возврат | `RawMaterialBatchService::transfer`, `returnToStore`; `RawMaterialBatch::canBeTransferredOrReturned` | `RawBatch/RawBatchTransferTest`, `RawMovementStore/RawMovementStoreTest` |
-| 6. Разделение | `RawMaterialBatchService::split`, `StoneReceptionService::create` | `RawBatch/RawBatchSplitTest` |
+| 6. Разделение | `RawMaterialBatchService::split`, `StoneReceptionService::create` | `RawBatch/RawBatchSplitTest`, `StoneReception/ReceptionCreateSplitTest` |
 | 7. МойСклад | `Moysklad\RawMaterialBatchSyncService` (`syncCreated`, `syncEdited`, `syncAdjusted`, `syncReturned`, `updateParentMove`, `syncBatchMove`, `deleteMove`) | `RawBatch/RawBatchSyncActionTest` |
 | Одновременная работа | `App\Support\BatchStock` (`lock`, `ensureAvailable`, `syncStatus`), `App\Exceptions\InsufficientRawMaterialException`, `ManagesStock::adjustStock` | `RawBatch/BatchStockConcurrencyTest` |
 | 8. Видимость | `RawMaterialBatchService::getIndexData`, `updateDepartment`; `DepartmentAccess` | `RawBatch/RawBatchDepartmentAccessTest`, `RawBatch/RawBatchDepartmentChangeTest`, `Access/RecordDepartmentAccessTest` |
@@ -175,6 +178,9 @@
 - Статус пересчитывается при списании в `StoneReception::updateStocks` (хук `created`) и в
   `HandlesBatchStock::handleBatchChanges` при правке приёмки — одним `BatchStock::syncStatus`.
   В `used` сам по себе не уходит.
+- `StoneReceptionService::create`: закрытие прежней активной приёмки, split и сама приёмка —
+  одна транзакция под блокировкой партии; `syncCreated` / `updateParentMove` / `syncReception`
+  — только после commit.
 - Любое изменение `remaining_quantity` — в транзакции после `BatchStock::lock()` (SELECT … FOR
   UPDATE): расчёт идёт от остатка в БД, а не от модели из начала запроса. Проверки в контроллерах
   (с цифрами в тексте ошибки) — предварительные; окончательная — под блокировкой, нехватка

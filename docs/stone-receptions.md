@@ -145,7 +145,7 @@
 | Раздел | Код | Тесты (`tests/Feature/StoneReception/`) |
 |---|---|---|
 | 1. Новая приёмка | `StoneReceptionController::create`, `store`, `copy`, `getBatchesJson`; `StoneReceptionService::create`; `HandlesBatchStock::getActiveBatches` | `StoneReceptionTest`, `ReceptionCopyAndApiTest` |
-| 2. Партия | `StoneReceptionService::create`, `RawMaterialBatchService::split`, `StoneReception::updateStocks` | `StoneReceptionServiceTest`, `ReceptionStatusCascadeTest` |
+| 2. Партия | `StoneReceptionService::create`, `RawMaterialBatchService::split`, `StoneReception::updateStocks` | `StoneReceptionServiceTest`, `ReceptionStatusCascadeTest`, `ReceptionCreateSplitTest` |
 | 3. Отдел | `StoneReceptionService::resolveDepartmentId`, `updateDepartment`; `StoneReception::effectiveDepartmentChain` | `ReceptionDepartmentChangeTest` |
 | 4. Статусы | `StoneReceptionService::markCompleted`, `closeBatch`, `resetStatus`; `RawMaterialBatchService::markAsUsed` / `markAsInWork` | `ReceptionActionsTest`, `ReceptionStatusCascadeTest`, `StoneReceptionServiceTest` |
 | 5. Правка | `StoneReceptionService::update`, `updateReceptionItems`, `writeReceptionLog`, `updateLogReceiver`; `HandlesBatchStock::handleBatchChanges` | `StoneReceptionTest`, `ReceptionLogTest`, `ReceptionLogReceiverTest` |
