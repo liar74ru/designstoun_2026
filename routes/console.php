@@ -28,7 +28,8 @@ Artisan::command('moysklad:sync-stocks', function (StockSyncService $stockSyncSe
     return 1;
 })->purpose('Синхронизировать остатки всех товаров по складам из МойСклад');
 
-// Требует cron на сервере: * * * * * php artisan schedule:run
+// В Docker задачи запускает schedule:work под supervisor (docker/supervisord.conf);
+// вне Docker нужен cron: * * * * * php artisan schedule:run
 Schedule::command('moysklad:sync-stocks')
     ->dailyAt('06:00')
     ->timezone('Europe/Moscow')

@@ -87,6 +87,11 @@ ADMIN_PASSWORD=
 `ADMIN_PHONE`. Без него seed пропускается с предупреждением в логе — задайте переменную и
 перезапустите контейнер.
 
+В контейнере под supervisor (`docker/supervisord.conf`) работают Apache и планировщик
+`schedule:work` — задачи из `routes/console.php` (ежедневная синхронизация остатков в 06:00 МСК)
+выполняются без внешнего cron. Вне Docker планировщику нужен cron:
+`* * * * * php artisan schedule:run`.
+
 ---
 
 ## Структура системы

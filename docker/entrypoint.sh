@@ -84,5 +84,5 @@ mkdir -p storage/logs storage/framework/{sessions,views,cache} bootstrap/cache
 chmod -R 775 storage bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 
-echo "✅ Запускаем Apache..."
-exec apache2-foreground
+echo "✅ Запускаем Apache и планировщик (supervisor)..."
+exec /usr/bin/supervisord -c /etc/supervisor/app.conf

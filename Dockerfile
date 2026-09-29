@@ -46,7 +46,7 @@ FROM php:8.4-apache AS app
 # Системные зависимости + расширения PHP
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev libpng-dev libzip-dev libonig-dev libicu-dev \
-        curl unzip \
+        curl unzip supervisor \
     && docker-php-ext-install \
         pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip intl opcache \
     && a2enmod rewrite \
@@ -93,6 +93,7 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOCONF'
 EOCONF
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker/supervisord.conf /etc/supervisor/app.conf
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /var/www/html
