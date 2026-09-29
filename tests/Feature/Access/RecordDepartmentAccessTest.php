@@ -2,6 +2,7 @@
 
 use App\Models\Counterparty;
 use App\Models\Department;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
@@ -11,6 +12,7 @@ use App\Models\Worker;
 use App\Models\Workshop;
 use App\Support\DepartmentAccess;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Tests\Helpers\AccessTestHelper as Access;
 use Tests\Helpers\ReceptionTestHelper as H;
@@ -138,6 +140,37 @@ describe('Изменение чужой записи', function () {
 
         expect($worker->fresh()->isArchived())->toBeFalse();
     });
+});
+
+/**
+ * Заявки покупателей адресуются по moysklad_id, а не моделью — отдельный набор.
+ * Доступ проверяется до валидации: пустой запрос к чужой заявке — 403, а не ошибки полей.
+ */
+const RDA_ORDER_MUTATING = [
+    'orders.state.update', 'orders.departments.update', 'orders.delivery-date.update',
+    'orders.position.update', 'orders.position.destroy', 'orders.position.ready', 'orders.position.hidden',
+    'orders.recalculate', 'orders.priority.move', 'orders.priority.urgent', 'orders.priority.reset',
+    'orders.changes.acknowledge',
+];
+
+describe('Изменение чужой заявки покупателя', function () {
+
+    test('мастер другого отдела получает 403', function (string $routeName) {
+        $product = H::product();
+        $order   = Order::create(['moysklad_id' => 'ms-alien', 'name' => 'Чужая заявка']);
+        $order->departments()->attach(Access::department('Чужой')->id);
+        $order->items()->create(['product_id' => $product->id, 'quantity' => 1, 'shipped' => 0]);
+
+        Http::fake();
+        $this->actingAs(Access::master(Access::department('Свой'), 'orders'));
+
+        $method = collect(Route::getRoutes()->getByName($routeName)->methods())->reject(fn ($m) => $m === 'HEAD')->first();
+
+        $this->call($method, route($routeName, ['moyskladId' => 'ms-alien', 'productId' => $product->id]))
+            ->assertForbidden();
+
+        Http::assertNothingSent();
+    })->with(RDA_ORDER_MUTATING);
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

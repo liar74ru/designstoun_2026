@@ -78,7 +78,7 @@ class OrderService
             'statusDefaults'     => $defaults,
             'filterDepartments'  => $departments,
             'noDepartmentOption' => self::NO_DEPARTMENT,
-            'assignDepartments'  => $departments,
+            'assignDepartments'  => $this->assignableDepartments($request->user()),
             'departmentDefaults' => $accessible ?? [],
             'switchDepartments'  => Department::query()
                 ->when($accessible !== null, fn ($q) => $q->whereIn('id', $accessible ?: [-1]))
@@ -155,6 +155,43 @@ class OrderService
         $ids = array_map('intval', array_filter((array) $request->input('filter.department_id'), 'is_numeric'));
 
         return array_values($accessible === null ? $ids : array_intersect($ids, $accessible));
+    }
+
+    /**
+     * Отделы, которые пользователь может ставить заявке и снимать с неё: админ — любые,
+     * остальные — только свои.
+     *
+     * @return Collection<int, Department>
+     */
+    public function assignableDepartments(?User $user): Collection
+    {
+        $accessible = $user?->accessibleDepartmentIds();
+
+        return Department::query()
+            ->when($accessible !== null, fn ($q) => $q->whereIn('id', $accessible ?: [-1]))
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Итоговые отделы заявки после правки: выбранные пользователем + отделы заявки
+     * вне его зоны — их не-админ в модалке не видит и снять не может.
+     *
+     * @param  array<int, int|string>  $selected
+     * @return array<int, int>
+     */
+    public function resolveDepartments(Order $order, array $selected, ?User $user): array
+    {
+        $selected   = array_map('intval', $selected);
+        $accessible = $user?->accessibleDepartmentIds();
+
+        if ($accessible === null) {
+            return $selected;
+        }
+
+        $foreign = array_diff($order->departments->pluck('id')->map(fn ($id) => (int) $id)->all(), $accessible);
+
+        return array_values(array_unique(array_merge($selected, $foreign)));
     }
 
     /**
@@ -261,7 +298,7 @@ class OrderService
             'stores'         => Store::where('archived', false)->orderBy('name')->get(),
             'defaultStoreId' => $defaultStoreId,
             'orderStates'    => $this->enabledStates(),
-            'departments'    => Department::orderBy('name')->get(),
+            'departments'    => $this->assignableDepartments($request->user()),
             'hideDepartments' => $this->hideableDepartments($order, $request->user()),
             'changedStateId' => OrderState::changedId(),
             // Куда «Принято» вернёт заявку из статуса «Изменено»

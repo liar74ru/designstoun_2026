@@ -4,7 +4,7 @@
     (orders.partials.departments-button).
 
     Параметры:
-      $departments — Collection отделов на выбор
+      $departments — Collection отделов на выбор (OrderService::assignableDepartments)
 --}}
 <div class="modal fade" id="order-departments-modal" tabindex="-1" aria-labelledby="order-departments-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -27,6 +27,10 @@
                 @endforelse
                 <div class="form-text mt-2">
                     Отделы записываются в МойСклад флажками-реквизитами с тем же именем.
+                    @unless(auth()->user()?->isAdmin())
+                        Здесь только ваши отделы — отделы других цехов на заявке сохранятся,
+                        их назначает администратор.
+                    @endunless
                 </div>
             </div>
             <div class="modal-footer">

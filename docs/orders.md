@@ -172,6 +172,8 @@
 - Заявки **без отдела** по умолчанию скрыты — их показывает пункт **«Без отдела»** в фильтре.
   Мастер может назначить такой заявке отдел прямо из списка.
 - Менять заявку чужого отдела (статус, срок, отделы, очередь, позиции) нельзя.
+- Мастер ставит и снимает заявке только **свои** отделы — других в окне выбора нет. Отделы
+  других цехов на заявке при этом сохраняются; передать заявку в чужой цех может администратор.
 - В карточке заявки булевы реквизиты не выводятся — они уже показаны как отделы.
 
 ---
@@ -191,7 +193,7 @@
 | 5. Раздача | `OrderProductionService::allocate`, `pool`; `OrderService::allocate` | `OrderProductionTest` |
 | 6. Позиция | `OrderPositionService::rows`, `save`, `reset`, `setReady`, `storeIds`, `visibleStores`, `isHiddenFor`; `OrderService::effectiveStoreId`, `hideableDepartments`, `viewDepartmentIds`; `OrderPositionSetting` | `OrderPositionTest`, `OrderHiddenPositionTest` |
 | 7. Изменения состава | `OrderChangeService::record`, `rememberStateBeforeChange`, `returnState`, `acknowledge`; `OrderController::acknowledgeChanges` | `OrderChangesTest` |
-| 8. Видимость | `OrderService::indexQuery`, `findForUser` | `OrderDepartmentsTest`, `OrderShowTest`, `OrderServiceTest` |
+| 8. Видимость | `OrderService::indexQuery`, `findForUser`, `assignableDepartments`, `resolveDepartments`; в `OrderController` `findForUser` — до валидации (чужая заявка → 403) | `OrderDepartmentsTest`, `OrderShowTest`, `OrderServiceTest`, `Access/RecordDepartmentAccessTest` |
 
 Заметки:
 

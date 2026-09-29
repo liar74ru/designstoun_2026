@@ -543,3 +543,33 @@ describe('Отметка «позиция готова»', function () {
             ->assertDontSee(route('orders.position.ready', ['ms-1', $product->id]), false);
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Позиция должна быть в заявке
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Настройка позиции: товар не из заявки', function () {
+
+    test('сохранить настройку для товара не из заявки нельзя — 404', function () {
+        ['order' => $order, 'main' => $main, 'dept' => $dept] = positionFixture();
+        $alien = Product::factory()->create(['name' => 'Чужой товар']);
+
+        $this->actingAs(Access::master($dept, 'orders'))
+            ->post(route('orders.position.update', $order->moysklad_id), [
+                'product_id' => $alien->id,
+                'stores'     => [$main->id],
+            ])
+            ->assertNotFound();
+
+        expect(OrderPositionSetting::count())->toBe(0);
+    });
+
+    test('сбросить настройку товара не из заявки нельзя — 404', function () {
+        ['order' => $order, 'dept' => $dept] = positionFixture();
+        $alien = Product::factory()->create(['name' => 'Чужой товар']);
+
+        $this->actingAs(Access::master($dept, 'orders'))
+            ->delete(route('orders.position.destroy', [$order->moysklad_id, $alien->id]))
+            ->assertNotFound();
+    });
+});

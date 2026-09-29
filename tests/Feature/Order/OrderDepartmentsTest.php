@@ -263,3 +263,82 @@ describe('OrderController::updateDepartments()', function () {
         Http::assertNothingSent();
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Мастер: только свои отделы
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Отделы заявки: мастер меняет только свои', function () {
+
+    test('чужой отдел мастер поставить не может', function () {
+        $own   = Department::create(['name' => 'Резка', 'is_active' => true]);
+        $other = Department::create(['name' => 'Цех', 'is_active' => true]);
+        $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
+
+        Http::fake();
+
+        $this->actingAs(Access::master($own, 'orders'))
+            ->from(route('orders.index'))
+            ->post(route('orders.departments.update', 'ms-1'), ['departments' => [$own->id, $other->id]])
+            ->assertSessionHasErrors(['departments.1' => 'Отделы других цехов назначает администратор.']);
+
+        expect($order->departments()->count())->toBe(0);
+        Http::assertNothingSent();
+    });
+
+    test('снимая свой отдел, мастер не снимает чужой', function () {
+        $own   = Department::create(['name' => 'Резка', 'is_active' => true]);
+        $other = Department::create(['name' => 'Цех', 'is_active' => true]);
+        $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
+        $order->departments()->attach([$own->id, $other->id]);
+
+        fakeOrderDeptMoysklad([orderDeptAttribute('attr-1', 'Резка'), orderDeptAttribute('attr-2', 'Цех')]);
+
+        // Модалка мастера показывает только «Резку»: пустой выбор = снять свой отдел
+        $this->actingAs(Access::master($own, 'orders'))
+            ->from(route('orders.index'))
+            ->post(route('orders.departments.update', 'ms-1'))
+            ->assertSessionHas('success');
+
+        expect($order->departments()->pluck('departments.id')->all())->toBe([$other->id]);
+
+        Http::assertSent(function ($request) {
+            if ($request->method() !== 'PUT') {
+                return false;
+            }
+
+            $values = collect($request->data()['attributes'])
+                ->mapWithKeys(fn ($a) => [basename($a['meta']['href']) => $a['value']])
+                ->all();
+
+            return $values === ['attr-1' => false, 'attr-2' => true];
+        });
+    });
+
+    test('модалка мастера предлагает только его отделы', function () {
+        $own = Department::create(['name' => 'Резка', 'is_active' => true]);
+        $other = Department::create(['name' => 'Цех чужой', 'is_active' => true]);
+        Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
+
+        $response = $this->actingAs(Access::master($own, 'orders'))
+            ->get(route('orders.show', 'ms-1'))
+            ->assertSuccessful();
+
+        expect($response->viewData('departments')->pluck('id')->all())->toBe([$own->id]);
+        $response->assertSee('id="order-dept-' . $own->id . '"', false);
+        $response->assertDontSee('id="order-dept-' . $other->id . '"', false);
+        $response->assertSee('отделы других цехов на заявке сохранятся', false);
+    });
+
+    test('админ по-прежнему назначает любые отделы', function () {
+        $dept1 = Department::create(['name' => 'Резка', 'is_active' => true]);
+        $dept2 = Department::create(['name' => 'Цех', 'is_active' => true]);
+
+        $response = $this->actingAs(H::adminUser())
+            ->get(route('orders.index'))
+            ->assertSuccessful();
+
+        expect($response->viewData('assignDepartments')->pluck('id')->all())
+            ->toContain($dept1->id, $dept2->id);
+    });
+});

@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -43,11 +44,11 @@ class OrderController extends Controller
      */
     public function updateState(Request $request, OrderChangeService $changes, string $moyskladId): RedirectResponse
     {
+        $order = $this->service->findForUser($request, $moyskladId);
+
         $data = $request->validate([
             'state_id' => 'required|string|exists:order_states,id',
         ]);
-
-        $order = $this->service->findForUser($request, $moyskladId);
 
         // Выставить можно только используемый статус: иначе заявка выпадет
         // из выгрузки и будет удалена при следующей синхронизации.
@@ -75,17 +76,27 @@ class OrderController extends Controller
 
     /**
      * Назначить заявке отделы — с записью в МойСклад. Пустой выбор снимает все отделы.
+     * Не-админ ставит и снимает только свои отделы; чужие на заявке остаются.
      */
     public function updateDepartments(Request $request, string $moyskladId): RedirectResponse
     {
-        $data = $request->validate([
-            'departments'   => 'nullable|array',
-            'departments.*' => 'integer|exists:departments,id',
-        ]);
-
         $order = $this->service->findForUser($request, $moyskladId);
 
-        $result = $this->sync->updateDepartments($order, $data['departments'] ?? []);
+        $data = $request->validate([
+            'departments'   => 'nullable|array',
+            'departments.*' => [
+                'integer',
+                'exists:departments,id',
+                Rule::in($this->service->assignableDepartments($request->user())->pluck('id')->all()),
+            ],
+        ], [
+            'departments.*.in' => 'Отделы других цехов назначает администратор.',
+        ]);
+
+        $result = $this->sync->updateDepartments(
+            $order,
+            $this->service->resolveDepartments($order, $data['departments'] ?? [], $request->user()),
+        );
 
         return back()->with($result['success'] ? 'success' : 'error', $result['message']);
     }
@@ -95,11 +106,11 @@ class OrderController extends Controller
      */
     public function updateDeliveryDate(Request $request, string $moyskladId): RedirectResponse
     {
+        $order = $this->service->findForUser($request, $moyskladId);
+
         $data = $request->validate([
             'delivery_planned_at' => 'required|date_format:Y-m-d',
         ]);
-
-        $order = $this->service->findForUser($request, $moyskladId);
 
         $result = $this->sync->updateDeliveryDate($order, Carbon::createFromFormat('Y-m-d', $data['delivery_planned_at']));
 
@@ -114,6 +125,8 @@ class OrderController extends Controller
         OrderPositionService $positions,
         string $moyskladId,
     ): RedirectResponse {
+        $order = $this->service->findForUser($request, $moyskladId, ['items']);
+
         $data = $request->validate([
             'product_id' => 'required|integer|exists:products,id',
             'stores'     => 'required|array|min:1',
@@ -128,7 +141,8 @@ class OrderController extends Controller
             'produced.min'    => 'Изготовлено не может быть отрицательным',
         ]);
 
-        $order   = $this->service->findForUser($request, $moyskladId, ['items']);
+        abort_unless($order->items->contains('product_id', $data['product_id']), 404);
+
         $product = Product::findOrFail($data['product_id']);
         $share   = $this->service->allocate(collect([$order]), $request->user())[$order->id][$product->id] ?? null;
 
@@ -171,11 +185,11 @@ class OrderController extends Controller
         string $moyskladId,
         int $productId,
     ): JsonResponse {
+        $order = $this->service->findForUser($request, $moyskladId, ['items']);
+
         $data = $request->validate([
             'ready' => 'required|boolean',
         ]);
-
-        $order = $this->service->findForUser($request, $moyskladId, ['items']);
 
         abort_unless($order->items->contains('product_id', $productId), 404);
 
@@ -197,12 +211,12 @@ class OrderController extends Controller
         string $moyskladId,
         int $productId,
     ): JsonResponse {
+        $order = $this->service->findForUser($request, $moyskladId, ['items']);
+
         $data = $request->validate([
             'department_id' => 'required|integer',
             'hidden'        => 'required|boolean',
         ]);
-
-        $order = $this->service->findForUser($request, $moyskladId, ['items']);
 
         abort_unless($order->items->contains('product_id', $productId), 404);
 
@@ -229,7 +243,9 @@ class OrderController extends Controller
         string $moyskladId,
         int $productId,
     ): RedirectResponse {
-        $order = $this->service->findForUser($request, $moyskladId);
+        $order = $this->service->findForUser($request, $moyskladId, ['items']);
+
+        abort_unless($order->items->contains('product_id', $productId), 404);
 
         $positions->reset($order, $productId);
 
@@ -246,11 +262,11 @@ class OrderController extends Controller
         OrderPriorityService $priority,
         string $moyskladId,
     ): RedirectResponse {
+        $order = $this->service->findForUser($request, $moyskladId);
+
         $data = $request->validate([
             'direction' => 'required|in:' . OrderPriorityService::UP . ',' . OrderPriorityService::DOWN,
         ]);
-
-        $order = $this->service->findForUser($request, $moyskladId);
 
         if (! $priority->move($order, $data['direction'], $request)) {
             return back()->with('warning', 'Заявка «' . $order->name . '» уже '
@@ -265,11 +281,11 @@ class OrderController extends Controller
         OrderPriorityService $priority,
         string $moyskladId,
     ): RedirectResponse {
+        $order = $this->service->findForUser($request, $moyskladId);
+
         $data = $request->validate([
             'urgent' => 'required|boolean',
         ]);
-
-        $order = $this->service->findForUser($request, $moyskladId);
 
         $priority->setUrgent($order, (bool) $data['urgent']);
 
