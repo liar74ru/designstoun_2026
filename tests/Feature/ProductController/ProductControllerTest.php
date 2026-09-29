@@ -217,7 +217,7 @@ describe('ProductController syncFromMoySklad()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.sync'))
+            ->post(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('error', 'Логин или пароль МойСклад не найдены в .env');
     });
@@ -242,7 +242,7 @@ describe('ProductController syncFromMoySklad()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.sync'))
+            ->post(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('error', 'Ошибка API МойСклад: превышен лимит запросов');
     });
@@ -267,7 +267,7 @@ describe('ProductController syncFromMoySklad()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.sync'))
+            ->post(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('success', 'Синхронизировано товаров: 15');
     });
@@ -296,7 +296,7 @@ describe('ProductController syncFromMoySklad()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.sync'))
+            ->post(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('success', 'Синхронизировано товаров: 25. Синхронизировано групп: 8');
     });
@@ -325,7 +325,7 @@ describe('ProductController syncFromMoySklad()', function () {
         expect(Cache::has('products_tree_json_v3'))->toBeTrue();
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.sync'))
+            ->post(route('products.sync'))
             ->assertRedirect(route('products.index'));
 
         expect(Cache::has('products_tree_json_v3'))->toBeFalse();
@@ -355,7 +355,7 @@ describe('ProductController syncFromMoySklad()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.sync'))
+            ->post(route('products.sync'))
             ->assertRedirect(route('products.index'))
             ->assertSessionHas('success', 'Синхронизировано товаров: 20');
     });
@@ -364,7 +364,7 @@ describe('ProductController syncFromMoySklad()', function () {
         $user = User::factory()->create(['is_admin' => false]);
 
         $this->actingAs($user)
-            ->get(route('products.sync'))
+            ->post(route('products.sync'))
             ->assertForbidden();
     });
 });
@@ -386,7 +386,7 @@ describe('ProductController refresh()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.refresh', $product->moysklad_id))
+            ->post(route('products.refresh', $product->moysklad_id))
             ->assertRedirect()
             ->assertSessionHas('error', 'Логин или пароль МойСклад не найдены в .env');
     });
@@ -406,7 +406,7 @@ describe('ProductController refresh()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.refresh', $product->moysklad_id))
+            ->post(route('products.refresh', $product->moysklad_id))
             ->assertRedirect()
             ->assertSessionHas('error', 'Не удалось обновить товар');
     });
@@ -438,7 +438,7 @@ describe('ProductController refresh()', function () {
         expect(Product::where('moysklad_id', $moyskladId)->exists())->toBeFalse();
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.refresh', $moyskladId))
+            ->post(route('products.refresh', $moyskladId))
             ->assertRedirect(route('products.show', $moyskladId))
             ->assertSessionHas('success', 'Товар обновлен');
 
@@ -469,7 +469,7 @@ describe('ProductController refresh()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.refresh', 'no-price-id'))
+            ->post(route('products.refresh', 'no-price-id'))
             ->assertRedirect();
 
         $product->refresh();
@@ -501,7 +501,7 @@ describe('ProductController refresh()', function () {
         expect(Cache::has('products_tree_json_v3'))->toBeTrue();
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.refresh', $product->moysklad_id));
+            ->post(route('products.refresh', $product->moysklad_id));
 
         expect(Cache::has('products_tree_json_v3'))->toBeFalse();
     });
@@ -613,7 +613,7 @@ describe('ProductController syncGroups()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.groups.sync'))
+            ->post(route('products.groups.sync'))
             ->assertRedirect(route('products.groups'))
             ->assertSessionHas('error', 'Логин или пароль МойСклад не найдены в .env');
     });
@@ -633,7 +633,7 @@ describe('ProductController syncGroups()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.groups.sync'))
+            ->post(route('products.groups.sync'))
             ->assertRedirect(route('products.groups'))
             ->assertSessionHas('success', 'Синхронизировано 10 групп');
     });
@@ -653,7 +653,7 @@ describe('ProductController syncGroups()', function () {
         app()->instance(MoySkladService::class, $mock);
 
         $this->actingAs(H::adminUser())
-            ->get(route('products.groups.sync'))
+            ->post(route('products.groups.sync'))
             ->assertRedirect(route('products.groups'))
             ->assertSessionHas('error', 'Ошибка синхронизации групп');
     });
@@ -801,3 +801,20 @@ describe('ProductController getCoeff()', function () {
 
 });
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Синхронизации — только POST: ссылка или картинка с чужой страницы их не запустит
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Синхронизации товаров — только POST', function () {
+
+    test('GET не запускает синхронизацию — 405', function (string $routeName) {
+        $mock = Mockery::mock(MoySkladService::class);
+        $mock->shouldNotReceive('syncProducts', 'syncProductGroups', 'refreshProduct');
+        app()->instance(MoySkladService::class, $mock);
+
+        $this->actingAs(H::adminUser())
+            ->get(route($routeName, ['id' => 'ms-1']))
+            ->assertStatus(405);
+    })->with(['products.sync', 'products.refresh', 'products.groups.sync']);
+});

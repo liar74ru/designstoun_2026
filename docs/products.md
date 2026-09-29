@@ -162,4 +162,7 @@
   там же, а не хуком `ProductStock::saving`.
 - Все маршруты раздела — под `can:see-products`; запись коэффициентов дополнительно под
   `can:manage-admin`.
+- Синхронизации (`products.sync`, `products.refresh`, `products.groups.sync`, остатки) — только
+  POST-формами с `data-submit-guard`: GET-ссылку можно было дёрнуть картинкой или ссылкой с чужой
+  страницы и запустить тяжёлую выгрузку из МойСклад.
 - Сужение каталога по сырью — `SKU_GROUP_MAP` в `product-picker.js` (`01` → `04`).

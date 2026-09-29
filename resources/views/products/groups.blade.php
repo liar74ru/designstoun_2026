@@ -11,10 +11,13 @@
 
             <div class="btn-group">
                 {{-- Кнопка синхронизации групп --}}
-                <a href="{{ route('products.groups.sync') }}" class="btn btn-success"
-                   onclick="return confirm('Синхронизировать группы с МойСклад?')">
-                    <i class="bi bi-arrow-repeat"></i> Синхронизировать группы
-                </a>
+                <form method="POST" action="{{ route('products.groups.sync') }}" class="d-inline" data-submit-guard
+                      onsubmit="return confirm('Синхронизировать группы с МойСклад?')">
+                    @csrf
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-arrow-repeat"></i> Синхронизировать группы
+                    </button>
+                </form>
 
                 <a href="{{ route('products.index') }}" class="btn btn-outline-primary">
                     <i class="bi bi-box"></i> К товарам
@@ -45,9 +48,12 @@
                             <div class="text-center py-5">
                                 <i class="bi bi-folder-x" style="font-size: 3rem; color: #ccc;"></i>
                                 <p class="text-muted mt-3">Нет групп для отображения</p>
-                                <a href="{{ route('products.groups.sync') }}" class="btn btn-success">
-                                    <i class="bi bi-arrow-repeat"></i> Синхронизировать группы
-                                </a>
+                                <form method="POST" action="{{ route('products.groups.sync') }}" data-submit-guard>
+                                    @csrf
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-arrow-repeat"></i> Синхронизировать группы
+                                    </button>
+                                </form>
                             </div>
                         @else
                             <div class="tree-view">

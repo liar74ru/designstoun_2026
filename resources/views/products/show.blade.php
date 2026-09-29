@@ -50,19 +50,22 @@
     <div class="container py-3 py-md-4">
         <x-page-header :title="$product->name" :backUrl="$backUrl">
             <x-slot:actions>
-                <a href="{{ route('products.refresh', $product->moysklad_id) }}"
-                   class="btn btn-warning"
-                   onclick="{{ $refreshConfirm }}">
-                    <i class="bi bi-arrow-repeat"></i> Обновить
-                </a>
+                <form method="POST" action="{{ route('products.refresh', $product->moysklad_id) }}"
+                      class="d-inline" data-submit-guard onsubmit="{{ $refreshConfirm }}">
+                    @csrf
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-arrow-repeat"></i> Обновить
+                    </button>
+                </form>
             </x-slot:actions>
             <x-slot:mobileActions>
-                <a href="{{ route('products.refresh', $product->moysklad_id) }}"
-                   class="btn btn-warning btn-sm"
-                   title="Обновить"
-                   onclick="{{ $refreshConfirm }}">
-                    <i class="bi bi-arrow-repeat"></i>
-                </a>
+                <form method="POST" action="{{ route('products.refresh', $product->moysklad_id) }}"
+                      class="d-inline" data-submit-guard onsubmit="{{ $refreshConfirm }}">
+                    @csrf
+                    <button type="submit" class="btn btn-warning btn-sm" title="Обновить">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                </form>
             </x-slot:mobileActions>
         </x-page-header>
 

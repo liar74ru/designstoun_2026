@@ -51,11 +51,11 @@ Route::middleware(['auth'])->group(function () {
     // Товары — операция products
     Route::middleware('can:see-products')->group(function () {
         Route::resource('products', ProductController::class)->only(['index', 'show']);
-        Route::get('/products/sync/moysklad', [ProductController::class, 'syncFromMoySklad'])->name('products.sync');
-        Route::get('/products/{id}/refresh', [ProductController::class, 'refresh'])->name('products.refresh');
+        Route::post('/products/sync/moysklad', [ProductController::class, 'syncFromMoySklad'])->name('products.sync');
+        Route::post('/products/{id}/refresh', [ProductController::class, 'refresh'])->name('products.refresh');
         Route::post('/products/stocks/sync-all-by-stores', [ProductController::class, 'syncAllProductsStocks'])->name('products.stocks.sync-all-by-stores');
         Route::get('/products/groups/tree', [ProductController::class, 'groups'])->name('products.groups');
-        Route::get('/products/groups/sync', [ProductController::class, 'syncGroups'])->name('products.groups.sync');
+        Route::post('/products/groups/sync', [ProductController::class, 'syncGroups'])->name('products.groups.sync');
         Route::post('/products/{moyskladId}/stocks-sync', [ProductController::class, 'syncStocks'])->name('products.stocks.sync');
         // Коэффициенты ставок влияют на зарплату — правит только админ
         Route::patch('/products/{moyskladId}/coeffs', [ProductController::class, 'updateCoeffs'])

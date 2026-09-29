@@ -24,10 +24,13 @@
                 </form>
 
                 <!-- КНОПКА: синхронизация товаров и групп -->
-                <a href="{{ route('products.sync') }}" class="btn btn-success"
-                   onclick="return confirm('Загрузить/обновить товары и группы из МойСклад?')">
-                    <i class="bi bi-cloud-download"></i> Синхронизировать
-                </a>
+                <form method="POST" action="{{ route('products.sync') }}" class="d-inline" data-submit-guard
+                      onsubmit="return confirm('Загрузить/обновить товары и группы из МойСклад?')">
+                    @csrf
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-cloud-download"></i> Синхронизировать
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -290,12 +293,14 @@
                                             <i class="bi bi-eye"></i>
                                         </a>
 
-                                        <a href="{{ route('products.refresh', $product->moysklad_id) }}"
-                                           class="btn btn-sm btn-outline-warning"
-                                           title="Обновить из МойСклад"
-                                           onclick="return confirm('Обновить данные товара из МойСклад?')">
-                                            <i class="bi bi-arrow-repeat"></i>
-                                        </a>
+                                        <form method="POST" action="{{ route('products.refresh', $product->moysklad_id) }}"
+                                              class="d-inline" data-submit-guard
+                                              onsubmit="return confirm('Обновить данные товара из МойСклад?')">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Обновить из МойСклад">
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>
@@ -325,9 +330,12 @@
                         Загрузите товары из МойСклад или добавьте вручную.
                     @endif
                 </p>
-                <a href="{{ route('products.sync') }}" class="btn btn-success btn-lg me-2">
-                    <i class="bi bi-cloud-download"></i> Загрузить из МойСклад
-                </a>
+                <form method="POST" action="{{ route('products.sync') }}" class="d-inline me-2" data-submit-guard>
+                    @csrf
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="bi bi-cloud-download"></i> Загрузить из МойСклад
+                    </button>
+                </form>
                 @if(request()->anyFilled(['search', 'group', 'in_stock', 'price_from', 'price_to']))
                     <a href="{{ route('products.index') }}" class="btn btn-outline-secondary btn-lg ms-2" data-filter-reset>
                         <i class="bi bi-x-circle"></i> Сбросить фильтры

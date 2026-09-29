@@ -33,7 +33,8 @@
                         <p class="card-text text-muted small mb-3">
                             Каталог и дерево групп из МойСклад
                         </p>
-                        <form method="GET" action="{{ route('products.sync') }}" class="mt-auto sync-form">
+                        <form method="POST" action="{{ route('products.sync') }}" class="mt-auto sync-form">
+                            @csrf
                             <button type="submit" class="btn btn-primary w-100"
                                     onclick="return confirm('Загрузить/обновить товары и группы из МойСклад?')">
                                 <i class="bi bi-arrow-repeat"></i> Синхронизировать
