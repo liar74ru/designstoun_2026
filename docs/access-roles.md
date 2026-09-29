@@ -101,6 +101,15 @@ isCutter() // $this->worker?->position === 'Пильщик'
 Отделы задаются в форме работника чекбоксами, основной — радио-кнопкой
 (`resources/views/partials/worker-departments.blade.php`).
 
+Кто что назначает в карточке работника (`WorkerRequest` + `WorkerService`):
+- Админ — любые отделы и любую должность, в том числе себе.
+- Не-админ — только отделы из `accessibleDepartmentIds()` и только рядовые должности;
+  мастерские (`Worker::MASTER_POSITIONS`) назначает админ, текущую должность коллеги можно оставить.
+  Отделы работника вне его зоны (включая основной) показаны только для чтения и при сохранении
+  не меняются.
+- Своя карточка не-админа — отделы и должность не меняются (поля исключаются из запроса),
+  иначе мастер с `see-workers` выдал бы себе права во всех отделах.
+
 Если отделы заданы:
 - `User::accessibleDepartmentIds()` возвращает **все** отделы работника → index-страницы
   показывают записи всех его отделов
@@ -117,3 +126,4 @@ isCutter() // $this->worker?->position === 'Пильщик'
 - `tests/Feature/Auth/MasterAccessTest.php` — доступ мастера, middleware
 - `tests/Feature/Auth/LoginTest.php` — логин по телефону/email, редиректы
 - `tests/Feature/Worker/MasterDepartmentAccessTest.php` — отдел мастера
+- `tests/Feature/Worker/WorkerAssignmentAccessTest.php` — назначение отделов и должностей

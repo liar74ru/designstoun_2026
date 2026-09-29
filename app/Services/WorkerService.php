@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\Department;
 use App\Models\User;
 use App\Models\Worker;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 
 // рефакторинг v2 от 26.04.2026 — controller → service
 class WorkerService
@@ -44,6 +47,112 @@ class WorkerService
         }
 
         return $query->orderByRaw($this->positionSortSql())->orderBy('id');
+    }
+
+    /**
+     * Данные формы создания/правки: отделы и должности, которые пользователь вправе назначить.
+     * foreignDepartments — отделы работника вне зоны пользователя: в форме только для чтения,
+     * при сохранении остаются как есть.
+     */
+    public function formOptions(User $by, ?Worker $worker = null): array
+    {
+        $accessible = $by->accessibleDepartmentIds();
+
+        $departments = Department::where('is_active', true)
+            ->when($accessible !== null, fn ($q) => $q->whereIn('id', $accessible ?: [-1]))
+            ->orderBy('name')
+            ->get();
+
+        $foreignDepartments = collect();
+        if ($worker && $accessible !== null) {
+            $foreignDepartments = Department::whereIn('id', array_diff($worker->departmentIds(), $accessible))
+                ->orderBy('name')
+                ->get();
+        }
+
+        return [
+            'departments'        => $departments,
+            'foreignDepartments' => $foreignDepartments,
+            'positions'          => $this->assignablePositions($by, $worker),
+            'assignmentLocked'   => !$this->canChangeAssignment($by, $worker),
+        ];
+    }
+
+    /**
+     * Должности, которые пользователь может назначить. Мастерские (Worker::MASTER_POSITIONS)
+     * назначает только админ; текущую должность работника не-админ может оставить.
+     *
+     * @return string[]
+     */
+    public function assignablePositions(User $by, ?Worker $worker = null): array
+    {
+        if ($by->isAdmin()) {
+            return Worker::POSITIONS;
+        }
+
+        return array_values(array_filter(
+            Worker::POSITIONS,
+            fn ($pos) => !in_array($pos, Worker::MASTER_POSITIONS, true) || $pos === $worker?->position
+        ));
+    }
+
+    /** Отделы и должность своей карточки не-админ не меняет. */
+    public function canChangeAssignment(User $by, ?Worker $worker = null): bool
+    {
+        return $by->isAdmin() || $worker === null || $by->worker_id !== $worker->id;
+    }
+
+    public function create(array $data, User $by): Worker
+    {
+        return DB::transaction(function () use ($data, $by) {
+            $worker = Worker::create(Arr::except($data, ['department_ids']));
+
+            [$ids, $primaryId] = $this->resolveDepartments(null, $data, $by);
+            $this->syncDepartments($worker, $ids, $primaryId);
+
+            return $worker;
+        });
+    }
+
+    public function update(Worker $worker, array $data, User $by): void
+    {
+        DB::transaction(function () use ($worker, $data, $by) {
+            if (!$this->canChangeAssignment($by, $worker)) {
+                $worker->update(Arr::only($data, ['name', 'email', 'phone']));
+            } else {
+                [$ids, $primaryId] = $this->resolveDepartments($worker, $data, $by);
+                $worker->update(Arr::except($data, ['department_ids', 'department_id']));
+                $this->syncDepartments($worker, $ids, $primaryId);
+            }
+
+            $this->syncPhoneToUser($worker, $data['phone'] ?? null);
+        });
+    }
+
+    /**
+     * Отделы из формы + отделы работника вне зоны пользователя: их не-админ не видит
+     * в форме и снять не может. Основной отдел вне зоны тоже остаётся прежним.
+     *
+     * @return array{0: int[], 1: int|null}
+     */
+    private function resolveDepartments(?Worker $worker, array $data, User $by): array
+    {
+        $ids        = array_map('intval', $data['department_ids'] ?? []);
+        $primaryId  = isset($data['department_id']) ? (int) $data['department_id'] : null;
+        $accessible = $by->accessibleDepartmentIds();
+
+        if ($accessible === null || $worker === null) {
+            return [$ids, $primaryId];
+        }
+
+        $worker->load('departments');
+        $ids = array_merge($ids, array_diff($worker->departmentIds(), $accessible));
+
+        if ($worker->department_id && !in_array((int) $worker->department_id, $accessible, true)) {
+            $primaryId = (int) $worker->department_id;
+        }
+
+        return [$ids, $primaryId];
     }
 
     /**

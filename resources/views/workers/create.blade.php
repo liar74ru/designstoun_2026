@@ -42,7 +42,7 @@
                                 <select class="form-select @error('position') is-invalid @enderror"
                                         id="position" name="position" required>
                                     <option value="">— выбрать —</option>
-                                    @foreach(App\Models\Worker::POSITIONS as $pos)
+                                    @foreach($positions as $pos)
                                         <option value="{{ $pos }}" {{ old('position') === $pos ? 'selected' : '' }}>
                                             {{ $pos }}
                                         </option>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Worker\WorkerRequest;
 use App\Models\Department;
 use App\Models\Worker;
 use App\Services\WorkerService;
@@ -26,70 +27,33 @@ class WorkerController extends Controller
         return view('workers.index', compact('workers', 'departments', 'positions', 'status'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
-
-        return view('workers.create', compact('departments'));
+        return view('workers.create', $this->service->formOptions($request->user()));
     }
 
-    public function store(Request $request)
+    public function store(WorkerRequest $request)
     {
-        $validated = $request->validate([
-            'name'             => 'required|string|max:255',
-            'position'         => 'required|string|in:'.implode(',', Worker::POSITIONS),
-            'email'            => 'nullable|email|unique:workers,email',
-            'phone'            => 'nullable|string|max:50',
-            'department_id'    => 'nullable|exists:departments,id',
-            'department_ids'   => 'nullable|array',
-            'department_ids.*' => 'exists:departments,id',
-        ]);
-
-        $worker = Worker::create(collect($validated)->except('department_ids')->all());
-
-        $this->service->syncDepartments(
-            $worker,
-            $validated['department_ids'] ?? [],
-            isset($validated['department_id']) ? (int) $validated['department_id'] : null
-        );
+        $this->service->create($request->validated(), $request->user());
 
         return redirect()->route('workers.index')
             ->with('success', 'Работник успешно добавлен');
     }
 
-    public function edit(Worker $worker)
+    public function edit(Request $request, Worker $worker)
     {
         $this->authorize('modify', $worker);
 
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
         $worker->load('departments');
 
-        return view('workers.edit', compact('worker', 'departments'));
+        return view('workers.edit', ['worker' => $worker] + $this->service->formOptions($request->user(), $worker));
     }
 
-    public function update(Request $request, Worker $worker)
+    public function update(WorkerRequest $request, Worker $worker)
     {
         $this->authorize('modify', $worker);
 
-        $validated = $request->validate([
-            'name'             => 'required|string|max:255',
-            'position'         => 'required|string|in:'.implode(',', Worker::POSITIONS),
-            'email'            => 'nullable|email|unique:workers,email,'.$worker->id,
-            'phone'            => 'nullable|string|max:50',
-            'department_id'    => 'nullable|exists:departments,id',
-            'department_ids'   => 'nullable|array',
-            'department_ids.*' => 'exists:departments,id',
-        ]);
-
-        $worker->update(collect($validated)->except('department_ids')->all());
-
-        $this->service->syncDepartments(
-            $worker,
-            $validated['department_ids'] ?? [],
-            isset($validated['department_id']) ? (int) $validated['department_id'] : null
-        );
-
-        $this->service->syncPhoneToUser($worker, $validated['phone'] ?? null);
+        $this->service->update($worker, $request->validated(), $request->user());
 
         return redirect()->route('workers.index')
             ->with('success', 'Работник успешно обновлен');

@@ -34,22 +34,36 @@
                                 @enderror
                             </div>
 
-                            <!-- Поле Должность -->
-                            <div class="mb-3">
-                                <label for="position" class="form-label">Должность <span class="text-danger">*</span></label>
-                                <select class="form-select @error('position') is-invalid @enderror"
-                                        id="position" name="position" required>
-                                    @foreach(App\Models\Worker::POSITIONS as $pos)
-                                        <option value="{{ $pos }}" {{ old('position', $worker->position) === $pos ? 'selected' : '' }}>
-                                            {{ $pos }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('position')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            </div>
+                            @if($assignmentLocked)
+                                <!-- Своя карточка: должность и отделы назначает администратор -->
+                                <div class="mb-3">
+                                    <label class="form-label">Должность и отделы</label>
+                                    <div class="form-control bg-light" style="border-radius:.4rem">
+                                        {{ $worker->position }}
+                                        @if($worker->departments->isNotEmpty())
+                                            · {{ $worker->departments->pluck('name')->join(', ') }}
+                                        @endif
+                                    </div>
+                                    <div class="form-text">Должность и отделы своей карточки меняет администратор.</div>
+                                </div>
+                            @else
+                                <!-- Поле Должность -->
+                                <div class="mb-3">
+                                    <label for="position" class="form-label">Должность <span class="text-danger">*</span></label>
+                                    <select class="form-select @error('position') is-invalid @enderror"
+                                            id="position" name="position" required>
+                                        @foreach($positions as $pos)
+                                            <option value="{{ $pos }}" {{ old('position', $worker->position) === $pos ? 'selected' : '' }}>
+                                                {{ $pos }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('position')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
 
-                            <!-- Отделы работника -->
-                            @include('partials.worker-departments')
+                                <!-- Отделы работника -->
+                                @include('partials.worker-departments')
+                            @endif
 
                             <!-- Поле Email -->
                             <div class="mb-3">

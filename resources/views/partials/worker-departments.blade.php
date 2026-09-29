@@ -1,6 +1,7 @@
 {{--
     Выбор отделов работника: чекбоксы (все отделы) + радио «основной».
-    Ожидает: $departments (коллекция), $worker (Worker|null).
+    Ожидает: $departments (коллекция), $worker (Worker|null),
+    $foreignDepartments (отделы работника вне зоны пользователя — только для чтения, необязательно).
 --}}
 @php
     $selectedIds = collect(old(
@@ -43,6 +44,11 @@
             <div class="text-muted small">Нет активных отделов</div>
         @endforelse
     </div>
+    @if(!empty($foreignDepartments) && $foreignDepartments->isNotEmpty())
+        <div class="form-text">
+            Также состоит в отделах: {{ $foreignDepartments->pluck('name')->join(', ') }} — их меняет администратор.
+        </div>
+    @endif
     <div class="form-text">
         Работник может состоять в нескольких отделах. Основной отдел подставляется по умолчанию в формах операций.
     </div>
