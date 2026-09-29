@@ -24,8 +24,9 @@
 - Исчерпав попытки, клиент возвращает последний ответ; сетевое исключение, как и раньше,
   ловит вызывающий метод (`try` есть во всех).
 - `getMany` (пул) повторяет так же, пауза не блокирует остальные страницы.
-- Пауза повторов в тестах — 0 (`phpunit.xml`). Проверки клиента —
-  `tests/Feature/Moysklad/MoySkladClientRetryTest.php`.
+- Тесты: токен в `phpunit.xml` пуст, `Tests\TestCase` включает `Http::preventStrayRequests()` —
+  тест без `Http::fake` не дойдёт до рабочего МойСклад. Пауза повторов в тестах — 0.
+  Проверки клиента — `tests/Feature/Moysklad/MoySkladClientRetryTest.php`.
 
 ---
 

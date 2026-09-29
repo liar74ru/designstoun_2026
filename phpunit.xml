@@ -32,5 +32,6 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="MOYSKLAD_RETRY_DELAY_MS" value="0"/>
+        <env name="MOYSKLAD_TOKEN" value="" force="true"/>
     </php>
 </phpunit>
