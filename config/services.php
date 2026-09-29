@@ -38,6 +38,13 @@ return [
     'moysklad' => [
         'token'    => env('MOYSKLAD_TOKEN'),
         'base_url' => env('MOYSKLAD_BASE_URL', 'https://api.moysklad.ru/api/remap/1.2'),
+
+        // Сек. на ответ и на соединение: без лимита зависший МойСклад держал запрос
+        // пользователя до max_execution_time
+        'timeout'         => (int) env('MOYSKLAD_TIMEOUT', 20),
+        'connect_timeout' => (int) env('MOYSKLAD_CONNECT_TIMEOUT', 5),
+        // Пауза перед повтором, мс; растёт вдвое с каждой попыткой (429 — по заголовку МойСклад)
+        'retry_delay_ms'  => (int) env('MOYSKLAD_RETRY_DELAY_MS', 500),
     ],
 
 ];
