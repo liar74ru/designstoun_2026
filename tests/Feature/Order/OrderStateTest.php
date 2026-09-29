@@ -149,6 +149,27 @@ describe('Admin\OrderStateController', function () {
             ->assertSee('Новый');
     });
 
+    test('у статуса по одному полю на флаг — на телефоне и десктопе одна разметка', function () {
+        OrderState::create(['id' => ST_A, 'name' => 'Новый', 'is_enabled' => true, 'is_changed' => false]);
+        OrderState::create(['id' => ST_B, 'name' => 'Изменено', 'is_enabled' => true, 'is_changed' => true]);
+
+        $html = $this->actingAs(H::adminUser())
+            ->get(route('admin.order-states.index'))
+            ->assertSee(route('help.show', 'settings'))
+            ->assertDontSee('Как это работает')
+            ->getContent();
+
+        // Две копии галочки (d-none + d-md-none) ушли бы в форму обе: снятие на телефоне
+        // перекрыла бы отмеченная скрытая копия
+        foreach (['enabled[]', 'production[]', 'default_filter[]', 'list_bottom[]', 'track_changes[]', 'changed_state'] as $field) {
+            expect(substr_count($html, 'name="' . $field . '" value="' . ST_A . '"'))->toBe(1, $field);
+        }
+
+        expect($html)->toMatch('/name="enabled\[\]" value="' . ST_A . '"\s+checked/')
+            ->and($html)->toMatch('/name="changed_state" value="' . ST_B . '"\s+checked/')
+            ->and($html)->not->toMatch('/name="changed_state" value=""\s+checked/');
+    });
+
     test('мастеру недоступна', function () {
         $dept = Department::create(['name' => 'Отдел', 'is_active' => true]);
 

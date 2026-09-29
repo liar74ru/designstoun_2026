@@ -2,8 +2,86 @@
 
 @section('title', 'Статусы заявок')
 
+@php
+    // Колонки справочника: поле формы, флаг модели, заголовок колонки (десктоп),
+    // подпись галочки (телефон), подсказка. Шапка, подписи и поля — из одного списка.
+    $columns = [
+        ['name' => 'enabled[]',        'flag' => 'is_enabled',        'short' => 'Исп.',     'label' => 'Используется',        'title' => 'Подгружать заявки в этом статусе'],
+        ['name' => 'production[]',     'flag' => 'is_production',     'short' => 'Произв.',  'label' => 'Производство',        'title' => 'В этом статусе идёт производство'],
+        ['name' => 'default_filter[]', 'flag' => 'is_default_filter', 'short' => 'В списке', 'label' => 'В списке',            'title' => 'Показывать в списке заявок по умолчанию'],
+        ['name' => 'list_bottom[]',    'flag' => 'is_list_bottom',    'short' => 'Вниз',     'label' => 'В конец списка',      'title' => 'Показывать заявки в этом статусе в конце списка'],
+        ['name' => 'track_changes[]',  'flag' => 'track_changes',     'short' => 'Следить',  'label' => 'Следить за составом', 'title' => 'Замечать изменение позиций заявок в этом статусе'],
+    ];
+@endphp
+
+@push('styles')
+<style>
+    /*
+     * Один набор полей на оба режима: на телефоне строка — карточка (плашка сверху,
+     * подписанные галочки в два столбца), с md — строка таблицы с колонками.
+     * Дубли разметки d-none/d-md-none не годятся: в форму ушли бы две копии галочек.
+     */
+    .os-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .4rem .75rem;
+        padding: .65rem .75rem;
+        border-bottom: 1px solid #f1f3f5;
+        margin: 0;
+    }
+    .os-row:last-child { border-bottom: 0; }
+    .os-name {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .35rem;
+        min-width: 0;
+    }
+    .os-meta { font-size: .72rem; }
+    .os-cell {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        margin: 0;
+        cursor: pointer;
+        font-size: .82rem;
+        color: #495057;
+    }
+    .os-cell .form-check-input { margin: 0; flex-shrink: 0; }
+    .os-head { display: none; }
+
+    /* «Статуса «Изменено» нет»: на телефоне — одна строка «радио + текст» */
+    .os-row-none { display: flex; align-items: center; gap: .5rem; cursor: pointer; color: #6c757d; font-size: .82rem; }
+    .os-row-none .os-cell { order: -1; }
+
+    @media (min-width: 768px) {
+        .os-row,
+        .os-head {
+            grid-template-columns: minmax(0, 1fr) repeat(6, 76px);
+            align-items: center;
+            gap: 0 .25rem;
+        }
+        .os-head {
+            display: grid;
+            padding: .45rem .75rem;
+            font-size: .72rem;
+            color: #6c757d;
+            border-bottom: 1px solid #e9ecef;
+            text-align: center;
+        }
+        .os-head > :first-child { text-align: left; }
+        .os-name { grid-column: auto; }
+        .os-cell { justify-content: center; }
+        .os-cell-label { display: none; }
+        .os-row-none { display: grid; }
+        .os-row-none .os-cell { order: 0; grid-column: 7; }
+    }
+</style>
+@endpush
+
 @section('content')
-<div class="container py-3 py-md-4" style="max-width:820px">
+<div class="container py-3 py-md-4" style="max-width:900px">
 
     <x-page-header
         title="Статусы заявок"
@@ -11,6 +89,7 @@
         backUrl="{{ route('admin.settings.index') }}"
         backLabel="К настройкам">
         <x-slot name="actions">
+            @include('partials.help-button', ['page' => 'settings'])
             <form method="POST" action="{{ route('admin.order-states.sync') }}" data-submit-guard>
                 @csrf
                 <button type="submit" class="btn btn-outline-primary">
@@ -19,6 +98,7 @@
             </form>
         </x-slot>
         <x-slot name="mobileActions">
+            @include('partials.help-button', ['page' => 'settings', 'class' => 'btn-outline-secondary btn-sm'])
             <form method="POST" action="{{ route('admin.order-states.sync') }}" data-submit-guard>
                 @csrf
                 <button type="submit" class="btn btn-outline-primary btn-sm" title="Обновить из МойСклад">
@@ -30,40 +110,10 @@
 
     @include('partials.alerts')
 
-    <div class="info-block">
-        <div class="info-block-header small fw-semibold">Как это работает</div>
-        <div class="info-block-body small text-muted">
-            Список, имена и цвета статусов приходят из МойСклад — нажмите «Обновить из МойСклад»,
-            если там завели или переименовали статус.
-            Статусы в колонке <strong>«Исп.»</strong> подгружаются при синхронизации заявок,
-            снятые — нет. <strong>Сняв галочку, вы убираете заявки в этом статусе из программы</strong>
-            при следующей синхронизации.
-            <div class="mt-1">
-                Колонка <strong>«Произв.»</strong> — статус, в котором идёт производство.
-                Пока заявка в нём, остаток на складе зафиксирован, а всё произведённое
-                попадает в колонку «Изготовлено» карточки заявки.
-            </div>
-            <div class="mt-1">
-                Колонка <strong>«В списке»</strong> — какие статусы показывать в списке заявок
-                при заходе без фильтра. Если не отмечено ничего, показываются все используемые.
-            </div>
-            <div class="mt-1">
-                Колонка <strong>«Вниз»</strong> — заявки в этом статусе список показывает в самом конце,
-                после всех остальных, даже срочные (например, «Собран»). Стрелки очереди двигают их
-                только между собой. На раздачу остатка между заявками это не влияет.
-            </div>
-            <div class="mt-1">
-                Колонка <strong>«Следить»</strong> — замечать, что в МойСклад изменили количество
-                или состав позиций заявки: мастер увидит плашку «Изменена» и «было → стало».
-                Снимите у статусов, где правки нормальны (проект, отгружен, завершён).
-            </div>
-            <div class="mt-1">
-                Колонка <strong>«Изм.»</strong> — статус «Изменено». Это пауза внутри производства:
-                окно производства не закрывается, а кнопка «Принято» у заявки возвращает её
-                в статус, который был до него. Такой статус всегда используется.
-            </div>
-        </div>
-    </div>
+    <p class="text-muted small mb-3">
+        Отметьте, какие статусы МойСклад использует программа и как с ними работать.
+        Что значит каждая колонка — в справке <i class="bi bi-question-circle"></i>.
+    </p>
 
     @if($states->isEmpty())
         <div class="text-center py-5">
@@ -81,94 +131,62 @@
                     <span class="badge bg-secondary">{{ $states->count() }}</span>
                 </div>
                 <div class="info-block-body p-0">
-                    {{-- Независимые галочки в строке, поэтому строка не обёрнута
-                         в общий <label>: он переключал бы только первую. --}}
-                    <div class="d-flex align-items-center gap-2 px-2 py-1 text-muted"
-                         style="border-bottom:1px solid #f1f3f5; font-size:.72rem">
-                        <span class="flex-grow-1">Статус</span>
-                        <span class="text-center" style="width:44px">Исп.</span>
-                        <span class="text-center" style="width:56px">Произв.</span>
-                        <span class="text-center" style="width:58px">В списке</span>
-                        <span class="text-center" style="width:44px">Вниз</span>
-                        <span class="text-center" style="width:52px">Следить</span>
-                        <span class="text-center" style="width:40px">Изм.</span>
+                    <div class="os-head">
+                        <span>Статус</span>
+                        @foreach($columns as $column)
+                            <span title="{{ $column['title'] }}">{{ $column['short'] }}</span>
+                        @endforeach
+                        <span title="Это статус «Изменено»">Изм.</span>
                     </div>
 
-                    <label class="d-flex align-items-center gap-2 px-2 py-1 m-0 text-muted"
-                           style="border-bottom:1px solid #f1f3f5; font-size:.78rem; cursor:pointer">
-                        <span class="flex-grow-1">Статуса «Изменено» нет</span>
-                        <span class="d-flex justify-content-center" style="width:40px">
-                            <input type="radio" class="form-check-input mt-0" name="changed_state" value=""
+                    {{-- Одно поле в строке — вся строка кликабельна --}}
+                    <label class="os-row os-row-none">
+                        <span class="os-name">Статуса «Изменено» нет</span>
+                        <span class="os-cell">
+                            <input type="radio" class="form-check-input" name="changed_state" value=""
                                    {{ $states->contains('is_changed', true) ? '' : 'checked' }}>
                         </span>
                     </label>
 
+                    {{-- Независимые галочки: строка не обёрнута в общий <label>,
+                         он переключал бы только первую --}}
                     @foreach($states as $state)
-                        <div class="d-flex align-items-center gap-2 px-2 py-2"
-                             style="border-bottom:1px solid #f1f3f5">
-                            <span class="badge flex-shrink-0"
-                                  style="background-color: {{ $state->hex_color }}; color: {{ \App\Support\BadgeColor::textFor($state->hex_color) }}">
-                                {{ $state->name }}
-                            </span>
+                        <div class="os-row">
+                            <div class="os-name">
+                                <span class="badge"
+                                      style="background-color: {{ $state->hex_color }}; color: {{ \App\Support\BadgeColor::textFor($state->hex_color) }}">
+                                    {{ $state->name }}
+                                </span>
+                                @if($state->archived)
+                                    <span class="badge bg-danger-subtle text-danger-emphasis"
+                                          title="Статуса больше нет в МойСклад">нет в МойСклад</span>
+                                @endif
+                                @if($state->state_type && $state->state_type !== 'Regular')
+                                    <span class="text-muted os-meta">{{ $state->state_type }}</span>
+                                @endif
+                            </div>
 
-                            @if($state->archived)
-                                <span class="badge bg-danger-subtle text-danger-emphasis"
-                                      title="Статуса больше нет в МойСклад">нет в МойСклад</span>
-                            @endif
+                            @foreach($columns as $column)
+                                <label class="os-cell" title="{{ $column['title'] }}">
+                                    <input type="checkbox" class="form-check-input"
+                                           name="{{ $column['name'] }}" value="{{ $state->id }}"
+                                           {{ $state->{$column['flag']} ? 'checked' : '' }}>
+                                    <span class="os-cell-label">{{ $column['label'] }}</span>
+                                </label>
+                            @endforeach
 
-                            @if($state->state_type && $state->state_type !== 'Regular')
-                                <span class="text-muted" style="font-size:.72rem">{{ $state->state_type }}</span>
-                            @endif
-
-                            <span class="flex-grow-1"></span>
-
-                            <label class="d-flex justify-content-center m-0" style="width:44px; cursor:pointer"
-                                   title="Подгружать заявки в этом статусе">
-                                <input type="checkbox" class="form-check-input mt-0"
-                                       name="enabled[]" value="{{ $state->id }}"
-                                       {{ $state->is_enabled ? 'checked' : '' }}>
-                            </label>
-
-                            <label class="d-flex justify-content-center m-0" style="width:56px; cursor:pointer"
-                                   title="В этом статусе идёт производство">
-                                <input type="checkbox" class="form-check-input mt-0"
-                                       name="production[]" value="{{ $state->id }}"
-                                       {{ $state->is_production ? 'checked' : '' }}>
-                            </label>
-
-                            <label class="d-flex justify-content-center m-0" style="width:58px; cursor:pointer"
-                                   title="Показывать в списке заявок по умолчанию">
-                                <input type="checkbox" class="form-check-input mt-0"
-                                       name="default_filter[]" value="{{ $state->id }}"
-                                       {{ $state->is_default_filter ? 'checked' : '' }}>
-                            </label>
-
-                            <label class="d-flex justify-content-center m-0" style="width:44px; cursor:pointer"
-                                   title="Показывать заявки в этом статусе в конце списка">
-                                <input type="checkbox" class="form-check-input mt-0"
-                                       name="list_bottom[]" value="{{ $state->id }}"
-                                       {{ $state->is_list_bottom ? 'checked' : '' }}>
-                            </label>
-
-                            <label class="d-flex justify-content-center m-0" style="width:52px; cursor:pointer"
-                                   title="Замечать изменение позиций заявок в этом статусе">
-                                <input type="checkbox" class="form-check-input mt-0"
-                                       name="track_changes[]" value="{{ $state->id }}"
-                                       {{ $state->track_changes ? 'checked' : '' }}>
-                            </label>
-
-                            <label class="d-flex justify-content-center m-0" style="width:40px; cursor:pointer"
-                                   title="Это статус «Изменено»">
-                                <input type="radio" class="form-check-input mt-0"
+                            <label class="os-cell" title="Это статус «Изменено»">
+                                <input type="radio" class="form-check-input"
                                        name="changed_state" value="{{ $state->id }}"
                                        {{ $state->is_changed ? 'checked' : '' }}>
+                                <span class="os-cell-label">Статус «Изменено»</span>
                             </label>
                         </div>
                     @endforeach
                 </div>
             </div>
 
-            <div class="p-2 d-flex gap-2">
+            <div class="py-2 d-flex gap-2">
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-check-lg"></i> Сохранить
                 </button>
