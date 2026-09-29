@@ -27,6 +27,7 @@
                     id="{{ $btnId }}"
                     class="btn {{ $size === 'sm' ? 'btn-sm' : '' }} dropdown-toggle"
                     data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
                     aria-expanded="false"
                     style="background-color: {{ $order->state_color }}; color: {{ $order->state_text_color }}">
                 {{ $order->state_name ?? '—' }}
