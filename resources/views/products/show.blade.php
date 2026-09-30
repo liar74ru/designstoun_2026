@@ -48,7 +48,7 @@
     @endphp
 
     <div class="container py-3 py-md-4">
-        <x-page-header :title="$product->name" :backUrl="$backUrl">
+        <x-page-header :title="$product->name" :backUrl="route('products.index')" backLabel="К списку">
             <x-slot:actions>
                 <form method="POST" action="{{ route('products.refresh', $product->moysklad_id) }}"
                       class="d-inline" data-submit-guard onsubmit="{{ $refreshConfirm }}">

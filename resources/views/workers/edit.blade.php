@@ -4,13 +4,8 @@
 
 @section('content')
     <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">✏️ Редактирование работника</h1>
-
-            <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> К списку работников
-            </a>
-        </div>
+        <x-page-header title="✏️ Редактирование работника" mobileTitle="Работник"
+                       :backUrl="route('workers.index')" backLabel="К списку работников" />
 
         <div class="row justify-content-center">
             <div class="col-md-8">

@@ -7,7 +7,7 @@
         <x-page-header
             title="📄 Партия #{{ $batch->batch_number ?? $batch->id }}"
             mobileTitle="Партия #{{ $batch->batch_number ?? $batch->id }}"
-            backUrl="{{ $backUrl }}"
+            backUrl="{{ route('raw-batches.index') }}"
             backLabel="К списку">
         </x-page-header>
 

@@ -7,8 +7,8 @@
     <x-page-header
         title="✏️ Редактировать партию #{{ $batch->batch_number ?? $batch->id }}"
         mobileTitle="Редактировать партию"
-        :backUrl="$backUrl"
-        backLabel="Назад">
+        :backUrl="route('raw-batches.show', $batch)"
+        backLabel="К партии">
     </x-page-header>
 
     @include('partials.alerts')
@@ -137,7 +137,7 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg me-1"></i> Сохранить
                     </button>
-                    <a href="{{ $backUrl }}" class="btn btn-outline-secondary text-nowrap">Отмена</a>
+                    <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-outline-secondary text-nowrap" data-back>Отмена</a>
                 </div>
             </form>
         </div>

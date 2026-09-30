@@ -12,7 +12,8 @@
         <x-page-header
             title="✏️ Редактирование приёмки #{{ $stoneReception->id }}"
             mobile-title="✏️ Приёмка #{{ $stoneReception->id }}"
-            back-url="{{ route('stone-receptions.logs') }}"
+            back-url="{{ route('stone-receptions.show', $stoneReception) }}"
+            back-label="К приёмке"
         />
 
         @if($errors->any())

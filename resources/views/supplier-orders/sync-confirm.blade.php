@@ -8,7 +8,7 @@
     <x-page-header
         title="Подтверждение синхронизации"
         mobileTitle="Синхронизация"
-        back-url="{{ route('supplier-orders.index') }}"
+        back-url="{{ route('supplier-orders.show', $order) }}"
         back-label="Отмена"
     />
 

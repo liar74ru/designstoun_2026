@@ -152,12 +152,11 @@ class StoneReceptionController extends Controller
             'receptionLogs.cutter',
         ]);
 
-        $backUrl       = back_url(route('stone-receptions.index'));
         $stores        = \App\Models\Store::orderBy('name')->get();
         $departments   = \App\Models\Department::orderBy('name')->get();
         $masterWorkers = $this->service->getMasterWorkers();
 
-        return view('stone-receptions.show', compact('stoneReception', 'backUrl', 'stores', 'departments', 'masterWorkers'));
+        return view('stone-receptions.show', compact('stoneReception', 'stores', 'departments', 'masterWorkers'));
     }
 
     public function edit(Request $request, StoneReception $stoneReception): View

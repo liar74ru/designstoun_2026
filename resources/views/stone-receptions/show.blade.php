@@ -7,7 +7,7 @@
 
         <x-page-header
             title="🪨 Приёмка #{{ $stoneReception->id }}"
-            back-url="{{ $backUrl }}"
+            back-url="{{ route('stone-receptions.index') }}"
             back-label="К списку"
         />
 

@@ -9,9 +9,15 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="h4 mb-0 fw-bold">Профиль</h1>
             <div class="d-flex gap-2">
-                <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> К списку
-                </a>
+                @can('see-workers')
+                    <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary btn-sm" data-back>
+                        <i class="bi bi-arrow-left"></i> <span data-back-text>К списку</span>
+                    </a>
+                @else
+                    <a href="{{ route('home') }}" class="btn btn-outline-secondary btn-sm" data-back>
+                        <i class="bi bi-arrow-left"></i> <span data-back-text>На главную</span>
+                    </a>
+                @endcan
                 <a href="{{ route('logout') }}"
                    onclick="event.preventDefault(); document.getElementById('logout-form-profile').submit();"
                    class="btn btn-outline-danger btn-sm">

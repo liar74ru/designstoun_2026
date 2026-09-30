@@ -8,8 +8,8 @@
     <x-page-header
         title="✏️ Редактировать поступление"
         mobileTitle="Редактировать поступление"
-        :backUrl="route('supplier-orders.index')"
-        backLabel="К списку">
+        :backUrl="route('supplier-orders.show', $supplierOrder)"
+        backLabel="К поступлению">
     </x-page-header>
 
     @include('partials.alerts')
@@ -185,7 +185,7 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg me-1"></i> Сохранить
                     </button>
-                    <a href="{{ route('supplier-orders.index') }}" class="btn btn-outline-secondary">Отмена</a>
+                    <a href="{{ route('supplier-orders.show', $supplierOrder) }}" class="btn btn-outline-secondary" data-back>Отмена</a>
                 </div>
             </form>
         </div>

@@ -4,7 +4,7 @@
 @section('content')
 <div class="container py-3 py-md-4" style="max-width:1100px">
 
-    <x-page-header title="Цех #{{ $workshop->id }}" :back-url="$backUrl" mobileTitle="Цех" />
+    <x-page-header title="Цех #{{ $workshop->id }}" :back-url="route('workshops.index')" back-label="К списку" mobileTitle="Цех" />
 
     @include('partials.alerts')
 

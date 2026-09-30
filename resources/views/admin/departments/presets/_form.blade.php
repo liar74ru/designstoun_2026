@@ -79,7 +79,7 @@
     </div>
 
     <div class="d-flex justify-content-end gap-2 mb-3">
-        <a href="{{ route('admin.departments.show', $department) }}" class="btn btn-outline-secondary">Отмена</a>
+        <a href="{{ route('admin.departments.show', $department) }}" class="btn btn-outline-secondary" data-back>Отмена</a>
         <button type="submit" class="btn btn-primary px-4">
             <i class="bi bi-check-lg"></i> Сохранить
         </button>

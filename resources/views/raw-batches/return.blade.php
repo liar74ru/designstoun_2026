@@ -12,8 +12,8 @@
     <x-page-header
         title="↩️ Возврат партии #{{ $batch->batch_number ?? $batch->id }}"
         mobileTitle="Возврат партии"
-        :backUrl="$backUrl"
-        backLabel="Назад">
+        :backUrl="route('raw-batches.show', $batch)"
+        backLabel="К партии">
     </x-page-header>
 
     @include('partials.alerts')
@@ -102,7 +102,7 @@
                     <button type="submit" class="btn btn-secondary">
                         <i class="bi bi-arrow-return-left"></i> Вернуть на склад
                     </button>
-                    <a href="{{ $backUrl }}" class="btn btn-outline-secondary text-nowrap">Отмена</a>
+                    <a href="{{ route('raw-batches.show', $batch) }}" class="btn btn-outline-secondary text-nowrap" data-back>Отмена</a>
                 </div>
             </form>
         </div>

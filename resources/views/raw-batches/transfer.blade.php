@@ -12,8 +12,8 @@
     <x-page-header
         title="🔄 Передача партии #{{ $batch->batch_number ?? $batch->id }}"
         mobileTitle="Передача партии"
-        :backUrl="$backUrl"
-        backLabel="Назад">
+        :backUrl="route('raw-batches.show', $batch)"
+        backLabel="К партии">
     </x-page-header>
 
     @include('partials.alerts')

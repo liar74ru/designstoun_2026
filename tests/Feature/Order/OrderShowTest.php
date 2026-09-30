@@ -175,9 +175,8 @@ describe('OrderService::getShowData()', function () {
 
         $data = app(OrderService::class)->getShowData(orderShowRequest($user, 'ms-1'), 'ms-1');
 
-        expect($data)->toHaveKeys(['order', 'attributes', 'rows', 'stores', 'defaultStoreId', 'backUrl'])
-            ->and($data['order']->is($order))->toBeTrue()
-            ->and($data['backUrl'])->toBe(route('orders.index'));
+        expect($data)->toHaveKeys(['order', 'attributes', 'rows', 'stores', 'defaultStoreId'])
+            ->and($data['order']->is($order))->toBeTrue();
     });
 
     test('склад по умолчанию берётся из отдела заявки', function () {

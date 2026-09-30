@@ -4,12 +4,7 @@
 
 @section('content')
     <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">👤 Новый работник</h1>
-            <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> К списку работников
-            </a>
-        </div>
+        <x-page-header title="👤 Новый работник" :backUrl="route('workers.index')" backLabel="К списку работников" />
 
         <div class="row justify-content-center">
             <div class="col-md-8">
@@ -75,7 +70,7 @@
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-person-plus"></i> Создать работника
                                 </button>
-                                <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary">Отмена</a>
+                                <a href="{{ route('workers.index') }}" class="btn btn-outline-secondary" data-back>Отмена</a>
                             </div>
                         </form>
                     </div>

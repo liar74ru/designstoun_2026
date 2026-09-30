@@ -321,7 +321,6 @@ class OrderService
             'changedStateId' => OrderState::changedId(),
             // Куда «Принято» вернёт заявку из статуса «Изменено»
             'returnState'    => $this->changes->isInChangedState($order) ? $this->changes->returnState($order) : null,
-            'backUrl'        => url()->previous(route('orders.index')),
         ];
     }
 

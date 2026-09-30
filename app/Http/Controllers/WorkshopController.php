@@ -119,9 +119,7 @@ class WorkshopController extends Controller
             'workshopLogs.receiver',
         ]);
 
-        $backUrl = back_url(route('workshops.index'));
-
-        return view('workshops.show', compact('workshop', 'backUrl') + $this->service->getPlacementOptions());
+        return view('workshops.show', compact('workshop') + $this->service->getPlacementOptions());
     }
 
     public function edit(Workshop $workshop): View

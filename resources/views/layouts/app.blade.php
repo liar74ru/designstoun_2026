@@ -4,6 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @if(\App\Support\BackNavigation::isTransient(request()->route()?->getName()))
+        {{-- Форма: кнопка «Назад» на неё не возвращает (resources/js/back-link.js) --}}
+        <meta name="nav-transient" content="1">
+    @endif
 
     <title>@yield('title', __('Дизайн камень'))</title>
     

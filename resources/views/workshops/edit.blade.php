@@ -40,7 +40,7 @@
 
 <div class="container py-3 py-md-4" style="max-width:980px">
 
-    <x-page-header title="Цех #{{ $workshop->id }}" :back-url="route('workshops.index')" mobileTitle="Цех" />
+    <x-page-header title="Цех #{{ $workshop->id }}" :back-url="route('workshops.show', $workshop)" back-label="К операции" mobileTitle="Цех" />
 
     @include('partials.alerts')
 

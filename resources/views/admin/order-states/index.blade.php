@@ -190,7 +190,7 @@
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-check-lg"></i> Сохранить
                 </button>
-                <a href="{{ route('admin.settings.index') }}" class="btn btn-outline-secondary">Отмена</a>
+                <a href="{{ route('admin.settings.index') }}" class="btn btn-outline-secondary" data-back>Отмена</a>
             </div>
         </form>
     @endif

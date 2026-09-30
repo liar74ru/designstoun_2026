@@ -28,7 +28,7 @@
     <x-page-header
         title="{{ $order->isInternal() ? '🔁' : '📋' }} {{ $docTitle }}"
         :mobileTitle="$docTitle"
-        :backUrl="$backUrl"
+        :backUrl="route('orders.index')"
         backLabel="К списку" />
 
     @include('partials.alerts')

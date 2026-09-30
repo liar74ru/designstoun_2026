@@ -5,13 +5,8 @@
 @section('content')
     <div class="container py-3 py-md-4">
 
-        <x-page-header title="🔄 Синхронизация с МойСклад" :hide-mobile="true">
-            <x-slot:actions>
-                <a href="{{ route('home') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> На главную
-                </a>
-            </x-slot:actions>
-        </x-page-header>
+        <x-page-header title="🔄 Синхронизация с МойСклад" :hide-mobile="true"
+                       :backUrl="route('home')" backLabel="На главную" />
 
         @include('partials.alerts')
 

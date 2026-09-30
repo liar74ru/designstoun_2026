@@ -133,7 +133,7 @@
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-send"></i> {{ $isEdit ? 'Сохранить' : 'Разместить заказ' }}
                             </button>
-                            <a href="{{ $backUrl }}" class="btn btn-outline-secondary">Отмена</a>
+                            <a href="{{ $backUrl }}" class="btn btn-outline-secondary" data-back>Отмена</a>
                         </div>
                     </form>
                 </div>

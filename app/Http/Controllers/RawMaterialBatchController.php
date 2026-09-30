@@ -37,11 +37,9 @@ class RawMaterialBatchController extends Controller
             'receptions' => fn($q) => $q->with(['items.product', 'items.modifiers.modifier', 'receiver', 'cutter'])->orderBy('created_at', 'desc'),
         ])->findOrFail($id);
 
-        $backUrl = back_url(route('raw-batches.index'));
-
         $departments = Department::orderBy('name')->get();
 
-        return view('raw-batches.show', compact('batch', 'backUrl', 'departments'));
+        return view('raw-batches.show', compact('batch', 'departments'));
     }
 
     public function updateDepartment(Request $request, RawMaterialBatch $batch): RedirectResponse
@@ -206,11 +204,10 @@ class RawMaterialBatchController extends Controller
         }
 
         $products = \App\Models\Product::orderBy('name')->get();
-        $backUrl  = back_url(route('raw-batches.index'));
 
         return view('raw-batches.edit', array_merge(
             $this->service->getEditFormOptions($batch),
-            compact('batch', 'products', 'backUrl')
+            compact('batch', 'products')
         ));
     }
 
@@ -295,10 +292,9 @@ class RawMaterialBatchController extends Controller
                 ->with('error', 'Архивная партия недоступна для редактирования.');
         }
 
-        $stores  = Store::orderBy('name')->get();
-        $backUrl = back_url(route('raw-batches.index'));
+        $stores = Store::orderBy('name')->get();
 
-        return view('raw-batches.adjust', compact('batch', 'stores', 'backUrl'));
+        return view('raw-batches.adjust', compact('batch', 'stores'));
     }
 
     public function adjust(Request $request, RawMaterialBatch $batch): RedirectResponse
@@ -435,9 +431,8 @@ class RawMaterialBatchController extends Controller
         }
 
         $workers = Worker::with('departments')->orderBy('name')->get();
-        $backUrl = back_url(route('raw-batches.index'));
 
-        return view('raw-batches.transfer', compact('batch', 'workers', 'backUrl'));
+        return view('raw-batches.transfer', compact('batch', 'workers'));
     }
 
     public function transfer(Request $request, RawMaterialBatch $batch): RedirectResponse
@@ -471,10 +466,9 @@ class RawMaterialBatchController extends Controller
                 ->with('error', 'Партия уже неактивна.');
         }
 
-        $stores  = Store::orderBy('name')->get();
-        $backUrl = back_url(route('raw-batches.index'));
+        $stores = Store::orderBy('name')->get();
 
-        return view('raw-batches.return', compact('batch', 'stores', 'backUrl'));
+        return view('raw-batches.return', compact('batch', 'stores'));
     }
 
     public function return(Request $request, RawMaterialBatch $batch): RedirectResponse
