@@ -31,8 +31,9 @@
     <div class="info-block-body">
         <div class="d-flex justify-content-between align-items-start gap-2">
             <div style="min-width:0">
-                <div class="osum-label">Контрагент</div>
-                <div class="osum-client">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</div>
+                <div class="osum-label">{{ $order->isInternal() ? 'Заказчик' : 'Контрагент' }}</div>
+                <div class="osum-client">{{ $order->client_label ?? '—' }}</div>
+                @include('orders.partials.internal-badge', ['order' => $order, 'class' => 'mt-1'])
             </div>
             <div class="flex-shrink-0">
                 @include('orders.partials.state-picker', ['order' => $order, 'states' => $orderStates, 'size' => 'sm'])
@@ -46,7 +47,7 @@
             </div>
             <button type="button" class="osum-due-btn"
                     data-bs-toggle="modal" data-bs-target="#order-delivery-date-modal"
-                    data-action="{{ route('orders.delivery-date.update', $order->moysklad_id) }}"
+                    data-action="{{ route('orders.delivery-date.update', $order->uuid) }}"
                     data-name="{{ $order->name }}"
                     data-date="{{ $due?->format('Y-m-d') }}"
                     title="Дата готовности — нажмите, чтобы изменить">
@@ -54,7 +55,7 @@
                 <b>{{ $due ? $due->format('d.m.Y') : '—' }}</b>
                 @if($dueText)<span class="osum-due {{ $dueClass }}">{{ $dueText }}</span>@endif
             </button>
-            <form method="POST" action="{{ route('orders.priority.urgent', $order->moysklad_id) }}" data-submit-guard class="d-flex">
+            <form method="POST" action="{{ route('orders.priority.urgent', $order->uuid) }}" data-submit-guard class="d-flex">
                 @csrf
                 <input type="hidden" name="urgent" value="{{ $order->is_urgent ? 0 : 1 }}">
                 <button type="submit" class="osum-urgent {{ $order->is_urgent ? 'is-on' : '' }}"
@@ -92,11 +93,11 @@
 
         <div class="osum-departments">
             <div style="min-width:0">
-                <div class="osum-label">Отделы</div>
+                <div class="osum-label">{{ $order->isInternal() ? 'Исполнитель' : 'Отделы' }}</div>
                 @include('orders.partials.departments-button', ['order' => $order])
             </div>
             @if($order->priority_manual)
-                <form method="POST" action="{{ route('orders.priority.reset', $order->moysklad_id) }}" data-submit-guard
+                <form method="POST" action="{{ route('orders.priority.reset', $order->uuid) }}" data-submit-guard
                       class="flex-shrink-0" onsubmit="return confirm('Вернуть заявку на место по сроку отгрузки?')">
                     @csrf
                     <button type="submit" class="btn btn-sm osum-chip" title="Место в очереди задано вручную">
@@ -105,6 +106,22 @@
                 </form>
             @endif
         </div>
+
+        @if($canManageInternal ?? false)
+            <div class="d-flex gap-2 mt-2">
+                <a href="{{ route('orders.internal.edit', $order->uuid) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                    <i class="bi bi-pencil"></i> Изменить состав
+                </a>
+                <form method="POST" action="{{ route('orders.internal.destroy', $order->uuid) }}" data-submit-guard
+                      onsubmit="return confirm('Удалить внутренний заказ {{ $order->name }}?')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить внутренний заказ">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+        @endif
 
         <div class="osum-footer">
             @if($order->production_started_at)
@@ -121,7 +138,7 @@
                 <span></span>
             @endif
             {{-- Отдельная форма: вкладывать её в форму переключателя статуса нельзя --}}
-            <form method="POST" action="{{ route('orders.recalculate', $order->moysklad_id) }}" data-submit-guard
+            <form method="POST" action="{{ route('orders.recalculate', $order->uuid) }}" data-submit-guard
                   onsubmit="return confirm('Взять текущие остатки по складам и начать отсчёт изготовленного заново?')">
                 @csrf
                 <button type="submit" class="btn btn-link btn-sm text-muted p-0" title="Пересчитать по складам">

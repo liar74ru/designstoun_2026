@@ -6,7 +6,7 @@
 --}}
 @if($row['product'] && $hideDepartments->isNotEmpty())
     <div class="dropdown hide-toggle flex-shrink-0"
-         data-url="{{ route('orders.position.hidden', [$order->moysklad_id, $row['product']->id]) }}"
+         data-url="{{ route('orders.position.hidden', [$order->uuid, $row['product']->id]) }}"
          data-key="{{ $order->id }}-{{ $row['product']->id }}"
          data-controlled='@json($hideDepartments->pluck('id')->values())'
          data-names='@json($order->departments->sortBy('name')->map(fn ($d) => [$d->id, $d->name])->values())'>

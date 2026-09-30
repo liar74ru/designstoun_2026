@@ -18,6 +18,7 @@ class OperationAccessor
         'workshops',
         'raw-batches',
         'supplier-orders',
+        'orders',
     ];
 
     /**

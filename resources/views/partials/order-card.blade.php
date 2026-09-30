@@ -34,11 +34,11 @@
     $sumShort = $problems->sum('short');
 @endphp
 <div class="info-block mb-2 order-row ocard is-compact {{ $order->is_urgent ? 'order-urgent' : '' }}" style="cursor:pointer"
-     data-href="{{ route('orders.show', $order->moysklad_id) }}">
+     data-href="{{ route('orders.show', $order->uuid) }}">
 
     <div class="ocard-head">
         <div class="d-flex align-items-center gap-2">
-            <a href="{{ route('orders.show', $order->moysklad_id) }}" class="ocard-num">№ {{ $order->name }}</a>
+            <a href="{{ route('orders.show', $order->uuid) }}" class="ocard-num">№ {{ $order->name }}</a>
             @include('orders.partials.departments-button', ['order' => $order, 'font' => '.68rem'])
             @include('orders.partials.changed-badge', ['order' => $order])
             <span class="ms-auto">
@@ -48,13 +48,14 @@
                 <i class="bi bi-chevron-down"></i>
             </button>
         </div>
-        <div class="ocard-client">{{ $order->counterparty?->name ?? $order->agent_name ?? '—' }}</div>
+        <div class="ocard-client">{{ $order->client_label ?? '—' }}</div>
+        @include('orders.partials.internal-badge', ['order' => $order])
         <div class="ocard-meta">
             <span title="Дата заказа">{{ $order->moment?->format('d.m.Y') ?? '—' }}</span>
             <i class="bi bi-arrow-right"></i>
             <button type="button" class="ocard-due {{ $overdue ? 'is-late' : '' }}"
                     data-bs-toggle="modal" data-bs-target="#order-delivery-date-modal"
-                    data-action="{{ route('orders.delivery-date.update', $order->moysklad_id) }}"
+                    data-action="{{ route('orders.delivery-date.update', $order->uuid) }}"
                     data-name="{{ $order->name }}"
                     data-date="{{ $due?->format('Y-m-d') }}"
                     title="{{ $overdue ? 'Срок готовности просрочен' : 'Дата готовности' }} — нажмите, чтобы изменить">
@@ -96,7 +97,7 @@
         @endif
 
         @if($hiddenLeft > 0 && $rows->isNotEmpty())
-            <a href="{{ route('orders.show', $order->moysklad_id) }}" class="ocard-note">
+            <a href="{{ route('orders.show', $order->uuid) }}" class="ocard-note">
                 <i class="bi bi-eye-slash"></i> + {{ $hiddenLeft }} скрыто
             </a>
         @endif

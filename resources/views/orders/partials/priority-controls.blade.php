@@ -10,7 +10,7 @@
     $query  = request()->query();
 @endphp
 <div class="order-priority d-flex {{ $layout === 'row' ? 'flex-row' : 'flex-column' }} align-items-center gap-1">
-    <form method="POST" action="{{ route('orders.priority.move', [$order->moysklad_id] + $query) }}" data-submit-guard>
+    <form method="POST" action="{{ route('orders.priority.move', [$order->uuid] + $query) }}" data-submit-guard>
         @csrf
         <input type="hidden" name="direction" value="up">
         <button type="submit" class="priority-btn" title="Поднять в очереди">
@@ -18,7 +18,7 @@
         </button>
     </form>
 
-    <form method="POST" action="{{ route('orders.priority.urgent', $order->moysklad_id) }}" data-submit-guard>
+    <form method="POST" action="{{ route('orders.priority.urgent', $order->uuid) }}" data-submit-guard>
         @csrf
         <input type="hidden" name="urgent" value="{{ $order->is_urgent ? 0 : 1 }}">
         <button type="submit" class="priority-btn {{ $order->is_urgent ? 'is-urgent' : '' }}"
@@ -27,7 +27,7 @@
         </button>
     </form>
 
-    <form method="POST" action="{{ route('orders.priority.move', [$order->moysklad_id] + $query) }}" data-submit-guard>
+    <form method="POST" action="{{ route('orders.priority.move', [$order->uuid] + $query) }}" data-submit-guard>
         @csrf
         <input type="hidden" name="direction" value="down">
         <button type="submit" class="priority-btn" title="Опустить в очереди">
@@ -36,7 +36,7 @@
     </form>
 
     @if($order->priority_manual)
-        <form method="POST" action="{{ route('orders.priority.reset', $order->moysklad_id) }}" data-submit-guard
+        <form method="POST" action="{{ route('orders.priority.reset', $order->uuid) }}" data-submit-guard
               onsubmit="return confirm('Вернуть заявку на место по сроку отгрузки?')">
             @csrf
             <button type="submit" class="priority-btn is-manual" title="Место задано вручную — вернуть по сроку отгрузки">

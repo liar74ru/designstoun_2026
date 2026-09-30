@@ -19,7 +19,7 @@
         {{ $order->state_name ?? '—' }}
     </span>
 @else
-    <form method="POST" action="{{ route('orders.state.update', $order->moysklad_id) }}"
+    <form method="POST" action="{{ route('orders.state.update', $order->uuid) }}"
           class="d-inline-block" data-submit-guard>
         @csrf
         <div class="dropdown">

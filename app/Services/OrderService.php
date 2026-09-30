@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Department;
 use App\Models\Order;
 use App\Models\OrderState;
+use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
 use Carbon\Carbon;
@@ -23,6 +24,7 @@ class OrderService
         private OrderPositionService $positions,
         private OrderProductionService $production,
         private OrderChangeService $changes,
+        private InternalOrderService $internal,
     ) {
     }
 
@@ -33,7 +35,7 @@ class OrderService
         $defaults   = $this->defaultStatuses();
 
         $orders = $this->indexQuery($request)
-            ->with(['items.product.stocks', 'departments', 'counterparty', 'positionSettings'])
+            ->with(['items.product.stocks', 'departments', 'counterparty', 'customerDepartment', 'parent', 'internalChildren:id,uuid,parent_uuid,name', 'positionSettings'])
             ->listOrdered()
             ->paginate(20)
             ->withQueryString();
@@ -78,6 +80,7 @@ class OrderService
             'statusDefaults'     => $defaults,
             'filterDepartments'  => $departments,
             'noDepartmentOption' => self::NO_DEPARTMENT,
+            'kindOptions'        => [Order::KIND_CUSTOMER => 'Заявки покупателей', Order::KIND_INTERNAL => 'Внутренние заказы'],
             'assignDepartments'  => $this->assignableDepartments($request->user()),
             'departmentDefaults' => $accessible ?? [],
             'switchDepartments'  => Department::query()
@@ -113,22 +116,27 @@ class OrderService
                     $withNone = in_array(self::NO_DEPARTMENT, $values, true);
 
                     $q->where(function ($w) use ($ids, $withNone) {
-                        $w->whereHas('departments', fn ($d) => $d->whereIn('departments.id', $ids ?: [-1]));
+                        $w->whereHas('departments', fn ($d) => $d->whereIn('departments.id', $ids ?: [-1]))
+                            ->orWhereIn('customer_department_id', $ids ?: [-1]);
                         if ($withNone) {
                             $w->orWhereDoesntHave('departments');
                         }
                     });
                 }),
+                AllowedFilter::callback('kind', fn ($q, $v) =>
+                    $q->where('kind', $v === Order::KIND_INTERNAL ? Order::KIND_INTERNAL : Order::KIND_CUSTOMER)),
                 // Не фильтр выборки, а режим отображения позиций — см. getIndexData().
                 AllowedFilter::callback('show_hidden', fn ($q) => $q),
             ])
             // Заявки без отдела видны всем — их отдел назначают из списка — но по умолчанию
             // скрыты: показываются только при отмеченном «Без отдела».
+            // Внутренний заказ видит и заказчик — это его исходящий заказ.
             ->when($accessible !== null, fn ($q) =>
                 $q->where(fn ($w) => $w
                     ->whereHas('departments', fn ($d) =>
                         $d->whereIn('departments.id', $accessible ?: [-1]))
-                    ->orWhereDoesntHave('departments')))
+                    ->orWhereDoesntHave('departments')
+                    ->orWhereIn('customer_department_id', $accessible ?: [-1])))
             ->when(! $request->has('filter.department_id'), fn ($q) =>
                 $q->has('departments'))
             // Фильтр статусов не пришёл — показываем набор, отмеченный админом «по умолчанию».
@@ -249,23 +257,28 @@ class OrderService
     }
 
     /**
-     * Заявка по moysklad_id с проверкой доступа по отделу. Локальные id живут только
-     * до ближайшей синхронизации (CustomerOrderSyncService чистит выпавшие), поэтому
-     * ищем по moysklad_id. В списке чужие заявки отфильтрованы, но по прямой ссылке
-     * были бы видны — отсюда 403. Заявка без отдела доступна всем: отдел ей назначают
-     * из списка.
+     * Заказ по uuid с проверкой доступа по отделу. Локальные id живут только до ближайшей
+     * синхронизации (CustomerOrderSyncService пересоздаёт выпавшие), поэтому ссылки строятся
+     * по uuid: у заявки покупателя он равен moysklad_id, у внутреннего заказа — свой.
+     * В списке чужие заказы отфильтрованы, но по прямой ссылке были бы видны — отсюда 403.
+     * Заявка без отдела доступна всем: отдел ей назначают из списка. Внутренний заказ
+     * доступен и исполнителю, и заказчику.
      *
      * @param  array<int, string>  $with
      */
-    public function findForUser(Request $request, string $moyskladId, array $with = []): Order
+    public function findForUser(Request $request, string $uuid, array $with = []): Order
     {
         $order = Order::query()
             ->with(array_merge(['departments'], $with))
-            ->where('moysklad_id', $moyskladId)
+            ->where('uuid', $uuid)
             ->firstOrFail();
 
         $accessible = $request->user()?->accessibleDepartmentIds();
-        if ($accessible !== null && $order->departments->isNotEmpty() && empty(array_intersect($accessible, $order->departments->pluck('id')->all()))) {
+        $participants = $order->departments->pluck('id')
+            ->push($order->customer_department_id)
+            ->filter()->all();
+
+        if ($accessible !== null && $participants !== [] && empty(array_intersect($accessible, $participants))) {
             abort(403);
         }
 
@@ -277,23 +290,28 @@ class OrderService
      */
     public function getShowData(Request $request, string $moyskladId): array
     {
+        $user  = $request->user();
         $order = $this->findForUser($request, $moyskladId, [
             'items.product.stocks',
             'counterparty',
+            'customerDepartment',
+            'parent',
             'positionSettings.user.worker',
         ]);
 
-        $defaultStoreId = $this->effectiveStoreId($order, $request->user());
+        $defaultStoreId = $this->effectiveStoreId($order, $user);
 
         return [
             'order'          => $order,
             'attributes'     => $this->visibleAttributes($order),
-            'rows'           => $this->positions->rows(
-                $order,
-                $defaultStoreId,
-                $this->production->producedForOrder($order),
-                $this->allocate(collect([$order]), $request->user())[$order->id] ?? [],
-            ),
+            'rows'           => $this->orderRows($order, $user),
+            // Внутренние заказы: у заявки — полуфабрикаты других отделов под неё;
+            // у самого внутреннего — ссылка на основание и права на состав.
+            'internalOrders'      => $order->isInternal() ? [] : $this->internalOrders($order, $user),
+            'canCreateInternal'   => ! $order->isInternal() && $this->internalCustomerDepartments($order, $user)->isNotEmpty(),
+            'internalParent'      => $order->isInternal() ? $order->parent : null,
+            'canManageInternal'   => $this->internal->canManage($user, $order),
+            'canAcknowledge'      => $this->internal->canAcknowledge($user, $order),
             // Полный список складов нужен модалке: мастер выбирает, откуда собирает позицию.
             'stores'         => Store::where('archived', false)->orderBy('name')->get(),
             'defaultStoreId' => $defaultStoreId,
@@ -305,6 +323,138 @@ class OrderService
             'returnState'    => $this->changes->isInChangedState($order) ? $this->changes->returnState($order) : null,
             'backUrl'        => url()->previous(route('orders.index')),
         ];
+    }
+
+    /**
+     * Данные страницы создания или правки внутреннего заказа.
+     * Создание — от заявки-основания (uuid основания), правка — сам внутренний заказ.
+     */
+    public function getInternalFormData(Request $request, string $uuid, bool $edit): array
+    {
+        $user  = $request->user();
+        $order = $this->findForUser($request, $uuid, ['items.product']);
+
+        if ($edit) {
+            abort_unless($order->isInternal(), 404);
+            abort_unless($this->internal->canManage($user, $order), 403);
+            $parent = $order->parent()->with(['items.product.stocks', 'departments', 'positionSettings'])->first();
+        } else {
+            abort_if($order->isInternal(), 404);
+            $parent = $order->load(['items.product.stocks', 'positionSettings']);
+        }
+
+        $customerDepartments = $edit ? collect() : $this->internalCustomerDepartments($parent, $user);
+        abort_if(! $edit && $customerDepartments->isEmpty(), 403);
+
+        $parentRows = $parent ? $this->orderRows($parent, $user) : collect();
+
+        // Сколько ещё нужно по позиции: нехватка, а без чисел — остаток к отгрузке.
+        $need = $parentRows->filter(fn ($row) => $row['product'])
+            ->mapWithKeys(fn ($row) => [$row['product']->id => (float) ($row['short'] ?? $row['left'])])
+            ->all();
+
+        $items = $request->old('items') ?? ($edit
+            ? $order->items->map(fn ($item) => [
+                'product_id'        => $item->product_id,
+                'quantity'          => (float) $item->quantity,
+            ])->all()
+            : [['product_id' => '', 'quantity' => '']]);
+
+        $products = Product::whereIn('id', array_filter(array_column($items, 'product_id')))->get()->keyBy('id');
+
+        return [
+            'order'               => $edit ? $order : null,
+            'parent'              => $parent,
+            'parentRows'          => $parentRows,
+            'customerDepartments' => $customerDepartments,
+            'executorDepartments' => Department::orderBy('name')->get(),
+            'states'              => $this->enabledStates(),
+            'defaultStateId'      => $parent ? $this->internal->defaultState($parent)?->id : null,
+            'suggestions'         => $this->internal->presetSuggestions(
+                $need,
+                $parent ? $parent->departments->pluck('id')->all() : [],
+            ),
+            'items'               => collect($items)->map(fn ($item) => $item + [
+                'label' => $products[$item['product_id'] ?? 0]?->name ?? '',
+            ])->values()->all(),
+        ];
+    }
+
+    /**
+     * От каких отделов пользователь может заказать полуфабрикат под заявку: её отделы
+     * (у заявки без отдела — любые), к которым он может отнести запись.
+     *
+     * @return SupportCollection<int, Department>
+     */
+    public function internalCustomerDepartments(Order $parent, ?User $user): SupportCollection
+    {
+        $accessible = $user?->accessibleDepartmentIds();
+        $departments = $parent->departments->isNotEmpty()
+            ? $parent->departments->sortBy('name')->values()
+            : Department::orderBy('name')->get();
+
+        return $accessible === null
+            ? $departments
+            : $departments->whereIn('id', $accessible)->values();
+    }
+
+    /** Строки позиций заказа — с долей в общем объёме товара. */
+    private function orderRows(Order $order, ?User $user): SupportCollection
+    {
+        return $this->positions->rows(
+            $order,
+            $this->effectiveStoreId($order, $user),
+            $this->production->producedForOrder($order),
+            $this->allocate(collect([$order]), $user)[$order->id] ?? [],
+        );
+    }
+
+    /**
+     * Внутренние заказы под заявку — для блока в её карточке: номер, исполнитель, статус
+     * и готовность каждой строки. Числа — те же, что в карточке самого внутреннего заказа
+     * (своя доля в общем пуле, изготовленное за окно).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function internalOrders(Order $order, ?User $user): array
+    {
+        $children = $order->internalChildren()
+            ->with(['items.product.stocks', 'departments', 'positionSettings'])
+            ->prioritized()
+            ->get();
+
+        if ($children->isEmpty()) {
+            return [];
+        }
+
+        $produced   = $this->production->producedForOrders($children);
+        $allocation = $this->allocate($children, $user);
+        $accessible = $user?->accessibleDepartmentIds();
+
+        return $children->map(function (Order $child) use ($produced, $allocation, $accessible, $user) {
+            $participants = $child->departments->pluck('id')->push($child->customer_department_id)->filter()->all();
+
+            $rows = $this->positions->rows(
+                $child,
+                $this->effectiveStoreId($child, $user),
+                $produced[$child->id] ?? [],
+                $allocation[$child->id] ?? [],
+            );
+
+            return [
+                'order'    => $child,
+                'canOpen'  => $accessible === null || array_intersect($accessible, $participants) !== [],
+                'executor' => $child->departments->pluck('name')->implode(', '),
+                'rows'     => $rows->map(fn ($row) => [
+                    'name'    => $row['name'],
+                    'uom'     => $row['item']->uom_name,
+                    'ordered' => $row['ordered'],
+                    'total'   => $row['totalQty'],
+                    'isReady' => $row['isReady'],
+                    'color'   => $row['color'],
+                ])->all(),
+            ];
+        })->all();
     }
 
     /**

@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Order\StoreInternalOrderRequest;
+use App\Http\Requests\Order\UpdateInternalOrderRequest;
 use App\Models\OrderState;
 use App\Models\Product;
 use App\Services\Moysklad\CustomerOrderSyncService;
+use App\Services\InternalOrderService;
 use App\Services\Moysklad\StockSyncService;
 use App\Services\OrderChangeService;
 use App\Services\OrderPositionService;
@@ -301,9 +304,12 @@ class OrderController extends Controller
     public function acknowledgeChanges(
         Request $request,
         OrderChangeService $changes,
+        InternalOrderService $internal,
         string $moyskladId,
     ): RedirectResponse {
         $order = $this->service->findForUser($request, $moyskladId);
+
+        abort_unless($internal->canAcknowledge($request->user(), $order), 403);
 
         $message = 'Изменения заявки «' . $order->name . '» приняты.';
 
@@ -325,6 +331,61 @@ class OrderController extends Controller
         $changes->acknowledge($order);
 
         return back()->with('success', $message);
+    }
+
+    /** Форма внутреннего заказа под заявку. */
+    public function createInternal(Request $request, string $moyskladId): View
+    {
+        return view('orders.internal-form', $this->service->getInternalFormData($request, $moyskladId, false));
+    }
+
+    public function editInternal(Request $request, string $moyskladId): View
+    {
+        return view('orders.internal-form', $this->service->getInternalFormData($request, $moyskladId, true));
+    }
+
+    /**
+     * Заказать полуфабрикаты другому отделу под заявку целиком.
+     */
+    public function storeInternal(
+        StoreInternalOrderRequest $request,
+        InternalOrderService $internal,
+        string $moyskladId,
+    ): RedirectResponse {
+        $order = $internal->create($request->routeOrder(), $request->validated(), $request->user());
+
+        return redirect()->route('orders.show', $order->uuid)
+            ->with('success', 'Внутренний заказ «' . $order->name . '» размещён.');
+    }
+
+    public function updateInternal(
+        UpdateInternalOrderRequest $request,
+        InternalOrderService $internal,
+        string $moyskladId,
+    ): RedirectResponse {
+        $order = $request->routeOrder();
+
+        $internal->update($order, $request->validated());
+
+        return redirect()->route('orders.show', $moyskladId)
+            ->with('success', 'Внутренний заказ «' . $order->name . '» сохранён.');
+    }
+
+    public function destroyInternal(
+        Request $request,
+        InternalOrderService $internal,
+        string $moyskladId,
+    ): RedirectResponse {
+        $order = $this->service->findForUser($request, $moyskladId);
+
+        abort_unless($order->isInternal(), 404);
+        abort_unless($internal->canManage($request->user(), $order), 403);
+
+        $parentUuid = $order->parent()->value('uuid');
+        $internal->delete($order);
+
+        return ($parentUuid ? redirect()->route('orders.show', $parentUuid) : redirect()->route('orders.index'))
+            ->with('success', 'Внутренний заказ «' . $order->name . '» удалён.');
     }
 
     public function resetPriority(

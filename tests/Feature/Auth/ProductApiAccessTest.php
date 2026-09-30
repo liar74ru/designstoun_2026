@@ -82,7 +82,7 @@ describe('Доступ к AJAX-эндпоинтам товаров', function ()
         $user    = Access::userWithPosition('Мастер', $dept);
 
         // Разрешена операция, не входящая в PRODUCT_API_OPERATIONS.
-        Access::allowOperation($dept, 'orders');
+        Access::allowOperation($dept, 'workers');
 
         foreach (papiUrls($product) as $url) {
             $this->actingAs($user)->get($url)->assertForbidden();

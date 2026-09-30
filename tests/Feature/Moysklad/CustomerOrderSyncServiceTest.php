@@ -666,3 +666,62 @@ describe('Изменение состава заявки', function () {
         expect($order->state_before_change)->toBe(SYNC_IDLE_STATE);
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Внутренние заказы в МойСклад не выгружаются — синхронизация их не удаляет
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('Внутренние заказы при синхронизации', function () {
+
+    function fakeSyncWith(array $ordersResponse): void
+    {
+        config()->set('services.moysklad.token', 'test-token');
+        Http::fake([
+            '*/entity/customerorder/metadata' => Http::response(syncStatesFake(), 200),
+            '*/entity/customerorder?*'        => Http::response($ordersResponse, 200),
+            '*' => Http::response(['rows' => [], 'meta' => ['size' => 0]], 200),
+        ]);
+        OrderState::create(['id' => SYNC_PROD_STATE, 'name' => 'В процессе', 'is_enabled' => true, 'is_production' => true]);
+        OrderState::create(['id' => SYNC_IDLE_STATE, 'name' => 'Новый', 'is_enabled' => true]);
+    }
+
+    function internalOrderForSync(): Order
+    {
+        $order = Order::create(['kind' => Order::KIND_INTERNAL, 'name' => '26-40-ВЗ-01', 'parent_uuid' => 'ms-gone']);
+        $order->departments()->attach(Department::create(['name' => 'Цех', 'is_active' => true])->id);
+
+        return $order;
+    }
+
+    test('выпавшая заявка удаляется, внутренний заказ остаётся', function () {
+        fakeSyncWith(ordersResponse(SYNC_IDLE_STATE, 'Новый', Product::factory()->create()));
+        Order::create(['moysklad_id' => 'ms-gone', 'name' => 'Выпала']);
+        $internal = internalOrderForSync();
+
+        customerOrderSync()->pullActive();
+
+        expect(Order::where('moysklad_id', 'ms-gone')->exists())->toBeFalse()
+            ->and(Order::where('moysklad_id', 'ms-1')->exists())->toBeTrue()
+            ->and(Order::whereKey($internal->id)->exists())->toBeTrue();
+    });
+
+    test('пустая выгрузка не удаляет внутренние заказы', function () {
+        fakeSyncWith(['rows' => [], 'meta' => ['size' => 0]]);
+        $internal = internalOrderForSync();
+
+        customerOrderSync()->pullActive();
+
+        expect(Order::whereKey($internal->id)->exists())->toBeTrue()
+            ->and($internal->departments()->count())->toBe(1);
+    });
+
+    test('у заявки из выгрузки uuid равен moysklad_id', function () {
+        fakeSyncWith(ordersResponse(SYNC_IDLE_STATE, 'Новый', Product::factory()->create()));
+
+        customerOrderSync()->pullActive();
+
+        $order = Order::where('moysklad_id', 'ms-1')->sole();
+        expect($order->uuid)->toBe('ms-1')
+            ->and($order->kind)->toBe(Order::KIND_CUSTOMER);
+    });
+});

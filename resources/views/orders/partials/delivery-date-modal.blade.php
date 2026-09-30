@@ -16,7 +16,11 @@
                 <input type="date" class="form-control" id="order-delivery-date" name="delivery_planned_at"
                        style="border-radius:.4rem" required>
                 <div class="form-text mt-2">
-                    Дата уйдёт в МойСклад в поле «Планируемая дата отгрузки».
+                    @if(isset($order) && $order->isInternal())
+                        Внутренний заказ есть только в программе — дата сохранится здесь.
+                    @else
+                        Дата уйдёт в МойСклад в поле «Планируемая дата отгрузки».
+                    @endif
                 </div>
             </div>
             <div class="modal-footer">

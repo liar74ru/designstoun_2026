@@ -107,6 +107,28 @@ class OrderChangeService
         return $state ?? OrderState::enabled()->production()->orderBy('position')->first();
     }
 
+    /**
+     * Количество по товару: позиции одного товара складываются.
+     *
+     * @return array<string, array{name: ?string, quantity: float}>
+     */
+    public function quantitiesByProduct(array $items): array
+    {
+        $result = [];
+        foreach ($items as $item) {
+            $key = $item['product_moysklad_id'] ?? null;
+            if ($key === null) {
+                continue;
+            }
+            $result[$key] = [
+                'name'     => $item['product_name'] ?? null,
+                'quantity' => ($result[$key]['quantity'] ?? 0.0) + (float) $item['quantity'],
+            ];
+        }
+
+        return $result;
+    }
+
     public function acknowledge(Order $order): void
     {
         $order->update([

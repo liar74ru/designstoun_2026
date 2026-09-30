@@ -13,6 +13,7 @@
       $departmentNoneValue — string|null: значение чекбокса «Без отдела» (null = не показывать)
       $filterCounterparties — Collection|null  (null = скрыть select поставщиков)
       $showHiddenOption   — bool: чекбокс «Показывать скрытые позиции» (filter[show_hidden], заявки)
+      $kindOptions        — array|null [ value => label ]: select «Тип» (filter[kind], заявки / внутренние заказы)
 --}}
 @php
     $cutterParam        = $cutterParam        ?? 'cutter_id';
@@ -30,9 +31,11 @@
     $departmentNoneValue = $departmentNoneValue ?? null;
     $filterCounterparties = $filterCounterparties ?? null;
     $showHiddenOption   = $showHiddenOption   ?? false;
+    $kindOptions        = $kindOptions        ?? null;
     $selectedDepartments = (array) request('filter.department_id', $departmentDefaults);
     $filterCount   = ($filterCutters    ? 1 : 0)
                    + ($filterCounterparties ? 1 : 0)
+                   + ($kindOptions ? 1 : 0)
                    + ($filterRawProducts ? 1 : 0)
                    + ($filterProducts    ? 1 : 0)
                    + ($showStatus !== false ? 1 : 0)
@@ -120,6 +123,19 @@
                             <option value="{{ $counterparty->id }}"
                                 {{ request('filter.counterparty_id') == $counterparty->id ? 'selected' : '' }}>
                                 {{ $counterparty->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+
+                {{-- Тип заказа --}}
+                @if($kindOptions)
+                <div class="col-12 col-sm-6 {{ $colClass }}">
+                    <label class="form-label small text-muted mb-1">Тип</label>
+                    <select name="filter[kind]" class="form-select" style="border-radius:.4rem">
+                        <option value="">Все</option>
+                        @foreach($kindOptions as $value => $label)
+                            <option value="{{ $value }}" {{ request('filter.kind') === $value ? 'selected' : '' }}>{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -278,6 +294,7 @@
         'filter[{{ $rawProductParam }}]',
         @if($filterProducts) 'filter[product_id]', @endif
         @if($filterCounterparties) 'filter[counterparty_id]', @endif
+        @if($kindOptions) 'filter[kind]', @endif
         @if($showHiddenOption) 'filter[show_hidden]', @endif
         'date_from', 'date_to'
     ];

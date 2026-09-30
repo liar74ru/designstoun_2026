@@ -87,7 +87,8 @@ class CustomerOrderSyncService extends MoySkladBaseService
         }
 
         $syncedIds = array_column($rows, 'id');
-        $deleted = Order::whereNotIn('moysklad_id', $syncedIds)->delete();
+        // Только заявки покупателей: внутренние заказы в МойСклад не выгружаются.
+        $deleted = Order::customer()->whereNotIn('moysklad_id', $syncedIds)->delete();
 
         if ($count === 0 && $deleted === 0) {
             return ['success' => true, 'count' => 0, 'message' => 'Новых заявок не найдено.'];
@@ -300,7 +301,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
             ]);
         }
 
-        $before = $existing ? $this->quantitiesByProduct($order->items()->get()->toArray()) : null;
+        $before = $existing ? $this->changes->quantitiesByProduct($order->items()->get()->toArray()) : null;
 
         $order->items()->delete();
         foreach ($items as $item) {
@@ -310,7 +311,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
         $order->departments()->sync($departmentIds);
 
         if ($before !== null) {
-            $after = $this->quantitiesByProduct($items);
+            $after = $this->changes->quantitiesByProduct($items);
 
             // Правки в проекте до запуска и после отгрузки — не изменение для мастера.
             if (! in_array($previousStateId, $untrackedStateIds, true)
@@ -348,6 +349,13 @@ class CustomerOrderSyncService extends MoySkladBaseService
     {
         $result = ['success' => false, 'code' => '', 'message' => ''];
 
+        // Внутреннего заказа в МойСклад нет — статус живёт только в программе.
+        if ($order->isInternal()) {
+            $this->applyState($order, $state);
+
+            return ['success' => true, 'code' => '', 'message' => "Статус заказа изменён на «{$state->name}»."];
+        }
+
         if (! $this->hasCredentials()) {
             $result['code']    = 'no_credentials';
             $result['message'] = 'MOYSKLAD_TOKEN не установлен';
@@ -383,10 +391,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
                 return $result;
             }
 
-            $order->update([
-                'state_moysklad_id' => $state->id,
-                'state_name'        => $state->name,
-            ]);
+            $this->applyState($order, $state);
 
             $result['success'] = true;
             $result['message'] = "Статус заявки изменён на «{$state->name}».";
@@ -418,19 +423,29 @@ class CustomerOrderSyncService extends MoySkladBaseService
     {
         $result = ['success' => false, 'code' => '', 'message' => ''];
 
-        if (! $this->hasCredentials()) {
-            $result['code']    = 'no_credentials';
-            $result['message'] = 'MOYSKLAD_TOKEN не установлен';
-
-            return $result;
-        }
-
         $current = $order->delivery_planned_at;
         $moment  = $date->copy()->setTime(
             $current?->hour ?? 0,
             $current?->minute ?? 0,
             $current?->second ?? 0,
         );
+
+        if ($order->isInternal()) {
+            $this->applyDeliveryDate($order, $moment);
+
+            return [
+                'success' => true,
+                'code'    => '',
+                'message' => 'Дата готовности заказа ' . $order->name . ' — ' . $moment->format('d.m.Y') . '.',
+            ];
+        }
+
+        if (! $this->hasCredentials()) {
+            $result['code']    = 'no_credentials';
+            $result['message'] = 'MOYSKLAD_TOKEN не установлен';
+
+            return $result;
+        }
 
         try {
             $response = $this->put('/entity/customerorder/' . $order->moysklad_id, [
@@ -452,15 +467,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
                 return $result;
             }
 
-            $order->update(['delivery_planned_at' => $moment]);
-
-            // Как при синхронизации: ручное место в очереди не трогаем, авто-ключ пересчитываем
-            // сразу — иначе заявка встанет на новое место только после следующей выгрузки.
-            if (! $order->priority_manual) {
-                $order->update([
-                    'priority_key' => OrderPriority::autoKey($order->delivery_planned_at, $order->moment),
-                ]);
-            }
+            $this->applyDeliveryDate($order, $moment);
 
             $result['success'] = true;
             $result['message'] = 'Дата готовности заявки ' . $order->name . ' — ' . $moment->format('d.m.Y') . '.';
@@ -492,14 +499,25 @@ class CustomerOrderSyncService extends MoySkladBaseService
     {
         $result = ['success' => false, 'code' => '', 'message' => ''];
 
+        $departmentIds = array_values(array_unique(array_map('intval', $departmentIds)));
+
+        // Отделы внутреннего заказа — исполнители; без исполнителя заказ никто не увидит в очереди.
+        if ($order->isInternal()) {
+            if ($departmentIds === []) {
+                return ['success' => false, 'code' => 'no_executor', 'message' => 'У внутреннего заказа должен остаться отдел-исполнитель.'];
+            }
+
+            $order->departments()->sync($departmentIds);
+
+            return ['success' => true, 'code' => '', 'message' => 'Исполнители заказа «' . $order->name . '» сохранены.'];
+        }
+
         if (! $this->hasCredentials()) {
             $result['code']    = 'no_credentials';
             $result['message'] = 'MOYSKLAD_TOKEN не установлен';
 
             return $result;
         }
-
-        $departmentIds = array_values(array_unique(array_map('intval', $departmentIds)));
 
         try {
             $metadata = $this->get('/entity/customerorder/metadata/attributes');
@@ -578,26 +596,25 @@ class CustomerOrderSyncService extends MoySkladBaseService
         return $result;
     }
 
-    /**
-     * Количество по товару: позиции одного товара складываются.
-     *
-     * @return array<string, array{name: ?string, quantity: float}>
-     */
-    private function quantitiesByProduct(array $items): array
+    private function applyState(Order $order, OrderState $state): void
     {
-        $result = [];
-        foreach ($items as $item) {
-            $key = $item['product_moysklad_id'] ?? null;
-            if ($key === null) {
-                continue;
-            }
-            $result[$key] = [
-                'name'     => $item['product_name'] ?? null,
-                'quantity' => ($result[$key]['quantity'] ?? 0.0) + (float) $item['quantity'],
-            ];
-        }
+        $order->update([
+            'state_moysklad_id' => $state->id,
+            'state_name'        => $state->name,
+        ]);
+    }
 
-        return $result;
+    private function applyDeliveryDate(Order $order, Carbon $moment): void
+    {
+        $order->update(['delivery_planned_at' => $moment]);
+
+        // Как при синхронизации: ручное место в очереди не трогаем, авто-ключ пересчитываем
+        // сразу — иначе заявка встанет на новое место только после следующей выгрузки.
+        if (! $order->priority_manual) {
+            $order->update([
+                'priority_key' => OrderPriority::autoKey($order->delivery_planned_at, $order->moment),
+            ]);
+        }
     }
 
     private function extractIdFromMeta(?string $href): ?string

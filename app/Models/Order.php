@@ -10,10 +10,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
+/**
+ * Заказ в производство: заявка покупателя из МойСклад (kind = customer) или внутренний
+ * заказ одного отдела другому (kind = internal, создан в программе). Ссылки строятся по uuid:
+ * у заявки покупателя он равен moysklad_id, у внутреннего заказа moysklad_id пуст.
+ */
 class Order extends Model
 {
+    public const KIND_CUSTOMER = 'customer';
+    public const KIND_INTERNAL = 'internal';
+
     protected $fillable = [
+        'uuid',
+        'kind',
+        'customer_department_id',
+        'parent_uuid',
+        'parent_order_name',
+        'created_by_user_id',
         'moysklad_id',
         'name',
         'state_moysklad_id',
@@ -47,6 +62,28 @@ class Order extends Model
         'attributes'            => 'array',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (Order $order) {
+            $order->uuid ??= $order->moysklad_id ?? (string) Str::uuid();
+        });
+    }
+
+    public function isInternal(): bool
+    {
+        return $this->kind === self::KIND_INTERNAL;
+    }
+
+    public function scopeCustomer(Builder $query): Builder
+    {
+        return $query->where('kind', self::KIND_CUSTOMER);
+    }
+
+    public function scopeInternal(Builder $query): Builder
+    {
+        return $query->where('kind', self::KIND_INTERNAL);
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
@@ -63,9 +100,43 @@ class Order extends Model
         return $this->hasMany(OrderPositionSetting::class);
     }
 
+    /** Отделы-исполнители. У внутреннего заказа — кому заказан полуфабрикат. */
     public function departments(): BelongsToMany
     {
         return $this->belongsToMany(Department::class, 'order_department');
+    }
+
+    /** Отдел-заказчик внутреннего заказа */
+    public function customerDepartment(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'customer_department_id');
+    }
+
+    /** Заявка-основание внутреннего заказа; null — её уже нет среди активных. */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'parent_uuid', 'uuid');
+    }
+
+    /** Внутренние заказы, размещённые под эту заявку */
+    public function internalChildren(): HasMany
+    {
+        return $this->hasMany(Order::class, 'parent_uuid', 'uuid');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /** Кому делаем: контрагент заявки или отдел-заказчик внутреннего заказа. */
+    public function getClientLabelAttribute(): ?string
+    {
+        if ($this->isInternal()) {
+            return $this->customerDepartment?->name;
+        }
+
+        return $this->counterparty?->name ?? $this->agent_name;
     }
 
     /**

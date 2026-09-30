@@ -12,7 +12,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
 
-            <form method="POST" action="{{ route('orders.position.update', $order->moysklad_id) }}" data-submit-guard>
+            <form method="POST" action="{{ route('orders.position.update', $order->uuid) }}" data-submit-guard>
                 @csrf
                 <input type="hidden" name="product_id" id="position_product_id">
 
@@ -80,7 +80,7 @@
 
                 <div class="modal-footer py-2 d-flex justify-content-between">
                     {{-- Обёртка всегда на месте: иначе при скрытой кнопке justify-content-between схлопнет footer --}}
-                    <div data-reset-url="{{ route('orders.position.destroy', [$order->moysklad_id, 0]) }}">
+                    <div data-reset-url="{{ route('orders.position.destroy', [$order->uuid, 0]) }}">
                         <button type="button" class="btn btn-outline-danger" id="position_reset_btn">
                             Сбросить
                         </button>

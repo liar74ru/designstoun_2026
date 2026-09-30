@@ -103,7 +103,7 @@
 </div>
 @if($hiddenLeft > 0 && isset($order))
     <div class="small px-2 py-1">
-        <a href="{{ route('orders.show', $order->moysklad_id) }}" class="text-muted text-decoration-none">
+        <a href="{{ route('orders.show', $order->uuid) }}" class="text-muted text-decoration-none">
             <i class="bi bi-eye-slash"></i> + {{ $hiddenLeft }} скрыто
         </a>
     </div>

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Заявка ' . $order->name)
+@section('title', ($order->isInternal() ? 'Внутренний заказ ' : 'Заявка ') . $order->name)
 
 @section('content')
 @php
@@ -19,13 +19,15 @@
     // Позиция приглушена, если скрыта для всех отделов, которыми управляет пользователь.
     $hideIds  = $hideDepartments->pluck('id')->all();
     $isHidden = fn ($row) => $hideIds !== [] && array_diff($hideIds, $row['hiddenFor']) === [];
+
+    $docTitle = ($order->isInternal() ? 'Внутренний заказ ' : 'Заявка ') . $order->name;
 @endphp
 
 <div class="container py-3 py-md-4">
 
     <x-page-header
-        title="📋 Заявка {{ $order->name }}"
-        mobileTitle="Заявка {{ $order->name }}"
+        title="{{ $order->isInternal() ? '🔁' : '📋' }} {{ $docTitle }}"
+        :mobileTitle="$docTitle"
         :backUrl="$backUrl"
         backLabel="К списку" />
 
@@ -48,6 +50,8 @@
                 @include('orders.partials.changes-block', ['order' => $order, 'fmtQty' => $fmtQty])
 
                 @include('orders.partials.summary-block')
+
+                @include('orders.partials.internal-orders-block')
 
                 @if(! empty($attributes))
                     <div class="info-block">

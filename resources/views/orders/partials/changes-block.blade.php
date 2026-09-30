@@ -1,5 +1,6 @@
-{{-- Состав заявки изменили в МойСклад: что поменялось с последнего «Принято» и кнопка
-     «Принято». Параметры: $order, $changedStateId, $returnState, $fmtQty. --}}
+{{-- Состав заявки изменили в МойСклад (у внутреннего заказа — заказчик в программе): что поменялось
+     с последнего «Принято» и кнопка «Принято». Параметры: $order, $changedStateId, $returnState,
+     $fmtQty, $canAcknowledge (по умолчанию true). --}}
 @php
     $inChangedState = $changedStateId && $order->state_moysklad_id === $changedStateId;
 @endphp
@@ -7,7 +8,7 @@
     <div class="info-block border-warning">
         <div class="info-block-header small fw-semibold d-flex justify-content-between align-items-center"
              style="background:#fff3cd">
-            <span><i class="bi bi-exclamation-triangle text-warning"></i> Заявка изменена</span>
+            <span><i class="bi bi-exclamation-triangle text-warning"></i> {{ $order->isInternal() ? 'Заказ изменён' : 'Заявка изменена' }}</span>
             @if($order->positions_changed_at)
                 <span class="text-muted fw-normal" style="font-variant-numeric: tabular-nums">
                     {{ $order->positions_changed_at->format('d.m.Y H:i') }}
@@ -33,13 +34,18 @@
                 <div class="text-muted">Заявка в статусе «Изменено». Изменений количества программа не заметила.</div>
             @endforelse
 
-            <form method="POST" action="{{ route('orders.changes.acknowledge', $order->moysklad_id) }}"
-                  class="mt-2" data-submit-guard>
-                @csrf
-                <button type="submit" class="btn btn-warning btn-sm w-100">
-                    <i class="bi bi-check2"></i> Принято{{ $inChangedState && $returnState ? ', вернуть в «' . $returnState->name . '»' : '' }}
-                </button>
-            </form>
+            @if($canAcknowledge ?? true)
+                <form method="POST" action="{{ route('orders.changes.acknowledge', $order->uuid) }}"
+                      class="mt-2" data-submit-guard>
+                    @csrf
+                    <button type="submit" class="btn btn-warning btn-sm w-100">
+                        <i class="bi bi-check2"></i> Принято{{ $inChangedState && $returnState ? ', вернуть в «' . $returnState->name . '»' : '' }}
+                    </button>
+                </form>
+            @else
+                {{-- Внутренний заказ: правку заказчика принимает исполнитель --}}
+                <div class="text-muted mt-2">Ждёт, пока исполнитель нажмёт «Принято».</div>
+            @endif
         </div>
     </div>
 @endif

@@ -143,7 +143,7 @@ describe('Изменение чужой записи', function () {
 });
 
 /**
- * Заявки покупателей адресуются по moysklad_id, а не моделью — отдельный набор.
+ * Заявки покупателей адресуются по uuid (= moysklad_id), а не моделью — отдельный набор.
  * Доступ проверяется до валидации: пустой запрос к чужой заявке — 403, а не ошибки полей.
  */
 const RDA_ORDER_MUTATING = [
@@ -151,6 +151,7 @@ const RDA_ORDER_MUTATING = [
     'orders.position.update', 'orders.position.destroy', 'orders.position.ready', 'orders.position.hidden',
     'orders.recalculate', 'orders.priority.move', 'orders.priority.urgent', 'orders.priority.reset',
     'orders.changes.acknowledge',
+    'orders.internal.store', 'orders.internal.update', 'orders.internal.destroy',
 ];
 
 describe('Изменение чужой заявки покупателя', function () {

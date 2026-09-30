@@ -67,7 +67,8 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('can:see-orders')->group(function () {
         Route::get ('orders',       [OrderController::class, 'index'])->name('orders.index');
         Route::post('orders/sync',  [OrderController::class, 'sync'])->name('orders.sync');
-        // Биндинг по moysklad_id: синхронизация удаляет выпавшие заявки, локальные id протухают.
+        // Биндинг по uuid (у заявки покупателя = moysklad_id): синхронизация удаляет выпавшие заявки,
+        // локальные id протухают.
         Route::get ('orders/{moyskladId}', [OrderController::class, 'show'])->name('orders.show');
         Route::post('orders/{moyskladId}/state', [OrderController::class, 'updateState'])
             ->name('orders.state.update');
@@ -99,6 +100,17 @@ Route::middleware(['auth'])->group(function () {
         // «Принято»: мастер увидел изменение состава заявки в МойСклад
         Route::post   ('orders/{moyskladId}/changes/acknowledge', [OrderController::class, 'acknowledgeChanges'])
             ->name('orders.changes.acknowledge');
+        // Внутренний заказ полуфабриката другому отделу: создаётся из карточки заявки-основания
+        Route::get    ('orders/{moyskladId}/internal/create', [OrderController::class, 'createInternal'])
+            ->name('orders.internal.create');
+        Route::get    ('orders/{moyskladId}/internal/edit', [OrderController::class, 'editInternal'])
+            ->name('orders.internal.edit');
+        Route::post   ('orders/{moyskladId}/internal', [OrderController::class, 'storeInternal'])
+            ->name('orders.internal.store');
+        Route::put    ('orders/{moyskladId}/internal', [OrderController::class, 'updateInternal'])
+            ->name('orders.internal.update');
+        Route::delete ('orders/{moyskladId}', [OrderController::class, 'destroyInternal'])
+            ->name('orders.internal.destroy');
     });
 
     // Работники — список/CRUD доступен по can:see-workers; смена своего пароля — отдельно
