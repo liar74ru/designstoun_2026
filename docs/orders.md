@@ -176,6 +176,8 @@
 - Внутренний заказ видят оба отдела: исполнитель — в своей очереди, заказчик — как исходящий.
   Фильтр по отделу находит его и по исполнителю, и по заказчику.
 - Заявки **без отдела** по умолчанию скрыты — их показывает пункт **«Без отдела»** в фильтре.
+- Фильтр **«Контрагент»** предлагает только контрагентов, у которых есть видимые вам заявки.
+  Внутренние заказы контрагента не имеют — при выбранном контрагенте они не показываются.
   Мастер может назначить такой заявке отдел прямо из списка.
 - Менять заявку чужого отдела (статус, срок, отделы, очередь, позиции) нельзя.
 - Мастер ставит и снимает заявке только **свои** отделы — других в окне выбора нет. Отделы
@@ -239,7 +241,7 @@
 | 5. Раздача | `OrderProductionService::allocate`, `pool`; `OrderService::allocate` | `OrderProductionTest` |
 | 6. Позиция | `OrderPositionService::rows`, `save`, `reset`, `setReady`, `storeIds`, `visibleStores`, `isHiddenFor`; `OrderService::effectiveStoreId`, `hideableDepartments`, `viewDepartmentIds`; `OrderPositionSetting` | `OrderPositionTest`, `OrderHiddenPositionTest` |
 | 7. Изменения состава | `OrderChangeService::record`, `rememberStateBeforeChange`, `returnState`, `acknowledge`; `OrderController::acknowledgeChanges` | `OrderChangesTest` |
-| 8. Видимость | `OrderService::indexQuery`, `findForUser`, `assignableDepartments`, `resolveDepartments`; в `OrderController` `findForUser` — до валидации (чужая заявка → 403) | `OrderDepartmentsTest`, `OrderShowTest`, `OrderServiceTest`, `Access/RecordDepartmentAccessTest` |
+| 8. Видимость | `OrderService::indexQuery`, `accessibleOrders` (и список контрагентов фильтра), `findForUser`, `assignableDepartments`, `resolveDepartments`; в `OrderController` `findForUser` — до валидации (чужая заявка → 403) | `OrderDepartmentsTest`, `OrderShowTest`, `OrderServiceTest`, `Access/RecordDepartmentAccessTest` |
 | 9. Внутренние заказы | `Order` (`kind`, `uuid`, `parent_uuid`, `customer_department_id`, `client_label`); `InternalOrderService::create`, `update`, `canManage`, `canAcknowledge`, `defaultState`, `nextName`, `presetSuggestions`; ветки `isInternal()` в `CustomerOrderSyncService::updateState/updateDeliveryDate/updateDepartments`; `Order::customer()` в `pullActive`; `OrderService::getInternalFormData`, `internalOrders`, `internalCustomerDepartments`; блок `orders/partials/internal-orders-block`, плашка `internal-badge`; `Requests\Order\*InternalOrderRequest` | `OrderInternalTest`, `Moysklad/CustomerOrderSyncServiceTest` («Внутренние заказы при синхронизации»), `Access/RecordDepartmentAccessTest` |
 
 Заметки:

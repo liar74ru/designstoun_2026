@@ -11,7 +11,9 @@
       $filterDepartments  — Collection|null  (null = скрыть multi-select отделов)
       $departmentDefaults — array (id отделов выбранных по умолчанию у мастера)
       $departmentNoneValue — string|null: значение чекбокса «Без отдела» (null = не показывать)
-      $filterCounterparties — Collection|null  (null = скрыть select поставщиков)
+      $filterCounterparties — Collection|null  (null = скрыть select контрагентов)
+      $counterpartyLabel    — string: подпись select контрагентов (по умолчанию «Поставщик»)
+      $counterpartyAllLabel — string: пункт «все» (по умолчанию «Все поставщики»)
       $showHiddenOption   — bool: чекбокс «Показывать скрытые позиции» (filter[show_hidden], заявки)
       $kindOptions        — array|null [ value => label ]: select «Тип» (filter[kind], заявки / внутренние заказы)
 --}}
@@ -30,6 +32,8 @@
     $departmentDefaults = $departmentDefaults ?? [];
     $departmentNoneValue = $departmentNoneValue ?? null;
     $filterCounterparties = $filterCounterparties ?? null;
+    $counterpartyLabel    = $counterpartyLabel    ?? 'Поставщик';
+    $counterpartyAllLabel = $counterpartyAllLabel ?? 'Все поставщики';
     $showHiddenOption   = $showHiddenOption   ?? false;
     $kindOptions        = $kindOptions        ?? null;
     $selectedDepartments = (array) request('filter.department_id', $departmentDefaults);
@@ -113,12 +117,12 @@
                 </div>
                 @endif
 
-                {{-- Поставщик --}}
+                {{-- Контрагент (поставщик) --}}
                 @if($filterCounterparties)
                 <div class="col-12 col-sm-6 {{ $colClass }}">
-                    <label class="form-label small text-muted mb-1">Поставщик</label>
+                    <label class="form-label small text-muted mb-1">{{ $counterpartyLabel }}</label>
                     <select name="filter[counterparty_id]" class="form-select" style="border-radius:.4rem">
-                        <option value="">Все поставщики</option>
+                        <option value="">{{ $counterpartyAllLabel }}</option>
                         @foreach($filterCounterparties as $counterparty)
                             <option value="{{ $counterparty->id }}"
                                 {{ request('filter.counterparty_id') == $counterparty->id ? 'selected' : '' }}>

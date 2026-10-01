@@ -47,6 +47,9 @@
         'departmentNoneValue' => $noDepartmentOption,
         'showHiddenOption'   => true,
         'kindOptions'        => $kindOptions,
+        'filterCounterparties' => $filterCounterparties,
+        'counterpartyLabel'    => 'Контрагент',
+        'counterpartyAllLabel' => 'Все контрагенты',
     ])
 
     @include('partials.department-switcher', [

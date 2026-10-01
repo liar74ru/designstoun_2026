@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Counterparty;
 use App\Models\Department;
 use App\Models\Order;
 use App\Models\OrderState;
@@ -80,6 +81,12 @@ class OrderService
             'statusDefaults'     => $defaults,
             'filterDepartments'  => $departments,
             'noDepartmentOption' => self::NO_DEPARTMENT,
+            // Только контрагенты, у которых есть видимые пользователю заявки.
+            'filterCounterparties' => Counterparty::whereIn('id', $this->accessibleOrders(Order::query(), $accessible)
+                    ->whereNotNull('counterparty_id')
+                    ->select('counterparty_id'))
+                ->orderBy('name')
+                ->get(),
             'kindOptions'        => [Order::KIND_CUSTOMER => 'Заявки покупателей', Order::KIND_INTERNAL => 'Внутренние заказы'],
             'assignDepartments'  => $this->assignableDepartments($request->user()),
             'departmentDefaults' => $accessible ?? [],
@@ -123,6 +130,7 @@ class OrderService
                         }
                     });
                 }),
+                AllowedFilter::exact('counterparty_id'),
                 AllowedFilter::callback('kind', fn ($q, $v) =>
                     $q->where('kind', $v === Order::KIND_INTERNAL ? Order::KIND_INTERNAL : Order::KIND_CUSTOMER)),
                 // Не фильтр выборки, а режим отображения позиций — см. getIndexData().
@@ -131,18 +139,29 @@ class OrderService
             // Заявки без отдела видны всем — их отдел назначают из списка — но по умолчанию
             // скрыты: показываются только при отмеченном «Без отдела».
             // Внутренний заказ видит и заказчик — это его исходящий заказ.
-            ->when($accessible !== null, fn ($q) =>
-                $q->where(fn ($w) => $w
-                    ->whereHas('departments', fn ($d) =>
-                        $d->whereIn('departments.id', $accessible ?: [-1]))
-                    ->orWhereDoesntHave('departments')
-                    ->orWhereIn('customer_department_id', $accessible ?: [-1])))
+            ->tap(fn ($q) => $this->accessibleOrders($q, $accessible))
             ->when(! $request->has('filter.department_id'), fn ($q) =>
                 $q->has('departments'))
             // Фильтр статусов не пришёл — показываем набор, отмеченный админом «по умолчанию».
             // Проверяем наличие ключа: пустой filter[status] форма не присылает вовсе.
             ->when(! $request->has('filter.status') && $defaults !== [], fn ($q) =>
                 $q->whereIn('state_name', $defaults));
+    }
+
+    /**
+     * Заявки отделов пользователя, заявки без отдела и внутренние заказы его отделов-заказчиков.
+     * $accessible === null — админ, без ограничений.
+     *
+     * @param  array<int, int>|null  $accessible
+     */
+    private function accessibleOrders($query, ?array $accessible)
+    {
+        return $query->when($accessible !== null, fn ($q) =>
+            $q->where(fn ($w) => $w
+                ->whereHas('departments', fn ($d) =>
+                    $d->whereIn('departments.id', $accessible ?: [-1]))
+                ->orWhereDoesntHave('departments')
+                ->orWhereIn('customer_department_id', $accessible ?: [-1])));
     }
 
     /**
