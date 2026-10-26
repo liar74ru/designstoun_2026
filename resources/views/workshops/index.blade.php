@@ -68,7 +68,7 @@
                     <div class="col-12 col-sm-6 col-lg-4">
                         <label class="form-label small text-muted mb-1">Статус</label>
                         <div class="d-flex flex-wrap gap-2 mt-1 px-2 py-2 rounded" style="background:#f8f9fa;border:1px solid #e9ecef">
-                            @php $statusDefaults = ['active','error']; @endphp
+                            @php $statusDefaults = []; @endphp
                             @foreach(['active' => 'Активна', 'completed' => 'Закрыта', 'error' => 'Ошибка'] as $val => $lbl)
                                 <div class="form-check mb-0">
                                     <input class="form-check-input" type="checkbox" name="filter[status][]" value="{{ $val }}" id="status_{{ $val }}"

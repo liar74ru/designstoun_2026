@@ -127,12 +127,13 @@ class WorkshopService
             ->when($request->filled('date_to'), fn($q) =>
                 $q->whereDate('created_at', '<=', $request->date_to))
             ->when(
-                !array_key_exists('status', $request->input('filter', [])),
-                fn($q) => $q->whereIn('status', ['active', 'error'])
-            )
-            ->when(
                 $accessible !== null && !array_key_exists('department_id', $request->input('filter', [])),
                 fn($q) => $q->whereIn('workshops.department_id', $accessible ?: [-1])
+            )
+            // Сначала незавершённые, затем закрытые с ошибкой синхронизации, затем закрытые
+            ->orderByRaw(
+                'CASE WHEN status <> ? THEN 0 WHEN moysklad_sync_status = ? THEN 1 ELSE 2 END',
+                [Workshop::STATUS_COMPLETED, Workshop::SYNC_STATUS_NOT_SYNCED]
             )
             ->orderBy('created_at', 'desc')
             ->paginate(20)
