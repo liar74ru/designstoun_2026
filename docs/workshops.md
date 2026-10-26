@@ -141,8 +141,9 @@
 
 ## 10. Список и доступ
 
-- По умолчанию видны все операции ваших отделов; фильтр позволяет выбрать статус, отдел,
-  работника, сырьё, тип упаковки и состояние синхронизации.
+- По умолчанию видны все операции ваших отделов. Фильтр: период (кнопки «Тек. нед.»,
+  «1 нед. назад», «2 нед. назад», «Всё время» или даты вручную), работник, сырьё, продукт на
+  выходе, тип упаковки, статус, состояние синхронизации и отдел.
 - Порядок списка: сначала незавершённые, затем закрытые с ошибкой синхронизации с МойСклад,
   затем остальные закрытые. Внутри каждой группы новые — сверху.
 - Операции **чужого отдела** смотреть можно, менять нельзя: кнопки правки, закрытия, удаления,
@@ -166,7 +167,7 @@
 | 7. Зарплата | `WorkshopService::createProductItem`, `updateItemCoeff`, `refreshItemCoeffs`; `WorkshopItem::effectiveProdCost`; снятые sku-правила — `workshop_items.disabled_modifier_keys` | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `Modifier/DisabledSkuModifierTest` |
 | 8. МойСклад | `Moysklad\WorkshopSyncService::syncWorkshop`, `createProcessingForWorkshop`, `updateProcessingProducts`, `computeProcessingSum`, `buildWorkshopDescription` | `tests/Feature/Moysklad/WorkshopSyncServiceTest`, `WorkshopProcessingUpdateTest` |
 | 9. Статусы, удаление | `WorkshopService::markCompleted`, `resetStatus`, `delete` | `WorkshopServiceTest`, `WorkshopResetStatusTest` |
-| 10. Список и доступ | `WorkshopService::getFilteredWorkshops` (порядок групп — `orderByRaw`), `WorkshopPolicy::modify` | `WorkshopIndexOrderTest`, `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
+| 10. Список и доступ | `WorkshopService::getFilteredWorkshops` (порядок групп — `orderByRaw`), `WorkshopPolicy::modify` | `WorkshopIndexOrderTest`, `WorkshopIndexFilterTest`, `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
 
 Заметки:
 

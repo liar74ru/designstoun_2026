@@ -6,6 +6,7 @@
       $filterRawProducts  — Collection|null  (null = скрыть поле)
       $rawProductParam    — string: 'raw_product_id' | 'raw_material_product_id' | 'product_id'
       $filterProducts     — Collection|null  (null = скрыть product-picker)
+      $filterPackageProducts — Collection|null  (null = скрыть select «Тип упаковки», filter[package_product_id], цех)
       $showStatus         — false | 'multi' | 'single'
       $statusOptions      — array [ value => label ] (для multi и single)
       $filterDepartments  — Collection|null  (null = скрыть multi-select отделов)
@@ -23,6 +24,7 @@
     $filterCutters      = $filterCutters      ?? null;
     $filterRawProducts  = $filterRawProducts  ?? null;
     $filterProducts     = $filterProducts     ?? null;
+    $filterPackageProducts = $filterPackageProducts ?? null;
     $showStatus         = $showStatus         ?? false;
     $statusOptions      = $statusOptions      ?? [];
     $statusDefaults     = $statusDefaults     ?? [];
@@ -42,6 +44,7 @@
                    + ($kindOptions ? 1 : 0)
                    + ($filterRawProducts ? 1 : 0)
                    + ($filterProducts    ? 1 : 0)
+                   + ($filterPackageProducts ? 1 : 0)
                    + ($showStatus !== false ? 1 : 0)
                    + (!empty($showSyncStatus) ? 1 : 0)
                    + ($filterDepartments ? 1 : 0);
@@ -179,6 +182,21 @@
                 </div>
                 @endif
 
+                {{-- Тип упаковки --}}
+                @if($filterPackageProducts)
+                <div class="col-12 col-sm-6 {{ $colClass }}">
+                    <label class="form-label small text-muted mb-1">Тип упаковки</label>
+                    <select name="filter[package_product_id]" class="form-select" style="border-radius:.4rem">
+                        <option value="">Все</option>
+                        @foreach($filterPackageProducts as $package)
+                            <option value="{{ $package->id }}"
+                                {{ request('filter.package_product_id') == $package->id ? 'selected' : '' }}>
+                                {{ $package->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+
                 {{-- Статус: чекбоксы (multi) --}}
                 @if($showStatus === 'multi')
                 <div class="col-12 col-sm-6 {{ $colClass }}">
@@ -297,6 +315,7 @@
         'filter[{{ $cutterParam }}]',
         'filter[{{ $rawProductParam }}]',
         @if($filterProducts) 'filter[product_id]', @endif
+        @if($filterPackageProducts) 'filter[package_product_id]', @endif
         @if($filterCounterparties) 'filter[counterparty_id]', @endif
         @if($kindOptions) 'filter[kind]', @endif
         @if($showHiddenOption) 'filter[show_hidden]', @endif

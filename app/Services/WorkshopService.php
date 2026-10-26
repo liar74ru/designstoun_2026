@@ -73,8 +73,12 @@ class WorkshopService
 
     public function getFilterData(?Request $request = null): array
     {
+        $filterRawProducts = Product::whereIn('id',
+            WorkshopItem::where('role', WorkshopItem::ROLE_RAW)->distinct()->pluck('product_id')
+        )->orderBy('name')->get();
+
         $filterProducts = Product::whereIn('id',
-            WorkshopItem::distinct()->pluck('product_id')
+            WorkshopItem::where('role', WorkshopItem::ROLE_PRODUCT)->distinct()->pluck('product_id')
         )->orderBy('name')->get();
 
         $filterPackers = Worker::whereIn('id',
@@ -89,7 +93,7 @@ class WorkshopService
         $departmentDefaults = $request?->user()?->accessibleDepartmentIds() ?? [];
 
         return compact(
-            'filterProducts', 'filterPackers', 'filterPackageProducts',
+            'filterRawProducts', 'filterProducts', 'filterPackers', 'filterPackageProducts',
             'filterDepartments', 'departmentDefaults'
         );
     }
@@ -106,9 +110,14 @@ class WorkshopService
                 AllowedFilter::callback('sync_status', function ($query, $value) {
                     $query->whereIn('moysklad_sync_status', is_array($value) ? $value : [$value]);
                 }),
-                AllowedFilter::callback('product_id', function ($query, $value) {
+                AllowedFilter::callback('raw_product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q
                         ->where('role', WorkshopItem::ROLE_RAW)
+                        ->where('product_id', $value));
+                }),
+                AllowedFilter::callback('product_id', function ($query, $value) {
+                    $query->whereHas('items', fn($q) => $q
+                        ->where('role', WorkshopItem::ROLE_PRODUCT)
                         ->where('product_id', $value));
                 }),
                 AllowedFilter::callback('package_product_id', function ($query, $value) {

@@ -23,105 +23,21 @@
     </div>
 
     {{-- ═══════════════════════ ФИЛЬТРЫ ═══════════════════════ --}}
-    <form method="GET" id="filter-form" class="card shadow-sm mb-2 mb-md-4" data-filter-memory>
-        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
-             style="cursor:pointer" id="filter-toggle" role="button">
-            <span class="fw-semibold text-muted small">
-                <i class="bi bi-funnel me-1"></i> Фильтры
-            </span>
-            <i class="bi bi-chevron-down" id="filter-chevron"></i>
-        </div>
-        <div id="filter-collapse" style="display:none">
-            <div class="card-body pb-2">
-                <div class="row g-2 mb-3">
-                    <div class="col-6 col-sm-auto">
-                        <label class="form-label small text-muted mb-1">С</label>
-                        <input type="date" name="date_from" class="form-control" style="border-radius:.4rem" value="{{ request('date_from') }}">
-                    </div>
-                    <div class="col-6 col-sm-auto">
-                        <label class="form-label small text-muted mb-1">По</label>
-                        <input type="date" name="date_to" class="form-control" style="border-radius:.4rem" value="{{ request('date_to') }}">
-                    </div>
-                </div>
-
-                <div class="row g-2">
-                    <div class="col-12 col-sm-6 col-lg-4">
-                        <label class="form-label small text-muted mb-1">Работник</label>
-                        <select name="filter[packer_id]" class="form-select" style="border-radius:.4rem">
-                            <option value="">Все работники</option>
-                            @foreach($filterPackers as $w)
-                                <option value="{{ $w->id }}" {{ request('filter.packer_id') == $w->id ? 'selected' : '' }}>{{ $w->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="col-12 col-sm-6 col-lg-4">
-                        <label class="form-label small text-muted mb-1">Тип упаковки</label>
-                        <select name="filter[package_product_id]" class="form-select" style="border-radius:.4rem">
-                            <option value="">Все</option>
-                            @foreach($filterPackageProducts as $p)
-                                <option value="{{ $p->id }}" {{ request('filter.package_product_id') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="col-12 col-sm-6 col-lg-4">
-                        <label class="form-label small text-muted mb-1">Статус</label>
-                        <div class="d-flex flex-wrap gap-2 mt-1 px-2 py-2 rounded" style="background:#f8f9fa;border:1px solid #e9ecef">
-                            @php $statusDefaults = []; @endphp
-                            @foreach(['active' => 'Активна', 'completed' => 'Закрыта', 'error' => 'Ошибка'] as $val => $lbl)
-                                <div class="form-check mb-0">
-                                    <input class="form-check-input" type="checkbox" name="filter[status][]" value="{{ $val }}" id="status_{{ $val }}"
-                                        {{ in_array($val, (array) request('filter.status', $statusDefaults)) ? 'checked' : '' }}>
-                                    <label class="form-check-label small" for="status_{{ $val }}">{{ $lbl }}</label>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    <div class="col-12 col-sm-6 col-lg-4">
-                        <label class="form-label small text-muted mb-1">Синхронизация МойСклад</label>
-                        <div class="d-flex flex-wrap gap-2 mt-1 px-2 py-2 rounded" style="background:#f0f7ff;border:1px solid #cfe2ff">
-                            @foreach(['synced' => 'Синхр.', 'not_synced' => 'Не синхр.'] as $val => $lbl)
-                                <div class="form-check mb-0">
-                                    <input class="form-check-input" type="checkbox" name="filter[sync_status][]" value="{{ $val }}" id="sync_{{ $val }}"
-                                        {{ in_array($val, (array) request('filter.sync_status', [])) ? 'checked' : '' }}>
-                                    <label class="form-check-label small" for="sync_{{ $val }}">{{ $lbl }}</label>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    @if($filterDepartments->isNotEmpty())
-                        @php $selectedDepartments = (array) request('filter.department_id', $departmentDefaults); @endphp
-                        <div class="col-12 col-sm-6 col-lg-4">
-                            <label class="form-label small text-muted mb-1">Отдел</label>
-                            <div class="d-flex flex-wrap gap-2 mt-1 px-2 py-2 rounded" style="background:#f5f0ff;border:1px solid #e0d4ff">
-                                @foreach($filterDepartments as $dept)
-                                    <div class="form-check mb-0">
-                                        <input class="form-check-input" type="checkbox"
-                                               name="filter[department_id][]" value="{{ $dept->id }}"
-                                               id="dept_{{ $dept->id }}"
-                                            {{ in_array($dept->id, $selectedDepartments) ? 'checked' : '' }}>
-                                        <label class="form-check-label small" for="dept_{{ $dept->id }}">{{ $dept->name }}</label>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
-                </div>
-
-                <div class="d-flex gap-2 mt-2">
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="bi bi-funnel"></i> Применить
-                    </button>
-                    <a href="{{ url()->current() }}" class="btn btn-outline-secondary btn-sm" data-filter-reset>
-                        <i class="bi bi-x-circle"></i> Сбросить
-                    </a>
-                </div>
-            </div>
-        </div>
-    </form>
+    @include('partials.filters', [
+        'filterCutters'         => $filterPackers,
+        'cutterParam'           => 'packer_id',
+        'filterRawProducts'     => $filterRawProducts,
+        'rawProductParam'       => 'raw_product_id',
+        'filterProducts'        => $filterProducts,
+        'filterPackageProducts' => $filterPackageProducts,
+        'showStatus'            => 'multi',
+        'statusOptions'         => ['active' => 'Активна', 'completed' => 'Закрыта', 'error' => 'Ошибка'],
+        'statusDefaults'        => [],
+        'showSyncStatus'        => true,
+        'syncStatusOptions'     => ['synced' => 'Синхр.', 'not_synced' => 'Не синхр.'],
+        'filterDepartments'     => $filterDepartments,
+        'departmentDefaults'    => $departmentDefaults,
+    ])
 
     {{-- ═══════════════════════ ПЛИТКИ ОПЕРАЦИЙ ═══════════════════════ --}}
     @if($workshops->count() > 0)
@@ -253,27 +169,3 @@
 </div>
 @endsection
 
-@push('scripts')
-<script>
-(function () {
-    const collapse = document.getElementById('filter-collapse');
-    const chevron  = document.getElementById('filter-chevron');
-    const toggle   = document.getElementById('filter-toggle');
-
-    const params = new URLSearchParams(window.location.search);
-    const hasActive = params.get('filter[packer_id]') || params.get('filter[package_product_id]')
-        || params.getAll('filter[status][]').length > 0
-        || params.getAll('filter[sync_status][]').length > 0
-        || params.getAll('filter[department_id][]').length > 0
-        || params.get('date_from') || params.get('date_to');
-
-    function applyState(expanded) {
-        collapse.style.display = expanded ? '' : 'none';
-        chevron.className = expanded ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
-    }
-
-    applyState(!!hasActive);
-    toggle.addEventListener('click', () => applyState(collapse.style.display === 'none'));
-})();
-</script>
-@endpush

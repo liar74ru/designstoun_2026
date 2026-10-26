@@ -33,6 +33,7 @@ class WorkshopController extends Controller
     {
         $workshops = $this->service->getFilteredWorkshops($request);
         [
+            'filterRawProducts'     => $filterRawProducts,
             'filterProducts'        => $filterProducts,
             'filterPackers'         => $filterPackers,
             'filterPackageProducts' => $filterPackageProducts,
@@ -41,7 +42,7 @@ class WorkshopController extends Controller
         ] = $this->service->getFilterData($request);
 
         return view('workshops.index', compact(
-            'workshops', 'filterProducts', 'filterPackers', 'filterPackageProducts',
+            'workshops', 'filterRawProducts', 'filterProducts', 'filterPackers', 'filterPackageProducts',
             'filterDepartments', 'departmentDefaults'
         ));
     }
