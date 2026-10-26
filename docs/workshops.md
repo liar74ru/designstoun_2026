@@ -95,9 +95,11 @@
 - Ставка продукта **фиксируется при создании строки**.
 - Правила отдела по артикулу срабатывают сами. **Ручных правил в форме цеха нет** — галочки
   (например, «Подкол > 80%») ставятся потом на странице операции кнопкой **«Коэффициенты»**:
-  там же можно поправить базовый коэффициент пильщику и мастеру.
+  там же можно поправить базовый коэффициент пильщику и мастеру и снять галочку с правила,
+  сработавшего по артикулу, — тогда оно к строке не применяется.
 - **«Обновить коэф.»** — взять коэффициенты из справочника [товаров](products.md) и текущие
-  правила отдела; ранее отмеченные галочки сохраняются.
+  правила отдела; ранее отмеченные галочки сохраняются, снятые автоматические правила остаются
+  снятыми.
 - Оба действия меняют ставку строки целиком — вместе со всей её выработкой, в том числе в
   прошлых неделях.
 
@@ -159,7 +161,7 @@
 | 4. Отдел | `WorkshopService::resolveDepartmentId`, `prepareWorkshopData`, `updateDepartment`; `Workshop::effectiveDepartmentChain` | `WorkshopServiceTest`, `tests/Feature/MasterDashboard/EnterpriseDashboardTest` |
 | 5. Тара | `Workshop::adjustPackageStock`, `adjustAllPackageStock`, `booted` (`deleting`); `WorkshopService::movePackageStock`, `applyPackageDeltas`, `updateStores` | `WorkshopServiceTest` |
 | 6. Правка | `WorkshopService::update`, `syncRoleItems`, `diffItemDeltas`, `writeWorkshopLog`; JS «Итого продукта» в `workshops/edit.blade.php` (спека `docs/superpowers/specs/2026-07-19-workshop-edit-proportional-scaling-design.md`) | `WorkshopServiceTest` |
-| 7. Зарплата | `WorkshopService::createProductItem`, `updateItemCoeff`, `refreshItemCoeffs`; `WorkshopItem::effectiveProdCost` | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest` |
+| 7. Зарплата | `WorkshopService::createProductItem`, `updateItemCoeff`, `refreshItemCoeffs`; `WorkshopItem::effectiveProdCost`; снятые sku-правила — `workshop_items.disabled_modifier_keys` | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `Modifier/DisabledSkuModifierTest` |
 | 8. МойСклад | `Moysklad\WorkshopSyncService::syncWorkshop`, `createProcessingForWorkshop`, `updateProcessingProducts`, `computeProcessingSum`, `buildWorkshopDescription` | `tests/Feature/Moysklad/WorkshopSyncServiceTest`, `WorkshopProcessingUpdateTest` |
 | 9. Статусы, удаление | `WorkshopService::markCompleted`, `resetStatus`, `delete` | `WorkshopServiceTest`, `WorkshopResetStatusTest` |
 | 10. Доступ | `WorkshopService::getFilteredWorkshops`, `WorkshopPolicy::modify` | `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |

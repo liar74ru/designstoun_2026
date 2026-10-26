@@ -26,6 +26,7 @@ class WorkshopItem extends Model
         'is_small_tile',
         'worker_cost_per_m2',
         'master_cost_per_m2',
+        'disabled_modifier_keys',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class WorkshopItem extends Model
         'is_small_tile'               => 'boolean',
         'worker_cost_per_m2'          => 'decimal:2',
         'master_cost_per_m2'          => 'decimal:2',
+        'disabled_modifier_keys'      => 'array',
     ];
 
     public function workshop()

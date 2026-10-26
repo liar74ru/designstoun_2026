@@ -9,6 +9,11 @@
  * правила. Сработавшие по SKU — плашки без чекбокса: пользователь их не
  * выбирает, но должен видеть, откуда взялся коэффициент.
  *
+ * В правке коэффициентов (data-editable-auto="1") сработавшие по SKU правила
+ * тоже чекбоксы — их можно снять у позиции. Отмеченные уходят в тот же
+ * `[modifiers][]`, неотмеченное сервер считает снятым
+ * (ModifierEngine::disabledSkuKeys). Снятые ранее — в data-disabled-keys.
+ *
  * Данные — window.ProductionRates.modifiers (partials/production-rates-js).
  * Подключается глобально через app.js как window.ModifierPicker.
  */
@@ -20,16 +25,28 @@ function readContext(container) {
         departmentId: container.dataset.departmentId || null,
         batchSku: container.dataset.batchSku || null,
         inputName: container.dataset.inputName || '',
-        activeKeys: (container.dataset.activeKeys || '')
-            .split(',')
-            .map((key) => key.trim())
-            .filter(Boolean),
+        editableAuto: container.dataset.editableAuto === '1',
+        activeKeys: splitKeys(container.dataset.activeKeys),
+        disabledKeys: splitKeys(container.dataset.disabledKeys),
     };
 }
 
-/** Ключи правил, отмеченных пользователем в этой строке. */
+function splitKeys(value) {
+    return (value || '')
+        .split(',')
+        .map((key) => key.trim())
+        .filter(Boolean);
+}
+
+/** Ключи ручных правил, отмеченных пользователем в этой строке. */
 export function checkedKeys(container) {
-    return Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
+    return Array.from(container.querySelectorAll('input[type="checkbox"]:not(.modifier-auto):checked'))
+        .map((input) => input.value);
+}
+
+/** Ключи сработавших по SKU правил, снятых пользователем в этой строке. */
+export function disabledKeys(container) {
+    return Array.from(container.querySelectorAll('input.modifier-auto:not(:checked)'))
         .map((input) => input.value);
 }
 
@@ -100,6 +117,32 @@ function badge(rule) {
     return span;
 }
 
+/** Сработавшее по SKU правило, которое можно снять: чекбокс с плашкой вместо подписи. */
+function autoCheckbox(rule, { inputName, checked }) {
+    const id = `mod_${++checkboxSeq}_${rule.key}`;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'form-check mb-0 flex-shrink-0 d-flex align-items-center gap-1';
+    wrapper.title = 'Применяется автоматически по SKU товара — снимите, чтобы не применять';
+
+    const input = document.createElement('input');
+    input.className = 'form-check-input modifier-checkbox modifier-auto';
+    input.type = 'checkbox';
+    input.id = id;
+    input.name = `${inputName}[modifiers][]`;
+    input.value = rule.key;
+    input.checked = checked;
+
+    const label = document.createElement('label');
+    label.className = 'form-check-label';
+    label.setAttribute('for', id);
+    const span = badge(rule);
+    span.removeAttribute('title');
+    label.append(span);
+
+    wrapper.append(input, label);
+    return wrapper;
+}
+
 /**
  * Перерисовать список правил контейнера.
  * Отметки пользователя сохраняются: уже отрисованные чекбоксы важнее
@@ -113,6 +156,9 @@ export function render(container, { sku = null } = {}) {
     const wasChecked = container.dataset.rendered
         ? checkedKeys(container)
         : ctx.activeKeys;
+    const wasDisabled = container.dataset.rendered
+        ? disabledKeys(container)
+        : ctx.disabledKeys;
 
     container.innerHTML = '';
 
@@ -135,7 +181,12 @@ export function render(container, { sku = null } = {}) {
             sku: productSku,
         })
             .filter((rule) => rule.trigger === 'sku')
-            .forEach((rule) => container.append(badge(rule)));
+            .forEach((rule) => container.append(ctx.editableAuto
+                ? autoCheckbox(rule, {
+                    inputName: ctx.inputName,
+                    checked: !wasDisabled.includes(rule.key),
+                })
+                : badge(rule)));
     }
 
     container.dataset.rendered = '1';
@@ -175,6 +226,7 @@ window.ModifierPicker = {
     setBatchSku,
     setProductSku,
     checkedKeys,
+    disabledKeys,
 };
 
 document.addEventListener('DOMContentLoaded', () => renderAll());

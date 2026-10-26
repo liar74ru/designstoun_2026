@@ -450,7 +450,9 @@
                                                          data-batch-sku="{{ $stoneReception->rawMaterialBatch?->product?->sku }}"
                                                          data-sku="{{ $item->product?->sku }}"
                                                          data-input-name="items[{{ $i }}]"
-                                                         data-active-keys="{{ $item->modifiers->pluck('key')->implode(',') }}"></div>
+                                                         data-active-keys="{{ $item->modifiers->pluck('key')->implode(',') }}"
+                                                         data-editable-auto="1"
+                                                         data-disabled-keys="{{ implode(',', $item->disabled_modifier_keys ?? []) }}"></div>
                                                 </td>
                                                 <td class="text-end">
                                                     <div class="d-flex align-items-center justify-content-end" style="height:calc(1.5em + .5rem + 2px)">
@@ -605,6 +607,7 @@ document.addEventListener('DOMContentLoaded', function () {
             scope: 'reception',
             sku: picker?.dataset.sku || null,
             manualKeys: picker ? ModifierPicker.checkedKeys(picker) : [],
+            disabledKeys: picker ? ModifierPicker.disabledKeys(picker) : [],
             batchSku: picker?.dataset.batchSku || null,
         };
         const effective = RateFormula.effectiveCoeff({ ...ctx, baseCoeff: base });

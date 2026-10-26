@@ -97,9 +97,12 @@
 
 - Ставка позиции **фиксируется при её создании**. Правка правил или ставок отдела на неё не влияет.
 - **«Коэффициенты»** — вручную задать базовый коэффициент (пильщику и мастеру) и отметить ручные
-  правила у уже созданных позиций. Так правила ставятся задним числом.
+  правила у уже созданных позиций. Так правила ставятся задним числом. Правила, сработавшие
+  автоматически по артикулу, там тоже с галочкой — её можно снять, и правило к позиции
+  применяться не будет.
 - **«Обновить коэф.»** — взять коэффициенты из справочника [товаров](products.md) и текущие
-  правила отдела; ранее отмеченные галочки сохраняются.
+  правила отдела; ранее отмеченные галочки сохраняются, снятые автоматические правила остаются
+  снятыми.
 - Оба действия меняют ставку позиции целиком — вместе со всей её выработкой, в том числе в
   прошлых неделях.
 
@@ -149,7 +152,7 @@
 | 3. Отдел | `StoneReceptionService::resolveDepartmentId`, `updateDepartment`; `StoneReception::effectiveDepartmentChain` | `ReceptionDepartmentChangeTest` |
 | 4. Статусы | `StoneReceptionService::markCompleted`, `closeBatch`, `resetStatus`; `RawMaterialBatchService::markAsUsed` / `markAsInWork` | `ReceptionActionsTest`, `ReceptionStatusCascadeTest`, `StoneReceptionServiceTest` |
 | 5. Правка | `StoneReceptionService::update`, `updateReceptionItems`, `writeReceptionLog`, `updateLogReceiver`; `HandlesBatchStock::handleBatchChanges` | `StoneReceptionTest`, `ReceptionLogTest`, `ReceptionLogReceiverTest` |
-| 6. Коэффициенты | `StoneReceptionService::updateItemCoeff`, `refreshItemCoeffs`; `Support\ItemCost` | `ReceptionActionsTest`, `ReceptionExtraActionsTest`, `StoneReceptionEdgingFlowTest`, `EdgingCoeffTest` |
+| 6. Коэффициенты | `StoneReceptionService::updateItemCoeff`, `refreshItemCoeffs`; `Support\ItemCost`; снятые sku-правила — `stone_reception_items.disabled_modifier_keys`, `ModifierEngine::disabledSkuKeys` | `ReceptionActionsTest`, `ReceptionExtraActionsTest`, `StoneReceptionEdgingFlowTest`, `EdgingCoeffTest`, `Modifier/DisabledSkuModifierTest` |
 | 7. МойСклад | `Moysklad\StoneReceptionSyncService::syncReception`, `createProcessingForBatch`, `updateProcessingProducts`, `buildReceptionDescription`, `buildCostSummary`; `DocumentNaming` | `ReceptionExtraActionsTest`, `tests/Feature/Moysklad/StoneReceptionSyncServiceTest`, `StoneReceptionProcessingUpdateTest`, `ReceptionDescriptionCostTest` |
 | 8. Удаление | `StoneReceptionService::delete`, `StoneReception::booted` (`deleted`) | `StoneReceptionServiceTest`, `StoneReceptionTest` |
 | 9. Список и доступ | `StoneReceptionService::getFilteredReceptions`, `getFilteredLogs`, `getBatchesWithoutReceptions`; `StoneReceptionPolicy::modify` | `StoneReceptionDepartmentAccessTest`, `BatchesWithoutReceptionsTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |

@@ -454,14 +454,24 @@ class WorkshopService
                 $item = $workshop->productItems()->with('product')->findOrFail($row['item_id']);
 
                 // База — из формы как есть, правилами не переопределяется.
+                // Сработавшие по SKU правила форма шлёт чекбоксами: неотмеченное — снято.
+                $departmentId = $workshop->effectiveDepartmentId();
+                $keys         = $row['modifiers'] ?? [];
+
                 $cost = ItemCost::computeFromBase(
                     $item->product,
                     (float) $row['base_coeff'],
-                    $workshop->effectiveDepartmentId(),
+                    $departmentId,
                     DepartmentModifier::SCOPE_WORKSHOP,
-                    $row['modifiers'] ?? [],
+                    $keys,
                     null,
                     (float) $row['master_base_coeff'],
+                    ModifierEngine::disabledSkuKeys(
+                        $departmentId,
+                        DepartmentModifier::SCOPE_WORKSHOP,
+                        $item->product?->sku,
+                        $keys,
+                    ),
                 );
 
                 $item->update($cost['attributes']);
@@ -481,7 +491,7 @@ class WorkshopService
                 }
 
                 // Ручной выбор восстанавливается из снапшота позиции —
-                // sku-правила движок определит сам по товару.
+                // sku-правила движок определит сам по товару, кроме снятых у позиции.
                 $departmentId = $workshop->effectiveDepartmentId();
 
                 $cost = ItemCost::compute(
@@ -489,6 +499,8 @@ class WorkshopService
                     $departmentId,
                     DepartmentModifier::SCOPE_WORKSHOP,
                     ModifierEngine::manualKeysFromSnapshot($departmentId, $item->modifiers),
+                    null,
+                    $item->disabled_modifier_keys ?? [],
                 );
 
                 $item->update($cost['attributes']);

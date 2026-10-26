@@ -25,6 +25,7 @@ class ItemCost
      * @param  string[]  $manualKeys Ключи ручных правил, отмеченных в форме
      * @param  ?string   $batchSku   SKU партии сырья — для правил с условием
      *                               доступности; null, если контекста партии нет
+     * @param  string[]  $disabledKeys Ключи sku-правил, снятых у позиции
      * @return array{attributes: array, modifiers: Collection<int, DepartmentModifier>}
      */
     public static function compute(
@@ -33,6 +34,7 @@ class ItemCost
         string $scope,
         array $manualKeys = [],
         ?string $batchSku = null,
+        array $disabledKeys = [],
     ): array {
         $baseCoeff = (float) ($product?->prod_cost_coeff ?? 0);
 
@@ -42,6 +44,7 @@ class ItemCost
             $product?->sku,
             $manualKeys,
             $batchSku,
+            $disabledKeys,
         );
 
         $effCoeff    = ModifierEngine::workerCoeff($baseCoeff, $applied);
@@ -65,6 +68,7 @@ class ItemCost
                 'master_cost_per_m2'   => $product
                     ? RateFormula::stepped(DepartmentSettings::masterBaseRate($departmentId), $masterCoeff)
                     : null,
+                'disabled_modifier_keys' => $disabledKeys ?: null,
             ],
             'modifiers' => $applied,
         ];
@@ -85,8 +89,9 @@ class ItemCost
         array $manualKeys = [],
         ?string $batchSku = null,
         ?float $masterBaseCoeff = null,
+        array $disabledKeys = [],
     ): array {
-        $result = self::compute($product, $departmentId, $scope, $manualKeys, $batchSku);
+        $result = self::compute($product, $departmentId, $scope, $manualKeys, $batchSku, $disabledKeys);
 
         $applied  = $result['modifiers'];
         $effCoeff = ModifierEngine::workerCoeff($baseCoeff, $applied);

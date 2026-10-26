@@ -68,11 +68,12 @@ class ModifierEngine
     /**
      * Какие правила сработали для позиции.
      *
-     * sku-правила срабатывают автоматически по маске SKU продукта;
-     * manual-правила — только если их ключ пришёл из формы и правило доступно
-     * при данной партии сырья.
+     * sku-правила срабатывают автоматически по маске SKU продукта, если
+     * пользователь не снял их у позиции; manual-правила — только если их ключ
+     * пришёл из формы и правило доступно при данной партии сырья.
      *
-     * @param  string[] $manualKeys Ключи ручных правил, отмеченных пользователем
+     * @param  string[] $manualKeys   Ключи ручных правил, отмеченных пользователем
+     * @param  string[] $disabledKeys Ключи sku-правил, снятых у позиции
      * @return Collection<int, DepartmentModifier>
      */
     public static function resolve(
@@ -81,17 +82,43 @@ class ModifierEngine
         ?string $productSku,
         array $manualKeys = [],
         ?string $batchSku = null,
+        array $disabledKeys = [],
     ): Collection {
         return self::rulesFor($departmentId, $scope)
-            ->filter(function (DepartmentModifier $rule) use ($productSku, $manualKeys, $batchSku) {
+            ->filter(function (DepartmentModifier $rule) use ($productSku, $manualKeys, $batchSku, $disabledKeys) {
                 if ($rule->trigger === DepartmentModifier::TRIGGER_SKU) {
-                    return $rule->matchesSku($productSku);
+                    return $rule->matchesSku($productSku)
+                        && !in_array($rule->key, $disabledKeys, true);
                 }
 
                 return in_array($rule->key, $manualKeys, true)
                     && $rule->availableForBatchSku($batchSku);
             })
             ->values();
+    }
+
+    /**
+     * Какие sku-правила пользователь снял в форме правки коэффициентов.
+     *
+     * Форма рисует сработавшие по SKU правила чекбоксами и шлёт ключи отмеченных
+     * вместе с ручными: сработавшее, но не пришедшее — снято.
+     *
+     * @param  string[] $submittedKeys Все ключи, отмеченные в форме
+     * @return string[]
+     */
+    public static function disabledSkuKeys(
+        ?int $departmentId,
+        string $scope,
+        ?string $productSku,
+        array $submittedKeys,
+    ): array {
+        return self::rulesFor($departmentId, $scope)
+            ->filter(fn (DepartmentModifier $rule) => $rule->trigger === DepartmentModifier::TRIGGER_SKU
+                && $rule->matchesSku($productSku)
+                && !in_array($rule->key, $submittedKeys, true))
+            ->pluck('key')
+            ->values()
+            ->all();
     }
 
     /**

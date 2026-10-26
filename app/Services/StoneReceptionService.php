@@ -608,14 +608,24 @@ class StoneReceptionService
 
                 // База берётся из формы как есть: правила её не переопределяют,
                 // поэтому повторное сохранение не сдвигает коэффициент.
+                // Сработавшие по SKU правила форма шлёт чекбоксами: неотмеченное — снято.
+                $departmentId = $this->modifierDepartmentId($reception);
+                $keys         = $row['modifiers'] ?? [];
+
                 $cost = ItemCost::computeFromBase(
                     $item->product,
                     (float) $row['base_coeff'],
-                    $this->modifierDepartmentId($reception),
+                    $departmentId,
                     DepartmentModifier::SCOPE_RECEPTION,
-                    $row['modifiers'] ?? [],
+                    $keys,
                     $this->batchSku($reception),
                     (float) $row['master_base_coeff'],
+                    ModifierEngine::disabledSkuKeys(
+                        $departmentId,
+                        DepartmentModifier::SCOPE_RECEPTION,
+                        $item->product?->sku,
+                        $keys,
+                    ),
                 );
 
                 $item->update($cost['attributes']);
@@ -639,6 +649,7 @@ class StoneReceptionService
                 // Массовый пересчёт от актуального коэффициента справочника.
                 // Ручной выбор пользователя восстанавливается из снапшота позиции:
                 // sku-правила движок определит сам, а отметки — больше неоткуда.
+                // Снятые у позиции sku-правила остаются снятыми.
                 $departmentId = $this->modifierDepartmentId($reception);
 
                 $cost = ItemCost::compute(
@@ -647,6 +658,7 @@ class StoneReceptionService
                     DepartmentModifier::SCOPE_RECEPTION,
                     ModifierEngine::manualKeysFromSnapshot($departmentId, $item->modifiers),
                     $this->batchSku($reception),
+                    $item->disabled_modifier_keys ?? [],
                 );
 
                 $item->update($cost['attributes']);

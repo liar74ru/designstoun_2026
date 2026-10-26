@@ -84,14 +84,15 @@ export function manualRules({ departmentId, scope, batchSku = null }) {
 
 /**
  * Какие правила сработали. Зеркало ModifierEngine::resolve():
- * sku-правила — автоматически по маске, ручные — по отмеченным ключам.
+ * sku-правила — автоматически по маске, кроме снятых у позиции (disabledKeys),
+ * ручные — по отмеченным ключам.
  */
-export function resolve({ departmentId, scope, sku = null, manualKeys = [], batchSku = null }) {
+export function resolve({ departmentId, scope, sku = null, manualKeys = [], batchSku = null, disabledKeys = [] }) {
     return modifiersFor(departmentId).filter((rule) => {
         if (!appliesToScope(rule, scope)) return false;
 
         if (rule.trigger === 'sku') {
-            return matchesPattern(sku, rule.sku_pattern);
+            return matchesPattern(sku, rule.sku_pattern) && !disabledKeys.includes(rule.key);
         }
 
         return manualKeys.includes(rule.key) && availableForBatchSku(rule, batchSku);
@@ -107,8 +108,8 @@ export function stepped(rate, coeff) {
 }
 
 /** Итоговый коэффициент пильщика: база плюс сумма сработавших правил. */
-export function effectiveCoeff({ baseCoeff, departmentId, scope, sku = null, manualKeys = [], batchSku = null }) {
-    const applied = resolve({ departmentId, scope, sku, manualKeys, batchSku });
+export function effectiveCoeff({ baseCoeff, departmentId, scope, sku = null, manualKeys = [], batchSku = null, disabledKeys = [] }) {
+    const applied = resolve({ departmentId, scope, sku, manualKeys, batchSku, disabledKeys });
 
     return applied.reduce(
         (coeff, rule) => coeff + Number(rule.worker_coeff_delta ?? 0),
@@ -120,8 +121,8 @@ export function effectiveCoeff({ baseCoeff, departmentId, scope, sku = null, man
  * Итоговый коэффициент мастера: база мастера плюс master-слагаемые сработавших правил.
  * Зеркало ModifierEngine::masterCoeff().
  */
-export function masterEffectiveCoeff({ baseCoeff, departmentId, scope, sku = null, manualKeys = [], batchSku = null }) {
-    const applied = resolve({ departmentId, scope, sku, manualKeys, batchSku });
+export function masterEffectiveCoeff({ baseCoeff, departmentId, scope, sku = null, manualKeys = [], batchSku = null, disabledKeys = [] }) {
+    const applied = resolve({ departmentId, scope, sku, manualKeys, batchSku, disabledKeys });
 
     return applied.reduce(
         (coeff, rule) => coeff + Number(rule.master_coeff_delta ?? 0),
