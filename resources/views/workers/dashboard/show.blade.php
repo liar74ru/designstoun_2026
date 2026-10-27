@@ -111,10 +111,18 @@
                             <span class="small text-success">{{ number_format($dept['totalPay'], 0, ',', ' ') }} ₽</span>
                         @endif
                     </div>
-                    @if($canSeePay)
+                    {{-- Ставка и заголовок роли — только по ролям, в которых человек работал:
+                         пильщику ставку мастера знать незачем, а единственная роль подписи не требует --}}
+                    @php
+                        $deptRates = array_filter([
+                            $dept['worker'] ? 'пильщика ' . number_format($dept['rates']['piece'], 0, ',', ' ') . ' ₽/ед' : null,
+                            $dept['master'] ? 'база мастера ' . number_format($dept['rates']['base'], 0, ',', ' ') . ' ₽/м²' : null,
+                        ]);
+                        $bothRoles = $dept['worker'] && $dept['master'];
+                    @endphp
+                    @if($canSeePay && $deptRates)
                         <div class="px-3 py-1 border-bottom text-muted" style="font-size:.75rem">
-                            Ставки отдела: пильщика {{ number_format($dept['rates']['piece'], 0, ',', ' ') }} ₽/ед,
-                            база мастера {{ number_format($dept['rates']['base'], 0, ',', ' ') }} ₽/м²
+                            Ставки отдела: {{ implode(', ', $deptRates) }}
                             (без коэффициента продукта)
                         </div>
                     @endif
@@ -124,15 +132,17 @@
                         'master' => ['Как мастер', 'bi-clipboard-check', 'totalMasterPay', 'partials.dashboard-master-summary-table'],
                     ] as $role => [$roleLabel, $roleIcon, $payKey, $table])
                         @continue(!$dept[$role])
-                        <div class="px-3 py-1 bg-light border-bottom d-flex justify-content-between align-items-center small">
-                            <span class="fw-semibold"><i class="bi {{ $roleIcon }} me-1"></i>{{ $roleLabel }}</span>
-                            <span class="text-muted">
-                                <span class="me-2">{{ number_format($dept[$role]['totalQuantity'], 3, ',', ' ') }} м²</span>
-                                @if($canSeePay)
-                                    <span class="text-success">{{ number_format($dept[$role][$payKey], 0, ',', ' ') }} ₽</span>
-                                @endif
-                            </span>
-                        </div>
+                        @if($bothRoles)
+                            <div class="px-3 py-1 bg-light border-bottom d-flex justify-content-between align-items-center small">
+                                <span class="fw-semibold"><i class="bi {{ $roleIcon }} me-1"></i>{{ $roleLabel }}</span>
+                                <span class="text-muted">
+                                    <span class="me-2">{{ number_format($dept[$role]['totalQuantity'], 3, ',', ' ') }} м²</span>
+                                    @if($canSeePay)
+                                        <span class="text-success">{{ number_format($dept[$role][$payKey], 0, ',', ' ') }} ₽</span>
+                                    @endif
+                                </span>
+                            </div>
+                        @endif
                         <div class="table-responsive">
                             @include($table, [
                                 'rows'           => $dept[$role]['summary'],

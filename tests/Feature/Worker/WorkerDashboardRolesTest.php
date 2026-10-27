@@ -18,7 +18,8 @@ use Carbon\Carbon;
 
 /**
  * Единая страница выработки: карточка на отдел документа, внутри — таблицы
- * «Как работник» и «Как мастер»; суммы видят только сам человек и админ.
+ * по ролям (подписи «Как работник» / «Как мастер» — только когда в отделе обе роли);
+ * суммы видят только сам человек и админ.
  */
 
 function rolesReception(Department $dept, Worker $cutter, Worker $receiver, Product $tile, float $qty): void
@@ -134,8 +135,10 @@ test('работа в двух отделах за неделю — две ка�
     $this->actingAs(User::factory()->create(['worker_id' => $cutter->id, 'is_admin' => false]))
         ->get('/my-work')
         ->assertOk()
-        ->assertSeeInOrder(['Маркетплейс', 'Как работник', 'Цех', 'Как работник'])
-        ->assertDontSee('Как мастер');
+        ->assertSeeInOrder(['Маркетплейс', 'Цех'])
+        ->assertDontSee('Как работник')
+        ->assertDontSee('Как мастер')
+        ->assertDontSee('база мастера');
 });
 
 test('мастер, который и принимал, и пилил, видит в отделе обе таблицы', function () {
@@ -193,7 +196,6 @@ test('мастер на странице работника своего отд�
     $this->actingAs(User::factory()->create(['worker_id' => $master->id, 'is_admin' => false]))
         ->get(route('worker.dashboard.by-id', $cutter->id))
         ->assertOk()
-        ->assertSee('Как работник')
         ->assertSee('7,000')
         ->assertDontSee('Итого к выплате')
         ->assertDontSee('Ставки отдела')
@@ -213,5 +215,7 @@ test('админ на чужой странице видит суммы', functi
         ->assertOk()
         ->assertSee('Итого к выплате')
         ->assertSee('Ставки отдела')
+        ->assertSee('пильщика')
+        ->assertDontSee('база мастера')
         ->assertSee('700 ₽');
 });
