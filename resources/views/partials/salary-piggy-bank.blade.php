@@ -55,7 +55,7 @@
             </div>
             <div class="col-6 col-md-3">
                 <div class="text-muted small">{{ $toBank < 0 ? 'Из копилки' : 'В копилку' }}</div>
-                <div class="fw-semibold">{{ $rub(abs($toBank)) }}</div>
+                <div class="fw-semibold {{ $toBank < 0 ? 'text-danger' : 'text-success' }}">{{ $rub(abs($toBank)) }}</div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="text-muted small">
@@ -92,12 +92,17 @@
                 @method('PATCH')
                 <div>
                     <label class="form-label small text-muted mb-1">Хочу получить, ₽</label>
-                    {{-- Ввод вручную округляется до ближайшего кратного шагу, стрелки шагают на него же --}}
-                    <input type="number" name="amount" min="0" step="{{ $step }}" data-salary-step="{{ $step }}"
-                           @unless($isAdmin) max="{{ $salary['maxRequest'] }}" @endunless
-                           value="{{ old('amount', round($salary['toPay'] / $step) * $step) }}"
-                           class="form-control form-control-sm @error('amount') is-invalid @enderror"
-                           style="width:9rem;border-radius:.4rem">
+                    {{-- Ввод вручную округляется до ближайшего кратного шагу, кнопки −/+ шагают на него же --}}
+                    <div class="input-group input-group-sm" style="width:12rem">
+                        <button type="button" class="btn btn-outline-secondary" data-salary-step-btn="-1"
+                                title="−{{ $step }} ₽"><i class="bi bi-dash-lg"></i></button>
+                        <input type="number" name="amount" min="0" step="{{ $step }}" data-salary-step="{{ $step }}"
+                               @unless($isAdmin) max="{{ $salary['maxRequest'] }}" @endunless
+                               value="{{ old('amount', round($salary['toPay'] / $step) * $step) }}"
+                               class="form-control text-center @error('amount') is-invalid @enderror">
+                        <button type="button" class="btn btn-outline-secondary" data-salary-step-btn="1"
+                                title="+{{ $step }} ₽"><i class="bi bi-plus-lg"></i></button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-sm btn-primary">Сохранить</button>
                 @if($salary['isRequested'])
@@ -275,14 +280,26 @@
                 try { localStorage.setItem(STORAGE_KEY, isHidden ? 'open' : 'closed'); } catch (e) {}
             });
 
-            // ── «Хочу получить»: ручной ввод — к ближайшему кратному шагу в пределах min/max ──
+            // ── «Хочу получить»: ручной ввод — к ближайшему кратному шагу в пределах min/max,
+            //    кнопки −/+ — на шаг от округлённого значения ──
             document.querySelectorAll('[data-salary-step]').forEach(function (input) {
-                input.addEventListener('change', function () {
-                    if (input.value === '') return;
-                    const step = Number(input.dataset.salaryStep);
-                    let v = Math.round(Number(input.value) / step) * step;
+                const step = Number(input.dataset.salaryStep);
+
+                function snap(value) {
+                    let v = Math.round(value / step) * step;
                     if (input.max !== '') v = Math.min(v, Number(input.max));
-                    input.value = Math.max(0, v);
+                    return Math.max(0, v);
+                }
+
+                input.addEventListener('change', function () {
+                    if (input.value !== '') input.value = snap(Number(input.value));
+                });
+
+                input.closest('.input-group').querySelectorAll('[data-salary-step-btn]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        const current = snap(Number(input.value) || 0);
+                        input.value = snap(current + Number(btn.dataset.salaryStepBtn) * step);
+                    });
                 });
             });
         });
