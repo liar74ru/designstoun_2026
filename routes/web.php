@@ -13,6 +13,7 @@ use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
 use App\Http\Controllers\Admin\DepartmentModifierController;
 use App\Http\Controllers\Admin\OrderStateController;
+use App\Http\Controllers\Admin\SkuColorController;
 use App\Http\Controllers\Admin\WorkshopPresetController;
 use App\Http\Controllers\AdminSettingController;
 use App\Http\Controllers\DepartmentController;
@@ -250,6 +251,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('admin')->name('admin.')->middleware('can:manage-admin')->group(function () {
         Route::get('/settings',  [AdminSettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
+        Route::post('/sku-colors', [SkuColorController::class, 'update'])->name('sku-colors.update');
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
         Route::patch('/departments/{department}/operations', [DepartmentController::class, 'updateOperations'])->name('departments.operations.update');
         Route::patch('/departments/{department}/cost-settings', [DepartmentController::class, 'updateCostSettings'])->name('departments.cost-settings.update');

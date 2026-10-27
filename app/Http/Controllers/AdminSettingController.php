@@ -5,18 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Setting;
 use App\Models\Store;
+use App\Services\SkuColorService;
 use App\Support\ProductionRates;
 use Illuminate\Http\Request;
 
 class AdminSettingController extends Controller
 {
-    public function index()
+    public function index(SkuColorService $skuColorService)
     {
         $settings    = Setting::orderBy('id')->get();
         $departments = Department::orderBy('name')->get();
         $stores      = Store::where('archived', false)->orderBy('name')->get();
+        $skuColors   = $skuColorService->all();
 
-        return view('admin.settings.index', compact('settings', 'departments', 'stores'));
+        return view('admin.settings.index', compact('settings', 'departments', 'stores', 'skuColors'));
     }
 
     public function update(Request $request)

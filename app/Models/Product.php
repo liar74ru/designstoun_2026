@@ -50,43 +50,28 @@ class Product extends Model
         return \App\Support\DepartmentSettings::pieceRate($departmentId);
     }
 
-    /**
-     * Цветовая дифференциация по SKU-группе сырья.
-     * Ключ — первые два сегмента SKU (например, "01-01").
-     * Используется для визуальной маркировки карточек и блоков.
-     */
-    const SKU_COLORS = [
-        // Сырьё (01-xx)
-        '01-01' => '#BFBFBF', // Кварцит
-        '01-02' => '#F4B084', // Серицит
-        '01-04' => '#FFC000', // Кора дерева
-        '01-06' => '#FFFF00', // Златолит
-        '01-07' => '#92D050', // Сланец зелёный
-        '01-08' => '#000000', // Чёрный сланец
-        '01-09' => '#BF8F00', // Кварцит чёрный
-        '01-10' => '#E2EFDA', // Златолит зелёный
-        // Готовая продукция (04-xx) — те же цвета что и соответствующее сырьё
-        '04-01' => '#BFBFBF', // Кварцит
-        '04-02' => '#F4B084', // Серицит
-        '04-04' => '#FFC000', // Кора дерева
-        '04-06' => '#FFFF00', // Златолит
-        '04-07' => '#92D050', // Сланец зелёный
-        '04-08' => '#000000', // Чёрный сланец
-        '04-09' => '#BF8F00', // Кварцит чёрный
-        '04-10' => '#E2EFDA', // Златолит зелёный
-    ];
+    /** Карта «префикс → цвет» на время запроса: getColorBySku() зовётся в каждой строке списков. */
+    private static ?array $skuColorMemo = null;
 
     /**
      * Возвращает цвет по SKU продукта.
-     * Сопоставление идёт по первым двум сегментам SKU ("01-01").
-     * Если совпадение не найдено — возвращает белый (#FFFFFF).
+     * Сначала ищется префикс из двух сегментов ("01-05"), затем цвет группы — первый сегмент ("01").
+     * Цвета — таблица sku_colors (правит админ в «Настройках»). Не нашлось — белый (#FFFFFF).
      */
     public static function getColorBySku(?string $sku): string
     {
         if (!$sku) return '#FFFFFF';
-        $parts  = explode('-', $sku);
-        $prefix = count($parts) >= 2 ? $parts[0] . '-' . $parts[1] : $parts[0];
-        return self::SKU_COLORS[$prefix] ?? '#FFFFFF';
+        $parts = explode('-', $sku);
+        self::$skuColorMemo ??= SkuColor::map();
+        if (count($parts) >= 2 && isset(self::$skuColorMemo[$parts[0] . '-' . $parts[1]])) {
+            return self::$skuColorMemo[$parts[0] . '-' . $parts[1]];
+        }
+        return self::$skuColorMemo[$parts[0]] ?? '#FFFFFF';
+    }
+
+    public static function forgetSkuColorMemo(): void
+    {
+        self::$skuColorMemo = null;
     }
 
     /**

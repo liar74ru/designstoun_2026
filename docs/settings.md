@@ -32,10 +32,15 @@
   и «завершена» (операцию закрыли). По ним программа переводит техоперации приёмки и цеха;
   имя должно совпадать с МойСклад символ в символ.
 - **Склады по умолчанию для отделов** — только просмотр, правятся в карточке отдела.
+- **Цвета по SKU** — цвет полосы и фона карточек по типу камня. Строка — цвет, название и
+  префиксы SKU через запятую (первые два сегмента: «01-07, 04-07» — сырьё и плитка). Новый SKU
+  того же камня — допишите префикс к его цвету. Префикс из одного сегмента («01») — цвет всей
+  группы: его получают SKU группы, у которых нет своего префикса из двух сегментов. Один
+  префикс — только у одного цвета. SKU без подходящего префикса остаётся белым. Сохраняется своей кнопкой внутри блока.
 - Надбавки за подкол, торцовку, плитку-маску и мелкую плитку задаются не здесь, а правилами
   себестоимости в карточке отдела (раздел 3). Общих коэффициентов для них больше нет.
 
-Кнопка **«Сохранить»** внизу сохраняет все поля страницы сразу.
+Кнопка **«Сохранить»** внизу сохраняет все поля страницы сразу, кроме цветов по SKU.
 
 ## 3. Карточка отдела
 
@@ -140,6 +145,7 @@
 | Раздел | Код | Тесты (`tests/Feature/...`) |
 |---|---|---|
 | 1–2. Настройки системы | `AdminSettingController`, `Setting`, `DepartmentSettings`; `config/department_settings.php` | `AdminSettings/AdminSettingControllerTest`, `AdminSettings/DepartmentSettingsTest`, `AdminSettings/SettingModelTest` |
+| 2. Цвета по SKU | `Admin\SkuColorController`, `SkuColorRequest`, `SkuColorService`, `SkuColor`, `Product::getColorBySku` | `AdminSettings/SkuColorTest` |
 | 3. Отдел: основное | `DepartmentController` (`store`, `update`, `destroy`) | `Department/DepartmentControllerTest` |
 | 3. Права на операции | `DepartmentController::updateOperations`, `OperationAccessor`, `config/department_operations.php` | `AdminSettings/DepartmentOperationsTest` |
 | 3. Ставки | `DepartmentController::updateCostSettings`, `DepartmentSettings` | `AdminSettings/DepartmentCostSettingsControllerTest`, `AdminSettings/DepartmentPieceRateTest` |
