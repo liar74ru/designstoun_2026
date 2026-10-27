@@ -8,17 +8,45 @@
 @endphp
 
 <div class="card border-0 shadow-sm mb-3" id="salary">
-    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center gap-2"
+         style="cursor:pointer" id="salary-toggle" role="button">
         <span class="fw-semibold"><i class="bi bi-piggy-bank me-1"></i>Копилка и выдача</span>
-        <span class="small text-muted">
-            @if($salary['isOpen'])
-                К выдаче за {{ $salary['periodFrom']->format('d.m') }} — {{ $salary['periodTo']->copy()->subSecond()->format('d.m') }}
-            @else
-                Неделя с {{ $salary['periodFrom']->format('d.m') }} · выплата — с {{ $salary['nextCutoff']->translatedFormat('D d.m H:i') }}
-            @endif
+        <span class="d-flex align-items-center gap-2">
+            <span class="fw-bold {{ $salary['balance'] < 0 ? 'text-danger' : 'text-success' }}">{{ $rub($salary['balance']) }}</span>
+            <i class="bi bi-chevron-down" id="salary-chevron"></i>
         </span>
     </div>
-    <div class="card-body py-2 px-3">
+    <div class="card-body py-2 px-3" id="salary-collapse" style="display:none"
+         data-force-open="{{ $errors->hasAny(['amount', 'paid_cash', 'paid_card', 'paid_tax', 'paid', 'piggy_amount', 'piggy_comment']) ? 1 : 0 }}">
+
+        <div class="d-flex justify-content-between align-items-center small text-muted mb-2">
+            <span>
+                @if($salary['isOpen'])
+                    Неделя {{ $salary['periodFrom']->format('d.m') }} — {{ $salary['periodTo']->copy()->subSecond()->format('d.m') }}
+                @else
+                    Неделя с {{ $salary['periodFrom']->format('d.m') }} · выплата — с {{ $salary['nextCutoff']->translatedFormat('D d.m H:i') }}
+                @endif
+            </span>
+            <button type="button" class="btn btn-sm btn-link text-muted p-0" title="Как это работает"
+                    data-bs-toggle="collapse" data-bs-target="#salary-help">
+                <i class="bi bi-question-circle"></i>
+            </button>
+        </div>
+
+        <div class="collapse" id="salary-help">
+            <div class="small text-muted bg-light rounded p-2 mb-2">
+                <div>Неделя — с пятницы 00:00 по четверг 23:59. Сумму к выдаче можно менять с четверга {{ config('salary.cutoff_time') }} и до выдачи.</div>
+                <div>По умолчанию к выдаче — начисленное минус {{ config('salary.piggy_percent') }}%, до тысячи; остаток — в копилку.</div>
+                <div>«Хочу получить» — с шагом {{ $salary['requestStep'] }} ₽@unless($isAdmin), не больше {{ $rub($salary['maxRequest']) }}@endunless.
+                    Меньше начисленного — остаток уйдёт в копилку, больше — возьмётся из копилки.</div>
+                <div>Начисленное до выдачи ещё может измениться (приёмки, пересчёт коэффициентов) — сумма к выдаче
+                    останется прежней, разница пройдёт через копилку. Пересчёт уже выданных недель уходит в копилку
+                    при следующей выдаче.</div>
+                @if($isAdmin)
+                    <div>Налог входит в выданное. Начисленное − выданное уходит в копилку.</div>
+                @endif
+            </div>
+        </div>
 
         <div class="row g-2 mb-2">
             <div class="col-6 col-md-3">
@@ -57,16 +85,17 @@
         @endif
 
         @if($canEdit)
+            @php $step = $salary['requestStep']; @endphp
             <form method="POST" action="{{ route('salary.request', $worker) }}" data-submit-guard
                   class="d-flex flex-wrap gap-2 align-items-end border-top pt-2">
                 @csrf
                 @method('PATCH')
                 <div>
                     <label class="form-label small text-muted mb-1">Хочу получить, ₽</label>
-                    <input type="number" name="amount" min="0"
-                           step="{{ $isAdmin ? '0.01' : $salary['requestStep'] }}"
+                    {{-- Ввод вручную округляется до ближайшего кратного шагу, стрелки шагают на него же --}}
+                    <input type="number" name="amount" min="0" step="{{ $step }}" data-salary-step="{{ $step }}"
                            @unless($isAdmin) max="{{ $salary['maxRequest'] }}" @endunless
-                           value="{{ old('amount', round($salary['toPay'], 2)) }}"
+                           value="{{ old('amount', round($salary['toPay'] / $step) * $step) }}"
                            class="form-control form-control-sm @error('amount') is-invalid @enderror"
                            style="width:9rem;border-radius:.4rem">
                 </div>
@@ -76,15 +105,6 @@
                         По умолчанию
                     </button>
                 @endif
-                @unless($isAdmin)
-                    <div class="small text-muted w-100">
-                        Шаг {{ $salary['requestStep'] }} ₽, не больше {{ $rub($salary['maxRequest']) }}.
-                        Меньше начисленного — остаток уйдёт в копилку, больше — возьмётся из копилки.
-                        Начисленное до выдачи ещё может измениться (приёмки, пересчёт коэффициентов) —
-                        сумма к выдаче останется прежней, разница пройдёт через копилку. Пересчёт
-                        уже выданных недель уходит в копилку при следующей выдаче.
-                    </div>
-                @endunless
                 @error('amount')
                     <div class="small text-danger w-100">{{ $message }}</div>
                 @enderror
@@ -114,9 +134,6 @@
                     <button type="submit" class="btn btn-sm btn-success">
                         <i class="bi bi-cash-coin me-1"></i>Зарплата выдана
                     </button>
-                </div>
-                <div class="small text-muted mt-1">
-                    Налог входит в выданное. Начисленное − выданное уходит в копилку.
                 </div>
                 @foreach(['paid_cash', 'paid_card', 'paid_tax', 'paid'] as $field)
                     @error($field) <div class="small text-danger">{{ $message }}</div> @enderror
@@ -232,3 +249,42 @@
         @endif
     </div>
 </div>
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // ── Сворачиваемый блок копилки: по умолчанию свёрнут, ошибки формы раскрывают ──
+            const STORAGE_KEY = 'dashboard_salary_open';
+            const toggle   = document.getElementById('salary-toggle');
+            const collapse = document.getElementById('salary-collapse');
+            const chevron  = document.getElementById('salary-chevron');
+            if (!toggle) return;
+
+            function applyState(open) {
+                collapse.style.display = open ? '' : 'none';
+                chevron.className = open ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+            }
+
+            let saved = null;
+            try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+            applyState(collapse.dataset.forceOpen === '1' || saved === 'open');
+
+            toggle.addEventListener('click', function () {
+                const isHidden = collapse.style.display === 'none';
+                applyState(isHidden);
+                try { localStorage.setItem(STORAGE_KEY, isHidden ? 'open' : 'closed'); } catch (e) {}
+            });
+
+            // ── «Хочу получить»: ручной ввод — к ближайшему кратному шагу в пределах min/max ──
+            document.querySelectorAll('[data-salary-step]').forEach(function (input) {
+                input.addEventListener('change', function () {
+                    if (input.value === '') return;
+                    const step = Number(input.dataset.salaryStep);
+                    let v = Math.round(Number(input.value) / step) * step;
+                    if (input.max !== '') v = Math.min(v, Number(input.max));
+                    input.value = Math.max(0, v);
+                });
+            });
+        });
+    </script>
+@endpush
