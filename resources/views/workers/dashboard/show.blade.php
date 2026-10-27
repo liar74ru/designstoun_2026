@@ -75,6 +75,10 @@
             </div>
         </form>
 
+        @if($salary)
+            @include('partials.salary-piggy-bank', ['worker' => $worker, 'salary' => $salary])
+        @endif
+
         @if($departments->isEmpty())
             <div class="alert alert-info">
                 За выбранный период приёмок не найдено.

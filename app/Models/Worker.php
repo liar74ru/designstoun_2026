@@ -31,12 +31,14 @@ class Worker extends Model
         'position',
         'department_id',
         'archived_at',
+        'requested_payout',
     ];
 
     protected function casts(): array
     {
         return [
-            'archived_at' => 'datetime',
+            'archived_at'      => 'datetime',
+            'requested_payout' => 'float',
         ];
     }
 
@@ -130,5 +132,17 @@ class Worker extends Model
     public function receptionsAsReceiver()
     {
         return $this->hasMany(StoneReception::class, 'receiver_id');
+    }
+
+    /** Выдачи зарплаты (App\Services\SalaryService) */
+    public function salaryPayouts()
+    {
+        return $this->hasMany(SalaryPayout::class);
+    }
+
+    /** Журнал копилки: остаток — сумма amount */
+    public function piggyBankEntries()
+    {
+        return $this->hasMany(PiggyBankEntry::class);
     }
 }

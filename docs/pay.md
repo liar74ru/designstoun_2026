@@ -133,6 +133,41 @@
 
 ---
 
+## 7. Копилка и выдача зарплаты
+
+Блок «Копилка и выдача» на странице выработки видят только сам человек и администратор. Он не
+зависит от периода, выбранного выше: считается по **невыданному периоду**.
+
+- **Расчётная неделя** — с **пятницы 00:00 по четверг 23:59**, как на странице выработки.
+  Приёмки в пятницу относятся уже к следующей неделе, даже если зарплату ещё не выдали.
+  Пока администратор не отметил выдачу, недели складываются: не полученная за прошлую неделю
+  зарплата добавится к текущей.
+- **Распоряжаться выплатой** можно с **четверга 21:00** и до выдачи. До этого времени блок
+  показывает, сколько начислено за неделю, но сумму менять нельзя.
+- Пока зарплату не выдали, начисленное может меняться: приёмки до конца четверга, исправления,
+  пересчёт коэффициентов. Сумма к выдаче, которую выбрал работник, остаётся прежней —
+  **лишнее уходит в копилку, недостающее берётся из копилки**. Если работник сумму не менял,
+  к выдаче пересчитывается автоматически (начислено − 10%).
+- **Перерасчёт после выдачи.** Если коэффициент поправили после «Зарплата выдана», сумма за
+  уже выданную неделю меняется. Эта разница (за последние 4 недели) **целиком уходит в
+  копилку** при следующей выдаче — плюсом или минусом; на сумму к выдаче не влияет. До выдачи
+  блок показывает её строкой «Перерасчёт выданных недель». Приёмки, внесённые в четверг
+  после нажатия «Выдано», учитываются так же.
+- **В копилку** по умолчанию уходит 10% начисленного, округлённые до ближайшей тысячи:
+  37 000 ₽ → 4 000 ₽ в копилку, 33 000 ₽ к выдаче.
+- **Работник** может изменить сумму «Хочу получить» с шагом 500 ₽: меньше начисленного —
+  остаток уйдёт в копилку, больше — возьмётся из копилки (не больше, чем начислено плюс
+  копилка). Если за период ничего не начислено, распоряжаться нечем. Саму копилку работник не
+  меняет.
+- **Администратор** меняет сумму к выдаче без ограничений и после выдачи нажимает
+  **«Зарплата выдана»**, указав наличные, на карту и налог (налог — часть зарплаты работника).
+  Начисленное минус выданное уходит в копилку; если выдали больше — берётся из копилки.
+  Выданная сумма больше не меняется; поздний перерасчёт недели — см. выше.
+- **Корректировка копилки** — аванс или долг (минус), стартовый остаток (плюс), с комментарием.
+  Копилка может быть отрицательной.
+- В истории работник видит каждую выдачу: начислено, на руки, на карту и налог (если были),
+  сколько ушло в копилку.
+
 ## Для разработчиков
 
 Документ — единый источник правил расчёта зарплаты: **меняешь правило — обнови этот файл**.
@@ -146,6 +181,7 @@
 | 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `StoneReceptionService::updateItemCoeff` / `refreshItemCoeffs`, `WorkshopService::updateItemCoeff` / `refreshItemCoeffs` | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
+| 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultDeposit`, `maxRequest`, `setRequest`, `markPaid`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`; `partials/salary-piggy-bank` | — |
 | 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
 
 Заметки:
@@ -161,3 +197,11 @@
   помощник мастера чужие дашборды не открывает.
 - Эталонный расчёт превью в JS — `resources/js/rate-formula.js`, ставки и правила приходят из
   `partials/production-rates-js.blade.php`.
+- Копилка: остаток = `SUM(piggy_bank_entries.amount)`. Выдача — снимок `accrued` и
+  снимок недели в `salary_payouts`, проводка `payout` в журнал.
+  Период `[period_from, period_to)`, `period_to` — пятница 00:00 (`payableTo()`);
+  `getDashboardData` включает правую границу, поэтому `SalaryService::accrued` сдвигает её на
+  секунду. Окно управления — `isManageable()`: с прошлой выдачи прошла отсечка Чт 21:00.
+- Перерасчёт: у выдачи `accounted` — сколько по её неделе уже учтено. `recalc()` = начислено
+  сейчас по выдачам за `recalc_weeks` − Σ `accounted`; `markPaid` переносит разницу в `recalc`
+  новой выдачи и обновляет `accounted`. `to_bank = accrued + recalc − paid_total`.

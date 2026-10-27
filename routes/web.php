@@ -5,6 +5,7 @@ use App\Http\Controllers\HelpController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RawMaterialBatchController;
+use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\WorkshopController;
 use App\Http\Controllers\StoneReceptionController;
 use App\Http\Controllers\StoreController;
@@ -38,6 +39,17 @@ Route::middleware(['auth'])->group(function () {
         ->name('worker.dashboard');
     Route::get('/workers/{workerId}/dashboard', [CutterWorkerDashboardController::class, 'show'])
         ->name('worker.dashboard.by-id');
+    // Копилка и выдача зарплаты: сумму к выдаче — сам работник (политика manageSalary в запросе)
+    // или админ; выдача и корректировка копилки — только админ.
+    Route::patch('/workers/{worker}/salary/request', [SalaryController::class, 'updateRequest'])
+        ->middleware('can:see-worker-dashboard')
+        ->name('salary.request');
+    Route::post('/workers/{worker}/salary/paid', [SalaryController::class, 'markPaid'])
+        ->middleware('can:manage-admin')
+        ->name('salary.paid');
+    Route::post('/workers/{worker}/piggy-bank/adjust', [SalaryController::class, 'adjustPiggy'])
+        ->middleware('can:manage-admin')
+        ->name('salary.piggy-adjust');
     // Бывший дашборд мастера: выработка обеих ролей теперь на одной странице.
     // Адреса оставлены для старых закладок.
     Route::get('/master-work', fn () => redirect()->route('worker.dashboard', request()->query()))
