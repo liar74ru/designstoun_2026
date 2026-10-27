@@ -21,6 +21,10 @@
 
         @include('partials.alerts')
 
+        @if($salary)
+            @include('partials.salary-piggy-bank', ['worker' => $worker, 'salary' => $salary])
+        @endif
+
         {{-- Форма выбора периода --}}
         @php
             $weekButtons = [];
@@ -75,10 +79,6 @@
             </div>
         </form>
 
-        @if($salary)
-            @include('partials.salary-piggy-bank', ['worker' => $worker, 'salary' => $salary])
-        @endif
-
         @if($departments->isEmpty())
             <div class="alert alert-info">
                 За выбранный период приёмок не найдено.
@@ -86,9 +86,14 @@
         @else
 
             @if($canSeePay)
-                <div class="card border-0 shadow-sm mb-3">
+                <div class="row g-2 mb-3">
+                <div class="col-6">
+                <div class="card border-0 shadow-sm h-100">
                     <div class="card-body py-2 px-3">
-                        <div class="text-muted small mb-1">Итого к выплате</div>
+                        {{-- До копилки (раньше первой выдачи) начисленное выдавалось целиком --}}
+                        <div class="text-muted small mb-1">
+                            {{ $salary && $dateTo->lt($salary['ruleStart']) ? 'Итого выдано' : 'Итого начислено' }}
+                        </div>
                         <div class="fs-4 fw-bold text-success">
                             {{ number_format($totalPay, 0, ',', ' ') }} ₽
                         </div>
@@ -99,6 +104,29 @@
                             </div>
                         @endif
                     </div>
+                </div>
+                </div>
+                @if($expectedPay)
+                    {{-- SalaryService::expectedPay(): оплачено — факт, иначе ожидаемая за выбранный период --}}
+                    <div class="col-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body py-2 px-3">
+                                <div class="text-muted small mb-1">{{ $expectedPay['label'] }}</div>
+                                <div class="fs-4 fw-bold text-primary">
+                                    {{ number_format($expectedPay['amount'], 0, ',', ' ') }} ₽
+                                </div>
+                                @if($expectedPay['hint'])
+                                    <div class="small text-muted">{{ $expectedPay['hint'] }}</div>
+                                @endif
+                                @if($expectedPay['payout'])
+                                    <div class="small">
+                                        @include('partials.salary-payout-split', ['payout' => $expectedPay['payout']])
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @endif
                 </div>
             @endif
 

@@ -32,7 +32,7 @@ class CutterWorkerDashboardController extends Controller
             $worker = $user->worker;
         }
 
-        [$defaultFrom, $defaultTo] = $this->service->getDefaultWeekRange();
+        [$defaultFrom, $defaultTo] = $this->service->getDefaultWeekRange(fridayShowsPrevious: true);
 
         $dateFrom = $request->filled('date_from')
             ? Carbon::parse($request->input('date_from'))->startOfDay()
@@ -50,10 +50,13 @@ class CutterWorkerDashboardController extends Controller
         $canSeePay = $user->isAdmin() || $user->worker_id === $worker->id;
 
         // Копилка не зависит от выбранного периода: считается по невыданному.
-        $salary = $canSeePay ? $this->salaryService->summary($worker) : null;
+        $salary      = $canSeePay ? $this->salaryService->summary($worker) : null;
+        $expectedPay = $salary
+            ? $this->salaryService->expectedPay($worker, $salary, $dateFrom, $dateTo, $data['totalPay'])
+            : null;
 
         return view('workers.dashboard.show', array_merge(
-            compact('worker', 'receptions', 'dateFrom', 'dateTo', 'canSeePay', 'salary'),
+            compact('worker', 'receptions', 'dateFrom', 'dateTo', 'canSeePay', 'salary', 'expectedPay'),
             $data,
         ));
     }

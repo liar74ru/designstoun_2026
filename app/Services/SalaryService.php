@@ -87,13 +87,20 @@ class SalaryService
         return round((float) $worker->piggyBankEntries()->sum('amount'), 2);
     }
 
-    /** Отчисление в копилку по умолчанию: % от начисленного, к ближайшему кратному шагу. */
-    public function defaultDeposit(float $accrued): float
+    /**
+     * К выдаче по умолчанию: начисленное минус %, к ближайшему кратному шагу (1000 ₽);
+     * остаток (≈ 10%) — в копилку. Больше начисленного по умолчанию не выдаём.
+     */
+    public function defaultToPay(float $accrued): float
     {
-        $step    = (int) config('salary.piggy_round_step');
-        $deposit = round($accrued * config('salary.piggy_percent') / 100 / $step) * $step;
+        if ($accrued <= 0) {
+            return 0.0;
+        }
 
-        return max(0.0, (float) $deposit);
+        $step  = (int) config('salary.piggy_round_step');
+        $toPay = round($accrued * (100 - config('salary.piggy_percent')) / 100 / $step) * $step;
+
+        return (float) min($toPay, floor($accrued / $step) * $step);
     }
 
     /** Предел, который работник может запросить сам: начисленное + положительный остаток копилки. */
@@ -115,11 +122,13 @@ class SalaryService
         $recalc  = $this->recalc($worker);
         $balance = $this->piggyBalance($worker);
 
-        $defaultToPay = max(0.0, $accrued - $this->defaultDeposit($accrued));
+        $defaultToPay = $this->defaultToPay($accrued);
         $toPay        = $worker->requested_payout ?? $defaultToPay;
         $toBank       = $accrued + $recalc - $toPay;
 
         return [
+            // С какой недели у работника действует копилка: раньше всё начисленное выдавалось.
+            'ruleStart'    => ($first = $worker->salaryPayouts()->min('period_from')) ? Carbon::parse($first) : $from,
             'periodFrom'   => $from,
             'periodTo'     => $to,
             'isOpen'       => $isOpen,
@@ -137,6 +146,56 @@ class SalaryService
             'payouts'      => $worker->salaryPayouts()->latest('period_to')->limit(10)->get(),
             'adjustments'  => $worker->piggyBankEntries()->adjustments()->with('createdBy')
                 ->latest('id')->limit(10)->get(),
+        ];
+    }
+
+    /**
+     * Карточка рядом с «Итого начислено» за выбранный на странице период:
+     * оплаченный период — фактическая выплата, текущая невыданная неделя — сумма к выдаче
+     * (с учётом «Хочу получить»), прочее — по умолчанию от начисленного. До копилки — null.
+     *
+     * @return array{label: string, amount: float, hint: ?string, payout: ?SalaryPayout}|null
+     */
+    public function expectedPay(Worker $worker, array $salary, Carbon $from, Carbon $to, float $totalPay): ?array
+    {
+        if ($to->lt($salary['ruleStart'])) {
+            return null;
+        }
+
+        $lastPaidTo = $worker->salaryPayouts()->max('period_to');
+        if ($lastPaidTo && $to->lt(Carbon::parse($lastPaidTo))) {
+            // Выдача могла покрыть несколько недель — берём её целиком.
+            $payouts = $worker->salaryPayouts()
+                ->where('period_from', '<=', $to)
+                ->where('period_to', '>', $from)
+                ->orderBy('period_from')
+                ->get();
+
+            return [
+                'label'  => 'Фактическая выплата',
+                'amount' => (float) $payouts->sum('paid_total'),
+                'hint'   => 'выдано ' . $payouts->map(fn ($p) => $p->paid_at->format('d.m'))->implode(', '),
+                'payout' => $payouts->count() === 1 ? $payouts->first() : null,
+            ];
+        }
+
+        $isOpenWeek = $from->toDateString() === $salary['periodFrom']->toDateString()
+            && $to->toDateString() === $salary['periodTo']->copy()->subSecond()->toDateString();
+
+        if ($isOpenWeek) {
+            return [
+                'label'  => 'Ожидаемая выплата',
+                'amount' => (float) $salary['toPay'],
+                'hint'   => $salary['isRequested'] ? 'сумма изменена вручную' : null,
+                'payout' => null,
+            ];
+        }
+
+        return [
+            'label'  => 'Ожидаемая выплата',
+            'amount' => $this->defaultToPay($totalPay),
+            'hint'   => 'начислено − ' . config('salary.piggy_percent') . '%, без учёта копилки',
+            'payout' => null,
         ];
     }
 

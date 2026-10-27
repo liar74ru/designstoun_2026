@@ -22,6 +22,14 @@ use Carbon\Carbon;
  * суммы видят только сам человек и админ.
  */
 
+// В пятницу период по умолчанию — прошлая неделя (getDefaultWeekRange(fridayShowsPrevious)),
+// а записи тестов создаются «сейчас»: уводим пятницу на четверг.
+beforeEach(function () {
+    if (now()->isFriday()) {
+        $this->travel(-1)->days();
+    }
+});
+
 function rolesReception(Department $dept, Worker $cutter, Worker $receiver, Product $tile, float $qty): void
 {
     $reception = StoneReception::create([
@@ -197,7 +205,8 @@ test('мастер на странице работника своего отд�
         ->get(route('worker.dashboard.by-id', $cutter->id))
         ->assertOk()
         ->assertSee('7,000')
-        ->assertDontSee('Итого к выплате')
+        ->assertDontSee('Итого начислено')
+        ->assertDontSee('Ожидаемая выплата')
         ->assertDontSee('Ставки отдела')
         ->assertDontSee('700 ₽');
 });
@@ -213,7 +222,8 @@ test('админ на чужой странице видит суммы', functi
     $this->actingAs(User::factory()->create(['worker_id' => null, 'is_admin' => true]))
         ->get(route('worker.dashboard.by-id', $cutter->id))
         ->assertOk()
-        ->assertSee('Итого к выплате')
+        ->assertSee('Итого начислено')
+        ->assertSee('Ожидаемая выплата')
         ->assertSee('Ставки отдела')
         ->assertSee('пильщика')
         ->assertDontSee('база мастера')

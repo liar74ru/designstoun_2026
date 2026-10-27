@@ -29,13 +29,21 @@ class WorkerDashboardService
      */
     private array $itemMaps = [];
 
-    public function getDefaultWeekRange(): array
+    /**
+     * Неделя Пт–Чт, в которую входит сегодня. $fridayShowsPrevious: в пятницу (день выдачи
+     * зарплаты) — только что закончившаяся неделя, а не пустая новая.
+     */
+    public function getDefaultWeekRange(bool $fridayShowsPrevious = false): array
     {
         $today = Carbon::today();
 
         $friday = $today->copy()->startOfDay();
         while ($friday->dayOfWeek !== Carbon::FRIDAY) {
             $friday->subDay();
+        }
+
+        if ($fridayShowsPrevious && $today->dayOfWeek === Carbon::FRIDAY) {
+            $friday->subWeek();
         }
 
         $thursday = $friday->copy()->addDays(6)->endOfDay();

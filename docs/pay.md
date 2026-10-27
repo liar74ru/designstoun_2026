@@ -20,8 +20,15 @@
 - Выработка разбита **по отделам документа**: на каждый отдел — своя карточка, внутри таблицы
   по ролям (пустые не показываются). Подписи «Как работник» / «Как мастер» — только когда в
   отделе есть обе роли; в строке ставок отдела — только ставки своих ролей. Сверху — общий итог
-  к выплате.
-- Период по умолчанию — **текущая неделя с пятницы по четверг**. Кнопки «Тек. неделя»,
+  «Итого начислено» за период; для недель до появления копилки — «Итого выдано» (тогда
+  начисленное выдавалось целиком). Рядом — выплата за тот же период:
+  - период уже выдан — **«Фактическая выплата»**: сколько выдали (с раскладкой на руки /
+    карта / налог). Если выдача покрыла несколько недель, показывается вся;
+  - текущая невыданная неделя — **«Ожидаемая выплата»**: сумма к выдаче из блока копилки
+    (с учётом «Хочу получить»);
+  - другой период — «Ожидаемая выплата» по умолчанию: начислено − 10%, до тысячи.
+- Период по умолчанию — **текущая неделя с пятницы по четверг**; в пятницу (день выдачи) —
+  только что закончившаяся неделя. Кнопки «Тек. неделя»,
   «Пред. неделя», «2 нед. назад» переключают такие же недели; поля «С» / «По» задают любой период.
 - Кто что видит:
 
@@ -135,8 +142,10 @@
 
 ## 7. Копилка и выдача зарплаты
 
-Блок «Копилка и выдача» на странице выработки видят только сам человек и администратор. Он не
-зависит от периода, выбранного выше: считается по **невыданному периоду**.
+Блок «Копилка и выдача» — вверху страницы выработки, его видят только сам человек и
+администратор. По умолчанию он свёрнут, в заголовке — остаток копилки (зелёный — плюс,
+красный — минус). Подсказка — под значком «?» внутри блока. Блок не зависит от периода,
+выбранного ниже: считается по **невыданной неделе**.
 
 - **Расчётная неделя** — с **пятницы 00:00 по четверг 23:59**, как на странице выработки.
   Приёмки в пятницу относятся уже к следующей неделе, даже если зарплату ещё не выдали.
@@ -153,9 +162,11 @@
   копилку** при следующей выдаче — плюсом или минусом; на сумму к выдаче не влияет. До выдачи
   блок показывает её строкой «Перерасчёт выданных недель». Приёмки, внесённые в четверг
   после нажатия «Выдано», учитываются так же.
-- **В копилку** по умолчанию уходит 10% начисленного, округлённые до ближайшей тысячи:
-  37 000 ₽ → 4 000 ₽ в копилку, 33 000 ₽ к выдаче.
-- **Работник** может изменить сумму «Хочу получить» с шагом 500 ₽: меньше начисленного —
+- **К выдаче по умолчанию** — начисленное минус 10%, округлённое до ближайшей тысячи; остаток
+  уходит в копилку: 37 000 ₽ → 33 000 ₽ к выдаче, 4 000 ₽ в копилку; 37 450 ₽ → 34 000 ₽ к
+  выдаче, 3 450 ₽ в копилку.
+- **Работник** может изменить сумму «Хочу получить» с шагом 500 ₽ (стрелками или вручную —
+  число само округлится до ближайших 500 ₽): меньше начисленного —
   остаток уйдёт в копилку, больше — возьмётся из копилки (не больше, чем начислено плюс
   копилка). Если за период ничего не начислено, распоряжаться нечем. Саму копилку работник не
   меняет.
@@ -176,12 +187,12 @@
 
 | Раздел | Код | Тесты |
 |---|---|---|
-| 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
+| 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange` (`fridayShowsPrevious`), `SalaryService::expectedPay`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
 | 2. За что начисляется | `WorkerDashboardService::getDashboardData`, `buildProductSummary`, `buildWorkshopProductSummary` | `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `tests/Feature/StoneReception/ReceptionLogTest` |
 | 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `StoneReceptionService::updateItemCoeff` / `refreshItemCoeffs`, `WorkshopService::updateItemCoeff` / `refreshItemCoeffs` | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
-| 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultDeposit`, `maxRequest`, `setRequest`, `markPaid`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`; `partials/salary-piggy-bank` | — |
+| 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`; `partials/salary-piggy-bank` | — |
 | 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
 
 Заметки:

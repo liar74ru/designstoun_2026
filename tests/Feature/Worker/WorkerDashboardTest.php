@@ -10,6 +10,14 @@ use App\Models\ReceptionLog;
 use App\Models\ReceptionLogItem;
 use Tests\Helpers\ReceptionTestHelper as H;
 
+// В пятницу период по умолчанию — прошлая неделя (getDefaultWeekRange(fridayShowsPrevious)),
+// а записи тестов создаются «сейчас»: уводим пятницу на четверг.
+beforeEach(function () {
+    if (now()->isFriday()) {
+        $this->travel(-1)->days();
+    }
+});
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Доступ к странице
 // ──────────────────────────────────────────────────────────────────────────────

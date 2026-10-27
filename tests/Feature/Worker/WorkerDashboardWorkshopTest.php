@@ -17,7 +17,7 @@ use Carbon\Carbon;
 
 /**
  * Дашборд работника: выработка цеха (WorkshopLog) учитывается в сводке
- * и в «Итого к выплате» — для работника (packer_id) и мастера (receiver_id).
+ * и в «Итого начислено» — для работника (packer_id) и мастера (receiver_id).
  */
 
 function makeDashboardWorkshop(Worker $packer, Worker $receiver, Product $tile, float $qty): void
