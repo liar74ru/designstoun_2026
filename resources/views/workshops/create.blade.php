@@ -290,7 +290,7 @@
                             <div class="col-12 col-sm-6">
                                 <div class="form-text mb-1" style="font-size:.72rem">
                                     Уходит в МойСклад (processingSum) и влияет на себестоимость продукта.
-                                    Оставьте пустым — рассчитается автоматически по зарплате работника.
+                                    Оставьте пустым — рассчитается автоматически: зарплата работника и мастера + накладные отдела.
                                     <span id="costSuggestHint" class="d-block text-muted"></span>
                                 </div>
                             </div>
@@ -534,16 +534,20 @@
     costInput.addEventListener('input', () => { costTouched = true; });
 
     const coeffCache = {};
+    const noCoeff = { worker: 0, master: 0 };
     async function fetchCoeff(productId) {
-        if (!productId) return 0;
+        if (!productId) return noCoeff;
         if (coeffCache[productId] !== undefined) return coeffCache[productId];
         try {
             const res = await fetch(`/api/products/${productId}/coeff`);
-            if (!res.ok) return 0;
+            if (!res.ok) return noCoeff;
             const data = await res.json();
-            coeffCache[productId] = parseFloat(data.prod_cost_coeff) || 0;
+            coeffCache[productId] = {
+                worker: parseFloat(data.prod_cost_coeff) || 0,
+                master: parseFloat(data.master_cost_coeff) || 0,
+            };
             return coeffCache[productId];
-        } catch { return 0; }
+        } catch { return noCoeff; }
     }
 
     function rowsData(container) {
@@ -562,18 +566,29 @@
             return;
         }
 
-        // Ставка пильщика задаётся per-department, а отдел выбирается на этой же
-        // странице — берём ставку текущего выбранного отдела.
+        // Ставки и накладные задаются per-department, а отдел выбирается на этой же
+        // странице — берём значения текущего выбранного отдела.
+        // Зеркало WorkshopSyncService::computeProcessingSum(): работник + мастер + накладные.
         const departmentId = departmentSelect?.value || null;
 
-        let salaryTotal = 0;
+        let workerTotal = 0;
+        let masterTotal = 0;
         for (const p of products) {
             const coeff = await fetchCoeff(p.productId);
-            salaryTotal += RateFormula.prodCost(coeff, departmentId) * p.qty;
+            workerTotal += RateFormula.prodCost(coeff.worker, departmentId) * p.qty;
+            masterTotal += RateFormula.masterCost(coeff.master, departmentId) * p.qty;
         }
 
-        const suggested = Math.round((salaryTotal / totalProduct) * 100) / 100;
-        if (costHint) costHint.textContent = suggested > 0 ? `Авторасчёт: ${suggested.toFixed(2)} ₽/ед` : '';
+        const worker   = workerTotal / totalProduct;
+        const master   = masterTotal / totalProduct;
+        const overhead = RateFormula.overheadPerUnit(departmentId);
+
+        const suggested = Math.round((worker + master + overhead) * 100) / 100;
+        if (costHint) {
+            costHint.textContent = suggested > 0
+                ? `Авторасчёт: ${suggested.toFixed(2)} ₽/ед (работник ${worker.toFixed(2)} + мастер ${master.toFixed(2)} + накладные ${overhead.toFixed(2)})`
+                : '';
+        }
         if (!costTouched) costInput.value = suggested > 0 ? suggested.toFixed(2) : '';
     }
 
@@ -672,6 +687,8 @@
     presetApplyBtn.addEventListener('click', applyPreset);
     presetSelect.addEventListener('change', () => { updatePresetApplyState(); applyPresetColor(); });
     departmentSelect.addEventListener('change', loadPresets);
+    // Ставки и накладные — отдела; сменили отдел → подсказка затрат пересчитывается.
+    departmentSelect.addEventListener('change', recomputeSuggestedCost);
     loadPresets();
 
     // ── Склады строк по блокам ───────────────────────────────────────────────

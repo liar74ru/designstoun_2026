@@ -89,17 +89,20 @@ processingSum = round(totalRubles × 100 / totalQty)
 
 ## Цех (`WorkshopSyncService`)
 
-Для техоперации **цеха** (`Workshop`) формула отличается:
+Для техоперации **цеха** (`Workshop`) — те же составляющие, что у приёмки:
 
-- Накладных нет: в расчёт входит только зарплата.
 - Если у операции задан `manual_processing_sum` — он используется напрямую (рубли → копейки).
-- Иначе `workerSalaryTotal = Σ (WorkshopItem::effectiveProdCost() × quantity)` по строкам с ролью
-  «продукт», где `effectiveProdCost()` возвращает зафиксированный при создании строки
-  `worker_cost_per_m2` (расчёт — `Product::prodCost()` от `PIECE_RATE` и `prod_cost_coeff`).
-- Итог: `processingSum = round(workerSalaryTotal × 100 / totalQuantity)`.
+- Иначе по строкам с ролью «продукт»:
+  - `workerSalaryTotal = Σ (WorkshopItem::effectiveProdCost() × quantity)` — зафиксированный
+    при создании строки `worker_cost_per_m2`;
+  - `masterSalaryTotal = Σ (master_cost_per_m2 × quantity)`;
+  - накладные — `DepartmentSettings::overheadPerUnit($workshop->effectiveDepartmentId())`.
+- Итог: `processingSum = round((workerSalaryTotal + masterSalaryTotal + накладные × totalQuantity) × 100 / totalQuantity)`.
 
-Зарплата мастера в техоперацию цеха не входит, хотя `master_cost_per_m2` в строках фиксируется
-(используется в дашбордах).
+Подсказка «Авторасчёт» в форме создания (`recomputeSuggestedCost()`) считает ту же сумму через
+`RateFormula.prodCost` / `masterCost` / `overheadPerUnit` (ставки и накладные отделов — из
+`partials/production-rates-js`). Правила-модификаторы подсказка не учитывает — точное значение
+даёт серверный расчёт при пустом поле.
 
 ### Товар-результат (`result_product_id`)
 

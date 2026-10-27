@@ -163,7 +163,7 @@
                         <span class="badge bg-secondary">{{ number_format((float) $workshop->manual_processing_sum, 2) }} ₽/ед</span>
                         <span class="text-muted small">(ручной ввод)</span>
                     @else
-                        <span class="small text-muted">Автоматически (по зарплате работника)</span>
+                        <span class="small text-muted">Автоматически (работник + мастер + накладные)</span>
                     @endif
                 </div>
             </div>

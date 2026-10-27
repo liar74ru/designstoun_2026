@@ -34,6 +34,25 @@ export function pieceRate(departmentId = null) {
 }
 
 /**
+ * Базовая ставка мастера отдела (₽/ед).
+ * Отдел не задан или не имеет своей ставки → глобальная.
+ */
+export function masterRate(departmentId = null) {
+    const cfg = rates().masterRate ?? {};
+    const own = departmentId != null ? cfg.byDepartment?.[String(departmentId)] : undefined;
+    return Number(own ?? cfg.default ?? 0);
+}
+
+/**
+ * Накладные расходы отдела на единицу (₽/ед). Зеркало DepartmentSettings::overheadPerUnit():
+ * наследования нет, отдел не задан → 0.
+ */
+export function overheadPerUnit(departmentId = null) {
+    if (departmentId == null) return 0;
+    return Number(rates().overhead?.byDepartment?.[String(departmentId)] ?? 0);
+}
+
+/**
  * Все активные правила отдела. Зеркало ModifierEngine::allFor().
  * Отдел не задан или неизвестен на этой странице → правил нет.
  */
@@ -145,9 +164,16 @@ export function prodCost(effCoeff, departmentId = null) {
     return stepped(pieceRate(departmentId), Number(effCoeff));
 }
 
+/** Стоимость единицы продукции для мастера по эффективному коэффициенту мастера. */
+export function masterCost(effCoeff, departmentId = null) {
+    return stepped(masterRate(departmentId), Number(effCoeff));
+}
+
 window.RateFormula = {
     coeffShare,
     pieceRate,
+    masterRate,
+    overheadPerUnit,
     modifiersFor,
     matchesPattern,
     availableForBatchSku,
@@ -158,4 +184,5 @@ window.RateFormula = {
     masterEffectiveCoeff,
     formatCoeff,
     prodCost,
+    masterCost,
 };

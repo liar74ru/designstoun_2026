@@ -8,6 +8,7 @@ use App\Models\WorkshopLog;
 use App\Models\Setting;
 use App\Models\Worker;
 use App\Services\Moysklad\Concerns\HandlesProcessingSync;
+use App\Support\DepartmentSettings;
 use App\Support\DocumentNaming;
 use App\Support\MoyskladMoment;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +28,8 @@ class WorkshopSyncService extends MoySkladBaseService
      *
      * Materials = сырьё (role=raw) + упаковка (role=package);
      * Products  = продукт на выходе (role=product).
-     * processingSum = ручные затраты (₽/ед × 100) или авто-fallback по зарплате сырья.
+     * processingSum = ручные затраты (₽/ед × 100) или авто-fallback: зарплата работника
+     * и мастера + накладные отдела.
      *
      * @return array ['success', 'processing_id', 'processing_name', 'code', 'message']
      */
@@ -391,8 +393,9 @@ class WorkshopSyncService extends MoySkladBaseService
     }
 
     /**
-     * processingSum (копейки/ед): ручные затраты (₽/ед × 100) либо авто-fallback
-     * по зафиксированной зарплате продукта, поделённой на количество продукта.
+     * processingSum (копейки/ед): ручные затраты (₽/ед × 100) либо авто-fallback —
+     * зафиксированные зарплаты работника и мастера по продукту плюс накладные
+     * отдела на единицу, всё поделённое на количество продукта.
      */
     private function computeProcessingSum(Workshop $workshop, float $totalQuantity): int
     {
@@ -401,11 +404,15 @@ class WorkshopSyncService extends MoySkladBaseService
         }
 
         $workerSalaryTotal = 0;
+        $masterSalaryTotal = 0;
         foreach ($workshop->items->where('role', WorkshopItem::ROLE_PRODUCT) as $item) {
             $workerSalaryTotal += $item->effectiveProdCost() * (float) $item->quantity;
+            $masterSalaryTotal += (float) $item->master_cost_per_m2 * (float) $item->quantity;
         }
 
-        return $this->calcProcessingSum($workerSalaryTotal, $totalQuantity);
+        $overheadTotal = DepartmentSettings::overheadPerUnit($workshop->effectiveDepartmentId()) * $totalQuantity;
+
+        return $this->calcProcessingSum($workerSalaryTotal + $masterSalaryTotal + $overheadTotal, $totalQuantity);
     }
 
     /**

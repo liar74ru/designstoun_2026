@@ -12,8 +12,8 @@
     пользователю.
 
     Правила отдаются обеих областей сразу (поле applies_to) — форма фильтрует
-    сама. Базовая ставка мастера в JSON не уходит — превью считает только
-    коэффициент мастера, для него нужны лишь master-слагаемые правил.
+    сама. Базовая ставка мастера и накладные отдела нужны авторасчёту
+    затрат цеха (processingSum: работник + мастер + накладные).
 
     Подключать перед скриптами, использующими window.RateFormula.
 --}}
@@ -26,12 +26,16 @@
         ->pluck('id');
 
     $ratesPieceByDept = [];
+    $ratesMasterByDept = [];
+    $ratesOverheadByDept = [];
     $ratesModifiersByDept = [];
 
     foreach ($ratesDepartments as $ratesDeptId) {
         $ratesKey = (string) $ratesDeptId;
 
         $ratesPieceByDept[$ratesKey] = \App\Support\DepartmentSettings::pieceRate($ratesDeptId);
+        $ratesMasterByDept[$ratesKey] = \App\Support\DepartmentSettings::masterBaseRate($ratesDeptId);
+        $ratesOverheadByDept[$ratesKey] = \App\Support\DepartmentSettings::overheadPerUnit($ratesDeptId);
 
         $ratesModifiersByDept[$ratesKey] = \App\Support\ModifierEngine::allFor($ratesDeptId)
             ->map(fn ($rule) => [
@@ -56,6 +60,13 @@
         pieceRate: {
             default: {{ \App\Support\DepartmentSettings::pieceRate(null) }},
             byDepartment: @json((object) $ratesPieceByDept),
+        },
+        masterRate: {
+            default: {{ \App\Support\DepartmentSettings::masterBaseRate(null) }},
+            byDepartment: @json((object) $ratesMasterByDept),
+        },
+        overhead: {
+            byDepartment: @json((object) $ratesOverheadByDept),
         },
         modifiers: {
             byDepartment: @json((object) $ratesModifiersByDept),

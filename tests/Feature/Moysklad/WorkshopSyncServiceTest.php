@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Department;
+use App\Models\DepartmentExpense;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
 use App\Models\Product;
@@ -391,5 +393,93 @@ describe('WorkshopSyncService::syncWorkshop() — остатки', function () {
             fn($request) => str_contains($request->url(), 'report/stock/bystore')
         );
         expect($stockRequests)->toHaveCount(0);
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// processingSum: зарплата работника + зарплата мастера + накладные отдела
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('WorkshopSyncService: processingSum с мастером и накладными', function () {
+
+    beforeEach(function () {
+        $this->dept = Department::create(['name' => 'Маркетплейс', 'is_active' => true]);
+        DepartmentExpense::create(['department_id' => $this->dept->id, 'name' => 'Аренда', 'amount' => 15]);
+        DepartmentExpense::create(['department_id' => $this->dept->id, 'name' => 'Свет',   'amount' => 5]);
+    });
+
+    function wsProductItem(Workshop $w, Product $p, float $qty, float $workerCost, float $masterCost): void {
+        WorkshopItem::create([
+            'workshop_id'        => $w->id,
+            'product_id'         => $p->id,
+            'role'               => WorkshopItem::ROLE_PRODUCT,
+            'quantity'           => $qty,
+            'worker_cost_per_m2' => $workerCost,
+            'master_cost_per_m2' => $masterCost,
+        ]);
+    }
+
+    function assertSentProcessingSum(int $expected): void {
+        Http::assertSent(fn($r) => $r->method() === 'POST'
+            && str_ends_with($r->url(), '/entity/processing')
+            && ($r->data()['processingSum'] ?? null) === $expected);
+    }
+
+    test('авто: (работник 40 + мастер 40) + накладные отдела 20 → 100 ₽/ед', function () {
+        $this->workshop->update(['department_id' => $this->dept->id]);
+        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 1.2);
+        wsProductItem($this->workshop, $this->outProduct, 3.0, 40.0, 40.0);
+
+        fakeMoyskladForWorkshop();
+        app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
+
+        // (40×3 + 40×3 + 20×3) × 100 / 3 = 10000 коп/ед → МойСклад × 3 = 300 ₽
+        assertSentProcessingSum(10000);
+    });
+
+    test('несколько продуктов: зарплаты взвешиваются по количеству, накладные — на единицу', function () {
+        $this->workshop->update(['department_id' => $this->dept->id]);
+        $extra = Product::factory()->create(['sku' => '05-02-02', 'moysklad_id' => (string) Str::uuid()]);
+        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 2.0);
+        wsProductItem($this->workshop, $this->outProduct, 1.0, 40.0, 40.0);
+        wsProductItem($this->workshop, $extra, 3.0, 80.0, 0.0);
+
+        fakeMoyskladForWorkshop();
+        app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
+
+        // (40 + 240 + 40 + 20×4) × 100 / 4 = 10000
+        assertSentProcessingSum(10000);
+    });
+
+    test('отдел не записан у операции → накладные по отделу работника', function () {
+        $this->packer->update(['department_id' => $this->dept->id]);
+        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 1.0);
+        wsProductItem($this->workshop, $this->outProduct, 2.0, 40.0, 40.0);
+
+        fakeMoyskladForWorkshop();
+        app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
+
+        assertSentProcessingSum(10000);
+    });
+
+    test('отдел не определился → накладные 0, остаются зарплаты', function () {
+        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 1.0);
+        wsProductItem($this->workshop, $this->outProduct, 2.0, 40.0, 40.0);
+
+        fakeMoyskladForWorkshop();
+        app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
+
+        assertSentProcessingSum(8000);
+    });
+
+    test('ручные затраты важнее авторасчёта: мастер и накладные не добавляются', function () {
+        $this->workshop->update(['department_id' => $this->dept->id, 'manual_processing_sum' => 40]);
+        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 1.2);
+        wsProductItem($this->workshop, $this->outProduct, 3.0, 40.0, 40.0);
+
+        fakeMoyskladForWorkshop();
+        app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
+
+        assertSentProcessingSum(4000);
     });
 });
