@@ -224,7 +224,6 @@
 @endsection
 
 @push('scripts')
-    @vite(['resources/js/product-picker.js'])
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // ── Фильтр свёрнут по умолчанию (переопределяем авто-раскрытие partial'а) ──

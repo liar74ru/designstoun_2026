@@ -369,7 +369,6 @@
 @endsection
 
 @push('scripts')
-    @vite(['resources/js/product-picker.js'])
     <script>
     (function () {
         const VIEWS      = ['batches', 'logs'];

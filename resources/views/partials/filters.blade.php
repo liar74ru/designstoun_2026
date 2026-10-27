@@ -371,3 +371,9 @@
 })();
 </script>
 @endpush
+
+@if($filterRawProducts || $filterProducts)
+@push('scripts')
+    @vite(['resources/js/product-picker.js'])
+@endpush
+@endif
