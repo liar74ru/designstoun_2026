@@ -92,9 +92,10 @@
             <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                 @foreach($rawItems as $item)
                     <div class="d-flex justify-content-between align-items-start" style="{{ !$loop->last ? 'margin-bottom:.1rem' : '' }}">
-                        <span class="fw-semibold text-dark me-2" style="font-size:.82rem;line-height:1.2;max-width:75%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">
-                            <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-secondary me-1" style="vertical-align:-2px"></ion-icon>{{ $item->product->name }}
-                        </span>
+                        <div class="d-flex align-items-start me-2" style="max-width:75%;min-width:0">
+                            <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-secondary me-1 flex-shrink-0" style="font-size:.82rem;margin-top:.1rem"></ion-icon>
+                            <span class="fw-semibold text-dark" style="font-size:.82rem;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">{{ $item->product->name }}</span>
+                        </div>
                         <span class="fw-bold text-primary text-nowrap" style="font-size:.82rem">
                             {{ number_format($item->quantity, 3, ',', '.') }} <span class="fw-normal" style="font-size:.7rem">{{ $uomOf($item->product) }}</span>
                         </span>
