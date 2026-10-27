@@ -166,12 +166,12 @@
         </div>
     </form>
 
-    {{-- Склады по умолчанию для отделов --}}
+    {{-- Настройка отделов --}}
     <div class="card shadow-sm mb-3">
             <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
                  role="button"
                  data-block-id="dept-stores">
-                <span>Склады по умолчанию для отделов</span>
+                <span>Настройка отделов</span>
                 <i class="bi bi-chevron-down collapse-icon"></i>
             </div>
             <div class="collapse-content" id="block-dept-stores" style="display: none;">
