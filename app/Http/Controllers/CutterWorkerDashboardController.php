@@ -13,17 +13,10 @@ class CutterWorkerDashboardController extends Controller
 {
     public function __construct(private readonly WorkerDashboardService $service) {}
 
-    public function showWorker(Request $request, ?int $workerId = null)
-    {
-        return $this->show($request, $workerId, isMaster: false);
-    }
-
-    public function showMaster(Request $request, ?int $workerId = null)
-    {
-        return $this->show($request, $workerId, isMaster: true);
-    }
-
-    private function show(Request $request, ?int $workerId, bool $isMaster)
+    /**
+     * Выработка в обеих ролях (работник и мастер) с разбивкой по отделам.
+     */
+    public function show(Request $request, ?int $workerId = null)
     {
         $user = Auth::user();
 
@@ -45,12 +38,15 @@ class CutterWorkerDashboardController extends Controller
             ? Carbon::parse($request->input('date_to'))->endOfDay()
             : $defaultTo;
 
-        $data = $this->service->getDashboardData($worker->id, $isMaster, $dateFrom, $dateTo);
+        $data = $this->service->getDashboardData($worker->id, $dateFrom, $dateTo);
 
         $receptions = $data['logs'];
 
+        // Деньги — только самому человеку и админу; мастер на чужой странице видит м².
+        $canSeePay = $user->isAdmin() || $user->worker_id === $worker->id;
+
         return view('workers.dashboard.show', array_merge(
-            compact('worker', 'isMaster', 'receptions', 'dateFrom', 'dateTo'),
+            compact('worker', 'receptions', 'dateFrom', 'dateTo', 'canSeePay'),
             $data,
         ));
     }

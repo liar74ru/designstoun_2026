@@ -137,10 +137,9 @@ function dashboardSummary(): Illuminate\Support\Collection
 {
     return app(WorkerDashboardService::class)->getDashboardData(
         test()->cutter->id,
-        false,
         Carbon::now()->subDay()->startOfDay(),
         Carbon::now()->addDay()->endOfDay(),
-    )['summary'];
+    )['departments']->first()['worker']['summary'];
 }
 
 test('один товар с разными наборами правил даёт разные строки', function () {

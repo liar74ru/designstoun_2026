@@ -12,7 +12,6 @@ use App\Models\StoneReception;
 use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
-use App\Models\Worker;
 use App\Support\DepartmentSettings;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
@@ -44,11 +43,14 @@ class WorkerDashboardService
         return [$friday, $thursday];
     }
 
-    public function getDashboardData(int $workerId, bool $isMaster, Carbon $dateFrom, Carbon $dateTo): array
+    /**
+     * Выработка человека за период в обеих ролях сразу: работник (пильщик приёмки,
+     * работник цеха) и мастер (приёмщик). Мастер может и принимать, и пилить сам,
+     * а работать — в нескольких отделах за неделю.
+     */
+    public function getDashboardData(int $workerId, Carbon $dateFrom, Carbon $dateTo): array
     {
         $this->itemMaps = [];
-
-        $workerField = $isMaster ? 'receiver_id' : 'cutter_id';
 
         $logs = ReceptionLog::with([
                 'items.product',
@@ -58,9 +60,10 @@ class WorkerDashboardService
                 'stoneReception.rawMaterialBatch',
                 'stoneReception.cutter',
                 'rawMaterialBatch.product',
-                $isMaster ? 'cutter' : 'receiver',
+                'cutter',
+                'receiver',
             ])
-            ->where($workerField, $workerId)
+            ->where(fn($q) => $q->where('cutter_id', $workerId)->orWhere('receiver_id', $workerId))
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -68,15 +71,13 @@ class WorkerDashboardService
         $logs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('receptionLog', $log)));
 
         // Производство цеха: работник — packer_id, мастер-приёмщик — receiver_id.
-        $workshopWorkerField = $isMaster ? 'receiver_id' : 'packer_id';
-
         $workshopLogs = WorkshopLog::with([
                 'items.product',
                 'workshop.items.modifiers',
                 'workshop.department',
                 'workshop.packer',
             ])
-            ->where($workshopWorkerField, $workerId)
+            ->where(fn($q) => $q->where('packer_id', $workerId)->orWhere('receiver_id', $workerId))
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->get();
 
@@ -87,7 +88,8 @@ class WorkerDashboardService
                 'items.product',
                 'items.modifiers.modifier',
                 'rawMaterialBatch.product',
-                $isMaster ? 'cutter' : 'receiver',
+                'cutter',
+                'receiver',
                 'store',
             ])
             ->whereIn('id', $stoneReceptionIds)
@@ -96,48 +98,72 @@ class WorkerDashboardService
 
         $batchIds = $stoneReceptions->pluck('raw_material_batch_id')->filter()->unique();
         $rawBatches = RawMaterialBatch::with(['product', 'currentStore'])
-            ->where(function ($q) use ($workerId, $batchIds, $isMaster) {
-                $q->whereIn('id', $batchIds);
-                if (!$isMaster) {
-                    $q->orWhere(function ($q2) use ($workerId) {
+            ->where(function ($q) use ($workerId, $batchIds) {
+                $q->whereIn('id', $batchIds)
+                    ->orWhere(function ($q2) use ($workerId) {
                         $q2->whereIn('status', [RawMaterialBatch::STATUS_NEW, RawMaterialBatch::STATUS_IN_WORK])
                             ->where('current_worker_id', $workerId);
                     });
-                }
             })
             ->orderByRaw("CASE status WHEN 'in_work' THEN 0 WHEN 'new' THEN 1 ELSE 2 END")
             ->orderByDesc('updated_at')
             ->get();
 
-        $summary        = $this->mergeProductSummaries(
-            $this->buildProductSummary($logs),
-            $this->buildWorkshopProductSummary($workshopLogs),
+        // Лог, где человек и пильщик, и приёмщик, попадает в обе роли — и оплачивается в обеих.
+        $departments = $this->buildDepartmentRoles(
+            $this->buildSummaryByDepartment(
+                $logs->where('cutter_id', $workerId),
+                $workshopLogs->where('packer_id', $workerId),
+            ),
+            $this->buildSummaryByDepartment(
+                $logs->where('receiver_id', $workerId),
+                $workshopLogs->where('receiver_id', $workerId),
+            ),
         );
-        $totalPay       = $isMaster ? null : $summary->sum('pay');
-        $totalMasterPay = $isMaster ? $summary->sum('masterPay') : null;
-        // Мастер принимает в нескольких отделах — сводка выводится отдельной таблицей на отдел.
-        // Ставки настраиваются per-department, поэтому показываются внутри таблицы отдела.
-        $summaryByDepartment = $isMaster
-            ? $this->buildSummaryByDepartment($logs, $workshopLogs)
-            : null;
 
-        // Ставка пильщика настраивается per-department: работнику показываем ставку
-        // его основного отдела, а не глобальную. У мастера ставки выводятся
-        // внутри таблицы каждого отдела (см. buildSummaryByDepartment).
-        $pieceRate = $isMaster
-            ? null
-            : DepartmentSettings::pieceRate(Worker::find($workerId)?->department_id);
+        $totalWorkerPay = $departments->sum(fn($dept) => $dept['worker']['totalPay'] ?? 0);
+        $totalMasterPay = $departments->sum(fn($dept) => $dept['master']['totalMasterPay'] ?? 0);
+        $totalPay       = $totalWorkerPay + $totalMasterPay;
 
         return compact(
             'logs',
             'stoneReceptions',
             'rawBatches',
-            'summary',
-            'summaryByDepartment',
-            'totalPay',
+            'departments',
+            'totalWorkerPay',
             'totalMasterPay',
-            'pieceRate',
+            'totalPay',
         );
+    }
+
+    /**
+     * Слияние сводок по отделам двух ролей: одна строка на отдел, внутри —
+     * сводка работника и сводка мастера (null, если в этой роли выработки нет).
+     */
+    private function buildDepartmentRoles(Collection $workerDepts, Collection $masterDepts): Collection
+    {
+        $key = fn($dept) => $dept['department']?->id ?? 0;
+
+        $workerDepts = $workerDepts->keyBy($key);
+        $masterDepts = $masterDepts->keyBy($key);
+
+        return $workerDepts->keys()
+            ->merge($masterDepts->keys())
+            ->unique()
+            ->map(function ($deptId) use ($workerDepts, $masterDepts) {
+                $worker = $workerDepts->get($deptId);
+                $master = $masterDepts->get($deptId);
+
+                return [
+                    'department' => ($worker ?? $master)['department'],
+                    'rates'      => ($worker ?? $master)['rates'],
+                    'worker'     => $worker,
+                    'master'     => $master,
+                    'totalPay'   => ($worker['totalPay'] ?? 0) + ($master['totalMasterPay'] ?? 0),
+                ];
+            })
+            ->sortBy(fn($row) => $row['department']?->name ?? "\u{FFFF}")
+            ->values();
     }
 
     /**

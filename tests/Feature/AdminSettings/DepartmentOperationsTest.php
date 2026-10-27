@@ -134,7 +134,7 @@ describe('Header — видимость иконок по позиции и от
 
         $response = $this->actingAs($master)->followingRedirects()->get('/');
 
-        $response->assertSee('title="Дашборд"', false); // master-dashboard всегда виден мастеру
+        $response->assertSee('title="Выраб."', false); // worker-dashboard всегда виден мастеру
         $response->assertDontSee('title="Приём"', false);
         $response->assertDontSee('title="Сырьё"', false);
     });
@@ -148,13 +148,13 @@ describe('Header — видимость иконок по позиции и от
             route('admin.departments.operations.update', $dept),
             ['operations' => [
                 'stone-receptions' => ['positions' => ['', 'Мастер']],
-                'master-dashboard' => ['positions' => ['', 'Мастер']],
+                'worker-dashboard' => ['positions' => ['', 'Мастер']],
             ]]
         );
 
         $response = $this->actingAs($master)->followingRedirects()->get(route('stone-receptions.logs'));
         $response->assertSee('title="Приём"', false);
-        $response->assertSee('title="Дашборд"', false);
+        $response->assertSee('title="Выраб."', false);
         $response->assertDontSee('title="Сырьё"', false);
         $response->assertDontSee('title="Упак."', false);
     });

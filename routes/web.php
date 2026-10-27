@@ -26,22 +26,24 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/', function () {
         if (auth()->user()?->isMaster()) {
-            return redirect()->route('master.dashboard');
+            return redirect()->route('worker.dashboard');
         }
         return view('home');
     })->name('home');
 
     // Дашборды — свои защищены Gate'ом, *.by-id защищены Policy в контроллере
-    Route::get('/my-work', [CutterWorkerDashboardController::class, 'showWorker'])
+    Route::get('/my-work', [CutterWorkerDashboardController::class, 'show'])
         ->middleware('can:see-worker-dashboard')
         ->name('worker.dashboard');
-    Route::get('/master-work', [CutterWorkerDashboardController::class, 'showMaster'])
-        ->middleware('can:see-master-dashboard')
-        ->name('master.dashboard');
-    Route::get('/master-work/{workerId}', [CutterWorkerDashboardController::class, 'showMaster'])
-        ->name('master.dashboard.by-id');
-    Route::get('/workers/{workerId}/dashboard', [CutterWorkerDashboardController::class, 'showWorker'])
+    Route::get('/workers/{workerId}/dashboard', [CutterWorkerDashboardController::class, 'show'])
         ->name('worker.dashboard.by-id');
+    // Бывший дашборд мастера: выработка обеих ролей теперь на одной странице.
+    // Адреса оставлены для старых закладок.
+    Route::get('/master-work', fn () => redirect()->route('worker.dashboard', request()->query()))
+        ->name('master.dashboard');
+    Route::get('/master-work/{workerId}', fn (int $workerId) => redirect()->route(
+        'worker.dashboard.by-id', ['workerId' => $workerId] + request()->query()
+    ))->name('master.dashboard.by-id');
 
     // Справка по разделам (docs/*.md). Неизвестная страница и доступ — в контроллере по
     // реестру HelpService::PAGES (whereIn на роуте отдал бы гостю 404 раньше auth).

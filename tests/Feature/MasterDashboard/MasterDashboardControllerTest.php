@@ -10,24 +10,24 @@ use Tests\Helpers\ReceptionTestHelper as H;
 
 test('работник без привязки к Worker получает 403', function () {
     $user = User::factory()->create(['worker_id' => null, 'is_admin' => false]);
-    $this->actingAs($user)->get('/master-work')->assertStatus(403);
+    $this->actingAs($user)->get('/my-work')->assertStatus(403);
 });
 
 test('мастер видит свою страницу дашборда', function () {
     $worker = Worker::create(['name' => 'Мастеров Мастер', 'position' => 'Мастер']);
     $user = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
 
-    $this->actingAs($user)->get('/master-work')->assertStatus(200);
+    $this->actingAs($user)->get('/my-work')->assertStatus(200);
 });
 
 test('администратор может открыть страницу любого мастера', function () {
     $worker = Worker::create(['name' => 'Мастер Сидор', 'position' => 'Мастер']);
     $admin = H::adminUser();
 
-    $this->actingAs($admin)->get("/master-work/{$worker->id}")->assertStatus(200);
+    $this->actingAs($admin)->get("/workers/{$worker->id}/dashboard")->assertStatus(200);
 });
 
-test('не-администратор на /master-work/{id} чужого мастера получает 403', function () {
+test('не-администратор на /workers/{id}/dashboard чужого мастера получает 403', function () {
     $dept1   = \App\Models\Department::create(['name' => 'A', 'is_active' => true]);
     $dept2   = \App\Models\Department::create(['name' => 'B', 'is_active' => true]);
     $worker1 = Worker::create(['name' => 'Мастер Иванов', 'position' => 'Мастер', 'department_id' => $dept1->id]);
@@ -35,16 +35,16 @@ test('не-администратор на /master-work/{id} чужого мас
     $user = User::factory()->create(['worker_id' => $worker1->id, 'is_admin' => false]);
 
     $this->actingAs($user)
-        ->get("/master-work/{$worker2->id}")
+        ->get("/workers/{$worker2->id}/dashboard")
         ->assertForbidden();
 });
 
-test('не-администратор без worker_id на /master-work/{id} получает 403', function () {
+test('не-администратор без worker_id на /workers/{id}/dashboard получает 403', function () {
     $worker = Worker::create(['name' => 'Мастер Кузнецов', 'position' => 'Мастер']);
     $user = User::factory()->create(['worker_id' => null, 'is_admin' => false]);
 
     $this->actingAs($user)
-        ->get("/master-work/{$worker->id}")
+        ->get("/workers/{$worker->id}/dashboard")
         ->assertStatus(403);
 });
 
@@ -52,7 +52,7 @@ test('страница дашборда мастера показывает им
     $worker = Worker::create(['name' => 'Мастер Алексеев', 'position' => 'Мастер']);
     $user = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
 
-    $this->actingAs($user)->get('/master-work')->assertSee('Мастер Алексеев');
+    $this->actingAs($user)->get('/my-work')->assertSee('Мастер Алексеев');
 });
 
 test('страница дашборда мастера показывает приёмки за период', function () {
@@ -75,7 +75,7 @@ test('страница дашборда мастера показывает пр
         'quantity' => 5,
     ]);
 
-    $this->actingAs($user)->get('/master-work')
+    $this->actingAs($user)->get('/my-work')
         ->assertStatus(200);
 });
 
@@ -85,7 +85,7 @@ test('в списке работников у админа-работника е
 
     $this->actingAs($admin)->get(route('workers.index'))
         ->assertStatus(200)
-        ->assertSee(route('master.dashboard.by-id', $worker->id), false);
+        ->assertSee(route('worker.dashboard.by-id', $worker->id), false);
 });
 
 test('иконка дашборда мастера не выводится в шапке для админа', function () {
@@ -93,14 +93,14 @@ test('иконка дашборда мастера не выводится в ш
 
     $this->actingAs($admin)->get('/')
         ->assertStatus(200)
-        ->assertDontSee('/master-work');
+        ->assertDontSee('/my-work');
 });
 
 test('админ с привязкой к работнику открывает свой дашборд', function () {
     $worker = Worker::create(['name' => 'Админ Дашбордов', 'position' => 'Администратор']);
     $admin  = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => true]);
 
-    $this->actingAs($admin)->get('/master-work')
+    $this->actingAs($admin)->get('/my-work')
         ->assertStatus(200)
         ->assertSee('Админ Дашбордов');
 });
@@ -120,6 +120,19 @@ test('страница дашборда мастера фильтрует при
     ]);
 
     $this->actingAs($user)
-        ->get('/master-work?date_from='.now()->format('Y-m-d').'&date_to='.now()->format('Y-m-d'))
+        ->get('/my-work?date_from='.now()->format('Y-m-d').'&date_to='.now()->format('Y-m-d'))
         ->assertStatus(200);
+});
+
+test('старый адрес /master-work перенаправляет на единую выработку с периодом', function () {
+    $worker = Worker::create(['name' => 'Мастер Закладка', 'position' => 'Мастер']);
+    $user   = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
+
+    $this->actingAs($user)
+        ->get('/master-work?date_from=2026-01-02')
+        ->assertRedirect(route('worker.dashboard', ['date_from' => '2026-01-02']));
+
+    $this->actingAs($user)
+        ->get("/master-work/{$worker->id}")
+        ->assertRedirect(route('worker.dashboard.by-id', $worker->id));
 });

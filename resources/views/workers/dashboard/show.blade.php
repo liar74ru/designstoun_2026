@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', ($isMaster ? 'Дашборд мастера' : 'Моя выработка') . ' — ' . $worker->name)
+@section('title', 'Выработка — ' . $worker->name)
 
 @section('content')
     <div class="container py-3 py-md-4">
@@ -75,145 +75,76 @@
             </div>
         </form>
 
-        @if($summary->isEmpty())
+        @if($departments->isEmpty())
             <div class="alert alert-info">
                 За выбранный период приёмок не найдено.
             </div>
         @else
 
-            @if($isMaster)
-                {{-- Ставки настраиваются per-department и показаны в шапке каждой таблицы отдела --}}
+            @if($canSeePay)
                 <div class="card border-0 shadow-sm mb-3">
                     <div class="card-body py-2 px-3">
                         <div class="text-muted small mb-1">Итого к выплате</div>
                         <div class="fs-4 fw-bold text-success">
-                            {{ number_format($totalMasterPay, 0, ',', ' ') }} ₽
+                            {{ number_format($totalPay, 0, ',', ' ') }} ₽
                         </div>
+                        @if($totalWorkerPay && $totalMasterPay)
+                            <div class="small text-muted">
+                                работник {{ number_format($totalWorkerPay, 0, ',', ' ') }} ₽
+                                · мастер {{ number_format($totalMasterPay, 0, ',', ' ') }} ₽
+                            </div>
+                        @endif
                     </div>
                 </div>
-            @else
-                @if(auth()->user()->isAdmin() || auth()->id() === $worker->user?->id)
-                <div class="row g-2 mb-3">
-                    <div class="col-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body py-2 px-3">
-                                <div class="text-muted small mb-1">Итого к выплате</div>
-                                <div class="fs-4 fw-bold text-success">
-                                    {{ number_format($totalPay, 0, ',', ' ') }} ₽
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body py-2 px-3">
-                                <div class="text-muted small mb-1">Базовая ставка</div>
-                                <div class="fs-4 fw-bold">{{ number_format($pieceRate ?? 0, 0, ',', ' ') }} ₽</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @endif
             @endif
 
-            {{-- Сводка по продуктам --}}
-            @if($isMaster)
-                <div class="fw-semibold mb-2">Сводка по продуктам за период</div>
-                @foreach($summaryByDepartment as $dept)
-                    <div class="card shadow-sm mb-3">
-                        <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
-                            <span class="fw-semibold">
-                                <i class="bi bi-building me-1"></i>{{ $dept['department']?->name ?? 'Без отдела' }}
-                            </span>
-                            <span class="small text-muted">
-                                <span class="me-2">{{ number_format($dept['totalQuantity'], 3, ',', ' ') }} м²</span>
-                                <span class="text-success">{{ number_format($dept['totalMasterPay'], 0, ',', ' ') }} ₽</span>
-                            </span>
-                        </div>
+            {{-- Сводка по продуктам: карточка на отдел документа, внутри — таблица на роль.
+                 Ставки настраиваются per-department, поэтому показываются в карточке отдела. --}}
+            <div class="fw-semibold mb-2">Сводка по продуктам за период</div>
+            @foreach($departments as $dept)
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+                        <span class="fw-semibold">
+                            <i class="bi bi-building me-1"></i>{{ $dept['department']?->name ?? 'Без отдела' }}
+                        </span>
+                        @if($canSeePay)
+                            <span class="small text-success">{{ number_format($dept['totalPay'], 0, ',', ' ') }} ₽</span>
+                        @endif
+                    </div>
+                    @if($canSeePay)
                         <div class="px-3 py-1 border-bottom text-muted" style="font-size:.75rem">
-                            Ставки отдела: база мастера {{ number_format($dept['rates']['base'], 0, ',', ' ') }} ₽/м²
-                            (без коэффициента продукта),
-                            ставка пильщика {{ number_format($dept['rates']['piece'], 0, ',', ' ') }} ₽/ед
+                            Ставки отдела: пильщика {{ number_format($dept['rates']['piece'], 0, ',', ' ') }} ₽/ед,
+                            база мастера {{ number_format($dept['rates']['base'], 0, ',', ' ') }} ₽/м²
+                            (без коэффициента продукта)
+                        </div>
+                    @endif
+
+                    @foreach([
+                        'worker' => ['Как работник', 'bi-hammer', 'totalPay', 'partials.dashboard-worker-summary-table'],
+                        'master' => ['Как мастер', 'bi-clipboard-check', 'totalMasterPay', 'partials.dashboard-master-summary-table'],
+                    ] as $role => [$roleLabel, $roleIcon, $payKey, $table])
+                        @continue(!$dept[$role])
+                        <div class="px-3 py-1 bg-light border-bottom d-flex justify-content-between align-items-center small">
+                            <span class="fw-semibold"><i class="bi {{ $roleIcon }} me-1"></i>{{ $roleLabel }}</span>
+                            <span class="text-muted">
+                                <span class="me-2">{{ number_format($dept[$role]['totalQuantity'], 3, ',', ' ') }} м²</span>
+                                @if($canSeePay)
+                                    <span class="text-success">{{ number_format($dept[$role][$payKey], 0, ',', ' ') }} ₽</span>
+                                @endif
+                            </span>
                         </div>
                         <div class="table-responsive">
-                            @include('partials.dashboard-master-summary-table', [
-                                'rows'           => $dept['summary'],
-                                'totalQuantity'  => $dept['totalQuantity'],
-                                'totalMasterPay' => $dept['totalMasterPay'],
+                            @include($table, [
+                                'rows'           => $dept[$role]['summary'],
+                                'totalQuantity'  => $dept[$role]['totalQuantity'],
+                                'totalPay'       => $dept[$role]['totalPay'],
+                                'totalMasterPay' => $dept[$role]['totalMasterPay'],
+                                'showPay'        => $canSeePay,
                             ])
                         </div>
-                    </div>
-                @endforeach
-            @elseif(auth()->user()->isAdmin() || auth()->id() === $worker->user?->id)
-            <div class="card shadow-sm mb-3">
-                <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
-                    <span>Сводка по продуктам за период</span>
+                    @endforeach
                 </div>
-                <div class="table-responsive">
-                        <table class="table mb-0" style="font-size:.75rem;table-layout:auto">
-                            <colgroup>
-                                <col>
-                                <col style="width:1%">
-                                <col style="width:1%">
-                                <col style="width:1%">
-                                <col style="width:1%">
-                            </colgroup>
-                            <thead class="table-light">
-                            <tr>
-                                <th style="border-left:4px solid transparent;padding:.3rem .1rem .3rem .4rem">Плитка</th>
-                                <th class="text-end text-nowrap" style="padding:.3rem .25rem .3rem .1rem">м²</th>
-                                <th class="text-end text-nowrap" style="padding:.3rem .25rem" title="Коэффициент зафиксирован на момент приёмки">Коэф.</th>
-                                <th class="text-end text-nowrap" style="padding:.3rem .25rem">Ставка</th>
-                                <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .25rem">Сумма</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach($summary as $row)
-                                @php
-                                    $skuColor = \App\Models\Product::getColorBySku($row['product']?->sku);
-                                    $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
-                                @endphp
-                                <tr>
-                                    <td style="border-left:4px solid {{ $skuColor }};{{ $skuBg }};word-break:break-word;padding:.3rem .1rem .3rem .4rem">
-                                        {{ $row['product']?->name ?? '—' }}
-                                        @include('partials.modifier-badges', [
-                                            'modifiers' => $row['modifiers'] ?? [],
-                                            'class'     => 'ms-1',
-                                            'font'      => '.6rem',
-                                        ])
-                                    </td>
-                                    <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
-                                        {{ number_format($row['quantity'], 3, ',', ' ') }}
-                                    </td>
-                                    <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
-                                        ×{{ \App\Support\RateFormula::formatCoeff($row['coeff']) }}
-                                    </td>
-                                    <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
-                                        {{ number_format($row['prodCost'], 0, ',', ' ') }} ₽
-                                    </td>
-                                    <td class="text-end text-nowrap fw-semibold text-success" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .25rem">
-                                        {{ number_format($row['pay'], 0, ',', ' ') }} ₽
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                            <tfoot class="table-light">
-                            <tr>
-                                <th class="fw-bold" style="padding:.3rem .1rem .3rem .4rem">ИТОГО:</th>
-                                <th class="text-end text-nowrap fw-semibold" style="font-size:.9rem;padding:.3rem .25rem">
-                                    {{ number_format($summary->sum('quantity'), 2, ',', ' ') }} м2
-                                </th>
-                                <th></th>
-                                <th></th>
-                                <th class="text-end text-nowrap text-success" style="font-size:.9rem;padding:.3rem .4rem .3rem .25rem">
-                                    {{ number_format($totalPay, 0, ',', ' ') }} ₽
-                                </th>
-                            </tr>
-                            </tfoot>
-                        </table>
-                </div>
-            </div>
-            @endif
+            @endforeach
 
             {{-- Детализация --}}
             <div class="card shadow-sm">
@@ -260,7 +191,7 @@
                                 'showActions'     => true,
                                 'showRawDetails'  => false,
                                 'showStoreBottom' => true,
-                                'isMaster'        => $isMaster,
+                                'isMaster'        => $log->receiver_id === $worker->id,
                             ])
                         @empty
                             <div class="text-center py-4 text-muted">

@@ -150,24 +150,24 @@ test('мастер не может открыть список складов �
         ->assertForbidden();
 });
 
-test('мастер не может открыть worker.dashboard (не его операция) — 403', function () {
+test('мастер открывает worker.dashboard — выработка обеих ролей на одной странице', function () {
     $user = Access::userWithPosition('Мастер', Access::department());
 
     $this->actingAs($user)
         ->get(route('worker.dashboard'))
-        ->assertForbidden();
+        ->assertOk();
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
 // home redirect
 // ──────────────────────────────────────────────────────────────────────────────
 
-test('мастер при заходе на главную редиректится на дашборд мастера', function () {
+test('мастер при заходе на главную редиректится на выработку', function () {
     $user = Access::userWithPosition('Мастер', Access::department());
 
     $this->actingAs($user)
         ->get(route('home'))
-        ->assertRedirect(route('master.dashboard'));
+        ->assertRedirect(route('worker.dashboard'));
 });
 
 // ──────────────────────────────────────────────────────────────────────────────

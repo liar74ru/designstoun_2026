@@ -113,16 +113,19 @@ test('выработка цеха работника (packer_id) попадае�
     makeDashboardWorkshop($packer, $receiver, $tile, 7.0);
 
     [$from, $to] = dashboardWeekRange();
-    $data = app(WorkerDashboardService::class)->getDashboardData($packer->id, false, $from, $to);
+    $data    = app(WorkerDashboardService::class)->getDashboardData($packer->id, $from, $to);
+    $summary = $data['departments']->first()['worker']['summary'];
 
-    expect($data['summary'])->toHaveCount(1)
-        ->and($data['summary']->first()['product']->id)->toBe($tile->id)
-        ->and((float) $data['summary']->first()['quantity'])->toEqual(7.0)
+    expect($summary)->toHaveCount(1)
+        ->and($summary->first()['product']->id)->toBe($tile->id)
+        ->and((float) $summary->first()['quantity'])->toEqual(7.0)
+        ->and($data['departments']->first()['master'])->toBeNull()
         ->and((float) $data['totalPay'])->toEqual(700.0);
 });
 
-test('приёмка камня и цех по одному товару объединяются в одну строку', function () {
-    $worker   = Worker::create(['name' => 'Универсал', 'position' => 'Работник']);
+test('приёмка камня и цех по одному товару в одном отделе объединяются в одну строку', function () {
+    $dept     = Department::create(['name' => 'Цех Универсала', 'is_active' => true]);
+    $worker   = Worker::create(['name' => 'Универсал', 'position' => 'Работник', 'department_id' => $dept->id]);
     $receiver = Worker::create(['name' => 'Мастер Универсала', 'position' => 'Мастер']);
     $tile     = Product::factory()->create(['prod_cost_coeff' => 1.0]);
 
@@ -130,10 +133,11 @@ test('приёмка камня и цех по одному товару объ�
     makeDashboardWorkshop($worker, $receiver, $tile, 5.0);
 
     [$from, $to] = dashboardWeekRange();
-    $data = app(WorkerDashboardService::class)->getDashboardData($worker->id, false, $from, $to);
+    $data    = app(WorkerDashboardService::class)->getDashboardData($worker->id, $from, $to);
+    $summary = $data['departments']->first()['worker']['summary'];
 
-    expect($data['summary'])->toHaveCount(1)
-        ->and((float) $data['summary']->first()['quantity'])->toEqual(15.0)
+    expect($summary)->toHaveCount(1)
+        ->and((float) $summary->first()['quantity'])->toEqual(15.0)
         ->and((float) $data['totalPay'])->toEqual(1500.0);
 });
 
@@ -145,11 +149,14 @@ test('мастер-приёмщик цеха (receiver_id) получает вы
     makeDashboardWorkshop($packer, $receiver, $tile, 4.0);
 
     [$from, $to] = dashboardWeekRange();
-    $data = app(WorkerDashboardService::class)->getDashboardData($receiver->id, true, $from, $to);
+    $data    = app(WorkerDashboardService::class)->getDashboardData($receiver->id, $from, $to);
+    $summary = $data['departments']->first()['master']['summary'];
 
-    expect($data['summary'])->toHaveCount(1)
-        ->and((float) $data['summary']->first()['quantity'])->toEqual(4.0)
-        ->and((float) $data['totalMasterPay'])->toEqual(200.0);
+    expect($summary)->toHaveCount(1)
+        ->and((float) $summary->first()['quantity'])->toEqual(4.0)
+        ->and($data['departments']->first()['worker'])->toBeNull()
+        ->and((float) $data['totalMasterPay'])->toEqual(200.0)
+        ->and((float) $data['totalPay'])->toEqual(200.0);
 });
 
 test('чужие цеховые логи (другой packer_id) не попадают в дашборд работника', function () {
@@ -161,8 +168,8 @@ test('чужие цеховые логи (другой packer_id) не попа�
     makeDashboardWorkshop($other, $receiver, $tile, 6.0);
 
     [$from, $to] = dashboardWeekRange();
-    $data = app(WorkerDashboardService::class)->getDashboardData($packer->id, false, $from, $to);
+    $data = app(WorkerDashboardService::class)->getDashboardData($packer->id, $from, $to);
 
-    expect($data['summary'])->toBeEmpty()
+    expect($data['departments'])->toBeEmpty()
         ->and((float) $data['totalPay'])->toEqual(0.0);
 });

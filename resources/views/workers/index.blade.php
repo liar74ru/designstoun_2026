@@ -143,15 +143,9 @@
                             </td>
                             <td>
                                 <div class="d-flex gap-1 justify-content-center">
-                                    @if(in_array($worker->position, ['Работник', 'Помощник мастера'], true))
+                                    @if(in_array($worker->position, ['Работник', 'Мастер', 'Помощник мастера', 'Администратор'], true))
                                         <a href="{{ route('worker.dashboard.by-id', $worker->id) }}"
                                            class="btn btn-sm btn-outline-success" title="Выработка">
-                                            <i class="bi bi-bar-chart"></i>
-                                        </a>
-                                    @endif
-                                    @if(in_array($worker->position, ['Мастер', 'Помощник мастера', 'Администратор'], true))
-                                        <a href="{{ route('master.dashboard.by-id', $worker->id) }}"
-                                           class="btn btn-sm btn-outline-success" title="Выработка мастера">
                                             <i class="bi bi-bar-chart"></i>
                                         </a>
                                     @endif
@@ -245,16 +239,10 @@
 
                         {{-- Правая часть: кнопки в столбик --}}
                         <div class="d-flex flex-column gap-1 flex-shrink-0" style="min-width:90px">
-                            @if(in_array($worker->position, ['Работник', 'Помощник мастера'], true))
+                            @if(in_array($worker->position, ['Работник', 'Мастер', 'Помощник мастера', 'Администратор'], true))
                                 <a href="{{ route('worker.dashboard.by-id', $worker->id) }}"
                                    class="btn btn-sm btn-outline-success w-100">
                                     <i class="bi bi-bar-chart"></i> Выработка
-                                </a>
-                            @endif
-                            @if(in_array($worker->position, ['Мастер', 'Помощник мастера', 'Администратор'], true))
-                                <a href="{{ route('master.dashboard.by-id', $worker->id) }}"
-                                   class="btn btn-sm btn-outline-success w-100">
-                                    <i class="bi bi-bar-chart"></i> Выр. мастера
                                 </a>
                             @endif
                             @if(auth()->user()->isAdmin() && auth()->user()->can('modify', $worker))

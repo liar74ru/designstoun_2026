@@ -10,10 +10,15 @@
 
 ## 1. Где смотреть
 
-- **[Моя выработка](app:my-work)** — заработок пильщика: приёмки, где он указан **работником**
-  (пильщиком), и операции цеха, где он указан **работником**.
-- **[Дашборд мастера](app:master-work)** — заработок мастера: приёмки и операции цеха, где он
-  указан **приёмщиком** (в цехе — **мастером**).
+- **[Выработка](app:my-work)** — одна страница на обе роли:
+  - **как работник** — приёмки, где человек указан **работником** (пильщиком), и операции цеха,
+    где он указан **работником**;
+  - **как мастер** — приёмки и операции цеха, где он указан **приёмщиком** (в цехе — **мастером**).
+
+  Мастер, который и принимает, и пилит сам, видит обе части на одной странице. Если в одной
+  записи человек и пильщик, и приёмщик, она оплачивается в обеих ролях.
+- Выработка разбита **по отделам документа**: на каждый отдел — своя карточка, внутри таблицы
+  «Как работник» и «Как мастер» (пустые не показываются). Сверху — общий итог к выплате.
 - Период по умолчанию — **текущая неделя с пятницы по четверг**. Кнопки «Тек. неделя»,
   «Пред. неделя», «2 нед. назад» переключают такие же недели; поля «С» / «По» задают любой период.
 - Кто что видит:
@@ -24,8 +29,8 @@
 | Мастер | Свою и работников, у которых есть общий с ним отдел. |
 | Остальные | Только свою. |
 
-- «Итого к выплате» и «Сводку по продуктам» пильщика видят только он сам и администратор.
-  Мастер на странице работника видит детализацию (приёмки, записи, сырьё) без сумм.
+- Суммы и ставки видят только сам человек и администратор. Мастер на чужой странице видит
+  таблицы с количеством (м²) и детализацию (приёмки, записи, сырьё), но без денег.
 
 ## 2. За что начисляется
 
@@ -70,8 +75,7 @@
 - Каждый отдел может задать свои ставки в карточке отдела ([Настройки](app:settings)). Не задал —
   действует общая настройка программы, а если нет и её — значение по умолчанию.
 - Берётся ставка **отдела документа** (приёмки или операции цеха), а не отдела работника.
-  «Базовая ставка» в шапке «Моей выработки» — ставка основного отдела работника, для справки.
-  У мастера ставки показаны отдельно в таблице каждого отдела.
+  Ставки каждого отдела показаны в его карточке на странице выработки.
 
 ## 4. Коэффициент
 
@@ -121,8 +125,9 @@
   подколом и без) — разные строки; каждая помечена плашками правил.
 - Приёмки и цех по одному товару с одинаковыми правилами сливаются в одну строку.
 - «Коэф.» и «Ставка» в строке — средние по записям, «Сумма» — точная сумма записей.
-- У мастера сводка разбита **по отделам**: у каждого отдела свои ставки, они указаны над таблицей.
-  Документ без отдела попадает в группу «Без отдела».
+- Сводка разбита **по отделам**, внутри отдела — **по ролям** (работник / мастер): у каждого
+  отдела свои ставки, они указаны в карточке отдела. Документ без отдела попадает в группу
+  «Без отдела».
 
 ---
 
@@ -134,12 +139,12 @@
 
 | Раздел | Код | Тесты |
 |---|---|---|
-| 1. Где смотреть | `CutterWorkerDashboardController::show`, `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange` | `tests/Feature/Worker/WorkerDashboardTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
+| 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
 | 2. За что начисляется | `WorkerDashboardService::getDashboardData`, `buildProductSummary`, `buildWorkshopProductSummary` | `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `tests/Feature/StoneReception/ReceptionLogTest` |
 | 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `StoneReceptionService::updateItemCoeff` / `refreshItemCoeffs`, `WorkshopService::updateItemCoeff` / `refreshItemCoeffs` | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
-| 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `buildSummaryByDepartment` | `tests/Feature/Worker/WorkerDashboardModifiersTest` |
+| 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
 
 Заметки:
 

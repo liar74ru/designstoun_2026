@@ -52,7 +52,7 @@ class HelpService
             'title'      => 'Выработка и ставки',
             'icon'       => 'bi-cash-coin',
             'file'       => 'pay.md',
-            'operations' => ['worker-dashboard', 'master-dashboard', 'stone-receptions', 'workshops'],
+            'operations' => ['worker-dashboard', 'stone-receptions', 'workshops'],
             'back'       => null,
         ],
         'raw-batches' => [
@@ -108,7 +108,6 @@ class HelpService
         'products'             => ['route' => 'products.index',             'operation' => 'products'],
         'enterprise-dashboard' => ['route' => 'admin.enterprise-dashboard', 'operation' => 'enterprise-dashboard'],
         'my-work'              => ['route' => 'worker.dashboard',           'operation' => 'worker-dashboard'],
-        'master-work'          => ['route' => 'master.dashboard',           'operation' => 'master-dashboard'],
     ];
 
     private const DEVELOPER_HEADING = '## Для разработчиков';

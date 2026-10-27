@@ -120,9 +120,9 @@ test('мастер видит дашборд работника, для кото
     $master = mdUser(mdWorker('Мастер Цеха', 'Мастер', [$deptB]));
     $cutter = mdWorker('Пильщик', 'Работник', [$deptA, $deptB]);
 
-    Access::allowOperation($deptB, 'master-dashboard');
+    Access::allowOperation($deptB, 'worker-dashboard');
 
     $this->actingAs($master)
-        ->get(route('master.dashboard.by-id', $cutter->id))
+        ->get(route('worker.dashboard.by-id', $cutter->id))
         ->assertStatus(200);
 });

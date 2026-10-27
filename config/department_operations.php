@@ -15,20 +15,13 @@ return [
         'route_pattern'          => 'admin.enterprise-dashboard',
         'configurable_positions' => ['Мастер', 'Помощник мастера'],
     ],
-    'master-dashboard' => [
-        'label'                    => 'Дашборд',
-        'icon'                     => 'bi-bar-chart-line',
-        'route'                    => 'master.dashboard',
-        'route_pattern'            => 'master.dashboard',
-        'positions_always_visible' => ['Мастер', 'Помощник мастера'],
-        'hide_for_admin'           => true,
-    ],
     'worker-dashboard' => [
         'label'                     => 'Выраб.',
         'icon'                      => 'bi-bar-chart-line',
         'route'                     => 'worker.dashboard',
         'route_pattern'             => 'worker.dashboard',
-        'positions_always_visible'  => ['Работник', 'Разнорабочий'],
+        // Одна страница на обе роли: выработка работника и мастера по отделам.
+        'positions_always_visible'  => ['Работник', 'Разнорабочий', 'Мастер', 'Помощник мастера'],
         'hide_for_admin'            => true,
     ],
     'stone-receptions' => [

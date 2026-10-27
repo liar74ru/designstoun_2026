@@ -74,8 +74,8 @@ describe('OperationAccessor::canSee()', function () {
     test('Мастер без отдела видит only positions_always_visible, не configurable', function () {
         $user = Access::userWithPosition('Мастер', null);
         expect(OperationAccessor::canSee($user, 'stone-receptions'))->toBeFalse();
-        // master-dashboard в positions_always_visible — виден всегда
-        expect(OperationAccessor::canSee($user, 'master-dashboard'))->toBeTrue();
+        // worker-dashboard в positions_always_visible — виден всегда
+        expect(OperationAccessor::canSee($user, 'worker-dashboard'))->toBeTrue();
     });
 
     test('Помощник мастера видит операцию только если разрешено для его позиции', function () {
