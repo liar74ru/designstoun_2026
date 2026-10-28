@@ -7,6 +7,39 @@
 .nav-icon-btn i { font-size:1.15rem; }
 .nav-icon-btn span { white-space:nowrap; }
 
+/* Цвет группы плитки (group в config/department_operations.php): подложка и иконка,
+   активная плитка залита цветом группы. */
+.nav-g1 { --nav-g: #6741d9; }
+.nav-g2 { --nav-g: #d9480f; }
+.nav-g3 { --nav-g: #0c8599; }
+.nav-g4 { --nav-g: #2b8a3e; }
+.nav-g5 { --nav-g: #495057; }
+.nav-icon-btn.nav-tile {
+    --nav-g: #6c757d;
+    color: #6c757d;
+    border-color: #adb5bd;
+    background-color: color-mix(in srgb, var(--nav-g) 9%, #fff);
+}
+.nav-icon-btn.nav-tile i { color: var(--nav-g); }
+.nav-icon-btn.nav-tile:hover,
+.nav-icon-btn.nav-tile:focus-visible {
+    color: #495057;
+    border-color: #adb5bd;
+    background-color: color-mix(in srgb, var(--nav-g) 17%, #fff);
+}
+.nav-icon-btn.nav-tile.active,
+.nav-icon-btn.nav-tile.active i {
+    color: #fff;
+}
+.nav-icon-btn.nav-tile.active {
+    background-color: var(--nav-g);
+    border-color: var(--nav-g);
+}
+
+/* Справка и профиль друг под другом: занимают ширину одной узкой кнопки */
+.nav-aux { display:flex;flex-direction:column;gap:3px; }
+.nav-aux .btn:not(.btn-primary) { width:30px;height:21px;padding:0;display:flex;align-items:center;justify-content:center;font-size:.8rem; }
+
 @media (max-width: 575px) {
     .nav-icon-btn {
         width:44px;padding:.12rem .2rem;font-size:.6rem;
@@ -21,7 +54,7 @@
             <div class="flex items-center justify-between py-2">
 
                 {{-- Левая часть: логотип + навигация --}}
-                <div class="d-flex align-items-center gap-1 flex-wrap" style="max-width:calc(100vw - 90px)">
+                <div class="d-flex align-items-center gap-1 flex-wrap" style="max-width:calc(100vw - 70px)">
                     <a href="{{ url('/') }}" class="text-decoration-none d-none d-sm-inline me-2">
                         <span class="fw-bold fs-5 text-dark">ООО "Дизайн Камень"</span>
                     </a>
@@ -40,18 +73,18 @@
                                         : (($op['url'] ?? null) === '/' && request()->is('/'));
                                 @endphp
                                 <a href="{{ $href }}"
-                                   class="btn btn-sm nav-icon-btn {{ $isActive ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                   class="btn btn-sm nav-icon-btn nav-tile nav-g{{ $op['group'] ?? 0 }} {{ $isActive ? 'active' : '' }}"
                                    title="{{ $op['label'] }}">
                                     <i class="bi {{ $op['icon'] }}"></i>
-                                    <span>{{ $op['label'] }}</span>
+                                    <span>{{ $op['short_label'] ?? $op['label'] }}</span>
                                 </a>
                             @endcan
                         @endforeach
                     @endauth
                 </div>
 
-                {{-- Правая часть: auth-иконки --}}
-                <div class="d-flex align-items-center gap-1">
+                {{-- Правая часть: справка и профиль друг под другом --}}
+                <div class="nav-aux">
                     @auth
                         @php $user = auth()->user(); @endphp
 
