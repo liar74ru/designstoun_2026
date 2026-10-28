@@ -11,29 +11,62 @@
     $hideBalance = $isSelf && $worker->hide_piggy_balance;
     $money       = fn ($v) => $hideBalance ? '***' : $rub($v);
     $balanceCls  = fn ($v) => $hideBalance ? 'text-muted' : ($v < 0 ? 'text-danger' : 'text-success');
+    $step        = $salary['requestStep'];
 @endphp
 
 <div class="card border-0 shadow-sm mb-3" id="salary">
-    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center gap-2"
-         style="cursor:pointer" id="salary-toggle" role="button">
-        <span class="fw-semibold"><i class="bi bi-piggy-bank me-1"></i>Копилка и выдача</span>
-        <span class="d-flex align-items-center gap-2">
-            @if($isSelf)
-                {{-- Клик по глазу не должен сворачивать блок --}}
-                <form method="POST" action="{{ route('salary.hide-balance', $worker) }}" data-submit-guard
-                      class="d-inline" onclick="event.stopPropagation()">
-                    @csrf
-                    @method('PATCH')
-                    <input type="hidden" name="hide" value="{{ $hideBalance ? 0 : 1 }}">
-                    <button type="submit" class="btn btn-sm btn-link text-muted p-0"
-                            title="{{ $hideBalance ? 'Показать остаток копилки' : 'Скрыть остаток копилки' }}">
-                        <i class="bi {{ $hideBalance ? 'bi-eye-slash' : 'bi-eye' }}"></i>
-                    </button>
-                </form>
-            @endif
-            <span class="fw-bold {{ $balanceCls($salary['balance']) }}">{{ $money($salary['balance']) }}</span>
-            <i class="bi bi-chevron-down" id="salary-chevron"></i>
-        </span>
+    {{-- Шапка видна и в свёрнутом блоке: статус недели и три главные цифры --}}
+    <div class="card-header bg-white py-2" style="cursor:pointer" id="salary-toggle" role="button">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <span class="fw-semibold text-nowrap"><i class="bi bi-piggy-bank me-1"></i>Копилка и выдача</span>
+            <span class="d-flex align-items-center gap-2">
+                @if($salary['isOpen'])
+                    <span class="badge rounded-pill bg-success-subtle text-success-emphasis">Можно менять</span>
+                @else
+                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">
+                        <i class="bi bi-clock me-1"></i>Выбор с {{ $salary['nextCutoff']->translatedFormat('D H:i') }}
+                    </span>
+                @endif
+                <i class="bi bi-chevron-down" id="salary-chevron"></i>
+            </span>
+        </div>
+        <div class="row g-2 mt-0">
+            <div class="col-4">
+                <div class="text-muted small">Начислено</div>
+                <div class="fw-bold text-nowrap">{{ $rub($salary['accrued']) }}</div>
+            </div>
+            <div class="col-4">
+                <div class="text-muted small text-nowrap">
+                    {{-- Пока неделя идёт, сумма к выдаче ещё растёт с приёмками --}}
+                    К выдаче{{ $salary['isOpen'] ? '' : ' ≈' }}
+                    @if($salary['isRequested'])
+                        <i class="bi bi-pencil-fill text-info" title="Изменено вручную"></i>
+                    @endif
+                </div>
+                <div class="fw-bold text-success text-nowrap">{{ $rub($salary['toPay']) }}</div>
+            </div>
+            <div class="col-4">
+                <div class="text-muted small d-flex align-items-center gap-1">
+                    Копилка
+                    @if($isSelf)
+                        {{-- Клик по глазу не должен сворачивать блок --}}
+                        <form method="POST" action="{{ route('salary.hide-balance', $worker) }}" data-submit-guard
+                              class="d-inline" onclick="event.stopPropagation()">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="hide" value="{{ $hideBalance ? 0 : 1 }}">
+                            <button type="submit" class="btn btn-sm btn-link text-muted p-0 lh-1"
+                                    title="{{ $hideBalance ? 'Показать остаток копилки' : 'Скрыть остаток копилки' }}">
+                                <i class="bi {{ $hideBalance ? 'bi-eye-slash' : 'bi-eye' }}"></i>
+                            </button>
+                        </form>
+                    @endif
+                </div>
+                <div class="fw-bold text-nowrap {{ ! $hideBalance && $salary['balance'] < 0 ? 'text-danger' : '' }}">
+                    {{ $money($salary['balance']) }}
+                </div>
+            </div>
+        </div>
     </div>
     <div class="card-body py-2 px-3" id="salary-collapse" style="display:none"
          data-force-open="{{ $errors->hasAny(['amount', 'paid_cash', 'paid_card', 'paid_tax', 'paid', 'piggy_amount', 'piggy_comment']) ? 1 : 0 }}">
@@ -41,9 +74,11 @@
         <div class="d-flex justify-content-between align-items-center small text-muted mb-2">
             <span>
                 @if($salary['isOpen'])
-                    Неделя {{ $salary['periodFrom']->format('d.m') }} — {{ $salary['periodTo']->copy()->subSecond()->format('d.m') }}
+                    Неделя {{ $salary['periodFrom']->format('d.m') }} — {{ $salary['periodTo']->copy()->subSecond()->format('d.m') }}.
+                    Сумму к выдаче можно менять, пока зарплату не выдали.
                 @else
-                    Неделя с {{ $salary['periodFrom']->format('d.m') }} · выплата — с {{ $salary['nextCutoff']->translatedFormat('D d.m H:i') }}
+                    Неделя с {{ $salary['periodFrom']->format('d.m') }}: начисленное растёт с приёмками до конца четверга.
+                    Выбрать сумму — с {{ $salary['nextCutoff']->translatedFormat('D d.m H:i') }}.
                 @endif
             </span>
             <button type="button" class="btn btn-sm btn-link text-muted p-0" title="Как это работает"
@@ -68,31 +103,15 @@
         </div>
 
         <div class="row g-2 mb-2">
-            <div class="col-6 col-md-3">
-                <div class="text-muted small">Начислено</div>
-                <div class="fw-semibold">{{ $rub($salary['accrued']) }}</div>
-            </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6">
                 <div class="text-muted small">{{ $toBank < 0 ? 'Из копилки' : 'В копилку' }}</div>
                 <div class="fw-semibold {{ $toBank < 0 ? 'text-danger' : 'text-success' }}">{{ $rub(abs($toBank)) }}</div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="text-muted small">
-                    К выдаче
-                    @if($salary['isRequested'])
-                        <span class="badge bg-info-subtle text-info-emphasis" title="Изменено вручную">изменено</span>
-                    @endif
+            <div class="col-6">
+                <div class="text-muted small">Копилка после выдачи</div>
+                <div class="fw-semibold {{ ! $hideBalance && $salary['balanceAfter'] < 0 ? 'text-danger' : '' }}">
+                    {{ $money($salary['balanceAfter']) }}
                 </div>
-                <div class="fs-5 fw-bold text-success">{{ $rub($salary['toPay']) }}</div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="text-muted small">Копилка</div>
-                <div class="fw-semibold {{ ! $hideBalance && $salary['balance'] < 0 ? 'text-danger' : '' }}">
-                    {{ $money($salary['balance']) }}
-                </div>
-                @if($salary['isOpen'] && round($salary['balanceAfter']) != round($salary['balance']))
-                    <div class="small text-muted">после выдачи {{ $money($salary['balanceAfter']) }}</div>
-                @endif
             </div>
         </div>
 
@@ -104,61 +123,69 @@
         @endif
 
         @if($canEdit)
-            @php $step = $salary['requestStep']; @endphp
-            <form method="POST" action="{{ route('salary.request', $worker) }}" data-submit-guard
-                  class="d-flex flex-wrap gap-2 align-items-end border-top pt-2">
+            <form method="POST" action="{{ route('salary.request', $worker) }}" data-submit-guard class="border-top pt-2">
                 @csrf
                 @method('PATCH')
-                <div>
-                    <label class="form-label small text-muted mb-1">Хочу получить, ₽</label>
-                    {{-- Ввод вручную округляется до ближайшего кратного шагу, кнопки −/+ шагают на него же --}}
-                    <div class="input-group input-group-sm" style="width:12rem">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                    <label class="small text-muted mb-0">Хочу получить</label>
+                    <div class="input-group input-group-sm" style="max-width:12rem">
                         <button type="button" class="btn btn-outline-secondary" data-salary-step-btn="-1"
                                 title="−{{ $step }} ₽"><i class="bi bi-dash-lg"></i></button>
                         <input type="number" name="amount" min="0" step="{{ $step }}" data-salary-step="{{ $step }}"
                                @unless($isAdmin) max="{{ $salary['maxRequest'] }}" @endunless
                                value="{{ old('amount', round($salary['toPay'] / $step) * $step) }}"
-                               class="form-control text-center @error('amount') is-invalid @enderror">
+                               class="form-control text-center fw-semibold @error('amount') is-invalid @enderror">
                         <button type="button" class="btn btn-outline-secondary" data-salary-step-btn="1"
                                 title="+{{ $step }} ₽"><i class="bi bi-plus-lg"></i></button>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-sm btn-primary">Сохранить</button>
-                @if($salary['isRequested'])
-                    <button type="submit" name="reset" value="1" class="btn btn-sm btn-outline-secondary">
+                <div class="d-flex gap-2">
+                    <button type="{{ $salary['isRequested'] ? 'submit' : 'button' }}" name="reset" value="1"
+                            class="btn btn-sm btn-outline-secondary flex-fill @unless($salary['isRequested']) d-none @endunless"
+                            data-salary-default="{{ round($salary['defaultToPay'] / $step) * $step }}"
+                            data-salary-saved="{{ $salary['isRequested'] ? 1 : 0 }}">
                         По умолчанию
                     </button>
-                @endif
-                @error('amount')
-                    <div class="small text-danger w-100">{{ $message }}</div>
-                @enderror
+                    <button type="submit" class="btn btn-sm btn-primary flex-fill">Сохранить</button>
+                </div>
+                @error('amount') <div class="small text-danger mt-1">{{ $message }}</div> @enderror
             </form>
         @endif
 
         @if($isAdmin && $salary['isOpen'])
-            <form method="POST" action="{{ route('salary.paid', $worker) }}" data-submit-guard
+            <form method="POST" action="{{ route('salary.paid', $worker) }}" data-submit-guard data-payout-form
+                  data-to-pay="{{ $salary['toPay'] }}"
                   onsubmit="return confirm('Отметить зарплату выданной? Период будет закрыт.')"
-                  class="border-top pt-2 mt-2">
+                  class="bg-light rounded p-2 mt-2">
                 @csrf
-                <div class="d-flex flex-wrap gap-2 align-items-end">
-                    @foreach(['paid_cash' => 'Наличные', 'paid_card' => 'На карту', 'paid_tax' => 'Налог'] as $field => $label)
-                        <div>
-                            <label class="form-label small text-muted mb-1">{{ $label }}, ₽</label>
-                            <input type="number" name="{{ $field }}" min="0" step="0.01"
-                                   value="{{ old($field, $field === 'paid_cash' ? round($salary['toPay'], 2) : '') }}"
-                                   class="form-control form-control-sm @error($field) is-invalid @enderror"
-                                   style="width:8rem;border-radius:.4rem">
+                <div class="fw-semibold small mb-2"><i class="bi bi-cash-coin me-1"></i>Выдать зарплату</div>
+                @foreach(['paid_cash' => 'Наличными', 'paid_card' => 'На карту', 'paid_tax' => 'Налог'] as $field => $label)
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                        <label class="small mb-0" for="payout-{{ $field }}">{{ $label }}</label>
+                        <div class="d-flex align-items-center gap-1">
+                            @unless($field === 'paid_tax')
+                                <button type="button" class="btn btn-sm btn-link p-0 small text-decoration-none"
+                                        data-payout-fill="{{ $field }}" title="Всю сумму — {{ mb_strtolower($label) }}">всё</button>
+                            @endunless
+                            <div class="input-group input-group-sm" style="width:9rem">
+                                <input type="number" id="payout-{{ $field }}" name="{{ $field }}" min="0" step="0.01" placeholder="0"
+                                       data-payout-part
+                                       value="{{ old($field, $field === 'paid_cash' ? round($salary['toPay'], 2) : '') }}"
+                                       class="form-control text-end @error($field) is-invalid @enderror">
+                                <span class="input-group-text">₽</span>
+                            </div>
                         </div>
-                    @endforeach
-                    <div class="flex-grow-1" style="min-width:10rem">
-                        <label class="form-label small text-muted mb-1">Комментарий</label>
-                        <input type="text" name="comment" maxlength="255" value="{{ old('comment') }}"
-                               class="form-control form-control-sm" style="border-radius:.4rem">
                     </div>
-                    <button type="submit" class="btn btn-sm btn-success">
-                        <i class="bi bi-cash-coin me-1"></i>Зарплата выдана
-                    </button>
+                @endforeach
+                <div class="d-flex justify-content-between small border-top pt-1 mt-1">
+                    <span class="text-muted">Итого выдаётся</span>
+                    <span data-payout-check></span>
                 </div>
+                <input type="text" name="comment" maxlength="255" value="{{ old('comment') }}"
+                       class="form-control form-control-sm mt-2" placeholder="Комментарий (необязательно)">
+                <button type="submit" class="btn btn-sm btn-success w-100 mt-2">
+                    <i class="bi bi-check2 me-1"></i>Зарплата выдана
+                </button>
                 @foreach(['paid_cash', 'paid_card', 'paid_tax', 'paid'] as $field)
                     @error($field) <div class="small text-danger">{{ $message }}</div> @enderror
                 @endforeach
@@ -299,6 +326,33 @@
                 try { localStorage.setItem(STORAGE_KEY, isHidden ? 'open' : 'closed'); } catch (e) {}
             });
 
+            // ── Выдача (админ): «итого выдаётся» против суммы к выдаче, кнопки «всё наличными / на карту» ──
+            document.querySelectorAll('[data-payout-form]').forEach(function (form) {
+                const toPay = Number(form.dataset.toPay);
+                const parts = form.querySelectorAll('[data-payout-part]');
+                const check = form.querySelector('[data-payout-check]');
+                const fmt   = v => Math.round(v).toLocaleString('ru-RU') + ' ₽';
+
+                function update() {
+                    if (!check) return;
+                    const total = Array.from(parts).reduce((s, el) => s + (Number(el.value) || 0), 0);
+                    const diff  = total - toPay;
+                    check.className = Math.round(diff) === 0 ? 'small text-success' : 'small text-danger';
+                    check.textContent = fmt(total) + (Math.round(diff) === 0 ? ' ✓'
+                        : (diff > 0 ? ' — на ' + fmt(diff) + ' больше, возьмётся из копилки'
+                                    : ' — на ' + fmt(-diff) + ' меньше, уйдёт в копилку'));
+                }
+
+                form.querySelectorAll('[data-payout-fill]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        parts.forEach(el => { el.value = el.name === btn.dataset.payoutFill ? toPay : ''; });
+                        update();
+                    });
+                });
+                parts.forEach(el => el.addEventListener('input', update));
+                update();
+            });
+
             // ── «Хочу получить»: ручной ввод — к ближайшему кратному шагу в пределах min/max,
             //    кнопки −/+ — на шаг от округлённого значения ──
             document.querySelectorAll('[data-salary-step]').forEach(function (input) {
@@ -310,16 +364,33 @@
                     return Math.max(0, v);
                 }
 
+                // «По умолчанию»: сохранённая сумма — кнопка видна всегда, иначе — когда сумма отличается
+                const resetBtn = input.form.querySelector('[data-salary-default]');
+                const saved    = resetBtn && resetBtn.dataset.salarySaved === '1';
+                function syncReset() {
+                    if (!resetBtn || saved) return;
+                    resetBtn.classList.toggle('d-none', Number(input.value) === Number(resetBtn.dataset.salaryDefault));
+                }
+                if (resetBtn && !saved) {
+                    resetBtn.addEventListener('click', function () {
+                        input.value = resetBtn.dataset.salaryDefault;
+                        syncReset();
+                    });
+                }
+
                 input.addEventListener('change', function () {
                     if (input.value !== '') input.value = snap(Number(input.value));
+                    syncReset();
                 });
 
                 input.closest('.input-group').querySelectorAll('[data-salary-step-btn]').forEach(function (btn) {
                     btn.addEventListener('click', function () {
                         const current = snap(Number(input.value) || 0);
                         input.value = snap(current + Number(btn.dataset.salaryStepBtn) * step);
+                        syncReset();
                     });
                 });
+                syncReset();
             });
         });
     </script>
