@@ -66,7 +66,11 @@ class ItemCost
                 'is_small_tile'        => StoneReceptionItem::skuIsSmallTile($product?->sku),
                 'worker_cost_per_m2'   => $product?->prodCost($effCoeff, $departmentId),
                 'master_cost_per_m2'   => $product
-                    ? RateFormula::stepped(DepartmentSettings::masterBaseRate($departmentId), $masterCoeff)
+                    ? RateFormula::stepped(
+                        DepartmentSettings::masterBaseRate($departmentId),
+                        $masterCoeff,
+                        DepartmentSettings::masterRoundStep($departmentId),
+                    )
                     : null,
                 'disabled_modifier_keys' => $disabledKeys ?: null,
             ],
@@ -106,7 +110,11 @@ class ItemCost
             $result['attributes']['master_base_cost_coeff']      = $masterBaseCoeff;
             $result['attributes']['master_effective_cost_coeff'] = $masterCoeff;
             $result['attributes']['master_cost_per_m2']          = $product
-                ? RateFormula::stepped(DepartmentSettings::masterBaseRate($departmentId), $masterCoeff)
+                ? RateFormula::stepped(
+                    DepartmentSettings::masterBaseRate($departmentId),
+                    $masterCoeff,
+                    DepartmentSettings::masterRoundStep($departmentId),
+                )
                 : null;
         }
 

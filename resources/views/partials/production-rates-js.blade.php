@@ -27,6 +27,8 @@
 
     $ratesPieceByDept = [];
     $ratesMasterByDept = [];
+    $ratesPieceStepByDept = [];
+    $ratesMasterStepByDept = [];
     $ratesOverheadByDept = [];
     $ratesModifiersByDept = [];
 
@@ -35,6 +37,8 @@
 
         $ratesPieceByDept[$ratesKey] = \App\Support\DepartmentSettings::pieceRate($ratesDeptId);
         $ratesMasterByDept[$ratesKey] = \App\Support\DepartmentSettings::masterBaseRate($ratesDeptId);
+        $ratesPieceStepByDept[$ratesKey] = \App\Support\DepartmentSettings::pieceRoundStep($ratesDeptId);
+        $ratesMasterStepByDept[$ratesKey] = \App\Support\DepartmentSettings::masterRoundStep($ratesDeptId);
         $ratesOverheadByDept[$ratesKey] = \App\Support\DepartmentSettings::overheadPerUnit($ratesDeptId);
 
         $ratesModifiersByDept[$ratesKey] = \App\Support\ModifierEngine::allFor($ratesDeptId)
@@ -60,10 +64,18 @@
         pieceRate: {
             default: {{ \App\Support\DepartmentSettings::pieceRate(null) }},
             byDepartment: @json((object) $ratesPieceByDept),
+            roundStep: {
+                default: {{ \App\Support\DepartmentSettings::pieceRoundStep(null) }},
+                byDepartment: @json((object) $ratesPieceStepByDept),
+            },
         },
         masterRate: {
             default: {{ \App\Support\DepartmentSettings::masterBaseRate(null) }},
             byDepartment: @json((object) $ratesMasterByDept),
+            roundStep: {
+                default: {{ \App\Support\DepartmentSettings::masterRoundStep(null) }},
+                byDepartment: @json((object) $ratesMasterStepByDept),
+            },
         },
         overhead: {
             byDepartment: @json((object) $ratesOverheadByDept),

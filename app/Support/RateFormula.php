@@ -13,15 +13,17 @@ class RateFormula
 
     /**
      * Ступенчатая ставка за единицу продукции:
-     * ОКРУГЛВНИЗ((ставка + ставка×17%×коэф) / 10) × 10
+     * ОКРУГЛВНИЗ((ставка + ставка×17%×коэф) / шаг) × шаг
      *
      * При коэффициенте 0 возвращает базовую ставку без надбавки.
-     * Используется для зарплаты пильщика (PIECE_RATE + prod_cost_coeff)
-     * и для ставки мастера (MASTER_BASE_RATE + master_cost_coeff).
+     * Используется для зарплаты пильщика (PIECE_RATE + prod_cost_coeff, шаг PIECE_ROUND_STEP)
+     * и для ставки мастера (MASTER_BASE_RATE + master_cost_coeff, шаг MASTER_ROUND_STEP).
+     *
+     * Эпсилон гасит погрешность float: без него 129,99999… при шаге 1 даёт 129.
      */
-    public static function stepped(float $rate, float $coeff): float
+    public static function stepped(float $rate, float $coeff, float $step = 10): float
     {
-        return floor(($rate + ($rate * self::COEFF_SHARE) * $coeff) / 10) * 10;
+        return floor(($rate + ($rate * self::COEFF_SHARE) * $coeff) / $step + 1e-9) * $step;
     }
 
     /**

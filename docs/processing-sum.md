@@ -52,7 +52,8 @@ masterSalaryTotal = Σ (item->master_cost_per_m2 × item->quantity)
 ```
 base            = MASTER_BASE_RATE отдела (фолбэк — глобальная, default 100)
 masterCoeff     = product.master_cost_coeff + Σ master_coeff_delta сработавших правил отдела
-masterCostPerM2 = ОКРУГЛВНИЗ((base + base×17%×masterCoeff) / 10) × 10
+step            = MASTER_ROUND_STEP отдела (фолбэк — глобальная, default 10)
+masterCostPerM2 = ОКРУГЛВНИЗ((base + base×17%×masterCoeff) / step) × step
 ```
 
 - `master_cost_coeff` — атрибут `masterCostCoeff` продукта из МойСклад. Атрибут не заведён

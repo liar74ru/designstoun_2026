@@ -171,10 +171,14 @@ class Product extends Model
      */
     public function prodCost($coeffCustom = null, ?int $departmentId = null): float|int
     {
-        // ОКРУГЛВНИЗ((PIECE_RATE + PIECE_RATE*17% * coeff) / 10; 0) * 10
+        // ОКРУГЛВНИЗ((PIECE_RATE + PIECE_RATE*17% * coeff) / шаг; 0) * шаг
         $coeff = $coeffCustom ?? (float)$this->prod_cost_coeff ?? 0;
 
-        return \App\Support\RateFormula::stepped(self::pieceRate($departmentId), (float) $coeff);
+        return \App\Support\RateFormula::stepped(
+            self::pieceRate($departmentId),
+            (float) $coeff,
+            \App\Support\DepartmentSettings::pieceRoundStep($departmentId),
+        );
     }
 
     public function calculateWorkerPay(float $quantity, ?int $departmentId = null): float

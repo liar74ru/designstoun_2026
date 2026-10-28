@@ -44,6 +44,26 @@ export function masterRate(departmentId = null) {
 }
 
 /**
+ * Шаг округления ставки отдела. Зеркало DepartmentSettings::pieceRoundStep() /
+ * masterRoundStep(): значение уже нормализовано на сервере (≤ 0 → 10).
+ */
+function roundStep(cfg, departmentId) {
+    const own = departmentId != null ? cfg?.roundStep?.byDepartment?.[String(departmentId)] : undefined;
+    const step = Number(own ?? cfg?.roundStep?.default ?? 10);
+    return step > 0 ? step : 10;
+}
+
+/** Шаг округления ставки пильщика. */
+export function pieceRoundStep(departmentId = null) {
+    return roundStep(rates().pieceRate, departmentId);
+}
+
+/** Шаг округления ставки мастера. */
+export function masterRoundStep(departmentId = null) {
+    return roundStep(rates().masterRate, departmentId);
+}
+
+/**
  * Накладные расходы отдела на единицу (₽/ед). Зеркало DepartmentSettings::overheadPerUnit():
  * наследования нет, отдел не задан → 0.
  */
@@ -120,10 +140,11 @@ export function resolve({ departmentId, scope, sku = null, manualKeys = [], batc
 
 /**
  * Ступенчатая ставка за единицу продукции.
- * ОКРУГЛВНИЗ((ставка + ставка×доля×коэф) / 10) × 10
+ * ОКРУГЛВНИЗ((ставка + ставка×доля×коэф) / шаг) × шаг
+ * Эпсилон — как в RateFormula::stepped(): гасит погрешность float.
  */
-export function stepped(rate, coeff) {
-    return Math.floor((rate + rate * coeffShare() * coeff) / 10) * 10;
+export function stepped(rate, coeff, step = 10) {
+    return Math.floor((rate + rate * coeffShare() * coeff) / step + 1e-9) * step;
 }
 
 /** Итоговый коэффициент пильщика: база плюс сумма сработавших правил. */
@@ -161,18 +182,20 @@ export function formatCoeff(value) {
 
 /** Стоимость единицы продукции для пильщика по эффективному коэффициенту. */
 export function prodCost(effCoeff, departmentId = null) {
-    return stepped(pieceRate(departmentId), Number(effCoeff));
+    return stepped(pieceRate(departmentId), Number(effCoeff), pieceRoundStep(departmentId));
 }
 
 /** Стоимость единицы продукции для мастера по эффективному коэффициенту мастера. */
 export function masterCost(effCoeff, departmentId = null) {
-    return stepped(masterRate(departmentId), Number(effCoeff));
+    return stepped(masterRate(departmentId), Number(effCoeff), masterRoundStep(departmentId));
 }
 
 window.RateFormula = {
     coeffShare,
     pieceRate,
     masterRate,
+    pieceRoundStep,
+    masterRoundStep,
     overheadPerUnit,
     modifiersFor,
     matchesPattern,

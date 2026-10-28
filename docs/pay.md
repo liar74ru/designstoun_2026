@@ -62,10 +62,13 @@
 
 Ставка за 1 м² (или 1 шт — для товаров в штуках) считается по одной формуле:
 
-**ОКРУГЛВНИЗ((базовая ставка + базовая ставка × 17% × коэффициент) / 10) × 10**
+**ОКРУГЛВНИЗ((базовая ставка + базовая ставка × 17% × коэффициент) / шаг) × шаг**
 
 То есть к базовой ставке добавляется 17% за каждую единицу коэффициента, и результат
-округляется **вниз до десятков**. Коэффициент 0 — ставка равна базовой.
+округляется **вниз до кратного шагу**. Шаг задаёт администратор в карточке отдела, отдельно
+для пильщика и для мастера: по умолчанию 10 (до десятков), можно 1 (до рубля) или 5.
+Коэффициент 0 — ставка равна базовой. В примерах ниже шаг 10; при шаге 1 ставка
+для коэффициента 2 была бы 522 ₽.
 
 | Базовая ставка | Коэффициент | Расчёт | Ставка |
 |---|---|---|---|
@@ -198,7 +201,7 @@
 |---|---|---|
 | 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange` (`fridayShowsPrevious`), `SalaryService::expectedPay`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
 | 2. За что начисляется | `WorkerDashboardService::getDashboardData`, `buildProductSummary`, `buildWorkshopProductSummary` | `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `tests/Feature/StoneReception/ReceptionLogTest` |
-| 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
+| 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `pieceRoundStep`, `masterRoundStep`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `StoneReceptionService::updateItemCoeff` / `refreshItemCoeffs`, `WorkshopService::updateItemCoeff` / `refreshItemCoeffs` | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
 | 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank` | `tests/Feature/Worker/SalaryHideBalanceTest` |

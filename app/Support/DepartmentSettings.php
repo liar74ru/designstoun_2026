@@ -104,6 +104,28 @@ class DepartmentSettings
     }
 
     /**
+     * Шаг округления ставки пильщика (₽): 10 — до десятков, 1 — до рубля.
+     * Ноль и отрицательное значение (форма их пропускает) → 10.
+     */
+    public static function pieceRoundStep(?int $departmentId): float
+    {
+        return self::roundStep($departmentId, 'PIECE_ROUND_STEP');
+    }
+
+    /** Шаг округления ставки мастера (₽). */
+    public static function masterRoundStep(?int $departmentId): float
+    {
+        return self::roundStep($departmentId, 'MASTER_ROUND_STEP');
+    }
+
+    private static function roundStep(?int $departmentId, string $key): float
+    {
+        $step = self::float($departmentId, $key, 10);
+
+        return $step > 0 ? $step : 10.0;
+    }
+
+    /**
      * Плоский список всех ключей, настраиваемых per-department (whitelist).
      *
      * @return string[]

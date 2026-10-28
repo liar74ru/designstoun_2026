@@ -141,12 +141,12 @@ describe('DepartmentSettings — кэш', function () {
 
 describe('DepartmentSettings::keys()', function () {
 
-    test('содержит ставки пильщика и мастера — накладные больше не ключи настроек', function () {
+    test('содержит ставки и шаги округления пильщика и мастера — накладные больше не ключи настроек', function () {
         $keys = DepartmentSettings::keys();
 
         // MASTER_UNDERCUT_RATE убрана: подкол мастеру — правило отдела
-        expect($keys)->toHaveCount(2)
-            ->and($keys)->toContain('PIECE_RATE', 'MASTER_BASE_RATE')
+        expect($keys)->toHaveCount(4)
+            ->and($keys)->toContain('PIECE_RATE', 'PIECE_ROUND_STEP', 'MASTER_BASE_RATE', 'MASTER_ROUND_STEP')
             ->and($keys)->not->toContain('MASTER_UNDERCUT_RATE', 'BLADE_WEAR', 'OTHER_COSTS');
     });
 });
