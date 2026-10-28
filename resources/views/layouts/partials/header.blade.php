@@ -8,32 +8,32 @@
 .nav-icon-btn span { white-space:nowrap; }
 
 /* Цвет группы плитки (group в config/department_operations.php): подложка и иконка,
-   активная плитка залита цветом группы. */
+   активная плитка залита цветом группы. Без группы — серый через фолбэк var():
+   значение по умолчанию в .nav-tile перебило бы .nav-gN более высокой специфичностью. */
 .nav-g1 { --nav-g: #6741d9; }
 .nav-g2 { --nav-g: #d9480f; }
 .nav-g3 { --nav-g: #0c8599; }
 .nav-g4 { --nav-g: #2b8a3e; }
 .nav-g5 { --nav-g: #495057; }
 .nav-icon-btn.nav-tile {
-    --nav-g: #6c757d;
     color: #6c757d;
     border-color: #adb5bd;
-    background-color: color-mix(in srgb, var(--nav-g) 9%, #fff);
+    background-color: color-mix(in srgb, var(--nav-g, #6c757d) 9%, #fff);
 }
-.nav-icon-btn.nav-tile i { color: var(--nav-g); }
+.nav-icon-btn.nav-tile i { color: var(--nav-g, #6c757d); }
 .nav-icon-btn.nav-tile:hover,
 .nav-icon-btn.nav-tile:focus-visible {
     color: #495057;
     border-color: #adb5bd;
-    background-color: color-mix(in srgb, var(--nav-g) 17%, #fff);
+    background-color: color-mix(in srgb, var(--nav-g, #6c757d) 17%, #fff);
 }
 .nav-icon-btn.nav-tile.active,
 .nav-icon-btn.nav-tile.active i {
     color: #fff;
 }
 .nav-icon-btn.nav-tile.active {
-    background-color: var(--nav-g);
-    border-color: var(--nav-g);
+    background-color: var(--nav-g, #6c757d);
+    border-color: var(--nav-g, #6c757d);
 }
 
 /* Справка и профиль друг под другом: занимают ширину одной узкой кнопки */
