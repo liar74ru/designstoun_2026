@@ -8,7 +8,7 @@
     <x-page-header
         title="{{ $modifier->name }}"
         mobileTitle="{{ $modifier->name }}"
-        :backUrl="route('admin.departments.show', $department)"
+        :backUrl="route('admin.departments.show', $department) . '#salary'"
         backLabel="К отделу">
         <x-slot name="actions">
             @include('partials.help-button', ['page' => 'settings'])

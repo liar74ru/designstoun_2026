@@ -46,7 +46,7 @@ describe('DepartmentController::store()', function () {
                 'code'        => 'ND',
                 'description' => 'Описание отдела',
             ])
-            ->assertRedirect(route('admin.settings.index'))
+            ->assertRedirect(route('admin.departments.index'))
             ->assertSessionHas('success');
 
         expect(Department::where('name', 'Новый отдел')->exists())->toBeTrue();
@@ -176,7 +176,7 @@ describe('DepartmentController::update()', function () {
                 'code'        => $dept->code,
                 'description' => 'Новое описание',
             ])
-            ->assertRedirect(route('admin.departments.show', $dept))
+            ->assertRedirect(route('admin.departments.show', $dept) . '#main')
             ->assertSessionHas('success');
 
         expect($dept->fresh()->name)->toBe('Новое имя');
@@ -191,7 +191,7 @@ describe('DepartmentController::update()', function () {
                 'name'        => $dept->name,
                 'is_active'   => false,
             ])
-            ->assertRedirect(route('admin.departments.show', $dept));
+            ->assertRedirect(route('admin.departments.show', $dept) . '#main');
 
         expect($dept->fresh()->is_active)->toBeFalse();
     });
@@ -237,7 +237,7 @@ describe('DepartmentController::updateOperations()', function () {
                     'stone-receptions' => ['positions' => ['Мастер']],
                 ],
             ])
-            ->assertRedirect(route('admin.departments.show', $dept));
+            ->assertRedirect(route('admin.departments.show', $dept) . '#access');
 
         expect(DepartmentOperationSetting::where('department_id', $dept->id)->exists())->toBeTrue();
     });
@@ -270,7 +270,7 @@ describe('DepartmentController::updateOperations()', function () {
                     'raw-batches' => ['positions' => ['Мастер', 'Работник']],
                 ],
             ])
-            ->assertRedirect(route('admin.departments.show', $dept));
+            ->assertRedirect(route('admin.departments.show', $dept) . '#access');
 
         $setting = DepartmentOperationSetting::where('department_id', $dept->id)
             ->where('operation_key', 'raw-batches')
@@ -301,7 +301,7 @@ describe('DepartmentController::destroy()', function () {
 
         $this->actingAs($user)
             ->delete(route('admin.departments.destroy', $dept))
-            ->assertRedirect(route('admin.settings.index'))
+            ->assertRedirect(route('admin.departments.index'))
             ->assertSessionHas('success');
 
         expect(Department::find($dept->id))->toBeNull();
@@ -314,7 +314,7 @@ describe('DepartmentController::destroy()', function () {
 
         $this->actingAs($user)
             ->delete(route('admin.departments.destroy', $dept))
-            ->assertRedirect(route('admin.settings.index'))
+            ->assertRedirect(route('admin.departments.show', $dept))
             ->assertSessionHas('error', fn ($msg) => str_contains($msg, 'работники'));
 
         expect(Department::find($dept->id))->not->toBeNull();

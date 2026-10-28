@@ -68,6 +68,14 @@ function pathOf(href) {
     }
 }
 
+function hashOf(href) {
+    try {
+        return new URL(href, window.location.origin).hash;
+    } catch {
+        return '';
+    }
+}
+
 function apply() {
     const back = target(record());
 
@@ -83,7 +91,10 @@ function apply() {
             text.dataset.backLabel = text.textContent;
         }
 
-        link.setAttribute('href', back ? back.url : fallback);
+        // Цель — та же страница, что и родитель по умолчанию: берём его #hash
+        // (вкладка карточки отдела), в стеке хранится только путь с query.
+        const hash = back && back.path === pathOf(fallback) ? hashOf(fallback) : '';
+        link.setAttribute('href', back ? back.url + hash : fallback);
         if (back) link.title = back.title;
         else link.removeAttribute('title');
 

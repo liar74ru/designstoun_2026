@@ -44,12 +44,13 @@ describe('POST /admin/settings', function () {
         Setting::create(['key' => 'PIECE_RATE', 'value' => '390', 'label' => 'Ставка']);
 
         $this->actingAs(H::adminUser())
+            ->from(route('admin.settings.rates'))
             ->post('/admin/settings', [
                 'settings' => [
                     ['key' => 'PIECE_RATE', 'value' => '450'],
                 ],
             ])
-            ->assertRedirect(route('admin.settings.index'))
+            ->assertRedirect(route('admin.settings.rates'))
             ->assertSessionHas('success');
 
         expect(Setting::where('key', 'PIECE_RATE')->value('value'))->toBe('450');

@@ -25,7 +25,7 @@ test('администратор сохраняет переопределени
                 'MASTER_BASE_RATE' => '150',
             ],
         ])
-        ->assertRedirect(route('admin.departments.show', $this->dept))
+        ->assertRedirect(route('admin.departments.show', $this->dept) . '#salary')
         ->assertSessionHas('success');
 
     expect(DepartmentSettings::pieceRate($this->dept->id))->toBe(420.0);
@@ -43,7 +43,7 @@ test('пустое поле удаляет переопределение — з
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => ['MASTER_BASE_RATE' => ''],
         ])
-        ->assertRedirect(route('admin.departments.show', $this->dept));
+        ->assertRedirect(route('admin.departments.show', $this->dept) . '#salary');
 
     expect(DepartmentSetting::where('department_id', $this->dept->id)->where('key', 'MASTER_BASE_RATE')->exists())
         ->toBeFalse();
@@ -54,7 +54,7 @@ test('ключ вне whitelist игнорируется (включая быв�
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => ['BLADE_WEAR' => '500', 'ELECTRICITY' => '95', 'HACK_KEY' => '1', 'MASTER_UNDERCUT_RATE' => '50'],
         ])
-        ->assertRedirect(route('admin.departments.show', $this->dept));
+        ->assertRedirect(route('admin.departments.show', $this->dept) . '#salary');
 
     expect(DepartmentSetting::where('department_id', $this->dept->id)->count())->toBe(0);
 });
@@ -64,7 +64,7 @@ test('PIECE_RATE сохраняется как настройка отдела',
         ->patch(route('admin.departments.cost-settings.update', $this->dept), [
             'settings' => ['PIECE_RATE' => '420'],
         ])
-        ->assertRedirect(route('admin.departments.show', $this->dept));
+        ->assertRedirect(route('admin.departments.show', $this->dept) . '#salary');
 
     expect(DepartmentSetting::where('department_id', $this->dept->id)->where('key', 'PIECE_RATE')->value('value'))
         ->toBe('420');

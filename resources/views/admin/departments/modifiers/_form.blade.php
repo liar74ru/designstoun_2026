@@ -280,7 +280,7 @@
         <button type="submit" class="btn btn-primary px-4">
             <i class="bi bi-check-lg"></i> Сохранить
         </button>
-        <a href="{{ route('admin.departments.show', $department) }}" class="btn btn-outline-secondary">
+        <a href="{{ route('admin.departments.show', $department) }}#salary" class="btn btn-outline-secondary" data-back>
             Отмена
         </a>
     </div>

@@ -29,7 +29,7 @@ test('администратор сохраняет строки с сохран
         ['name' => 'Аренда',      'amount' => '35.50'],
         ['name' => 'Экскаватор',  'amount' => '500'],
     ])
-        ->assertRedirect(route('admin.departments.show', $this->dept))
+        ->assertRedirect(route('admin.departments.show', $this->dept) . '#salary')
         ->assertSessionHas('success');
 
     $rows = $this->dept->expenses()->get();
@@ -96,7 +96,7 @@ test('пустой список очищает расходы отдела', fun
 
     $this->actingAs(H::adminUser())
         ->patch(route('admin.departments.expenses.update', $this->dept), [])
-        ->assertRedirect(route('admin.departments.show', $this->dept));
+        ->assertRedirect(route('admin.departments.show', $this->dept) . '#salary');
 
     expect($this->dept->expenses()->count())->toBe(0)
         ->and(DepartmentSettings::overheadPerUnit($this->dept->id))->toBe(0.0);

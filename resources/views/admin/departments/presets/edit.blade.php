@@ -8,7 +8,7 @@
     <x-page-header
         title="Пресет «{{ $preset->name }}»"
         mobileTitle="Пресет"
-        :backUrl="route('admin.departments.show', $department)"
+        :backUrl="route('admin.departments.show', $department) . '#workshop'"
         backLabel="К отделу">
         <x-slot name="actions">
             @include('partials.help-button', ['page' => 'settings'])

@@ -20,7 +20,7 @@ describe('PATCH /admin/departments/{department}/operations', function () {
                     'raw-batches'      => ['positions' => ['', 'Мастер', 'Помощник мастера']],
                 ],
             ])
-            ->assertRedirect(route('admin.departments.show', $dept))
+            ->assertRedirect(route('admin.departments.show', $dept) . '#access')
             ->assertSessionHas('success');
 
         $stoneSetting = DepartmentOperationSetting::where('department_id', $dept->id)

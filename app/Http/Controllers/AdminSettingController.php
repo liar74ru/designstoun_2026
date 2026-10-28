@@ -4,21 +4,62 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\Setting;
-use App\Models\Store;
 use App\Services\SkuColorService;
+use App\Support\DepartmentSettings;
 use App\Support\ProductionRates;
 use Illuminate\Http\Request;
 
 class AdminSettingController extends Controller
 {
+    /** Статусы техопераций МойСклад: имя должно совпадать с МойСклад символ в символ. */
+    private const MOYSKLAD_KEYS = ['MOYSKLAD_IN_WORK_STATE', 'MOYSKLAD_DONE_STATE'];
+
+    /**
+     * Хаб настроек: плитки разделов со сводкой в одну строку.
+     */
     public function index(SkuColorService $skuColorService)
     {
-        $settings    = Setting::orderBy('id')->get();
-        $departments = Department::orderBy('name')->get();
-        $stores      = Store::where('archived', false)->orderBy('name')->get();
-        $skuColors   = $skuColorService->all();
+        $activeDepartments = Department::where('is_active', true)->count();
+        $skuColorCount     = $skuColorService->all()->count();
+        $inWorkState       = Setting::get('MOYSKLAD_IN_WORK_STATE');
+        $doneState         = Setting::get('MOYSKLAD_DONE_STATE');
+        $pieceRate         = DepartmentSettings::pieceRate(null);
+        $masterRate        = DepartmentSettings::masterBaseRate(null);
 
-        return view('admin.settings.index', compact('settings', 'departments', 'stores', 'skuColors'));
+        return view('admin.settings.index', compact(
+            'activeDepartments', 'skuColorCount', 'inWorkState', 'doneState', 'pieceRate', 'masterRate'
+        ));
+    }
+
+    /**
+     * Ставки по умолчанию для отделов. Поля — из реестра config/department_settings.php,
+     * поэтому новый ключ реестра появляется здесь без правки шаблона.
+     */
+    public function rates()
+    {
+        $groups = config('department_settings');
+        $values = [];
+        foreach ($groups as $group) {
+            foreach ($group['keys'] as $key => $meta) {
+                $values[$key] = Setting::get($key, $meta['default'] ?? 0);
+            }
+        }
+
+        return view('admin.settings.rates', compact('groups', 'values'));
+    }
+
+    public function moysklad()
+    {
+        $settings = Setting::whereIn('key', self::MOYSKLAD_KEYS)->orderBy('id')->get();
+
+        return view('admin.settings.moysklad', compact('settings'));
+    }
+
+    public function skuColors(SkuColorService $skuColorService)
+    {
+        $skuColors = $skuColorService->all();
+
+        return view('admin.settings.sku-colors', compact('skuColors'));
     }
 
     public function update(Request $request)
@@ -49,9 +90,8 @@ class AdminSettingController extends Controller
             Setting::set($item['key'], $item['value']);
         }
 
-        return redirect()
-            ->route('admin.settings.index')
-            ->with('success', 'Настройки сохранены.');
+        // Форма живёт на странице раздела (ставки, МойСклад) — туда и возвращаемся
+        return back()->with('success', 'Настройки сохранены.');
     }
 
     public function updateDepartmentStores(Request $request)

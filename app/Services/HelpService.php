@@ -100,6 +100,10 @@ class HelpService
     public const LINKS = [
         'settings'             => ['route' => 'admin.settings.index',       'operation' => null],
         'order-states'         => ['route' => 'admin.order-states.index',   'operation' => null],
+        'departments'          => ['route' => 'admin.departments.index',    'operation' => null],
+        'settings-rates'       => ['route' => 'admin.settings.rates',       'operation' => null],
+        'settings-moysklad'    => ['route' => 'admin.settings.moysklad',    'operation' => null],
+        'settings-sku-colors'  => ['route' => 'admin.settings.sku-colors',  'operation' => null],
         'orders'               => ['route' => 'orders.index',               'operation' => 'orders'],
         'stone-receptions'     => ['route' => 'stone-receptions.index',     'operation' => 'stone-receptions'],
         'workshops'            => ['route' => 'workshops.index',            'operation' => 'workshops'],

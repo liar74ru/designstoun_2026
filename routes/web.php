@@ -266,12 +266,15 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('admin')->name('admin.')->middleware('can:manage-admin')->group(function () {
         Route::get('/settings',  [AdminSettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
+        Route::get('/settings/rates',      [AdminSettingController::class, 'rates'])->name('settings.rates');
+        Route::get('/settings/moysklad',   [AdminSettingController::class, 'moysklad'])->name('settings.moysklad');
+        Route::get('/settings/sku-colors', [AdminSettingController::class, 'skuColors'])->name('settings.sku-colors');
         Route::post('/sku-colors', [SkuColorController::class, 'update'])->name('sku-colors.update');
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
         Route::patch('/departments/{department}/operations', [DepartmentController::class, 'updateOperations'])->name('departments.operations.update');
         Route::patch('/departments/{department}/cost-settings', [DepartmentController::class, 'updateCostSettings'])->name('departments.cost-settings.update');
         Route::patch('/departments/{department}/expenses', [DepartmentController::class, 'updateExpenses'])->name('departments.expenses.update');
-        Route::resource('departments', DepartmentController::class)->only(['create', 'store', 'show', 'update', 'destroy']);
+        Route::resource('departments', DepartmentController::class)->only(['index', 'create', 'store', 'show', 'update', 'destroy']);
 
         // Пресеты цеха отдела
         Route::scopeBindings()->group(function () {

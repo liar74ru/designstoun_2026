@@ -41,7 +41,7 @@ describe('Создание', function () {
 
     test('администратор заводит правило', function () {
         storeModifier($this, $this->dept)
-            ->assertRedirect(route('admin.departments.show', $this->dept))
+            ->assertRedirect(route('admin.departments.show', $this->dept) . '#salary')
             ->assertSessionHas('success');
 
         $rule = $this->dept->modifiers()->first();
@@ -143,7 +143,7 @@ describe('Правка и удаление', function () {
                 route('admin.departments.modifiers.update', [$this->dept, $this->rule]),
                 modifierPayload(['key' => 'undercut', 'worker_coeff_delta' => '-3']),
             )
-            ->assertRedirect(route('admin.departments.show', $this->dept))
+            ->assertRedirect(route('admin.departments.show', $this->dept) . '#salary')
             ->assertSessionHas('success');
 
         expect((float) $this->rule->fresh()->worker_coeff_delta)->toBe(-3.0)
@@ -167,7 +167,7 @@ describe('Правка и удаление', function () {
 
         $this->actingAs(H::adminUser())
             ->delete(route('admin.departments.modifiers.destroy', [$this->dept, $this->rule]))
-            ->assertRedirect(route('admin.departments.show', $this->dept));
+            ->assertRedirect(route('admin.departments.show', $this->dept) . '#salary');
 
         expect($this->dept->modifiers()->count())->toBe(0)
             ->and(ModifierEngine::rulesFor($this->dept->id, 'reception'))->toBeEmpty();

@@ -3,7 +3,7 @@
 @section('title', 'Настройки системы')
 
 @section('content')
-<div class="container py-3" style="max-width:720px">
+<div class="container py-3" style="max-width:900px">
 
     <x-page-header title="Настройки системы" mobileTitle="Настройки">
         <x-slot name="actions">
@@ -16,485 +16,65 @@
 
     @include('partials.alerts')
 
-    <form method="POST" action="{{ route('admin.settings.update') }}">
-        @csrf
-
-        {{-- Базовая ставка пильщика. Общие коэффициенты (подкол, торцовка, плитка-маска)
-             в расчёте не участвуют — надбавки задаются правилами отдела, поля убраны. --}}
-        @php
-            $rateKeys     = ['PIECE_RATE'];
-            $rateSettings = $settings->filter(fn($s) => in_array($s->key, $rateKeys, true));
-        @endphp
-        @if($rateSettings->isNotEmpty())
-        <div class="card shadow-sm mb-3">
-            <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
-                 role="button"
-                 data-block-id="piece-rate">
-                <span>Расчёт зарплаты</span>
-                <i class="bi bi-chevron-down collapse-icon"></i>
-            </div>
-            <div class="collapse-content" id="block-piece-rate" style="display: none;">
-                <div class="card-body">
-                    <p class="text-muted small mb-3">
-                        По умолчанию для отделов — отдел может задать своё в карточке («Ставки себестоимости»).
-                    </p>
-
-                    @foreach($rateSettings as $setting)
-                        @php $i = $settings->search(fn($s) => $s->key === $setting->key); @endphp
-                        <div class="mb-0 @if(! $loop->first) mt-3 @endif">
-                            <label for="setting_{{ $setting->key }}" class="form-label fw-semibold mb-1">
-                                {{ $setting->label ?? $setting->key }}
-                            </label>
-                            @if($setting->description)
-                                <div class="text-muted small mb-1">{{ $setting->description }}</div>
-                            @endif
-                            <input
-                                type="number"
-                                step="any"
-                                id="setting_{{ $setting->key }}"
-                                name="settings[{{ $i }}][value]"
-                                value="{{ old('settings.' . $i . '.value', $setting->value) }}"
-                                class="form-control @error('settings.' . $i . '.value') is-invalid @enderror"
-                                required
-                            >
-                            <input type="hidden" name="settings[{{ $i }}][key]" value="{{ $setting->key }}">
-                            @error('settings.' . $i . '.value')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-        @endif
-
-        {{-- Ставки мастера --}}
-        @php
-            // MASTER_UNDERCUT_RATE не используется: подкол мастеру — правило отдела
-            $masterKeys     = ['MASTER_BASE_RATE'];
-            $masterSettings = $settings->filter(fn($s) => in_array($s->key, $masterKeys));
-        @endphp
-        @if($masterSettings->isNotEmpty())
-        <div class="card shadow-sm mb-3">
-            <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
-                 role="button"
-                 data-block-id="master-rates">
-                <span>Ставки мастера</span>
-                <i class="bi bi-chevron-down collapse-icon"></i>
-            </div>
-            <div class="collapse-content" id="block-master-rates" style="display: none;">
-                <div class="card-body">
-                    <p class="text-muted small mb-3">
-                        По умолчанию для отделов — отдел может задать своё в карточке («Ставки себестоимости»).
-                    </p>
-                    @foreach($masterSettings as $setting)
-                        @php $i = $settings->search(fn($s) => $s->key === $setting->key); @endphp
-                        <div class="mb-3">
-                            <label for="setting_{{ $setting->key }}" class="form-label fw-semibold mb-1">
-                                {{ $setting->label ?? $setting->key }}
-                            </label>
-                            @if($setting->description)
-                                <div class="text-muted small mb-1">{{ $setting->description }}</div>
-                            @endif
-                            <input
-                                type="number"
-                                step="any"
-                                id="setting_{{ $setting->key }}"
-                                name="settings[{{ $i }}][value]"
-                                value="{{ old('settings.' . $i . '.value', $setting->value) }}"
-                                class="form-control @error('settings.' . $i . '.value') is-invalid @enderror"
-                                required
-                            >
-                            <input type="hidden" name="settings[{{ $i }}][key]" value="{{ $setting->key }}">
-                            @error('settings.' . $i . '.value')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-        @endif
-
-        {{-- МойСклад --}}
-        @php
-            $moyskladKeys     = ['MOYSKLAD_IN_WORK_STATE', 'MOYSKLAD_DONE_STATE'];
-            $moyskladSettings = $settings->filter(fn($s) => in_array($s->key, $moyskladKeys));
-        @endphp
-        @if($moyskladSettings->isNotEmpty())
-        <div class="card shadow-sm mb-3">
-            <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
-                 role="button"
-                 data-block-id="moysklad">
-                <span>МойСклад</span>
-                <i class="bi bi-chevron-down collapse-icon"></i>
-            </div>
-            <div class="collapse-content" id="block-moysklad" style="display: none;">
-                <div class="card-body">
-                    @foreach($moyskladSettings as $setting)
-                        @php $i = $settings->search(fn($s) => $s->key === $setting->key); @endphp
-                        <div class="mb-3">
-                            <label for="setting_{{ $setting->key }}" class="form-label fw-semibold mb-1">
-                                {{ $setting->label ?? $setting->key }}
-                            </label>
-                            @if($setting->description)
-                                <div class="text-muted small mb-1">{{ $setting->description }}</div>
-                            @endif
-                            <input
-                                type="text"
-                                id="setting_{{ $setting->key }}"
-                                name="settings[{{ $i }}][value]"
-                                value="{{ old('settings.' . $i . '.value', $setting->value) }}"
-                                class="form-control @error('settings.' . $i . '.value') is-invalid @enderror"
-                                required
-                            >
-                            <input type="hidden" name="settings[{{ $i }}][key]" value="{{ $setting->key }}">
-                            @error('settings.' . $i . '.value')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-        @endif
-
-        <div class="d-grid d-md-flex justify-content-md-end mb-4">
-            <button type="submit" class="btn btn-primary px-4">
-                <i class="bi bi-check-lg"></i> Сохранить
-            </button>
-        </div>
-    </form>
-
-    {{-- Настройка отделов --}}
-    <div class="card shadow-sm mb-3">
-            <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
-                 role="button"
-                 data-block-id="dept-stores">
-                <span>Настройка отделов</span>
-                <i class="bi bi-chevron-down collapse-icon"></i>
-            </div>
-            <div class="collapse-content" id="block-dept-stores" style="display: none;">
-                <div class="card-body p-0">
-
-                    {{-- Десктоп --}}
-                    <div class="table-responsive d-none d-md-block">
-                        <table class="table table-sm table-bordered mb-0 align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-3">Отдел</th>
-                                    <th>Склад сырья</th>
-                                    <th>Склад продукции</th>
-                                    <th>Склад производства</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($departments as $dept)
-                                <tr>
-                                    <td class="ps-3">
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <span class="fw-semibold">{{ $dept->name }}</span>
-                                            <div class="d-flex gap-1">
-                                                <a href="{{ route('admin.departments.show', $dept) }}"
-                                                   class="btn btn-sm btn-outline-primary" title="Просмотр">
-                                                    <i class="bi bi-eye-fill"></i>
-                                                </a>
-                                                <a href="{{ route('admin.departments.show', $dept) }}"
-                                                   class="btn btn-sm btn-outline-secondary" title="Редактировать">
-                                                    <i class="bi bi-pencil-fill"></i>
-                                                </a>
-                                                <form action="{{ route('admin.departments.destroy', $dept) }}" method="POST"
-                                                      class="d-inline"
-                                                      onsubmit="return confirm('Удалить отдел «{{ $dept->name }}»?')">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
-                                                        <i class="bi bi-trash-fill"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-muted small">
-                                        {{ $stores->firstWhere('id', $dept->default_raw_store_id)?->name ?? '— не задан —' }}
-                                    </td>
-                                    <td class="text-muted small">
-                                        {{ $stores->firstWhere('id', $dept->default_product_store_id)?->name ?? '— не задан —' }}
-                                    </td>
-                                    <td class="text-muted small">
-                                        {{ $stores->firstWhere('id', $dept->default_production_store_id)?->name ?? '— не задан —' }}
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {{-- Мобильный --}}
-                    <div class="d-md-none">
-                        @foreach($departments as $dept)
-                        <div class="border-bottom" x-data="{ open: false }">
-                            <div class="px-3 py-2 d-flex align-items-center justify-content-between"
-                                 style="cursor:pointer" @click="open = !open">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi text-muted"
-                                       :class="open ? 'bi-chevron-down' : 'bi-chevron-right'"
-                                       style="font-size:.7rem"></i>
-                                    <span class="fw-semibold">{{ $dept->name }}</span>
-                                </div>
-                                <div class="d-flex gap-1" @click.stop>
-                                    <a href="{{ route('admin.departments.show', $dept) }}"
-                                       class="btn btn-sm btn-outline-primary" title="Просмотр">
-                                        <i class="bi bi-eye-fill"></i>
-                                    </a>
-                                    <a href="{{ route('admin.departments.show', $dept) }}"
-                                       class="btn btn-sm btn-outline-secondary" title="Редактировать">
-                                        <i class="bi bi-pencil-fill"></i>
-                                    </a>
-                                    <form action="{{ route('admin.departments.destroy', $dept) }}" method="POST"
-                                          class="d-inline"
-                                          onsubmit="return confirm('Удалить отдел «{{ $dept->name }}»?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
-                                            <i class="bi bi-trash-fill"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                            <div x-show="open" x-transition
-                                 class="px-3 pb-2 bg-light border-top">
-                                <div class="mb-1">
-                                    <span class="small text-muted">Сырьё: </span>
-                                    <span class="small">{{ $stores->firstWhere('id', $dept->default_raw_store_id)?->name ?? '— не задан —' }}</span>
-                                </div>
-                                <div class="mb-1">
-                                    <span class="small text-muted">Продукция: </span>
-                                    <span class="small">{{ $stores->firstWhere('id', $dept->default_product_store_id)?->name ?? '— не задан —' }}</span>
-                                </div>
-                                <div class="mb-0">
-                                    <span class="small text-muted">Производство: </span>
-                                    <span class="small">{{ $stores->firstWhere('id', $dept->default_production_store_id)?->name ?? '— не задан —' }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-
-                </div>
-
-                {{-- Добавить отдел --}}
-                <div class="px-3 py-2 border-top">
-                    <a href="{{ route('admin.departments.create') }}"
-                       class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-plus-lg"></i> Добавить отдел
-                    </a>
-                </div>
-
-        </div>
-    </div>
-
-    {{-- Цвета карточек по SKU — своя форма: вложенные формы нельзя --}}
     @php
-        // Префиксы в поле — строкой «01-07, 04-07»; после ошибки валидации old() отдаёт уже массив
-        $skuColorRows = collect(old('rows', $skuColors->map(fn($c) => [
-            'name'     => $c->name,
-            'color'    => $c->color,
-            'prefixes' => $c->prefixes,
-        ])->all()))->map(fn($r) => [
-            'name'     => $r['name'] ?? '',
-            'color'    => $r['color'] ?? '#BFBFBF',
-            'prefixes' => is_array($r['prefixes'] ?? null) ? implode(', ', $r['prefixes']) : ($r['prefixes'] ?? ''),
-        ])->values()->all();
+        $tiles = [
+            [
+                'route'   => route('admin.departments.index'),
+                'icon'    => 'bi-diagram-3',
+                'title'   => 'Отделы',
+                'summary' => 'Активных: ' . $activeDepartments . ' · права, ставки, правила, склады, шаблоны цеха',
+            ],
+            [
+                'route'   => route('admin.settings.rates'),
+                'icon'    => 'bi-cash-coin',
+                'title'   => 'Ставки по умолчанию',
+                'summary' => 'Пильщик ' . number_format($pieceRate, 0, ',', ' ') . ' ₽ · мастер '
+                    . number_format($masterRate, 0, ',', ' ') . ' ₽ — для отделов без своих',
+            ],
+            [
+                'route'   => route('admin.settings.moysklad'),
+                'icon'    => 'bi-cloud-arrow-up',
+                'title'   => 'МойСклад',
+                'summary' => 'Статусы техопераций: «' . ($inWorkState ?: '—') . '» / «' . ($doneState ?: '—') . '»',
+            ],
+            [
+                'route'   => route('admin.order-states.index'),
+                'icon'    => 'bi-list-check',
+                'title'   => 'Статусы заявок',
+                'summary' => 'Какие статусы заявок МойСклад использует программа и как',
+            ],
+            [
+                'route'   => route('admin.settings.sku-colors'),
+                'icon'    => 'bi-palette',
+                'title'   => 'Цвета по SKU',
+                'summary' => $skuColorCount > 0
+                    ? 'Цветов: ' . $skuColorCount . ' · полоса и фон карточек по типу камня'
+                    : 'Не заданы — все карточки белые',
+            ],
+        ];
     @endphp
-    <div class="card shadow-sm mb-3" x-data="{ rows: {{ json_encode(array_values($skuColorRows)) }} }">
-        <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
-             role="button"
-             data-block-id="sku-colors">
-            <span>Цвета по SKU</span>
-            <i class="bi bi-chevron-down collapse-icon"></i>
-        </div>
-        <div class="collapse-content" id="block-sku-colors" style="display: none;">
-            <div class="card-body p-2 p-md-3">
-                <form method="POST" action="{{ route('admin.sku-colors.update') }}" data-submit-guard>
-                    @csrf
 
-                    <p class="text-muted small mb-3">
-                        Цвет полосы и фона карточек по типу камня. У цвета — список префиксов через
-                        запятую: первые два сегмента SKU («01-07, 04-07» — сырьё и плитка) или один
-                        сегмент («01» — цвет всей группы, если у камня нет своего). SKU без
-                        подходящего префикса остаётся без цвета.
-                    </p>
-
-                    <template x-for="(row, i) in rows" :key="i">
-                        <div class="input-group input-group-sm mb-2">
-                            <span class="input-group-text p-0" style="width:10px"
-                                  :style="'border-left:4px solid ' + row.color + ';background:' + row.color + '18'"></span>
-                            <input type="text" class="form-control" style="max-width:160px"
-                                   :name="'rows[' + i + '][name]'"
-                                   x-model="row.name"
-                                   maxlength="100"
-                                   placeholder="Название камня">
-                            <input type="text" class="form-control"
-                                   :name="'rows[' + i + '][prefixes]'"
-                                   x-model="row.prefixes"
-                                   placeholder="01-07, 04-07"
-                                   required>
-                            <input type="color" class="form-control form-control-color"
-                                   :name="'rows[' + i + '][color]'"
-                                   x-model="row.color"
-                                   title="Цвет">
-                            <button type="button" class="btn btn-outline-danger" @click="rows.splice(i, 1)"
-                                    title="Удалить цвет">
-                                <i class="bi bi-trash"></i>
-                            </button>
+    <div class="row g-2 g-md-3">
+        @foreach($tiles as $tile)
+            <div class="col-12 col-md-6">
+                <a href="{{ $tile['route'] }}" class="card shadow-sm h-100 text-decoration-none text-body settings-tile">
+                    <div class="card-body d-flex align-items-center gap-3 py-3">
+                        <i class="bi {{ $tile['icon'] }} text-primary fs-3 flex-shrink-0"></i>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="fw-semibold">{{ $tile['title'] }}</div>
+                            <div class="text-muted small">{{ $tile['summary'] }}</div>
                         </div>
-                    </template>
-
-                    <div x-show="rows.length === 0" class="text-muted small mb-2">
-                        Цвета не заданы — все карточки белые.
+                        <i class="bi bi-chevron-right text-muted"></i>
                     </div>
-
-                    @if($errors->has('rows') || $errors->has('rows.*'))
-                        <div class="text-danger small mb-2">{{ $errors->first('rows') ?: $errors->first('rows.*') }}</div>
-                    @endif
-
-                    <div class="mt-3 d-flex justify-content-between">
-                        <button type="button" class="btn btn-sm btn-outline-primary"
-                                @click="rows.push({ name: '', color: '#BFBFBF', prefixes: '' })">
-                            <i class="bi bi-plus-circle"></i> Добавить цвет
-                        </button>
-                        <button type="submit" class="btn btn-primary px-4">
-                            <i class="bi bi-check-lg"></i> Сохранить
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    {{-- Статусы заявок МойСклад --}}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
-             role="button"
-             data-block-id="order-statuses">
-            <span>Статусы заявок</span>
-            <i class="bi bi-chevron-down collapse-icon"></i>
-        </div>
-        <div class="collapse-content" id="block-order-statuses" style="display: none;">
-            <div class="card-body">
-                <p class="text-muted small mb-3">
-                    Какие статусы заявок МойСклад использует программа и как.
-                </p>
-                <a href="{{ route('admin.order-states.index') }}"
-                   class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-list-check"></i> Открыть настройки статусов
                 </a>
             </div>
-        </div>
+        @endforeach
     </div>
 
 </div>
 
 <style>
-.collapse-icon {
-    transition: transform 0.2s ease;
-}
-
-.collapse-icon.rotated {
-    transform: rotate(180deg);
-}
-
-.card-header[role="button"] {
-    cursor: pointer;
-    user-select: none;
-}
-
-.card-header[role="button"]:hover {
-    background-color: rgba(0, 0, 0, 0.03);
-}
-
-.collapse-content {
-    transition: all 0.2s ease;
-}
+.settings-tile { transition: background-color .15s ease, border-color .15s ease; }
+.settings-tile:hover { background-color: rgba(var(--bs-primary-rgb), .04); border-color: rgba(var(--bs-primary-rgb), .35); }
 </style>
-
-<script>
-(function() {
-    const LS_KEY = 'settings_blocks_open';
-
-    function getOpenBlocks() {
-        try {
-            return JSON.parse(localStorage.getItem(LS_KEY)) || [];
-        } catch {
-            return [];
-        }
-    }
-
-    function saveOpenBlocks(ids) {
-        localStorage.setItem(LS_KEY, JSON.stringify(ids));
-    }
-
-    function toggleBlock(header, content, icon, blockId, forceState = null) {
-        const isCurrentlyVisible = content.style.display !== 'none';
-        const shouldShow = forceState !== null ? forceState : !isCurrentlyVisible;
-        
-        if (shouldShow) {
-            content.style.display = 'block';
-            icon?.classList.add('rotated');
-            
-            // Сохраняем состояние
-            const openBlocks = getOpenBlocks();
-            if (!openBlocks.includes(blockId)) {
-                openBlocks.push(blockId);
-                saveOpenBlocks(openBlocks);
-            }
-        } else {
-            content.style.display = 'none';
-            icon?.classList.remove('rotated');
-            
-            // Сохраняем состояние
-            const openBlocks = getOpenBlocks();
-            const index = openBlocks.indexOf(blockId);
-            if (index !== -1) {
-                openBlocks.splice(index, 1);
-                saveOpenBlocks(openBlocks);
-            }
-        }
-    }
-
-    // Инициализация после полной загрузки DOM
-    document.addEventListener('DOMContentLoaded', function() {
-        const openBlocks = getOpenBlocks();
-        
-        // Инициализируем все блоки
-        document.querySelectorAll('.card-header[role="button"]').forEach(header => {
-            const blockId = header.dataset.blockId;
-            const content = document.getElementById(`block-${blockId}`);
-            const icon = header.querySelector('.collapse-icon');
-            
-            if (!content) return;
-            
-            // Проверяем, должен ли блок быть открыт
-            const shouldBeOpen = openBlocks.includes(blockId);
-            
-            // Устанавливаем начальное состояние без анимации
-            if (shouldBeOpen) {
-                content.style.display = 'block';
-                icon?.classList.add('rotated');
-            } else {
-                content.style.display = 'none';
-                icon?.classList.remove('rotated');
-            }
-            
-            // Добавляем обработчик клика
-            header.addEventListener('click', function(e) {
-                // Предотвращаем всплытие, чтобы случайно не сработали другие обработчики
-                e.stopPropagation();
-                toggleBlock(header, content, icon, blockId);
-            });
-        });
-    });
-})();
-</script>
 @endsection

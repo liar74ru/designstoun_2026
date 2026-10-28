@@ -8,7 +8,7 @@
     <x-page-header
         title="Новое правило себестоимости"
         mobileTitle="Новое правило"
-        :backUrl="route('admin.departments.show', $department)"
+        :backUrl="route('admin.departments.show', $department) . '#salary'"
         backLabel="К отделу">
         <x-slot name="actions">
             @include('partials.help-button', ['page' => 'settings'])

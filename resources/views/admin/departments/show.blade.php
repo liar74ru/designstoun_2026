@@ -3,13 +3,13 @@
 @section('title', $department->name . ' — отдел')
 
 @section('content')
-<div class="container py-3" style="max-width:720px">
+<div class="container py-3" style="max-width:900px">
 
     <x-page-header
         title="{{ $department->name }}"
         mobileTitle="{{ $department->name }}"
-        :backUrl="route('admin.settings.index')"
-        backLabel="К настройкам">
+        :backUrl="route('admin.departments.index')"
+        backLabel="К отделам">
         <x-slot name="actions">
             @include('partials.help-button', ['page' => 'settings'])
         </x-slot>
@@ -20,629 +20,713 @@
 
     @include('partials.alerts')
 
-    {{-- 1. Форма редактирования --}}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold py-2">Редактировать отдел</div>
-        <div class="card-body p-4">
-            <form method="POST" action="{{ route('admin.departments.update', $department) }}">
-                @csrf
-                @method('PATCH')
+    {{-- Вкладки: активная — в #hash (ссылки и редиректы контроллеров ведут на нужную) --}}
+    <ul class="nav nav-tabs dept-tabs flex-nowrap mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button type="button" class="nav-link active" role="tab"
+                    data-bs-toggle="tab" data-bs-target="#tab-main" data-dept-tab="main">
+                <i class="bi bi-info-circle"></i> Основное
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button type="button" class="nav-link" role="tab"
+                    data-bs-toggle="tab" data-bs-target="#tab-access" data-dept-tab="access">
+                <i class="bi bi-shield-lock"></i> Доступ
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button type="button" class="nav-link" role="tab"
+                    data-bs-toggle="tab" data-bs-target="#tab-salary" data-dept-tab="salary">
+                <i class="bi bi-cash-coin"></i> Зарплата <span class="badge rounded-pill text-bg-light border">{{ $modifiers->count() }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button type="button" class="nav-link" role="tab"
+                    data-bs-toggle="tab" data-bs-target="#tab-workshop" data-dept-tab="workshop">
+                <i class="bi bi-box-seam"></i> Цех <span class="badge rounded-pill text-bg-light border">{{ $presets->count() }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button type="button" class="nav-link" role="tab"
+                    data-bs-toggle="tab" data-bs-target="#tab-workers" data-dept-tab="workers">
+                <i class="bi bi-people"></i> Сотрудники <span class="badge rounded-pill text-bg-light border">{{ $workers->count() }}</span>
+            </button>
+        </li>
+    </ul>
 
-                <div class="mb-3">
-                    <label for="name" class="form-label fw-semibold">
-                        Название <span class="text-danger">*</span>
-                    </label>
-                    <input type="text"
-                           id="name" name="name"
-                           value="{{ old('name', $department->name) }}"
-                           class="form-control @error('name') is-invalid @enderror"
-                           style="border-radius:.4rem"
-                           required>
-                    @error('name')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="tab-main" role="tabpanel">
+            {{-- 1. Форма редактирования --}}
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold py-2">Отдел</div>
+                <div class="card-body p-4">
+                    <form method="POST" data-submit-guard action="{{ route('admin.departments.update', $department) }}">
+                        @csrf
+                        @method('PATCH')
 
-                <div class="mb-3">
-                    <label for="code" class="form-label fw-semibold">Код</label>
-                    <input type="text"
-                           id="code" name="code"
-                           value="{{ old('code', $department->code) }}"
-                           class="form-control @error('code') is-invalid @enderror"
-                           style="border-radius:.4rem">
-                    @error('code')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+                        <div class="mb-3">
+                            <label for="name" class="form-label fw-semibold">
+                                Название <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   id="name" name="name"
+                                   value="{{ old('name', $department->name) }}"
+                                   class="form-control @error('name') is-invalid @enderror"
+                                   style="border-radius:.4rem"
+                                   required>
+                            @error('name')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
 
-                <div class="mb-3">
-                    <label for="description" class="form-label fw-semibold">Описание</label>
-                    <textarea id="description" name="description" rows="3"
-                              class="form-control @error('description') is-invalid @enderror"
-                              style="border-radius:.4rem">{{ old('description', $department->description) }}</textarea>
-                    @error('description')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+                        <div class="mb-3">
+                            <label for="code" class="form-label fw-semibold">Код</label>
+                            <input type="text"
+                                   id="code" name="code"
+                                   value="{{ old('code', $department->code) }}"
+                                   class="form-control @error('code') is-invalid @enderror"
+                                   style="border-radius:.4rem">
+                            @error('code')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
 
-                <div class="mb-3">
-                    <label for="manager_id" class="form-label fw-semibold">Руководитель</label>
-                    <select id="manager_id" name="manager_id"
-                            class="form-select @error('manager_id') is-invalid @enderror"
-                            style="border-radius:.4rem">
-                        <option value="">— не назначен —</option>
-                        @foreach($allWorkers as $worker)
-                            <option value="{{ $worker->id }}"
-                                {{ old('manager_id', $department->manager_id) == $worker->id ? 'selected' : '' }}>
-                                {{ $worker->name }}
-                                @if($worker->department_id === $department->id)
-                                    (этот отдел)
-                                @endif
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('manager_id')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label fw-semibold">Описание</label>
+                            <textarea id="description" name="description" rows="3"
+                                      class="form-control @error('description') is-invalid @enderror"
+                                      style="border-radius:.4rem">{{ old('description', $department->description) }}</textarea>
+                            @error('description')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
 
-                <div class="mb-4">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox"
-                               id="is_active" name="is_active" value="1"
-                               {{ old('is_active', $department->is_active) ? 'checked' : '' }}>
-                        <label class="form-check-label fw-semibold" for="is_active">
-                            Отдел активен
-                        </label>
-                    </div>
-                </div>
-
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle"></i> Сохранить
-                    </button>
-                    <a href="{{ route('admin.settings.index') }}" class="btn btn-outline-secondary">
-                        Отмена
-                    </a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {{-- 2. Операции в шапке --}}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold py-2">Права на операции по позициям</div>
-        <div class="card-body p-2 p-md-3">
-            <form method="POST" action="{{ route('admin.departments.operations.update', $department) }}">
-                @csrf
-                @method('PATCH')
-
-                @php
-                    $columns = [
-                        'Мастер'           => ['short' => 'Мастер',  'full' => 'Мастер'],
-                        'Помощник мастера' => ['short' => 'Помощ.',  'full' => 'Помощник мастера'],
-                    ];
-                @endphp
-
-                <table class="table table-sm align-middle mb-0" style="table-layout:fixed">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="font-size:.8rem">Операция</th>
-                            @foreach($columns as $colKey => $col)
-                                <th class="text-center"
-                                    title="{{ $col['full'] }}"
-                                    style="width:62px;font-size:.75rem;white-space:nowrap">
-                                    {{ $col['short'] }}
-                                </th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($operations as $key => $op)
-                            @php
-                                $configurable    = $op['configurable_positions'] ?? [];
-                                $alwaysFor       = $op['positions_always_visible'] ?? [];
-                                $isAdminOnly     = ! empty($op['admin_only']);
-                                $allowed         = $allowedPositions[$key] ?? [];
-                            @endphp
-                            <tr>
-                                <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                                    <i class="bi {{ $op['icon'] }} me-1"></i><span class="small">{{ $op['label'] }}</span>
-                                    @if($isAdminOnly)
-                                        <span class="badge bg-secondary ms-1" style="font-size:.65rem">админ</span>
-                                    @elseif(! empty($alwaysFor))
-                                        <span class="badge bg-info text-dark ms-1" style="font-size:.65rem"
-                                              title="Всегда видна для: {{ implode(', ', $alwaysFor) }}">всегда</span>
-                                    @endif
-                                </td>
-                                @foreach(array_keys($columns) as $pos)
-                                    <td class="text-center" style="width:62px">
-                                        @if($isAdminOnly)
-                                            <input class="form-check-input" type="checkbox" disabled
-                                                   title="Только администратор">
-                                        @elseif(in_array($pos, $alwaysFor, true))
-                                            <input class="form-check-input" type="checkbox" disabled checked
-                                                   title="Всегда видна для этой позиции">
-                                        @elseif(in_array($pos, $configurable, true))
-                                            <input type="hidden" name="operations[{{ $key }}][positions][]" value="">
-                                            <input class="form-check-input" type="checkbox"
-                                                   name="operations[{{ $key }}][positions][]"
-                                                   value="{{ $pos }}"
-                                                   {{ in_array($pos, $allowed, true) ? 'checked' : '' }}>
-                                        @else
-                                            <span class="text-muted small">—</span>
+                        <div class="mb-3">
+                            <label for="manager_id" class="form-label fw-semibold">Руководитель</label>
+                            <select id="manager_id" name="manager_id"
+                                    class="form-select @error('manager_id') is-invalid @enderror"
+                                    style="border-radius:.4rem">
+                                <option value="">— не назначен —</option>
+                                @foreach($allWorkers as $worker)
+                                    <option value="{{ $worker->id }}"
+                                        {{ old('manager_id', $department->manager_id) == $worker->id ? 'selected' : '' }}>
+                                        {{ $worker->name }}
+                                        @if($worker->department_id === $department->id)
+                                            (этот отдел)
                                         @endif
-                                    </td>
+                                    </option>
                                 @endforeach
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-
-                <div class="mt-3 d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-check-lg"></i> Сохранить
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {{-- 3. Накладные расходы отдела --}}
-    @php
-        $expenseRows = old('expenses', $expenses->map(fn($e) => [
-            'name'   => $e->name,
-            'amount' => (float) $e->amount,
-        ])->values()->all());
-    @endphp
-    <div class="card shadow-sm mb-3" x-data="{
-            rows: {{ json_encode(array_values($expenseRows)) }},
-            get total() {
-                return this.rows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
-            }
-         }">
-        <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
-            <span>Накладные расходы отдела</span>
-            <span class="text-muted fw-normal" style="font-size:.75rem">
-                Итого: <span x-text="total.toLocaleString('ru-RU')"></span> ₽/м²
-            </span>
-        </div>
-        <div class="card-body p-2 p-md-3">
-            <form method="POST" action="{{ route('admin.departments.expenses.update', $department) }}">
-                @csrf
-                @method('PATCH')
-
-                <p class="text-muted small mb-3">
-                    Сумма строк входит в себестоимость техоперации. Пустое имя — «Расход №N».
-                </p>
-
-                <template x-for="(row, i) in rows" :key="i">
-                    <div class="input-group input-group-sm mb-2">
-                        <input type="text" class="form-control"
-                               :name="'expenses[' + i + '][name]'"
-                               x-model="row.name"
-                               maxlength="100"
-                               placeholder="Название расхода">
-                        <input type="number" step="0.01" min="0" class="form-control"
-                               style="max-width:110px"
-                               :name="'expenses[' + i + '][amount]'"
-                               x-model="row.amount"
-                               placeholder="0">
-                        <span class="input-group-text d-none d-sm-inline">₽/м²</span>
-                        <button type="button" class="btn btn-outline-danger" @click="rows.splice(i, 1)"
-                                title="Удалить расход">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </template>
-
-                <div x-show="rows.length === 0" class="text-muted small mb-2">
-                    Расходы не заданы — накладные отдела равны 0.
-                </div>
-
-                @error('expenses.*')
-                    <div class="text-danger small mb-2">{{ $message }}</div>
-                @enderror
-
-                <div class="mt-3 d-flex justify-content-between">
-                    <button type="button" class="btn btn-sm btn-outline-primary"
-                            @click="rows.push({ name: '', amount: '' })">
-                        <i class="bi bi-plus-circle"></i> Добавить расход
-                    </button>
-                    <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-check-lg"></i> Сохранить
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {{-- 4. Ставки себестоимости --}}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold py-2">Ставки себестоимости</div>
-        <div class="card-body p-2 p-md-3">
-            <form method="POST" action="{{ route('admin.departments.cost-settings.update', $department) }}">
-                @csrf
-                @method('PATCH')
-
-                <p class="text-muted small mb-3">
-                    Пустое поле — значение наследуется из общих настроек
-                    (<a href="{{ route('admin.settings.index') }}">Настройки системы</a>).
-                </p>
-
-                @foreach($costGroups as $groupKey => $group)
-                    <div class="mb-3">
-                        <div class="fw-semibold small mb-1">{{ $group['label'] }}</div>
-                        @if(! empty($group['hint']))
-                            <div class="text-muted mb-2" style="font-size:.75rem">{{ $group['hint'] }}</div>
-                        @endif
-
-                        <div class="row g-2">
-                            @foreach($group['keys'] as $key => $meta)
-                                @php
-                                    $globalValue = $globalDefaults[$key] ?? $meta['default'] ?? 0;
-                                    $ownValue    = old('settings.' . $key, $costSettings[$key] ?? '');
-                                    $hasOwn      = $ownValue !== '' && $ownValue !== null;
-                                @endphp
-                                <div class="col-12 col-md-6 col-lg-4">
-                                    <label class="form-label small mb-1" for="cost-{{ $key }}">{{ $meta['label'] }}</label>
-                                    <input type="number" step="0.01" min="0"
-                                           class="form-control form-control-sm"
-                                           id="cost-{{ $key }}"
-                                           name="settings[{{ $key }}]"
-                                           value="{{ $ownValue }}"
-                                           placeholder="{{ $globalValue }}">
-                                    <div class="form-text" style="font-size:.7rem">
-                                        @if($hasOwn)
-                                            Своё значение · общее: {{ $globalValue }} ₽
-                                        @else
-                                            Наследуется: {{ $globalValue }} ₽
-                                        @endif
-                                    </div>
-                                </div>
-                            @endforeach
+                            </select>
+                            @error('manager_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
-                    </div>
-                @endforeach
 
-                <div class="mt-3 d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-check-lg"></i> Сохранить
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {{-- 5. Правила себестоимости (бонусы и штрафы) --}}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <span class="fw-semibold">Правила себестоимости ({{ $modifiers->count() }})</span>
-            <a href="{{ route('admin.departments.modifiers.create', $department) }}"
-               class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-plus-circle"></i> Добавить
-            </a>
-        </div>
-        <div class="card-body p-0">
-            @forelse($modifiers as $modifier)
-                @php
-                    $isSku = $modifier->trigger === \App\Models\DepartmentModifier::TRIGGER_SKU;
-
-                    $condition = $isSku
-                        ? 'SKU ' . $modifier->sku_pattern
-                        : 'вручную' . ($modifier->available_when_batch_sku
-                            ? ', партии ' . $modifier->available_when_batch_sku
-                            : '');
-
-                    if ($modifier->applies_to !== \App\Models\DepartmentModifier::SCOPE_BOTH) {
-                        $condition .= ' · только '
-                            . ($modifier->applies_to === \App\Models\DepartmentModifier::SCOPE_RECEPTION ? 'приёмка' : 'цех');
-                    }
-
-                    $effects = [];
-                    foreach (['worker' => 'пильщик', 'master' => 'мастер'] as $role => $roleLabel) {
-                        $delta = $modifier->{$role . '_coeff_delta'};
-
-                        if ($delta !== null) {
-                            $value = \App\Support\RateFormula::formatCoeff($delta);
-                            $effects[] = $roleLabel . ' ' . ($delta > 0 ? '+' . $value : $value);
-                        }
-                    }
-                @endphp
-                <div class="px-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }} {{ $modifier->is_active ? '' : 'opacity-50' }}"
-                     @if($modifier->color) style="border-left:4px solid {{ $modifier->color }}" @endif>
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div class="me-2">
-                            <div class="fw-semibold small">
-                                @if($modifier->icon)
-                                    <i class="bi {{ $modifier->icon }} me-1"
-                                       @if($modifier->color) style="color:{{ $modifier->color }}" @endif></i>
-                                @endif
-                                {{ $modifier->name }}
-                                @unless($modifier->is_active)
-                                    <span class="badge bg-secondary" style="font-size:.6rem">выключено</span>
-                                @endunless
-                            </div>
-                            <div class="text-muted" style="font-size:.75rem">
-                                {{ $condition }}
-                                @if($effects)
-                                    · {{ implode(' · ', $effects) }}
-                                @else
-                                    · на ставки не влияет
-                                @endif
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox"
+                                       id="is_active" name="is_active" value="1"
+                                       {{ old('is_active', $department->is_active) ? 'checked' : '' }}>
+                                <label class="form-check-label fw-semibold" for="is_active">
+                                    Отдел активен
+                                </label>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <a href="{{ route('admin.departments.modifiers.edit', [$department, $modifier]) }}"
-                               class="btn btn-sm btn-outline-primary" title="Изменить">
-                                <i class="bi bi-pencil"></i>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Сохранить
+                            </button>
+                            <a href="{{ route('admin.departments.index') }}" class="btn btn-outline-secondary" data-back>
+                                Отмена
                             </a>
-                            <form method="POST" action="{{ route('admin.departments.modifiers.destroy', [$department, $modifier]) }}"
-                                  onsubmit="return confirm('Удалить правило «{{ $modifier->name }}»?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
                         </div>
-                    </div>
+                    </form>
                 </div>
-            @empty
-                <div class="p-3">
-                    <div class="alert alert-warning mb-0 py-2 small">
-                        <i class="bi bi-exclamation-triangle me-1"></i>
-                        Правила не заданы — надбавки и штрафы в этом отделе не применяются.
-                    </div>
-                </div>
-            @endforelse
-        </div>
-    </div>
+            </div>
 
-    {{-- 6. Список сотрудников --}}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold py-2">
-            Сотрудники ({{ $workers->count() }})
-        </div>
-        <div class="card-body p-0">
-            @if($workers->isEmpty())
-                <p class="text-muted small px-3 py-3 mb-0">В отделе нет сотрудников.</p>
-            @else
-                {{-- Десктоп --}}
-                <div class="table-responsive d-none d-md-block">
-                    <table class="table table-sm table-hover mb-0 align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="ps-3">Имя</th>
-                                <th>Должность</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($workers as $worker)
-                            <tr>
-                                <td class="ps-3 fw-semibold">{{ $worker->name }}</td>
-                                <td class="text-muted small">{{ $worker->position }}</td>
-                                <td class="text-end pe-3">
-                                    <a href="{{ route('workers.edit', $worker) }}"
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                {{-- Мобильный --}}
-                <div class="d-md-none">
-                    @foreach($workers as $worker)
-                    <div class="d-flex justify-content-between align-items-center border-bottom px-3 py-2">
-                        <div>
-                            <div class="fw-semibold small">{{ $worker->name }}</div>
-                            <div class="text-muted" style="font-size:.8rem">{{ $worker->position }}</div>
-                        </div>
-                        <a href="{{ route('workers.edit', $worker) }}"
-                           class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                    </div>
-                    @endforeach
-                </div>
-            @endif
-        </div>
-    </div>
+            {{-- 7. Склады по умолчанию --}}
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold py-2">Склады по умолчанию</div>
+                <div class="card-body">
+                    <form method="POST" data-submit-guard action="{{ route('admin.departments.store-defaults') }}">
+                        @csrf
 
-    {{-- 7. Склады по умолчанию --}}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold py-2">Склады по умолчанию</div>
-        <div class="card-body">
-            <form method="POST" action="{{ route('admin.departments.store-defaults') }}">
-                @csrf
-
-                {{-- Десктоп --}}
-                <div class="d-none d-md-block">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Склад сырья</label>
-                            <select name="departments[{{ $department->id }}][raw_store_id]"
-                                    class="form-select form-select-sm"
-                                    style="border-radius:.4rem">
-                                <option value="">— не задан —</option>
-                                @foreach($stores as $store)
-                                    <option value="{{ $store->id }}"
-                                        {{ $department->default_raw_store_id === $store->id ? 'selected' : '' }}>
-                                        {{ $store->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Склад продукции</label>
-                            <select name="departments[{{ $department->id }}][product_store_id]"
-                                    class="form-select form-select-sm"
-                                    style="border-radius:.4rem">
-                                <option value="">— не задан —</option>
-                                @foreach($stores as $store)
-                                    <option value="{{ $store->id }}"
-                                        {{ $department->default_product_store_id === $store->id ? 'selected' : '' }}>
-                                        {{ $store->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Склад производства</label>
-                            <select name="departments[{{ $department->id }}][production_store_id]"
-                                    class="form-select form-select-sm"
-                                    style="border-radius:.4rem">
-                                <option value="">— не задан —</option>
-                                @foreach($stores as $store)
-                                    <option value="{{ $store->id }}"
-                                        {{ $department->default_production_store_id === $store->id ? 'selected' : '' }}>
-                                        {{ $store->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Мобильный --}}
-                <div class="d-md-none">
-                    <div class="mb-2">
-                        <label class="form-label small text-muted mb-1">Склад сырья</label>
-                        <select name="departments[{{ $department->id }}][raw_store_id]"
-                                class="form-select form-select-sm" style="border-radius:.4rem">
-                            <option value="">— не задан —</option>
-                            @foreach($stores as $store)
-                                <option value="{{ $store->id }}"
-                                    {{ $department->default_raw_store_id === $store->id ? 'selected' : '' }}>
-                                    {{ $store->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small text-muted mb-1">Склад продукции</label>
-                        <select name="departments[{{ $department->id }}][product_store_id]"
-                                class="form-select form-select-sm" style="border-radius:.4rem">
-                            <option value="">— не задан —</option>
-                            @foreach($stores as $store)
-                                <option value="{{ $store->id }}"
-                                    {{ $department->default_product_store_id === $store->id ? 'selected' : '' }}>
-                                    {{ $store->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-muted mb-1">Склад производства</label>
-                        <select name="departments[{{ $department->id }}][production_store_id]"
-                                class="form-select form-select-sm" style="border-radius:.4rem">
-                            <option value="">— не задан —</option>
-                            @foreach($stores as $store)
-                                <option value="{{ $store->id }}"
-                                    {{ $department->default_production_store_id === $store->id ? 'selected' : '' }}>
-                                    {{ $store->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-
-                <div class="mt-3 d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-check-lg"></i> Сохранить склады
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {{-- 8. Пресеты цеха --}}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <span class="fw-semibold">Пресеты цеха ({{ $presets->count() }})</span>
-            <a href="{{ route('admin.departments.presets.create', $department) }}"
-               class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-plus-circle"></i> Добавить
-            </a>
-        </div>
-        <div class="card-body p-0">
-            @forelse($presets as $preset)
-                @php
-                    $rawCount     = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_RAW)->count();
-                    $packageCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PACKAGE)->count();
-                    $productCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PRODUCT)->count();
-                    $prodItem     = $preset->items->firstWhere('role', \App\Models\WorkshopItem::ROLE_PRODUCT);
-                    $skuColor     = \App\Models\Product::getColorBySku($prodItem?->product?->sku);
-                    $skuBg        = $skuColor === '#FFFFFF' ? '' : $skuColor . '18';
-                @endphp
-                <div class="px-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }}"
-                     style="border-left:4px solid {{ $skuColor }};{{ $skuBg ? 'background:'.$skuBg.';' : '' }}">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div class="me-2">
-                            <div class="fw-semibold small">{{ $preset->name }}</div>
-                            <div class="text-muted" style="font-size:.75rem">
-                                сырьё: {{ $rawCount }} · тара: {{ $packageCount }} · продукт: {{ $productCount }}
+                        {{-- Десктоп --}}
+                        <div class="d-none d-md-block">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold small">Склад сырья</label>
+                                    <select name="departments[{{ $department->id }}][raw_store_id]"
+                                            class="form-select form-select-sm"
+                                            style="border-radius:.4rem">
+                                        <option value="">— не задан —</option>
+                                        @foreach($stores as $store)
+                                            <option value="{{ $store->id }}"
+                                                {{ $department->default_raw_store_id === $store->id ? 'selected' : '' }}>
+                                                {{ $store->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold small">Склад продукции</label>
+                                    <select name="departments[{{ $department->id }}][product_store_id]"
+                                            class="form-select form-select-sm"
+                                            style="border-radius:.4rem">
+                                        <option value="">— не задан —</option>
+                                        @foreach($stores as $store)
+                                            <option value="{{ $store->id }}"
+                                                {{ $department->default_product_store_id === $store->id ? 'selected' : '' }}>
+                                                {{ $store->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold small">Склад производства</label>
+                                    <select name="departments[{{ $department->id }}][production_store_id]"
+                                            class="form-select form-select-sm"
+                                            style="border-radius:.4rem">
+                                        <option value="">— не задан —</option>
+                                        @foreach($stores as $store)
+                                            <option value="{{ $store->id }}"
+                                                {{ $department->default_production_store_id === $store->id ? 'selected' : '' }}>
+                                                {{ $store->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <form method="POST" action="{{ route('admin.departments.presets.copy', [$department, $preset]) }}"
-                                  class="d-flex align-items-center gap-1">
-                                @csrf
-                                <select name="target_department_id" class="form-select form-select-sm"
-                                        style="border-radius:.4rem;width:auto">
-                                    @foreach($allDepartments as $dept)
-                                        <option value="{{ $dept->id }}" {{ $dept->id === $department->id ? 'selected' : '' }}>
-                                            {{ $dept->name }}
+
+                        {{-- Мобильный --}}
+                        <div class="d-md-none">
+                            <div class="mb-2">
+                                <label class="form-label small text-muted mb-1">Склад сырья</label>
+                                <select name="departments[{{ $department->id }}][raw_store_id]"
+                                        class="form-select form-select-sm" style="border-radius:.4rem">
+                                    <option value="">— не задан —</option>
+                                    @foreach($stores as $store)
+                                        <option value="{{ $store->id }}"
+                                            {{ $department->default_raw_store_id === $store->id ? 'selected' : '' }}>
+                                            {{ $store->name }}
                                         </option>
                                     @endforeach
                                 </select>
-                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Копировать в выбранный отдел">
-                                    <i class="bi bi-copy"></i>
-                                </button>
-                            </form>
-                            <a href="{{ route('admin.departments.presets.edit', [$department, $preset]) }}"
-                               class="btn btn-sm btn-outline-primary" title="Изменить">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <form method="POST" action="{{ route('admin.departments.presets.destroy', [$department, $preset]) }}"
-                                  onsubmit="return confirm('Удалить пресет «{{ $preset->name }}»?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small text-muted mb-1">Склад продукции</label>
+                                <select name="departments[{{ $department->id }}][product_store_id]"
+                                        class="form-select form-select-sm" style="border-radius:.4rem">
+                                    <option value="">— не задан —</option>
+                                    @foreach($stores as $store)
+                                        <option value="{{ $store->id }}"
+                                            {{ $department->default_product_store_id === $store->id ? 'selected' : '' }}>
+                                            {{ $store->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-muted mb-1">Склад производства</label>
+                                <select name="departments[{{ $department->id }}][production_store_id]"
+                                        class="form-select form-select-sm" style="border-radius:.4rem">
+                                    <option value="">— не задан —</option>
+                                    @foreach($stores as $store)
+                                        <option value="{{ $store->id }}"
+                                            {{ $department->default_production_store_id === $store->id ? 'selected' : '' }}>
+                                            {{ $store->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="bi bi-check-lg"></i> Сохранить склады
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {{-- Зона удаления (только если нет сотрудников) --}}
+            @if($workers->isEmpty())
+            <div class="card shadow-sm border-danger mb-3">
+                <div class="card-body d-flex justify-content-between align-items-center py-2 px-3">
+                    <span class="text-muted small">Удалить отдел навсегда</span>
+                    <form method="POST" data-submit-guard action="{{ route('admin.departments.destroy', $department) }}"
+                          onsubmit="return confirm('Удалить отдел «{{ $department->name }}»? Это действие необратимо.')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash"></i> Удалить отдел
+                        </button>
+                    </form>
+                </div>
+            </div>
+            @endif
+        </div>
+
+        <div class="tab-pane fade" id="tab-access" role="tabpanel">
+            {{-- 2. Операции в шапке --}}
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold py-2">Права на операции по позициям</div>
+                <div class="card-body p-2 p-md-3">
+                    <form method="POST" data-submit-guard action="{{ route('admin.departments.operations.update', $department) }}">
+                        @csrf
+                        @method('PATCH')
+
+                        @php
+                            $columns = [
+                                'Мастер'           => ['short' => 'Мастер',  'full' => 'Мастер'],
+                                'Помощник мастера' => ['short' => 'Помощ.',  'full' => 'Помощник мастера'],
+                            ];
+                        @endphp
+
+                        <table class="table table-sm align-middle mb-0" style="table-layout:fixed">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="font-size:.8rem">Операция</th>
+                                    @foreach($columns as $colKey => $col)
+                                        <th class="text-center"
+                                            title="{{ $col['full'] }}"
+                                            style="width:62px;font-size:.75rem;white-space:nowrap">
+                                            {{ $col['short'] }}
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($operations as $key => $op)
+                                    @php
+                                        $configurable    = $op['configurable_positions'] ?? [];
+                                        $alwaysFor       = $op['positions_always_visible'] ?? [];
+                                        $isAdminOnly     = ! empty($op['admin_only']);
+                                        $allowed         = $allowedPositions[$key] ?? [];
+                                    @endphp
+                                    <tr>
+                                        <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                            <i class="bi {{ $op['icon'] }} me-1"></i><span class="small">{{ $op['label'] }}</span>
+                                            @if($isAdminOnly)
+                                                <span class="badge bg-secondary ms-1" style="font-size:.65rem">админ</span>
+                                            @elseif(! empty($alwaysFor))
+                                                <span class="badge bg-info text-dark ms-1" style="font-size:.65rem"
+                                                      title="Всегда видна для: {{ implode(', ', $alwaysFor) }}">всегда</span>
+                                            @endif
+                                        </td>
+                                        @foreach(array_keys($columns) as $pos)
+                                            <td class="text-center" style="width:62px">
+                                                @if($isAdminOnly)
+                                                    <input class="form-check-input" type="checkbox" disabled
+                                                           title="Только администратор">
+                                                @elseif(in_array($pos, $alwaysFor, true))
+                                                    <input class="form-check-input" type="checkbox" disabled checked
+                                                           title="Всегда видна для этой позиции">
+                                                @elseif(in_array($pos, $configurable, true))
+                                                    <input type="hidden" name="operations[{{ $key }}][positions][]" value="">
+                                                    <input class="form-check-input" type="checkbox"
+                                                           name="operations[{{ $key }}][positions][]"
+                                                           value="{{ $pos }}"
+                                                           {{ in_array($pos, $allowed, true) ? 'checked' : '' }}>
+                                                @else
+                                                    <span class="text-muted small">—</span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+
+                        <div class="mt-3 d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="bi bi-check-lg"></i> Сохранить
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-salary" role="tabpanel">
+            {{-- 4. Ставки себестоимости --}}
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold py-2">Ставки себестоимости</div>
+                <div class="card-body p-2 p-md-3">
+                    <form method="POST" data-submit-guard action="{{ route('admin.departments.cost-settings.update', $department) }}">
+                        @csrf
+                        @method('PATCH')
+
+                        <p class="text-muted small mb-3">
+                            Пустое поле — значение наследуется из общих
+                            (<a href="{{ route('admin.settings.rates') }}">Ставки по умолчанию</a>).
+                        </p>
+
+                        @foreach($costGroups as $groupKey => $group)
+                            <div class="mb-3">
+                                <div class="fw-semibold small mb-1">{{ $group['label'] }}</div>
+                                @if(! empty($group['hint']))
+                                    <div class="text-muted mb-2" style="font-size:.75rem">{{ $group['hint'] }}</div>
+                                @endif
+
+                                <div class="row g-2">
+                                    @foreach($group['keys'] as $key => $meta)
+                                        @php
+                                            $globalValue = $globalDefaults[$key] ?? $meta['default'] ?? 0;
+                                            $ownValue    = old('settings.' . $key, $costSettings[$key] ?? '');
+                                            $hasOwn      = $ownValue !== '' && $ownValue !== null;
+                                        @endphp
+                                        <div class="col-12 col-md-6 col-lg-4">
+                                            <label class="form-label small mb-1" for="cost-{{ $key }}">{{ $meta['label'] }}</label>
+                                            <input type="number" step="0.01" min="0"
+                                                   class="form-control form-control-sm"
+                                                   id="cost-{{ $key }}"
+                                                   name="settings[{{ $key }}]"
+                                                   value="{{ $ownValue }}"
+                                                   placeholder="{{ $globalValue }}">
+                                            <div class="form-text" style="font-size:.7rem">
+                                                @if($hasOwn)
+                                                    Своё значение · общее: {{ $globalValue }} ₽
+                                                @else
+                                                    Наследуется: {{ $globalValue }} ₽
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+
+                        <div class="mt-3 d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="bi bi-check-lg"></i> Сохранить
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {{-- 3. Накладные расходы отдела --}}
+            @php
+                $expenseRows = old('expenses', $expenses->map(fn($e) => [
+                    'name'   => $e->name,
+                    'amount' => (float) $e->amount,
+                ])->values()->all());
+            @endphp
+            <div class="card shadow-sm mb-3" x-data="{
+                    rows: {{ json_encode(array_values($expenseRows)) }},
+                    get total() {
+                        return this.rows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
+                    }
+                 }">
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+                    <span>Накладные расходы отдела</span>
+                    <span class="text-muted fw-normal" style="font-size:.75rem">
+                        Итого: <span x-text="total.toLocaleString('ru-RU')"></span> ₽/м²
+                    </span>
+                </div>
+                <div class="card-body p-2 p-md-3">
+                    <form method="POST" data-submit-guard action="{{ route('admin.departments.expenses.update', $department) }}">
+                        @csrf
+                        @method('PATCH')
+
+                        <p class="text-muted small mb-3">
+                            Сумма строк входит в себестоимость техоперации. Пустое имя — «Расход №N».
+                        </p>
+
+                        <template x-for="(row, i) in rows" :key="i">
+                            <div class="input-group input-group-sm mb-2">
+                                <input type="text" class="form-control"
+                                       :name="'expenses[' + i + '][name]'"
+                                       x-model="row.name"
+                                       maxlength="100"
+                                       placeholder="Название расхода">
+                                <input type="number" step="0.01" min="0" class="form-control"
+                                       style="max-width:110px"
+                                       :name="'expenses[' + i + '][amount]'"
+                                       x-model="row.amount"
+                                       placeholder="0">
+                                <span class="input-group-text d-none d-sm-inline">₽/м²</span>
+                                <button type="button" class="btn btn-outline-danger" @click="rows.splice(i, 1)"
+                                        title="Удалить расход">
                                     <i class="bi bi-trash"></i>
                                 </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            @empty
-                <div class="text-center text-muted py-3 small">
-                    Пресетов нет. Добавьте первый — он появится в форме цеха в блоке «Шаблоны».
-                </div>
-            @endforelse
-        </div>
-    </div>
+                            </div>
+                        </template>
 
-    {{-- Зона удаления (только если нет сотрудников) --}}
-    @if($workers->isEmpty())
-    <div class="card shadow-sm border-danger mb-3">
-        <div class="card-body d-flex justify-content-between align-items-center py-2 px-3">
-            <span class="text-muted small">Удалить отдел навсегда</span>
-            <form method="POST" action="{{ route('admin.departments.destroy', $department) }}"
-                  onsubmit="return confirm('Удалить отдел «{{ $department->name }}»? Это действие необратимо.')">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-trash"></i> Удалить отдел
-                </button>
-            </form>
+                        <div x-show="rows.length === 0" class="text-muted small mb-2">
+                            Расходы не заданы — накладные отдела равны 0.
+                        </div>
+
+                        @error('expenses.*')
+                            <div class="text-danger small mb-2" data-field-error>{{ $message }}</div>
+                        @enderror
+
+                        <div class="mt-3 d-flex justify-content-between">
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                    @click="rows.push({ name: '', amount: '' })">
+                                <i class="bi bi-plus-circle"></i> Добавить расход
+                            </button>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="bi bi-check-lg"></i> Сохранить
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {{-- 5. Правила себестоимости (бонусы и штрафы) --}}
+            <div class="card shadow-sm mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-semibold">Правила себестоимости ({{ $modifiers->count() }})</span>
+                    <a href="{{ route('admin.departments.modifiers.create', $department) }}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-plus-circle"></i> Добавить
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    @forelse($modifiers as $modifier)
+                        @php
+                            $isSku = $modifier->trigger === \App\Models\DepartmentModifier::TRIGGER_SKU;
+
+                            $condition = $isSku
+                                ? 'SKU ' . $modifier->sku_pattern
+                                : 'вручную' . ($modifier->available_when_batch_sku
+                                    ? ', партии ' . $modifier->available_when_batch_sku
+                                    : '');
+
+                            if ($modifier->applies_to !== \App\Models\DepartmentModifier::SCOPE_BOTH) {
+                                $condition .= ' · только '
+                                    . ($modifier->applies_to === \App\Models\DepartmentModifier::SCOPE_RECEPTION ? 'приёмка' : 'цех');
+                            }
+
+                            $effects = [];
+                            foreach (['worker' => 'пильщик', 'master' => 'мастер'] as $role => $roleLabel) {
+                                $delta = $modifier->{$role . '_coeff_delta'};
+
+                                if ($delta !== null) {
+                                    $value = \App\Support\RateFormula::formatCoeff($delta);
+                                    $effects[] = $roleLabel . ' ' . ($delta > 0 ? '+' . $value : $value);
+                                }
+                            }
+                        @endphp
+                        <div class="px-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }} {{ $modifier->is_active ? '' : 'opacity-50' }}"
+                             @if($modifier->color) style="border-left:4px solid {{ $modifier->color }}" @endif>
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div class="me-2">
+                                    <div class="fw-semibold small">
+                                        @if($modifier->icon)
+                                            <i class="bi {{ $modifier->icon }} me-1"
+                                               @if($modifier->color) style="color:{{ $modifier->color }}" @endif></i>
+                                        @endif
+                                        {{ $modifier->name }}
+                                        @unless($modifier->is_active)
+                                            <span class="badge bg-secondary" style="font-size:.6rem">выключено</span>
+                                        @endunless
+                                    </div>
+                                    <div class="text-muted" style="font-size:.75rem">
+                                        {{ $condition }}
+                                        @if($effects)
+                                            · {{ implode(' · ', $effects) }}
+                                        @else
+                                            · на ставки не влияет
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <a href="{{ route('admin.departments.modifiers.edit', [$department, $modifier]) }}"
+                                       class="btn btn-sm btn-outline-primary" title="Изменить">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form method="POST" data-submit-guard action="{{ route('admin.departments.modifiers.destroy', [$department, $modifier]) }}"
+                                          onsubmit="return confirm('Удалить правило «{{ $modifier->name }}»?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="p-3">
+                            <div class="alert alert-warning mb-0 py-2 small">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Правила не заданы — надбавки и штрафы в этом отделе не применяются.
+                            </div>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-workshop" role="tabpanel">
+            {{-- 8. Пресеты цеха --}}
+            <div class="card shadow-sm mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-semibold">Пресеты цеха ({{ $presets->count() }})</span>
+                    <a href="{{ route('admin.departments.presets.create', $department) }}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-plus-circle"></i> Добавить
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    @forelse($presets as $preset)
+                        @php
+                            $rawCount     = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_RAW)->count();
+                            $packageCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PACKAGE)->count();
+                            $productCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PRODUCT)->count();
+                            $prodItem     = $preset->items->firstWhere('role', \App\Models\WorkshopItem::ROLE_PRODUCT);
+                            $skuColor     = \App\Models\Product::getColorBySku($prodItem?->product?->sku);
+                            $skuBg        = $skuColor === '#FFFFFF' ? '' : $skuColor . '18';
+                        @endphp
+                        <div class="px-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }}"
+                             style="border-left:4px solid {{ $skuColor }};{{ $skuBg ? 'background:'.$skuBg.';' : '' }}">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div class="me-2">
+                                    <div class="fw-semibold small">{{ $preset->name }}</div>
+                                    <div class="text-muted" style="font-size:.75rem">
+                                        сырьё: {{ $rawCount }} · тара: {{ $packageCount }} · продукт: {{ $productCount }}
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <form method="POST" data-submit-guard action="{{ route('admin.departments.presets.copy', [$department, $preset]) }}"
+                                          class="d-flex align-items-center gap-1">
+                                        @csrf
+                                        <select name="target_department_id" class="form-select form-select-sm"
+                                                style="border-radius:.4rem;width:auto">
+                                            @foreach($allDepartments as $dept)
+                                                <option value="{{ $dept->id }}" {{ $dept->id === $department->id ? 'selected' : '' }}>
+                                                    {{ $dept->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Копировать в выбранный отдел">
+                                            <i class="bi bi-copy"></i>
+                                        </button>
+                                    </form>
+                                    <a href="{{ route('admin.departments.presets.edit', [$department, $preset]) }}"
+                                       class="btn btn-sm btn-outline-primary" title="Изменить">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form method="POST" data-submit-guard action="{{ route('admin.departments.presets.destroy', [$department, $preset]) }}"
+                                          onsubmit="return confirm('Удалить пресет «{{ $preset->name }}»?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="text-center text-muted py-3 small">
+                            Пресетов нет. Добавьте первый — он появится в форме цеха в блоке «Шаблоны».
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-workers" role="tabpanel">
+            {{-- 6. Список сотрудников --}}
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold py-2">
+                    Сотрудники ({{ $workers->count() }})
+                </div>
+                <div class="card-body p-0">
+                    @if($workers->isEmpty())
+                        <p class="text-muted small px-3 py-3 mb-0">В отделе нет сотрудников.</p>
+                    @else
+                        {{-- Десктоп --}}
+                        <div class="table-responsive d-none d-md-block">
+                            <table class="table table-sm table-hover mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-3">Имя</th>
+                                        <th>Должность</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($workers as $worker)
+                                    <tr>
+                                        <td class="ps-3 fw-semibold">{{ $worker->name }}</td>
+                                        <td class="text-muted small">{{ $worker->position }}</td>
+                                        <td class="text-end pe-3">
+                                            <a href="{{ route('workers.edit', $worker) }}"
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        {{-- Мобильный --}}
+                        <div class="d-md-none">
+                            @foreach($workers as $worker)
+                            <div class="d-flex justify-content-between align-items-center border-bottom px-3 py-2">
+                                <div>
+                                    <div class="fw-semibold small">{{ $worker->name }}</div>
+                                    <div class="text-muted" style="font-size:.8rem">{{ $worker->position }}</div>
+                                </div>
+                                <a href="{{ route('workers.edit', $worker) }}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
-    @endif
 
 </div>
+
+<style>
+.dept-tabs { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.dept-tabs::-webkit-scrollbar { display: none; }
+.dept-tabs .nav-link { white-space: nowrap; }
+</style>
+
+<script>
+(function () {
+    const hasErrors = @json($errors->any());
+
+    function show(name) {
+        const btn = document.querySelector(`[data-dept-tab="${name}"]`);
+        if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Ошибка валидации важнее hash: открываем вкладку с подсвеченным полем
+        const invalid = hasErrors
+            ? document.querySelector('.tab-pane .is-invalid, .tab-pane .invalid-feedback, .tab-pane [data-field-error]')
+            : null;
+        const pane = invalid?.closest('.tab-pane');
+
+        if (pane) {
+            show(pane.id.replace('tab-', ''));
+        } else if (window.location.hash) {
+            show(window.location.hash.slice(1));
+        }
+
+        // replaceState, а не hash=: без прыжка прокрутки и лишних записей в истории
+        document.querySelectorAll('[data-dept-tab]').forEach(btn => {
+            btn.addEventListener('shown.bs.tab', () => {
+                history.replaceState(null, '', '#' + btn.dataset.deptTab);
+            });
+        });
+    });
+})();
+</script>
 @endsection

@@ -31,6 +31,7 @@ class WorkshopPresetController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('workshop')
             ->with('success', 'Пресет создан.');
     }
 
@@ -49,6 +50,7 @@ class WorkshopPresetController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('workshop')
             ->with('success', 'Пресет обновлён.');
     }
 
@@ -58,6 +60,7 @@ class WorkshopPresetController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('workshop')
             ->with('success', 'Пресет удалён.');
     }
 
@@ -73,6 +76,7 @@ class WorkshopPresetController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $target)
+            ->withFragment('workshop')
             ->with('success', "Пресет скопирован в отдел «{$target->name}».");
     }
 

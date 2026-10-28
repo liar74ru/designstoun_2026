@@ -17,7 +17,7 @@ class SkuColorController extends Controller
     {
         $this->service->sync($request->validated('rows') ?? []);
 
-        return redirect()->route('admin.settings.index')
+        return redirect()->route('admin.settings.sku-colors')
             ->with('success', 'Цвета по SKU сохранены.');
     }
 }

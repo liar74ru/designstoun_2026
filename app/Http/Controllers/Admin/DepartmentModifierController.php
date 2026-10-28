@@ -29,6 +29,7 @@ class DepartmentModifierController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('salary')
             ->with('success', 'Правило создано.');
     }
 
@@ -49,6 +50,7 @@ class DepartmentModifierController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('salary')
             ->with('success', 'Правило обновлено.');
     }
 
@@ -58,6 +60,7 @@ class DepartmentModifierController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('salary')
             ->with('success', 'Правило удалено.');
     }
 }

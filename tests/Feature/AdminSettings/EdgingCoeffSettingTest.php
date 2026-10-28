@@ -17,12 +17,13 @@ describe('POST /admin/settings — валидация EDGING_COEFF (whitelist о
         edgingSeedSetting('EDGING_COEFF', '-2.5', 'Торцовка');
 
         $this->actingAs(H::adminUser())
+            ->from(route('admin.settings.rates'))
             ->post('/admin/settings', [
                 'settings' => [
                     ['key' => 'EDGING_COEFF', 'value' => '-3.5'],
                 ],
             ])
-            ->assertRedirect(route('admin.settings.index'))
+            ->assertRedirect(route('admin.settings.rates'))
             ->assertSessionHasNoErrors();
 
         expect(Setting::where('key', 'EDGING_COEFF')->value('value'))->toBe('-3.5');
@@ -88,7 +89,7 @@ describe('GET /admin/settings — неиспользуемые коэффици�
 
     // Надбавки за подкол, торцовку и плитку-маску задаются правилами отдела; общие
     // коэффициенты в расчёте не участвуют, и поле на странице выглядело бы рабочим.
-    test('в «Расчёте зарплаты» только базовая ставка пильщика', function () {
+    test('на странице ставок нет неиспользуемых коэффициентов', function () {
         edgingSeedSetting('PIECE_RATE',            '390',  'Ставка пильщика');
         edgingSeedSetting('UNDERCUT_PENALTY',      '1.5',  'Штраф подкол > 80%');
         edgingSeedSetting('EDGING_COEFF',          '-2.5', 'Коэффициент «Торцовка»');
@@ -96,9 +97,9 @@ describe('GET /admin/settings — неиспользуемые коэффици�
         edgingSeedSetting('MASTER_UNDERCUT_RATE',  '50',   'Надбавка мастеру за подкол');
 
         $this->actingAs(H::adminUser())
-            ->get('/admin/settings')
+            ->get(route('admin.settings.rates'))
             ->assertOk()
-            ->assertSee('Ставка пильщика')
+            ->assertSee('Базовая ставка')
             ->assertDontSee('Штраф подкол > 80%', false)
             ->assertDontSee('Коэффициент «Торцовка»', false)
             ->assertDontSee('Бонус плитки-маски')

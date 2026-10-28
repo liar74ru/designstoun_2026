@@ -77,7 +77,7 @@ return [
         'label'         => 'Настройки',
         'icon'          => 'bi-gear',
         'route'         => 'admin.settings.index',
-        'route_pattern' => 'admin.settings.*',
+        'route_pattern' => ['admin.settings.*', 'admin.departments.*', 'admin.order-states.*'],
         'admin_only'    => true,
     ],
 ];

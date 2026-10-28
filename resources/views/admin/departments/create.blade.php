@@ -8,8 +8,8 @@
     <x-page-header
         title="Новый отдел"
         mobileTitle="Новый отдел"
-        :backUrl="route('admin.settings.index')"
-        backLabel="К настройкам">
+        :backUrl="route('admin.departments.index')"
+        backLabel="К отделам">
         <x-slot name="actions">
             @include('partials.help-button', ['page' => 'settings'])
         </x-slot>
@@ -22,7 +22,7 @@
 
     <div class="card shadow-sm">
         <div class="card-body p-4">
-            <form method="POST" action="{{ route('admin.departments.store') }}">
+            <form method="POST" action="{{ route('admin.departments.store') }}" data-submit-guard>
                 @csrf
 
                 <div class="mb-3">
@@ -66,7 +66,7 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-plus-circle"></i> Создать отдел
                     </button>
-                    <a href="{{ route('admin.settings.index') }}" class="btn btn-outline-secondary">
+                    <a href="{{ route('admin.departments.index') }}" class="btn btn-outline-secondary" data-back>
                         Отмена
                     </a>
                 </div>

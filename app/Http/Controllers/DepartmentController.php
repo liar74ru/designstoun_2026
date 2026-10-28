@@ -16,6 +16,13 @@ use Illuminate\Validation\Rule;
 
 class DepartmentController extends Controller
 {
+    public function index()
+    {
+        $departments = Department::withCount('allWorkers')->orderBy('name')->get();
+
+        return view('admin.departments.index', compact('departments'));
+    }
+
     public function create()
     {
         return view('admin.departments.create');
@@ -32,7 +39,7 @@ class DepartmentController extends Controller
         Department::create(array_merge($validated, ['is_active' => true]));
 
         return redirect()
-            ->route('admin.settings.index')
+            ->route('admin.departments.index')
             ->with('success', 'Отдел успешно создан.');
     }
 
@@ -76,6 +83,7 @@ class DepartmentController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('salary')
             ->with('success', 'Накладные расходы отдела обновлены.');
     }
 
@@ -112,6 +120,7 @@ class DepartmentController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('salary')
             ->with('success', 'Ставки себестоимости обновлены.');
     }
 
@@ -147,6 +156,7 @@ class DepartmentController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('access')
             ->with('success', 'Права обновлены.');
     }
 
@@ -163,6 +173,7 @@ class DepartmentController extends Controller
 
         return redirect()
             ->route('admin.departments.show', $department)
+            ->withFragment('main')
             ->with('success', 'Отдел успешно обновлён.');
     }
 
@@ -170,14 +181,14 @@ class DepartmentController extends Controller
     {
         if ($department->workers()->exists() || $department->allWorkers()->exists()) {
             return redirect()
-                ->route('admin.settings.index')
+                ->route('admin.departments.show', $department)
                 ->with('error', 'Нельзя удалить отдел: в нём есть работники.');
         }
 
         $department->delete();
 
         return redirect()
-            ->route('admin.settings.index')
+            ->route('admin.departments.index')
             ->with('success', 'Отдел удалён.');
     }
 }

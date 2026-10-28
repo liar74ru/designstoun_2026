@@ -60,7 +60,7 @@ test('администратор сохраняет список: полная �
     saveSkuColors($this, [
         ['name' => 'Кварцит', 'color' => '#bfbfbf', 'prefixes' => '01-01, 04-01;01-01  05-01'],
     ])
-        ->assertRedirect(route('admin.settings.index'))
+        ->assertRedirect(route('admin.settings.sku-colors'))
         ->assertSessionHas('success');
 
     $rows = SkuColor::all();
@@ -143,9 +143,9 @@ test('не-админ получает 403', function () {
     expect(SkuColor::count())->toBe(8);
 });
 
-test('страница настроек показывает блок с префиксами строкой', function () {
+test('страница цветов показывает префиксы строкой', function () {
     $this->actingAs(H::adminUser())
-        ->get(route('admin.settings.index'))
+        ->get(route('admin.settings.sku-colors'))
         ->assertOk()
         ->assertSee('Цвета по SKU')
         ->assertSee('01-07, 04-07');
