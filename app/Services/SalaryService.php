@@ -225,13 +225,22 @@ class SalaryService
 
             $max = $this->maxRequest($accrued, $this->piggyBalance($worker) + $this->recalc($worker));
             if ($amount > $max) {
+                // Скрытый остаток не раскрываем и через предел суммы
                 throw ValidationException::withMessages([
-                    'amount' => 'Не больше ' . number_format($max, 0, ',', ' ') . ' ₽ (начислено + копилка).',
+                    'amount' => $worker->hide_piggy_balance
+                        ? 'Не больше допустимого (начислено + копилка).'
+                        : 'Не больше ' . number_format($max, 0, ',', ' ') . ' ₽ (начислено + копилка).',
                 ]);
             }
         }
 
         $worker->update(['requested_payout' => $amount]);
+    }
+
+    /** Скрыть от работника остаток копилки (вместо сумм — ***). */
+    public function setHideBalance(Worker $worker, bool $hide): void
+    {
+        $worker->update(['hide_piggy_balance' => $hide]);
     }
 
     /**

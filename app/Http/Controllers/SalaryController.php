@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Salary\HideBalanceRequest;
 use App\Http\Requests\Salary\PiggyAdjustRequest;
 use App\Http\Requests\Salary\SalaryPaidRequest;
 use App\Http\Requests\Salary\SalaryRequestRequest;
@@ -24,6 +25,13 @@ class SalaryController extends Controller
         return back()->with('success', $amount === null
             ? 'Сумма к выдаче — по умолчанию'
             : 'Сумма к выдаче сохранена');
+    }
+
+    public function toggleHideBalance(HideBalanceRequest $request, Worker $worker)
+    {
+        $this->service->setHideBalance($worker, $request->boolean('hide'));
+
+        return back();
     }
 
     public function markPaid(SalaryPaidRequest $request, Worker $worker)

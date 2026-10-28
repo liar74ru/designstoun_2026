@@ -44,6 +44,9 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/workers/{worker}/salary/request', [SalaryController::class, 'updateRequest'])
         ->middleware('can:see-worker-dashboard')
         ->name('salary.request');
+    Route::patch('/workers/{worker}/salary/hide-balance', [SalaryController::class, 'toggleHideBalance'])
+        ->middleware('can:see-worker-dashboard')
+        ->name('salary.hide-balance');
     Route::post('/workers/{worker}/salary/paid', [SalaryController::class, 'markPaid'])
         ->middleware('can:manage-admin')
         ->name('salary.paid');

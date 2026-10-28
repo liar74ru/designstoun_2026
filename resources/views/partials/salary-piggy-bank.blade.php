@@ -5,6 +5,12 @@
     $isAdmin  = auth()->user()->isAdmin();
     $canEdit  = $salary['isOpen'] && ($isAdmin || $salary['accrued'] > 0);
     $toBank   = $salary['toBank'];
+    // Остаток копилки работник может скрыть от себя (workers.hide_piggy_balance); админ видит всегда.
+    // Скрываются и проводки копилки в истории: их сумма и есть остаток.
+    $isSelf      = auth()->user()->worker_id === $worker->id;
+    $hideBalance = $isSelf && $worker->hide_piggy_balance;
+    $money       = fn ($v) => $hideBalance ? '***' : $rub($v);
+    $balanceCls  = fn ($v) => $hideBalance ? 'text-muted' : ($v < 0 ? 'text-danger' : 'text-success');
 @endphp
 
 <div class="card border-0 shadow-sm mb-3" id="salary">
@@ -12,7 +18,20 @@
          style="cursor:pointer" id="salary-toggle" role="button">
         <span class="fw-semibold"><i class="bi bi-piggy-bank me-1"></i>Копилка и выдача</span>
         <span class="d-flex align-items-center gap-2">
-            <span class="fw-bold {{ $salary['balance'] < 0 ? 'text-danger' : 'text-success' }}">{{ $rub($salary['balance']) }}</span>
+            @if($isSelf)
+                {{-- Клик по глазу не должен сворачивать блок --}}
+                <form method="POST" action="{{ route('salary.hide-balance', $worker) }}" data-submit-guard
+                      class="d-inline" onclick="event.stopPropagation()">
+                    @csrf
+                    @method('PATCH')
+                    <input type="hidden" name="hide" value="{{ $hideBalance ? 0 : 1 }}">
+                    <button type="submit" class="btn btn-sm btn-link text-muted p-0"
+                            title="{{ $hideBalance ? 'Показать остаток копилки' : 'Скрыть остаток копилки' }}">
+                        <i class="bi {{ $hideBalance ? 'bi-eye-slash' : 'bi-eye' }}"></i>
+                    </button>
+                </form>
+            @endif
+            <span class="fw-bold {{ $balanceCls($salary['balance']) }}">{{ $money($salary['balance']) }}</span>
             <i class="bi bi-chevron-down" id="salary-chevron"></i>
         </span>
     </div>
@@ -37,7 +56,7 @@
             <div class="small text-muted bg-light rounded p-2 mb-2">
                 <div>Неделя — с пятницы 00:00 по четверг 23:59. Сумму к выдаче можно менять с четверга {{ config('salary.cutoff_time') }} и до выдачи.</div>
                 <div>По умолчанию к выдаче — начисленное минус {{ config('salary.piggy_percent') }}%, до тысячи; остаток — в копилку.</div>
-                <div>«Хочу получить» — с шагом {{ $salary['requestStep'] }} ₽@unless($isAdmin), не больше {{ $rub($salary['maxRequest']) }}@endunless.
+                <div>«Хочу получить» — с шагом {{ $salary['requestStep'] }} ₽@unless($isAdmin), не больше {{ $money($salary['maxRequest']) }}@endunless.
                     Меньше начисленного — остаток уйдёт в копилку, больше — возьмётся из копилки.</div>
                 <div>Начисленное до выдачи ещё может измениться (приёмки, пересчёт коэффициентов) — сумма к выдаче
                     останется прежней, разница пройдёт через копилку. Пересчёт уже выданных недель уходит в копилку
@@ -68,11 +87,11 @@
             </div>
             <div class="col-6 col-md-3">
                 <div class="text-muted small">Копилка</div>
-                <div class="fw-semibold {{ $salary['balance'] < 0 ? 'text-danger' : '' }}">
-                    {{ $rub($salary['balance']) }}
+                <div class="fw-semibold {{ ! $hideBalance && $salary['balance'] < 0 ? 'text-danger' : '' }}">
+                    {{ $money($salary['balance']) }}
                 </div>
                 @if($salary['isOpen'] && round($salary['balanceAfter']) != round($salary['balance']))
-                    <div class="small text-muted">после выдачи {{ $rub($salary['balanceAfter']) }}</div>
+                    <div class="small text-muted">после выдачи {{ $money($salary['balanceAfter']) }}</div>
                 @endif
             </div>
         </div>
@@ -206,8 +225,8 @@
                                         <td>
                                             @include('partials.salary-payout-split', ['payout' => $payout])
                                         </td>
-                                        <td class="text-end {{ $payout->to_bank < 0 ? 'text-danger' : '' }}">
-                                            {{ $payout->to_bank > 0 ? '+' : '' }}{{ $rub($payout->to_bank) }}
+                                        <td class="text-end {{ ! $hideBalance && $payout->to_bank < 0 ? 'text-danger' : '' }}">
+                                            {{ ! $hideBalance && $payout->to_bank > 0 ? '+' : '' }}{{ $money($payout->to_bank) }}
                                         </td>
                                     </tr>
                                 @endforeach
@@ -229,8 +248,8 @@
                                     @endif
                                 </div>
                                 @include('partials.salary-payout-split', ['payout' => $payout])
-                                <div class="{{ $payout->to_bank < 0 ? 'text-danger' : 'text-muted' }}">
-                                    копилка {{ $payout->to_bank > 0 ? '+' : '' }}{{ $rub($payout->to_bank) }}
+                                <div class="{{ ! $hideBalance && $payout->to_bank < 0 ? 'text-danger' : 'text-muted' }}">
+                                    копилка {{ ! $hideBalance && $payout->to_bank > 0 ? '+' : '' }}{{ $money($payout->to_bank) }}
                                 </div>
                             </div>
                         @endforeach
@@ -244,8 +263,8 @@
                             <span>
                                 {{ $entry->created_at->format('d.m.Y') }} · {{ $entry->comment }}
                             </span>
-                            <span class="text-nowrap {{ $entry->amount < 0 ? 'text-danger' : 'text-success' }}">
-                                {{ $entry->amount > 0 ? '+' : '' }}{{ $rub($entry->amount) }}
+                            <span class="text-nowrap {{ $balanceCls($entry->amount) }}">
+                                {{ ! $hideBalance && $entry->amount > 0 ? '+' : '' }}{{ $money($entry->amount) }}
                             </span>
                         </div>
                     @endforeach

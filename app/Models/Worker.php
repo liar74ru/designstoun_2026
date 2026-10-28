@@ -32,13 +32,15 @@ class Worker extends Model
         'department_id',
         'archived_at',
         'requested_payout',
+        'hide_piggy_balance',
     ];
 
     protected function casts(): array
     {
         return [
-            'archived_at'      => 'datetime',
-            'requested_payout' => 'float',
+            'archived_at'        => 'datetime',
+            'requested_payout'   => 'float',
+            'hide_piggy_balance' => 'boolean',
         ];
     }
 

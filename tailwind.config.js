@@ -9,6 +9,10 @@ export default {
         './resources/views/**/*.blade.php',
     ],
 
+    // Утилита Tailwind .collapse (visibility: collapse) перебивает Bootstrap .collapse.show —
+    // раскрытый блок занимает место, но остаётся невидимым.
+    blocklist: ['collapse'],
+
     theme: {
         extend: {
             fontFamily: {
