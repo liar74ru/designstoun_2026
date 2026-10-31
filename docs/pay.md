@@ -177,8 +177,13 @@
   меняет.
 - **Администратор** меняет сумму к выдаче без ограничений и после выдачи нажимает
   **«Зарплата выдана»**, указав наличные, на карту и налог (налог — часть зарплаты работника).
-  Ссылка «всё» ставит всю сумму к выдаче в одну строку; «Итого выдаётся» сразу показывает,
-  сколько уйдёт в копилку или возьмётся из неё.
+  **Наличные считаются сами:** «Хочу получить» минус на карту, налог и поправка «Копилка ±».
+  Поправка нужна, чтобы получить ровную сумму: плюс — положить в копилку ещё, минус — взять из
+  неё (налог 1 237 ₽ из 33 000 ₽ даёт 31 763 ₽ наличными, поправка +763 ₽ — ровно 31 000 ₽).
+  Можно наоборот вписать наличные: разницу примет поправка. Если на карту и налог ушло больше
+  суммы, наличные будут 0, а недостающее покажет поправка с минусом. Ссылка «всё» ставит всю
+  сумму в одну строку и очищает остальные. Строки «В копилку» и «Копилка после выдачи» над формой
+  сразу показывают итог с поправкой.
   Начисленное минус выданное уходит в копилку; если выдали больше — берётся из копилки.
   Выданная сумма больше не меняется; поздний перерасчёт недели — см. выше.
 - **Корректировка копилки** — аванс или долг (минус), стартовый остаток (плюс), с комментарием.
@@ -204,7 +209,7 @@
 | 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `pieceRoundStep`, `masterRoundStep`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `StoneReceptionService::updateItemCoeff` / `refreshItemCoeffs`, `WorkshopService::updateItemCoeff` / `refreshItemCoeffs` | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
-| 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank` | `tests/Feature/Worker/SalaryHideBalanceTest` |
+| 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank` | `tests/Feature/Worker/SalaryPayoutTest`, `SalaryHideBalanceTest` |
 | 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
 
 Заметки:

@@ -12,6 +12,7 @@
     $money       = fn ($v) => $hideBalance ? '***' : $rub($v);
     $balanceCls  = fn ($v) => $hideBalance ? 'text-muted' : ($v < 0 ? 'text-danger' : 'text-success');
     $step        = $salary['requestStep'];
+    $wantAmount  = round($salary['toPay'] / $step) * $step;
 @endphp
 
 <div class="card border-0 shadow-sm mb-3" id="salary">
@@ -104,12 +105,12 @@
 
         <div class="row g-2 mb-2">
             <div class="col-6">
-                <div class="text-muted small">{{ $toBank < 0 ? 'Из копилки' : 'В копилку' }}</div>
-                <div class="fw-semibold {{ $toBank < 0 ? 'text-danger' : 'text-success' }}">{{ $rub(abs($toBank)) }}</div>
+                <div class="text-muted small" data-payout-bank-label>{{ $toBank < 0 ? 'Из копилки' : 'В копилку' }}</div>
+                <div class="fw-semibold {{ $toBank < 0 ? 'text-danger' : 'text-success' }}" data-payout-bank-value>{{ $rub(abs($toBank)) }}</div>
             </div>
             <div class="col-6">
                 <div class="text-muted small">Копилка после выдачи</div>
-                <div class="fw-semibold {{ ! $hideBalance && $salary['balanceAfter'] < 0 ? 'text-danger' : '' }}">
+                <div class="fw-semibold {{ ! $hideBalance && $salary['balanceAfter'] < 0 ? 'text-danger' : '' }}" data-payout-after-value>
                     {{ $money($salary['balanceAfter']) }}
                 </div>
             </div>
@@ -133,7 +134,7 @@
                                 title="−{{ $step }} ₽"><i class="bi bi-dash-lg"></i></button>
                         <input type="number" name="amount" min="0" step="{{ $step }}" data-salary-step="{{ $step }}"
                                @unless($isAdmin) max="{{ $salary['maxRequest'] }}" @endunless
-                               value="{{ old('amount', round($salary['toPay'] / $step) * $step) }}"
+                               value="{{ old('amount', $wantAmount) }}"
                                class="form-control text-center fw-semibold @error('amount') is-invalid @enderror">
                         <button type="button" class="btn btn-outline-secondary" data-salary-step-btn="1"
                                 title="+{{ $step }} ₽"><i class="bi bi-plus-lg"></i></button>
@@ -154,7 +155,10 @@
 
         @if($isAdmin && $salary['isOpen'])
             <form method="POST" action="{{ route('salary.paid', $worker) }}" data-submit-guard data-payout-form
-                  data-to-pay="{{ $salary['toPay'] }}"
+                  data-gross="{{ $salary['accrued'] + $salary['recalc'] }}"
+                  data-has-old="{{ session()->hasOldInput('paid_cash') ? 1 : 0 }}"
+                  {{-- Скрытый остаток в разметку не выводим --}}
+                  @unless($hideBalance) data-balance="{{ $salary['balance'] }}" @endunless
                   onsubmit="return confirm('Отметить зарплату выданной? Период будет закрыт.')"
                   class="bg-light rounded p-2 mt-2">
                 @csrf
@@ -170,16 +174,28 @@
                             <div class="input-group input-group-sm" style="width:9rem">
                                 <input type="number" id="payout-{{ $field }}" name="{{ $field }}" min="0" step="0.01" placeholder="0"
                                        data-payout-part
-                                       value="{{ old($field, $field === 'paid_cash' ? round($salary['toPay'], 2) : '') }}"
+                                       value="{{ old($field, $field === 'paid_cash' ? $wantAmount : '') }}"
                                        class="form-control text-end @error($field) is-invalid @enderror">
                                 <span class="input-group-text">₽</span>
                             </div>
                         </div>
                     </div>
                 @endforeach
+                {{-- Поправка к сумме «В копилку» выше. На сервер не уходит: копилка считается от выданного --}}
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-1 border-top pt-1 mt-1">
+                    <label class="small mb-0" for="payout-piggy">
+                        Копилка ±
+                        <span class="d-block text-muted" style="font-size:.7rem">+ положить ещё, − взять из копилки</span>
+                    </label>
+                    <div class="input-group input-group-sm" style="width:9rem">
+                        <input type="number" id="payout-piggy" step="0.01" value="0" data-payout-piggy
+                               class="form-control text-end">
+                        <span class="input-group-text">₽</span>
+                    </div>
+                </div>
                 <div class="d-flex justify-content-between small border-top pt-1 mt-1">
                     <span class="text-muted">Итого выдаётся</span>
-                    <span data-payout-check></span>
+                    <span class="fw-semibold" data-payout-check></span>
                 </div>
                 <input type="text" name="comment" maxlength="255" value="{{ old('comment') }}"
                        class="form-control form-control-sm mt-2" placeholder="Комментарий (необязательно)">
@@ -326,37 +342,90 @@
                 try { localStorage.setItem(STORAGE_KEY, isHidden ? 'open' : 'closed'); } catch (e) {}
             });
 
-            // ── Выдача (админ): «итого выдаётся» против суммы к выдаче, кнопки «всё наличными / на карту» ──
+            // ── Выдача (админ): наличные = «Хочу получить» − карта − налог − «Копилка ±»; правка наличных
+            //    двигает «Копилка ±». Строки над формами считаются как SalaryService::markPaid() ──
             document.querySelectorAll('[data-payout-form]').forEach(function (form) {
-                const toPay = Number(form.dataset.toPay);
-                const parts = form.querySelectorAll('[data-payout-part]');
+                const want  = document.querySelector('[data-salary-step]');
+                const cash  = form.elements.paid_cash;
+                const card  = form.elements.paid_card;
+                const tax   = form.elements.paid_tax;
+                const piggy = form.querySelector('[data-payout-piggy]');
                 const check = form.querySelector('[data-payout-check]');
+                const label = document.querySelector('[data-payout-bank-label]');
+                const bank  = document.querySelector('[data-payout-bank-value]');
+                const after = document.querySelector('[data-payout-after-value]');
+                const gross = Number(form.dataset.gross);
                 const fmt   = v => Math.round(v).toLocaleString('ru-RU') + ' ₽';
+                const r2    = v => Math.round(v * 100) / 100;
+                const part  = el => Math.max(0, Number(el.value) || 0);
 
-                function update() {
-                    if (!check) return;
-                    const total = Array.from(parts).reduce((s, el) => s + (Number(el.value) || 0), 0);
-                    const diff  = total - toPay;
-                    check.className = Math.round(diff) === 0 ? 'small text-success' : 'small text-danger';
-                    check.textContent = fmt(total) + (Math.round(diff) === 0 ? ' ✓'
-                        : (diff > 0 ? ' — на ' + fmt(diff) + ' больше, возьмётся из копилки'
-                                    : ' — на ' + fmt(-diff) + ' меньше, уйдёт в копилку'));
+                // Поправка, заданная вручную. Минус от нехватки наличных в неё не входит:
+                // уменьшили карту — и он исчезнет.
+                let manual = 0;
+
+                function summary() {
+                    const total  = r2(part(cash) + part(card) + part(tax));
+                    const toBank = r2(gross - total);
+                    check.textContent = fmt(total);
+                    label.textContent = toBank < 0 ? 'Из копилки' : 'В копилку';
+                    bank.textContent  = fmt(Math.abs(toBank));
+                    bank.className    = 'fw-semibold ' + (toBank < 0 ? 'text-danger' : 'text-success');
+                    if (form.dataset.balance !== undefined) {
+                        const balanceAfter = r2(Number(form.dataset.balance) + toBank);
+                        after.textContent = fmt(balanceAfter);
+                        after.className   = 'fw-semibold' + (balanceAfter < 0 ? ' text-danger' : '');
+                    }
                 }
+
+                // skip — поле, в котором сейчас печатают: его значение не переписываем
+                function recompute(skip) {
+                    const rest = r2((Number(want.value) || 0) - part(card) - part(tax) - manual);
+                    if (skip !== cash) cash.value = Math.max(0, rest);
+                    if (skip !== piggy) piggy.value = rest < 0 ? r2(manual + rest) : manual;
+                    summary();
+                }
+
+                function manualFromCash() {
+                    manual = r2((Number(want.value) || 0) - part(card) - part(tax) - part(cash));
+                }
+
+                want.addEventListener('input', () => recompute());
+                [card, tax].forEach(el => el.addEventListener('input', () => recompute()));
+                piggy.addEventListener('input', function () {
+                    manual = Number(piggy.value) || 0;
+                    recompute(piggy);
+                });
+                piggy.addEventListener('change', () => recompute());
+                cash.addEventListener('input', function () {
+                    manualFromCash();
+                    recompute(cash);
+                });
+                cash.addEventListener('change', () => recompute());
 
                 form.querySelectorAll('[data-payout-fill]').forEach(function (btn) {
                     btn.addEventListener('click', function () {
-                        parts.forEach(el => { el.value = el.name === btn.dataset.payoutFill ? toPay : ''; });
-                        update();
+                        manual = 0;
+                        tax.value  = '';
+                        card.value = btn.dataset.payoutFill === 'paid_card' ? (Number(want.value) || 0) : '';
+                        recompute();
                     });
                 });
-                parts.forEach(el => el.addEventListener('input', update));
-                update();
+
+                // После ошибки валидации поля вернулись из old() — поправку восстанавливаем по ним
+                if (form.dataset.hasOld === '1') manualFromCash();
+                recompute();
             });
 
             // ── «Хочу получить»: ручной ввод — к ближайшему кратному шагу в пределах min/max,
             //    кнопки −/+ — на шаг от округлённого значения ──
             document.querySelectorAll('[data-salary-step]').forEach(function (input) {
                 const step = Number(input.dataset.salaryStep);
+
+                // Значение из кода событий не вызывает, а за ним следит форма выдачи
+                function setValue(value) {
+                    input.value = value;
+                    input.dispatchEvent(new Event('input'));
+                }
 
                 function snap(value) {
                     let v = Math.round(value / step) * step;
@@ -373,20 +442,20 @@
                 }
                 if (resetBtn && !saved) {
                     resetBtn.addEventListener('click', function () {
-                        input.value = resetBtn.dataset.salaryDefault;
+                        setValue(resetBtn.dataset.salaryDefault);
                         syncReset();
                     });
                 }
 
                 input.addEventListener('change', function () {
-                    if (input.value !== '') input.value = snap(Number(input.value));
+                    if (input.value !== '') setValue(snap(Number(input.value)));
                     syncReset();
                 });
 
                 input.closest('.input-group').querySelectorAll('[data-salary-step-btn]').forEach(function (btn) {
                     btn.addEventListener('click', function () {
                         const current = snap(Number(input.value) || 0);
-                        input.value = snap(current + Number(btn.dataset.salaryStepBtn) * step);
+                        setValue(snap(current + Number(btn.dataset.salaryStepBtn) * step));
                         syncReset();
                     });
                 });
