@@ -74,7 +74,7 @@ class StoneReceptionService
         return $data;
     }
 
-    public function getFilterData(): array
+    public function getFilterData(?Request $request = null): array
     {
         // Продукты-сырьё из партий, у которых есть приёмки, плюс из «рабочих» партий без приёмок
         // (чтобы фильтр по сырью работал и для новых партий, показанных в разделе «По партиям»).
@@ -101,9 +101,14 @@ class StoneReceptionService
                 ->distinct()->pluck('cutter_id')
         )->orderBy('name')->get();
 
+        // Короткий список по умолчанию: работники отделов пользователя без уволенных
+        $cutterDefaultIds = Worker::whereIn('id', $filterCutters->pluck('id'))
+            ->activeInDepartments($request?->user()?->accessibleDepartmentIds())
+            ->pluck('id')->all();
+
         $filterDepartments = Department::orderBy('name')->get();
 
-        return compact('filterRawProducts', 'filterProducts', 'filterCutters', 'filterDepartments');
+        return compact('filterRawProducts', 'filterProducts', 'filterCutters', 'cutterDefaultIds', 'filterDepartments');
     }
 
     public function getLastReceptions(int $perPage = 15, ?int $rawMaterialProductId = null, ?Request $request = null): LengthAwarePaginator

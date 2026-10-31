@@ -36,13 +36,14 @@ class WorkshopController extends Controller
             'filterRawProducts'     => $filterRawProducts,
             'filterProducts'        => $filterProducts,
             'filterPackers'         => $filterPackers,
+            'cutterDefaultIds'      => $cutterDefaultIds,
             'filterPackageProducts' => $filterPackageProducts,
             'filterDepartments'     => $filterDepartments,
             'departmentDefaults'    => $departmentDefaults,
         ] = $this->service->getFilterData($request);
 
         return view('workshops.index', compact(
-            'workshops', 'filterRawProducts', 'filterProducts', 'filterPackers', 'filterPackageProducts',
+            'workshops', 'filterRawProducts', 'filterProducts', 'filterPackers', 'cutterDefaultIds', 'filterPackageProducts',
             'filterDepartments', 'departmentDefaults'
         ));
     }

@@ -85,6 +85,11 @@ class WorkshopService
             Workshop::distinct()->pluck('packer_id')
         )->orderBy('name')->get();
 
+        // Короткий список по умолчанию: работники отделов пользователя без уволенных
+        $cutterDefaultIds = Worker::whereIn('id', $filterPackers->pluck('id'))
+            ->activeInDepartments($request?->user()?->accessibleDepartmentIds())
+            ->pluck('id')->all();
+
         $filterPackageProducts = Product::whereIn('id',
             WorkshopItem::where('role', WorkshopItem::ROLE_PACKAGE)->distinct()->pluck('product_id')
         )->orderBy('name')->get();
@@ -93,7 +98,7 @@ class WorkshopService
         $departmentDefaults = $request?->user()?->accessibleDepartmentIds() ?? [];
 
         return compact(
-            'filterRawProducts', 'filterProducts', 'filterPackers', 'filterPackageProducts',
+            'filterRawProducts', 'filterProducts', 'filterPackers', 'cutterDefaultIds', 'filterPackageProducts',
             'filterDepartments', 'departmentDefaults'
         );
     }

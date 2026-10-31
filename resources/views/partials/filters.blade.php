@@ -3,6 +3,7 @@
     Параметры:
       $filterCutters      — Collection|null  (null = скрыть поле)
       $cutterParam        — string: 'cutter_id' | 'current_worker_id'
+      $cutterDefaultIds   — array|null: id работников короткого списка, остальные — по чекбоксу «Показать всех работников» (null = чекбокса нет)
       $filterRawProducts  — Collection|null  (null = скрыть поле)
       $rawProductParam    — string: 'raw_product_id' | 'raw_material_product_id' | 'product_id'
       $filterProducts     — Collection|null  (null = скрыть product-picker)
@@ -22,6 +23,7 @@
     $cutterParam        = $cutterParam        ?? 'cutter_id';
     $rawProductParam    = $rawProductParam    ?? 'product_id';
     $filterCutters      = $filterCutters      ?? null;
+    $cutterDefaultIds   = $cutterDefaultIds   ?? null;
     $filterRawProducts  = $filterRawProducts  ?? null;
     $filterProducts     = $filterProducts     ?? null;
     $filterPackageProducts = $filterPackageProducts ?? null;
@@ -109,14 +111,24 @@
                 @if($filterCutters)
                 <div class="col-12 col-sm-6 {{ $colClass }}">
                     <label class="form-label small text-muted mb-1">Работник</label>
-                    <select name="filter[{{ $cutterParam }}]" class="form-select" style="border-radius:.4rem">
+                    <select name="filter[{{ $cutterParam }}]" id="filter_cutter" class="form-select" style="border-radius:.4rem">
                         <option value="">Все работники</option>
                         @foreach($filterCutters as $cutter)
                             <option value="{{ $cutter->id }}"
+                                {{ in_array($cutter->id, $cutterDefaultIds ?? []) ? 'data-default' : '' }}
                                 {{ request("filter.$cutterParam") == $cutter->id ? 'selected' : '' }}>
                                 {{ $cutter->name }}</option>
                         @endforeach
                     </select>
+                    @if($cutterDefaultIds !== null)
+                        <div class="form-check mt-2 mb-0">
+                            <input class="form-check-input" type="checkbox" id="filter_all_workers"
+                                {{ request("filter.$cutterParam") && !in_array(request("filter.$cutterParam"), $cutterDefaultIds) ? 'checked' : '' }}>
+                            <label class="form-check-label small" for="filter_all_workers">
+                                Показать всех работников
+                            </label>
+                        </div>
+                    @endif
                 </div>
                 @endif
 
@@ -368,6 +380,24 @@
     });
 
     document.addEventListener('product-picker:removed', () => { form.submit(); });
+
+    // Опции пересобираются, а не прячутся: iOS Safari игнорирует hidden у <option>
+    const allWorkers = document.getElementById('filter_all_workers');
+    if (allWorkers) {
+        const cutterSelect  = document.getElementById('filter_cutter');
+        const cutterOptions = Array.from(cutterSelect.options);
+        const applyAllWorkers = () => {
+            // Значение сохраняем явно: убранная опция помнит выделение и при возврате перехватила бы его
+            const value = cutterSelect.value;
+            cutterSelect.replaceChildren(
+                ...cutterOptions.filter(o => allWorkers.checked || !o.value || 'default' in o.dataset)
+            );
+            cutterSelect.value = value;
+            if (cutterSelect.selectedIndex === -1) cutterSelect.selectedIndex = 0;
+        };
+        allWorkers.addEventListener('change', applyAllWorkers);
+        applyAllWorkers();
+    }
 })();
 </script>
 @endpush

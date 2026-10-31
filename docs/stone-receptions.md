@@ -134,6 +134,9 @@
   ни одной приёмки, с кнопкой «Оформить приёмку». Вкладка **«По приёмкам»** — записи журнала.
 - По умолчанию видны активные приёмки ваших отделов; фильтр позволяет выбрать статус, отдел,
   пильщика, сырьё, продукцию и состояние синхронизации.
+- В списке работников фильтра по умолчанию сотрудники ваших отделов без уволенных. Чекбокс
+  **«Показать всех работников»** добавляет сотрудников других отделов и уволенных. В обоих случаях
+  в списке только те, у кого есть приёмки.
 - Приёмки **чужого отдела** смотреть можно, менять нельзя: кнопки правки, завершения, удаления,
   синхронизации и коэффициентов видны только для приёмок ваших отделов.
 
@@ -155,7 +158,7 @@
 | 6. Коэффициенты | `StoneReceptionService::updateItemCoeff`, `refreshItemCoeffs`; `Support\ItemCost`; снятые sku-правила — `stone_reception_items.disabled_modifier_keys`, `ModifierEngine::disabledSkuKeys` | `ReceptionActionsTest`, `ReceptionExtraActionsTest`, `StoneReceptionEdgingFlowTest`, `EdgingCoeffTest`, `Modifier/DisabledSkuModifierTest` |
 | 7. МойСклад | `Moysklad\StoneReceptionSyncService::syncReception`, `createProcessingForBatch`, `updateProcessingProducts`, `buildReceptionDescription`, `buildCostSummary`; `DocumentNaming` | `ReceptionExtraActionsTest`, `tests/Feature/Moysklad/StoneReceptionSyncServiceTest`, `StoneReceptionProcessingUpdateTest`, `ReceptionDescriptionCostTest` |
 | 8. Удаление | `StoneReceptionService::delete`, `StoneReception::booted` (`deleted`) | `StoneReceptionServiceTest`, `StoneReceptionTest` |
-| 9. Список и доступ | `StoneReceptionService::getFilteredReceptions`, `getFilteredLogs`, `getBatchesWithoutReceptions`; `StoneReceptionPolicy::modify` | `StoneReceptionDepartmentAccessTest`, `BatchesWithoutReceptionsTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
+| 9. Список и доступ | `StoneReceptionService::getFilteredReceptions`, `getFilteredLogs`, `getBatchesWithoutReceptions`, `getFilterData`; `StoneReceptionPolicy::modify` | `StoneReceptionDepartmentAccessTest`, `BatchesWithoutReceptionsTest`, `ReceptionIndexWorkerFilterTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
 
 Заметки:
 

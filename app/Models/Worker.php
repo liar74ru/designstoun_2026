@@ -64,6 +64,13 @@ class Worker extends Model
         return $query->whereNull('archived_at');
     }
 
+    /** Активные работники указанных отделов; null — без ограничения по отделу (админ) */
+    public function scopeActiveInDepartments($query, ?array $departmentIds)
+    {
+        return $query->active()->when($departmentIds !== null, fn($q) =>
+            $q->whereHas('departments', fn($d) => $d->whereIn('departments.id', $departmentIds ?: [-1])));
+    }
+
     /** Архивные (уволенные) работники */
     public function scopeArchived($query)
     {

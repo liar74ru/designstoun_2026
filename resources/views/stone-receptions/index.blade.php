@@ -40,6 +40,7 @@
         @include('partials.filters', [
             'filterCutters'      => $filterCutters,
             'cutterParam'        => 'cutter_id',
+            'cutterDefaultIds'   => $cutterDefaultIds,
             'filterRawProducts'  => $filterRawProducts,
             'rawProductParam'    => 'raw_product_id',
             'filterProducts'     => $filterProducts,

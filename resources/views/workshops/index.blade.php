@@ -26,6 +26,7 @@
     @include('partials.filters', [
         'filterCutters'         => $filterPackers,
         'cutterParam'           => 'packer_id',
+        'cutterDefaultIds'      => $cutterDefaultIds,
         'filterRawProducts'     => $filterRawProducts,
         'rawProductParam'       => 'raw_product_id',
         'filterProducts'        => $filterProducts,

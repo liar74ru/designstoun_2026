@@ -148,6 +148,9 @@
 - По умолчанию видны все операции ваших отделов. Фильтр: период (кнопки «Тек. нед.»,
   «1 нед. назад», «2 нед. назад», «Всё время» или даты вручную), работник, сырьё, продукт на
   выходе, тип упаковки, статус, состояние синхронизации и отдел.
+- В списке работников фильтра по умолчанию сотрудники ваших отделов без уволенных. Чекбокс
+  **«Показать всех работников»** добавляет сотрудников других отделов и уволенных. В обоих случаях
+  в списке только те, у кого есть операции цеха.
 - Порядок списка: сначала незавершённые, затем закрытые с ошибкой синхронизации с МойСклад,
   затем остальные закрытые. Внутри каждой группы новые — сверху.
 - Операции **чужого отдела** смотреть можно, менять нельзя: кнопки правки, закрытия, удаления,
@@ -171,7 +174,7 @@
 | 7. Зарплата | `WorkshopService::createProductItem`, `updateItemCoeff`, `refreshItemCoeffs`; `WorkshopItem::effectiveProdCost`; снятые sku-правила — `workshop_items.disabled_modifier_keys` | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `Modifier/DisabledSkuModifierTest` |
 | 8. МойСклад | `Moysklad\WorkshopSyncService::syncWorkshop`, `createProcessingForWorkshop`, `updateProcessingProducts`, `computeProcessingSum`, `buildWorkshopDescription` | `tests/Feature/Moysklad/WorkshopSyncServiceTest`, `WorkshopProcessingUpdateTest` |
 | 9. Статусы, удаление | `WorkshopService::markCompleted`, `resetStatus`, `delete` | `WorkshopServiceTest`, `WorkshopResetStatusTest` |
-| 10. Список и доступ | `WorkshopService::getFilteredWorkshops` (порядок групп — `orderByRaw`), `WorkshopPolicy::modify` | `WorkshopIndexOrderTest`, `WorkshopIndexFilterTest`, `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
+| 10. Список и доступ | `WorkshopService::getFilteredWorkshops` (порядок групп — `orderByRaw`), `getFilterData`, `WorkshopPolicy::modify` | `WorkshopIndexOrderTest`, `WorkshopIndexFilterTest`, `WorkshopIndexWorkerFilterTest`, `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
 
 Заметки:
 
