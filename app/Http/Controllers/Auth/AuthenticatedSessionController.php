@@ -27,23 +27,9 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
         $request->session()->regenerate();
 
-        $user = Auth::user();
+        $route = Auth::user()->startRouteName();
 
-        if ($user->isAdmin()) {
-            return redirect()->intended(route('home'));
-        }
-
-        // Мастер — на журнал приёмок (его стартовая страница)
-        if ($user->isMaster()) {
-            return redirect()->route('stone-receptions.logs');
-        }
-
-        // Работники — на их дашборд
-        if ($user->isWorker()) {
-            return redirect()->route('worker.dashboard');
-        }
-
-        return redirect()->intended(route('home'));
+        return $route ? redirect()->route($route) : redirect()->intended(route('home'));
     }
 
     /**

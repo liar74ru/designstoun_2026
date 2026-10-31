@@ -27,10 +27,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth'])->group(function () {
 
     Route::get('/', function () {
-        if (auth()->user()?->isMaster()) {
-            return redirect()->route('worker.dashboard');
-        }
-        return view('home');
+        $route = auth()->user()?->startRouteName();
+
+        return $route ? redirect()->route($route) : view('home');
     })->name('home');
 
     // Дашборды — свои защищены Gate'ом, *.by-id защищены Policy в контроллере

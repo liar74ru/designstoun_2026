@@ -44,6 +44,7 @@ test('User::isMaster() возвращает false если worker_id не зад
 
 test('мастер после входа попадает на журнал приёмок', function () {
     $dept   = Department::create(['name' => 'Цех 1', 'is_active' => true]);
+    Access::allowOperation($dept, 'stone-receptions');
     $worker = Worker::create(['name' => 'Мастер Входов', 'position' => 'Мастер', 'department_id' => $dept->id]);
     User::factory()->create([
         'phone'     => '79991110001',
@@ -162,12 +163,66 @@ test('мастер открывает worker.dashboard — выработка о
 // home redirect
 // ──────────────────────────────────────────────────────────────────────────────
 
-test('мастер при заходе на главную редиректится на выработку', function () {
-    $user = Access::userWithPosition('Мастер', Access::department());
+test('мастер и помощник при заходе на главную редиректятся на журнал приёмок', function (string $position) {
+    $dept = Access::department();
+    Access::allowOperation($dept, 'stone-receptions', [$position]);
+    $user = Access::userWithPosition($position, $dept);
+
+    $this->actingAs($user)
+        ->get(route('home'))
+        ->assertRedirect(route('stone-receptions.logs'));
+})->with(['Мастер', 'Помощник мастера']);
+
+test('мастер и помощник после входа попадают на журнал приёмок', function (string $position) {
+    $dept = Access::department();
+    Access::allowOperation($dept, 'stone-receptions', [$position]);
+    $user = Access::userWithPosition($position, $dept);
+    $user->update(['phone' => '79991110003', 'password' => bcrypt('password')]);
+
+    $this->post('/login', ['login' => '79991110003', 'password' => 'password'])
+        ->assertRedirect(route('stone-receptions.logs'));
+})->with(['Мастер', 'Помощник мастера']);
+
+test('мастер и помощник без доступа к журналу идут на выработку', function (string $position) {
+    $user = Access::userWithPosition($position, Access::department());
+    $user->update(['phone' => '79991110003', 'password' => bcrypt('password')]);
+
+    $this->post('/login', ['login' => '79991110003', 'password' => 'password'])
+        ->assertRedirect(route('worker.dashboard'));
+
+    $this->get(route('home'))->assertRedirect(route('worker.dashboard'));
+})->with(['Мастер', 'Помощник мастера']);
+
+test('работник при заходе на главную редиректится на выработку', function (string $position) {
+    $user = Access::userWithPosition($position, Access::department());
 
     $this->actingAs($user)
         ->get(route('home'))
         ->assertRedirect(route('worker.dashboard'));
+})->with(['Работник', 'Разнорабочий']);
+
+test('работник после входа попадает на выработку', function (string $position) {
+    $user = Access::userWithPosition($position, Access::department());
+    $user->update(['phone' => '79991110003', 'password' => bcrypt('password')]);
+
+    $this->post('/login', ['login' => '79991110003', 'password' => 'password'])
+        ->assertRedirect(route('worker.dashboard'));
+})->with(['Работник', 'Разнорабочий']);
+
+test('админ остаётся на главной', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+
+    $this->actingAs($admin)
+        ->get(route('home'))
+        ->assertOk();
+});
+
+test('пользователь без работника остаётся на главной', function () {
+    $user = User::factory()->create(['is_admin' => false, 'worker_id' => null]);
+
+    $this->actingAs($user)
+        ->get(route('home'))
+        ->assertOk();
 });
 
 // ──────────────────────────────────────────────────────────────────────────────

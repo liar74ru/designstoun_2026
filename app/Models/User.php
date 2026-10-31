@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\OperationAccessor;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -58,6 +59,24 @@ class User extends Authenticatable
     public function isWorker(): bool
     {
         return $this->worker?->position === 'Работник';
+    }
+
+    /**
+     * Маршрут стартовой страницы; null — главная (админ и те, кому дашборд недоступен).
+     * Журнал настраивается по отделам: мастер без этой операции идёт на дашборд, а не на 403.
+     */
+    public function startRouteName(): ?string
+    {
+        if ($this->isAdmin()) {
+            return null;
+        }
+
+        if (in_array($this->worker?->position, ['Мастер', 'Помощник мастера'], true)
+            && OperationAccessor::canSee($this, 'stone-receptions')) {
+            return 'stone-receptions.logs';
+        }
+
+        return OperationAccessor::canSee($this, 'worker-dashboard') ? 'worker.dashboard' : null;
     }
 
     /**
