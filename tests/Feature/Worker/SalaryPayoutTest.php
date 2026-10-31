@@ -341,6 +341,188 @@ test('работник не может менять сумму к выдаче �
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Исправление последней выдачи
+// ──────────────────────────────────────────────────────────────────────────────
+
+test('исправление меняет раскладку, to_bank и проводку, а начисленное и даты — нет', function () {
+    salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 31000, 'paid_tax' => 1237]);
+    $payout = $this->worker->salaryPayouts()->sole();
+    $paidAt = $payout->paid_at->toDateTimeString();
+
+    $this->travelTo(Carbon::parse('2026-10-31 10:00:00'));
+
+    $this->actingAs($this->admin)
+        ->patch(route('salary.payout-update', [$this->worker, $payout]), [
+            'edit_cash'    => 30000,
+            'edit_card'    => 1000,
+            'edit_tax'     => 500,
+            'edit_comment' => 'Ошиблись в налоге',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $payout->refresh();
+    expect((float) $payout->paid_cash)->toBe(30000.0)
+        ->and((float) $payout->paid_card)->toBe(1000.0)
+        ->and((float) $payout->paid_tax)->toBe(500.0)
+        ->and((float) $payout->paid_total)->toBe(31500.0)
+        ->and((float) $payout->to_bank)->toBe(5500.0)
+        ->and($payout->comment)->toBe('Ошиблись в налоге')
+        ->and((float) $payout->accrued)->toBe(37000.0)
+        ->and((float) $payout->accounted)->toBe(37000.0)
+        ->and($payout->paid_at->toDateTimeString())->toBe($paidAt)
+        ->and($payout->edited_at->toDateTimeString())->toBe('2026-10-31 10:00:00')
+        ->and($payout->edited_by_user_id)->toBe($this->admin->id);
+
+    expect((float) $this->worker->piggyBankEntries()->sole()->amount)->toBe(5500.0);
+});
+
+test('исправление до нулевой разницы удаляет проводку, а обратно — создаёт', function () {
+    salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 33000]);
+    $payout = $this->worker->salaryPayouts()->sole();
+
+    $this->actingAs($this->admin)
+        ->patch(route('salary.payout-update', [$this->worker, $payout]), ['edit_cash' => 37000]);
+    expect($this->worker->piggyBankEntries()->count())->toBe(0);
+
+    $this->actingAs($this->admin)
+        ->patch(route('salary.payout-update', [$this->worker, $payout]), ['edit_cash' => 40000]);
+
+    $entry = $this->worker->piggyBankEntries()->sole();
+    expect((float) $entry->amount)->toBe(-3000.0)
+        ->and($entry->type)->toBe(PiggyBankEntry::TYPE_PAYOUT)
+        ->and($entry->salary_payout_id)->toBe($payout->id);
+});
+
+test('корректировка копилки при исправлении выдачи не меняется', function () {
+    salaryAccrue($this->worker, 37000);
+    app(SalaryService::class)->adjustPiggy($this->worker, 12500, 'Стартовый остаток', $this->admin);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 33000]);
+    $payout = $this->worker->salaryPayouts()->sole();
+
+    $this->actingAs($this->admin)
+        ->patch(route('salary.payout-update', [$this->worker, $payout]), ['edit_cash' => 37000]);
+
+    expect(app(SalaryService::class)->piggyBalance($this->worker))->toBe(12500.0);
+});
+
+test('исправить старую выдачу нельзя', function () {
+    salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 33000]);
+    $old = $this->worker->salaryPayouts()->sole();
+
+    $this->travelTo(Carbon::parse('2026-11-05 22:00:00'));
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker));
+
+    $this->actingAs($this->admin)
+        ->patch(route('salary.payout-update', [$this->worker, $old]), ['edit_cash' => 1000])
+        ->assertSessionHasErrors('edit_payout');
+
+    expect((float) $old->fresh()->paid_cash)->toBe(33000.0);
+});
+
+test('выдачу другого работника через чужой адрес не исправить', function () {
+    salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 33000]);
+    $payout = $this->worker->salaryPayouts()->sole();
+    $other  = Worker::create(['name' => 'Петров', 'position' => 'Работник']);
+
+    $this->actingAs($this->admin)
+        ->patch(route('salary.payout-update', [$other, $payout]), ['edit_cash' => 1000])
+        ->assertNotFound();
+});
+
+test('работник не может исправить свою выдачу', function () {
+    salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 33000]);
+    $payout = $this->worker->salaryPayouts()->sole();
+
+    $this->actingAs($this->user)
+        ->patch(route('salary.payout-update', [$this->worker, $payout]), ['edit_cash' => 37000])
+        ->assertForbidden();
+
+    expect((float) $payout->fresh()->paid_cash)->toBe(33000.0);
+});
+
+test('отрицательная сумма в исправлении отклоняется', function () {
+    salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 33000]);
+    $payout = $this->worker->salaryPayouts()->sole();
+
+    $this->actingAs($this->admin)
+        ->patch(route('salary.payout-update', [$this->worker, $payout]), ['edit_tax' => -1])
+        ->assertSessionHasErrors('edit_tax');
+});
+
+test('следующий перерасчёт от исправления не зависит', function () {
+    $item = salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 33000]);
+    $payout = $this->worker->salaryPayouts()->sole();
+
+    $this->actingAs($this->admin)
+        ->patch(route('salary.payout-update', [$this->worker, $payout]), ['edit_cash' => 30000]);
+    expect(app(SalaryService::class)->recalc($this->worker))->toBe(0.0);
+
+    $item->update(['worker_cost_per_m2' => 400]);
+
+    expect(app(SalaryService::class)->recalc($this->worker))->toBe(3000.0);
+});
+
+test('сохранение без изменений отметку не ставит', function () {
+    salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), [
+        'paid_cash' => 31000, 'paid_tax' => 1237, 'comment' => 'Аванс учтён',
+    ]);
+    $payout = $this->worker->salaryPayouts()->sole();
+
+    $this->actingAs($this->admin)
+        ->patch(route('salary.payout-update', [$this->worker, $payout]), [
+            'edit_cash' => '31000.00', 'edit_card' => '', 'edit_tax' => '1237', 'edit_comment' => 'Аванс учтён',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($payout->fresh()->edited_at)->toBeNull();
+});
+
+test('отметка об исправлении видна работнику, а секция исправления — только администратору', function () {
+    salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 33000]);
+    $payout = $this->worker->salaryPayouts()->sole();
+    $action = route('salary.payout-update', [$this->worker, $payout]);
+
+    $this->actingAs($this->admin)
+        ->get("/workers/{$this->worker->id}/dashboard")
+        ->assertOk()
+        ->assertSee($action)
+        ->assertSee('data-base="33000"', false)
+        ->assertSee('data-balance="0"', false)
+        ->assertDontSee('исправлено 29.10');
+
+    $this->actingAs($this->admin)->patch($action, ['edit_cash' => 30000]);
+
+    $this->actingAs($this->user)
+        ->get('/my-work')
+        ->assertOk()
+        ->assertSee('исправлено 29.10')
+        ->assertDontSee($action);
+});
+
+test('скрытый остаток не попадает в разметку секции исправления', function () {
+    salaryAccrue($this->worker, 37000);
+    $this->actingAs($this->admin)->post(route('salary.paid', $this->worker), ['paid_cash' => 33000]);
+    $this->worker->update(['hide_piggy_balance' => true]);
+    $ownAdmin = User::factory()->create(['worker_id' => $this->worker->id, 'is_admin' => true]);
+
+    $this->actingAs($ownAdmin)
+        ->get("/workers/{$this->worker->id}/dashboard")
+        ->assertOk()
+        ->assertSee('id="payout-edit-piggy"', false)
+        ->assertDontSee('data-balance', false);
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Форма выдачи
 // ──────────────────────────────────────────────────────────────────────────────
 

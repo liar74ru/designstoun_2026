@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Salary\HideBalanceRequest;
 use App\Http\Requests\Salary\PiggyAdjustRequest;
 use App\Http\Requests\Salary\SalaryPaidRequest;
+use App\Http\Requests\Salary\SalaryPayoutUpdateRequest;
 use App\Http\Requests\Salary\SalaryRequestRequest;
+use App\Models\SalaryPayout;
 use App\Models\Worker;
 use App\Services\SalaryService;
 
@@ -46,6 +48,21 @@ class SalaryController extends Controller
         );
 
         return back()->with('success', 'Зарплата отмечена как выданная');
+    }
+
+    public function updatePayout(SalaryPayoutUpdateRequest $request, Worker $worker, SalaryPayout $salaryPayout)
+    {
+        $this->service->updateLastPayout(
+            $worker,
+            $salaryPayout,
+            (float) $request->input('edit_cash', 0),
+            $request->filled('edit_card') ? (float) $request->input('edit_card') : null,
+            $request->filled('edit_tax') ? (float) $request->input('edit_tax') : null,
+            $request->input('edit_comment'),
+            $request->user(),
+        );
+
+        return back()->with('success', 'Выдача исправлена');
     }
 
     public function adjustPiggy(PiggyAdjustRequest $request, Worker $worker)

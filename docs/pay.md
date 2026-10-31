@@ -185,7 +185,13 @@
   сумму в одну строку и очищает остальные. Строки «В копилку» и «Копилка после выдачи» над формой
   сразу показывают итог с поправкой.
   Начисленное минус выданное уходит в копилку; если выдали больше — берётся из копилки.
-  Выданная сумма больше не меняется; поздний перерасчёт недели — см. выше.
+  Поздний перерасчёт недели — см. выше.
+- **Исправить выдачу.** Администратор может исправить **последнюю** выдачу, пока не сделана
+  следующая: секция «Исправить последнюю выдачу» в блоке. Меняются наличные, карта, налог и
+  комментарий; начисленное и период остаются. Наличные считаются так же, от выданной суммы.
+  Копилка пересчитывается сразу: начисленное минус новая сумма выданного. В истории у такой
+  выдачи появляется отметка «исправлено» с датой, её видит и работник. Более старые выдачи не
+  исправляются, разницу по ним проводят корректировкой копилки.
 - **Корректировка копилки** — аванс или долг (минус), стартовый остаток (плюс), с комментарием.
   Копилка может быть отрицательной.
 - **Скрыть остаток.** Кто не хочет видеть, сколько накоплено, нажимает значок-глаз в заголовке
@@ -209,7 +215,7 @@
 | 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `pieceRoundStep`, `masterRoundStep`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `StoneReceptionService::updateItemCoeff` / `refreshItemCoeffs`, `WorkshopService::updateItemCoeff` / `refreshItemCoeffs` | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
-| 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank` | `tests/Feature/Worker/SalaryPayoutTest`, `SalaryHideBalanceTest` |
+| 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `updateLastPayout`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank` | `tests/Feature/Worker/SalaryPayoutTest`, `SalaryHideBalanceTest` |
 | 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
 
 Заметки:
@@ -233,3 +239,5 @@
 - Перерасчёт: у выдачи `accounted` — сколько по её неделе уже учтено. `recalc()` = начислено
   сейчас по выдачам за `recalc_weeks` − Σ `accounted`; `markPaid` переносит разницу в `recalc`
   новой выдачи и обновляет `accounted`. `to_bank = accrued + recalc − paid_total`.
+  Исправление выдачи (`updateLastPayout`) пересчитывает `paid_*`, `to_bank` и её проводку, а `accrued`,
+  `recalc` и `accounted` не трогает: на следующий перерасчёт оно не влияет.

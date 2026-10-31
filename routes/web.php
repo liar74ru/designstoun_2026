@@ -39,7 +39,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/workers/{workerId}/dashboard', [CutterWorkerDashboardController::class, 'show'])
         ->name('worker.dashboard.by-id');
     // Копилка и выдача зарплаты: сумму к выдаче — сам работник (политика manageSalary в запросе)
-    // или админ; выдача и корректировка копилки — только админ.
+    // или админ; выдача, её исправление и корректировка копилки — только админ.
     Route::patch('/workers/{worker}/salary/request', [SalaryController::class, 'updateRequest'])
         ->middleware('can:see-worker-dashboard')
         ->name('salary.request');
@@ -49,6 +49,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/workers/{worker}/salary/paid', [SalaryController::class, 'markPaid'])
         ->middleware('can:manage-admin')
         ->name('salary.paid');
+    Route::patch('/workers/{worker}/salary/payouts/{salaryPayout}', [SalaryController::class, 'updatePayout'])
+        ->middleware('can:manage-admin')
+        ->scopeBindings()
+        ->name('salary.payout-update');
     Route::post('/workers/{worker}/piggy-bank/adjust', [SalaryController::class, 'adjustPiggy'])
         ->middleware('can:manage-admin')
         ->name('salary.piggy-adjust');

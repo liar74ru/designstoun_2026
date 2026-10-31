@@ -8,3 +8,6 @@
 @if($payout->comment)
     <div class="text-muted fst-italic">{{ $payout->comment }}</div>
 @endif
+@if($payout->edited_at)
+    <div class="text-muted"><i class="bi bi-pencil me-1"></i>исправлено {{ $payout->edited_at->format('d.m') }}</div>
+@endif

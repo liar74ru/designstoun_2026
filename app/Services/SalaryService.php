@@ -125,6 +125,7 @@ class SalaryService
         $defaultToPay = $this->defaultToPay($accrued);
         $toPay        = $worker->requested_payout ?? $defaultToPay;
         $toBank       = $accrued + $recalc - $toPay;
+        $payouts      = $worker->salaryPayouts()->latest('period_to')->limit(10)->get();
 
         return [
             // С какой недели у работника действует копилка: раньше всё начисленное выдавалось.
@@ -143,7 +144,8 @@ class SalaryService
             'balanceAfter' => $balance + $toBank,
             'maxRequest'   => $this->maxRequest($accrued, $balance + $recalc),
             'requestStep'  => (int) config('salary.request_step'),
-            'payouts'      => $worker->salaryPayouts()->latest('period_to')->limit(10)->get(),
+            'payouts'      => $payouts,
+            'lastPayout'   => $payouts->first(),
             'adjustments'  => $worker->piggyBankEntries()->adjustments()->with('createdBy')
                 ->latest('id')->limit(10)->get(),
         ];
@@ -310,6 +312,66 @@ class SalaryService
             $worker->update(['requested_payout' => null]);
 
             return $payout;
+        });
+    }
+
+    /**
+     * Исправление последней выдачи: раскладка и комментарий. Начисленное, перерасчёт и accounted
+     * не меняются, поэтому следующий перерасчёт от исправления не зависит. Проводка выдачи
+     * в копилке остаётся одна: обновляется, создаётся или удаляется при нулевой разнице.
+     */
+    public function updateLastPayout(
+        Worker $worker,
+        SalaryPayout $payout,
+        float $cash,
+        ?float $card,
+        ?float $tax,
+        ?string $comment,
+        User $actor,
+    ): SalaryPayout {
+        return DB::transaction(function () use ($worker, $payout, $cash, $card, $tax, $comment, $actor) {
+            $worker = Worker::whereKey($worker->id)->lockForUpdate()->firstOrFail();
+
+            $last = $worker->salaryPayouts()->latest('period_to')->first();
+            if ($last?->id !== $payout->id) {
+                throw ValidationException::withMessages([
+                    'edit_payout' => 'Исправить можно только последнюю выдачу.',
+                ]);
+            }
+
+            $total  = round($cash + ($card ?? 0) + ($tax ?? 0), 2);
+            $toBank = round($last->accrued + $last->recalc - $total, 2);
+
+            $last->fill([
+                'paid_cash'  => $cash,
+                'paid_card'  => $card ?: null,
+                'paid_tax'   => $tax ?: null,
+                'paid_total' => $total,
+                'to_bank'    => $toBank,
+                'comment'    => $comment,
+            ]);
+
+            if (! $last->isDirty()) {
+                return $last;
+            }
+
+            $last->fill(['edited_at' => now(), 'edited_by_user_id' => $actor->id])->save();
+
+            $entry = $worker->piggyBankEntries()->where('salary_payout_id', $last->id)->first();
+            if ($toBank == 0) {
+                $entry?->delete();
+            } elseif ($entry) {
+                $entry->update(['amount' => $toBank]);
+            } else {
+                $worker->piggyBankEntries()->create([
+                    'amount'             => $toBank,
+                    'type'               => PiggyBankEntry::TYPE_PAYOUT,
+                    'salary_payout_id'   => $last->id,
+                    'created_by_user_id' => $actor->id,
+                ]);
+            }
+
+            return $last;
         });
     }
 

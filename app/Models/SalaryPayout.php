@@ -26,6 +26,8 @@ class SalaryPayout extends Model
         'paid_at',
         'paid_by_user_id',
         'comment',
+        'edited_at',
+        'edited_by_user_id',
     ];
 
     protected function casts(): array
@@ -34,6 +36,7 @@ class SalaryPayout extends Model
             'period_from'      => 'datetime',
             'period_to'        => 'datetime',
             'paid_at'          => 'datetime',
+            'edited_at'        => 'datetime',
             'accrued'          => 'float',
             'requested_amount' => 'float',
             'paid_cash'        => 'float',

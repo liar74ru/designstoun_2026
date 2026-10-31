@@ -70,7 +70,7 @@
         </div>
     </div>
     <div class="card-body py-2 px-3" id="salary-collapse" style="display:none"
-         data-force-open="{{ $errors->hasAny(['amount', 'paid_cash', 'paid_card', 'paid_tax', 'paid', 'piggy_amount', 'piggy_comment']) ? 1 : 0 }}">
+         data-force-open="{{ $errors->hasAny(['amount', 'paid_cash', 'paid_card', 'paid_tax', 'paid', 'piggy_amount', 'piggy_comment', 'edit_cash', 'edit_card', 'edit_tax', 'edit_comment', 'edit_payout']) ? 1 : 0 }}">
 
         <div class="d-flex justify-content-between align-items-center small text-muted mb-2">
             <span>
@@ -173,7 +173,7 @@
                             @endunless
                             <div class="input-group input-group-sm" style="width:9rem">
                                 <input type="number" id="payout-{{ $field }}" name="{{ $field }}" min="0" step="0.01" placeholder="0"
-                                       data-payout-part
+                                       data-payout-part="{{ str_replace('paid_', '', $field) }}"
                                        value="{{ old($field, $field === 'paid_cash' ? $wantAmount : '') }}"
                                        class="form-control text-end @error($field) is-invalid @enderror">
                                 <span class="input-group-text">₽</span>
@@ -181,18 +181,7 @@
                         </div>
                     </div>
                 @endforeach
-                {{-- Поправка к сумме «В копилку» выше. На сервер не уходит: копилка считается от выданного --}}
-                <div class="d-flex justify-content-between align-items-center gap-2 mb-1 border-top pt-1 mt-1">
-                    <label class="small mb-0" for="payout-piggy">
-                        Копилка ±
-                        <span class="d-block text-muted" style="font-size:.7rem">+ положить ещё, − взять из копилки</span>
-                    </label>
-                    <div class="input-group input-group-sm" style="width:9rem">
-                        <input type="number" id="payout-piggy" step="0.01" value="0" data-payout-piggy
-                               class="form-control text-end">
-                        <span class="input-group-text">₽</span>
-                    </div>
-                </div>
+                @include('partials.salary-payout-piggy', ['id' => 'payout-piggy'])
                 <div class="d-flex justify-content-between small border-top pt-1 mt-1">
                     <span class="text-muted">Итого выдаётся</span>
                     <span class="fw-semibold" data-payout-check></span>
@@ -206,6 +195,57 @@
                     @error($field) <div class="small text-danger">{{ $message }}</div> @enderror
                 @endforeach
             </form>
+        @endif
+
+        @if($isAdmin && ($last = $salary['lastPayout']))
+            <details class="border-top pt-2 mt-2" @if($errors->hasAny(['edit_cash', 'edit_card', 'edit_tax', 'edit_comment', 'edit_payout'])) open @endif>
+                <summary class="small text-muted" style="cursor:pointer">
+                    Исправить последнюю выдачу ({{ $last->period_from->format('d.m') }} — {{ $last->period_to->copy()->subSecond()->format('d.m') }})
+                </summary>
+                <form method="POST" action="{{ route('salary.payout-update', [$worker, $last]) }}" data-submit-guard data-payout-form
+                      data-base="{{ $last->paid_total }}"
+                      data-gross="{{ $last->accrued + $last->recalc }}"
+                      data-has-old="{{ session()->hasOldInput('edit_cash') ? 1 : 0 }}"
+                      @unless($hideBalance) data-balance="{{ round($salary['balance'] - $last->to_bank, 2) }}" @endunless
+                      onsubmit="return confirm('Сохранить исправление? Копилка будет пересчитана.')"
+                      class="bg-light rounded p-2 mt-2">
+                    @csrf
+                    @method('PATCH')
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <div class="text-muted small" data-payout-bank-label>{{ $last->to_bank < 0 ? 'Из копилки' : 'В копилку' }}</div>
+                            <div class="fw-semibold {{ $last->to_bank < 0 ? 'text-danger' : 'text-success' }}" data-payout-bank-value>{{ $rub(abs($last->to_bank)) }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Копилка после</div>
+                            <div class="fw-semibold" data-payout-after-value>{{ $money($salary['balance']) }}</div>
+                        </div>
+                    </div>
+                    @foreach(['cash' => ['Наличными', $last->paid_cash], 'card' => ['На карту', $last->paid_card], 'tax' => ['Налог', $last->paid_tax]] as $part => [$label, $value])
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                            <label class="small mb-0" for="payout-edit-{{ $part }}">{{ $label }}</label>
+                            <div class="input-group input-group-sm" style="width:9rem">
+                                <input type="number" id="payout-edit-{{ $part }}" name="edit_{{ $part }}" min="0" step="0.01" placeholder="0"
+                                       data-payout-part="{{ $part }}"
+                                       value="{{ old('edit_' . $part, $value) }}"
+                                       class="form-control text-end @error('edit_' . $part) is-invalid @enderror">
+                                <span class="input-group-text">₽</span>
+                            </div>
+                        </div>
+                    @endforeach
+                    @include('partials.salary-payout-piggy', ['id' => 'payout-edit-piggy'])
+                    <div class="d-flex justify-content-between small border-top pt-1 mt-1">
+                        <span class="text-muted">Итого выдаётся</span>
+                        <span class="fw-semibold" data-payout-check></span>
+                    </div>
+                    <input type="text" name="edit_comment" maxlength="255" value="{{ old('edit_comment', $last->comment) }}"
+                           class="form-control form-control-sm mt-2" placeholder="Комментарий (необязательно)">
+                    <button type="submit" class="btn btn-sm btn-primary w-100 mt-2">Сохранить исправление</button>
+                    @foreach(['edit_cash', 'edit_card', 'edit_tax', 'edit_comment', 'edit_payout'] as $field)
+                        @error($field) <div class="small text-danger">{{ $message }}</div> @enderror
+                    @endforeach
+                </form>
+            </details>
         @endif
 
         @if($isAdmin)
@@ -342,18 +382,22 @@
                 try { localStorage.setItem(STORAGE_KEY, isHidden ? 'open' : 'closed'); } catch (e) {}
             });
 
-            // ── Выдача (админ): наличные = «Хочу получить» − карта − налог − «Копилка ±»; правка наличных
-            //    двигает «Копилка ±». Строки над формами считаются как SalaryService::markPaid() ──
+            // ── Выдача и её исправление (админ): наличные = основа − карта − налог − «Копилка ±»; правка
+            //    наличных двигает «Копилка ±». Основа новой выдачи — «Хочу получить», исправления — уже
+            //    выданная сумма (data-base). Строки копилки считаются как в SalaryService ──
             document.querySelectorAll('[data-payout-form]').forEach(function (form) {
-                const want  = document.querySelector('[data-salary-step]');
-                const cash  = form.elements.paid_cash;
-                const card  = form.elements.paid_card;
-                const tax   = form.elements.paid_tax;
+                const want  = form.dataset.base === undefined ? document.querySelector('[data-salary-step]') : null;
+                const base  = () => want ? (Number(want.value) || 0) : Number(form.dataset.base);
+                const cash  = form.querySelector('[data-payout-part="cash"]');
+                const card  = form.querySelector('[data-payout-part="card"]');
+                const tax   = form.querySelector('[data-payout-part="tax"]');
                 const piggy = form.querySelector('[data-payout-piggy]');
                 const check = form.querySelector('[data-payout-check]');
-                const label = document.querySelector('[data-payout-bank-label]');
-                const bank  = document.querySelector('[data-payout-bank-value]');
-                const after = document.querySelector('[data-payout-after-value]');
+                // Строки копилки: у исправления свои в форме, у новой выдачи — над формами
+                const rows  = form.querySelector('[data-payout-bank-value]') ? form : document;
+                const label = rows.querySelector('[data-payout-bank-label]');
+                const bank  = rows.querySelector('[data-payout-bank-value]');
+                const after = rows.querySelector('[data-payout-after-value]');
                 const gross = Number(form.dataset.gross);
                 const fmt   = v => Math.round(v).toLocaleString('ru-RU') + ' ₽';
                 const r2    = v => Math.round(v * 100) / 100;
@@ -379,17 +423,17 @@
 
                 // skip — поле, в котором сейчас печатают: его значение не переписываем
                 function recompute(skip) {
-                    const rest = r2((Number(want.value) || 0) - part(card) - part(tax) - manual);
+                    const rest = r2(base() - part(card) - part(tax) - manual);
                     if (skip !== cash) cash.value = Math.max(0, rest);
                     if (skip !== piggy) piggy.value = rest < 0 ? r2(manual + rest) : manual;
                     summary();
                 }
 
                 function manualFromCash() {
-                    manual = r2((Number(want.value) || 0) - part(card) - part(tax) - part(cash));
+                    manual = r2(base() - part(card) - part(tax) - part(cash));
                 }
 
-                want.addEventListener('input', () => recompute());
+                if (want) want.addEventListener('input', () => recompute());
                 [card, tax].forEach(el => el.addEventListener('input', () => recompute()));
                 piggy.addEventListener('input', function () {
                     manual = Number(piggy.value) || 0;
@@ -406,7 +450,7 @@
                     btn.addEventListener('click', function () {
                         manual = 0;
                         tax.value  = '';
-                        card.value = btn.dataset.payoutFill === 'paid_card' ? (Number(want.value) || 0) : '';
+                        card.value = btn.dataset.payoutFill === 'paid_card' ? base() : '';
                         recompute();
                     });
                 });
