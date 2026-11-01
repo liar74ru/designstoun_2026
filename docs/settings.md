@@ -169,7 +169,6 @@
 
 - Колонки статусов описаны ещё в `orders.md` §2 — с точки зрения мастера. Меняешь смысл колонки —
   правь оба файла.
-- Общие коэффициенты `UNDERCUT_PENALTY`, `EDGING_COEFF`, `MASK_TILE_COEFF_BONUS` и ставка
-  `MASTER_UNDERCUT_RATE` в расчётах не участвуют (их заменили правила отдела) и со страниц
-  убраны. Код удалён в 4.0.4, строки `settings` остаются до миграции 4.0.5.
+- Общих коэффициентов нет: надбавки задают правила отдела. Ключи `UNDERCUT_PENALTY`, `EDGING_COEFF`, `MASK_TILE_COEFF_BONUS`
+  и `MASTER_UNDERCUT_RATE` удалены в 4.0.5 вместе с колонками `is_undercut` / `is_edging`.
 - Кнопка «?» на всех страницах настроек ведёт сюда: `@include('partials.help-button', ['page' => 'settings'])`.

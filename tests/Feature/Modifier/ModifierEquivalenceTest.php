@@ -19,9 +19,6 @@ beforeEach(function () {
     Cache::flush();
     Setting::updateOrCreate(['key' => 'PIECE_RATE'],            ['value' => '390']);
     Setting::updateOrCreate(['key' => 'MASTER_BASE_RATE'],      ['value' => '100']);
-    Setting::updateOrCreate(['key' => 'UNDERCUT_PENALTY'],      ['value' => '1.5']);
-    Setting::updateOrCreate(['key' => 'EDGING_COEFF'],          ['value' => '-2.5']);
-    Setting::updateOrCreate(['key' => 'MASK_TILE_COEFF_BONUS'], ['value' => '2.0']);
 
     $this->dept = H::departmentWithModifiers();
 });

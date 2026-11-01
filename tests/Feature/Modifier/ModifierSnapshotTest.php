@@ -20,7 +20,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
 beforeEach(function () {
     Cache::flush();
     Setting::updateOrCreate(['key' => 'PIECE_RATE'],       ['value' => '100']);
-    Setting::updateOrCreate(['key' => 'UNDERCUT_PENALTY'], ['value' => '1.5']);
 });
 
 function snapshotService(): StoneReceptionService

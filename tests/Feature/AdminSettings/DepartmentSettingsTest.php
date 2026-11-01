@@ -19,38 +19,38 @@ beforeEach(function () {
 describe('DepartmentSettings::get() — фолбэк ставок', function () {
 
     test('отдел не задан → берётся глобальное значение', function () {
-        Setting::set('MASTER_UNDERCUT_RATE', '50');
+        Setting::set('MASTER_ROUND_STEP', '50');
 
-        expect(DepartmentSettings::float(null, 'MASTER_UNDERCUT_RATE'))->toBe(50.0);
+        expect(DepartmentSettings::float(null, 'MASTER_ROUND_STEP'))->toBe(50.0);
     });
 
     test('у отдела ключ не задан → берётся глобальное значение', function () {
-        Setting::set('MASTER_UNDERCUT_RATE', '50');
+        Setting::set('MASTER_ROUND_STEP', '50');
 
-        expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(50.0);
+        expect(DepartmentSettings::float($this->dept->id, 'MASTER_ROUND_STEP'))->toBe(50.0);
     });
 
     test('у отдела ключ задан → своё значение перекрывает глобальное', function () {
-        Setting::set('MASTER_UNDERCUT_RATE', '50');
+        Setting::set('MASTER_ROUND_STEP', '50');
         DepartmentSetting::create([
             'department_id' => $this->dept->id,
-            'key'           => 'MASTER_UNDERCUT_RATE',
+            'key'           => 'MASTER_ROUND_STEP',
             'value'         => '95',
         ]);
 
-        expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(95.0);
-        expect(DepartmentSettings::float(null, 'MASTER_UNDERCUT_RATE'))->toBe(50.0);
+        expect(DepartmentSettings::float($this->dept->id, 'MASTER_ROUND_STEP'))->toBe(95.0);
+        expect(DepartmentSettings::float(null, 'MASTER_ROUND_STEP'))->toBe(50.0);
     });
 
     test('пустая строка в значении отдела трактуется как «не задано»', function () {
-        Setting::set('MASTER_UNDERCUT_RATE', '50');
+        Setting::set('MASTER_ROUND_STEP', '50');
         DepartmentSetting::create([
             'department_id' => $this->dept->id,
-            'key'           => 'MASTER_UNDERCUT_RATE',
+            'key'           => 'MASTER_ROUND_STEP',
             'value'         => '',
         ]);
 
-        expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(50.0);
+        expect(DepartmentSettings::float($this->dept->id, 'MASTER_ROUND_STEP'))->toBe(50.0);
     });
 });
 
@@ -99,20 +99,20 @@ describe('DepartmentSettings — кэш', function () {
     test('forgetSettingsCache() сбрасывает закэшированную ставку отдела', function () {
         DepartmentSetting::create([
             'department_id' => $this->dept->id,
-            'key'           => 'MASTER_UNDERCUT_RATE',
+            'key'           => 'MASTER_ROUND_STEP',
             'value'         => '10',
         ]);
-        expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(10.0);
+        expect(DepartmentSettings::float($this->dept->id, 'MASTER_ROUND_STEP'))->toBe(10.0);
 
         DepartmentSetting::where('department_id', $this->dept->id)
-            ->where('key', 'MASTER_UNDERCUT_RATE')
+            ->where('key', 'MASTER_ROUND_STEP')
             ->update(['value' => '99']);
 
         // без сброса — значение остаётся из кэша
-        expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(10.0);
+        expect(DepartmentSettings::float($this->dept->id, 'MASTER_ROUND_STEP'))->toBe(10.0);
 
         $this->dept->forgetSettingsCache();
-        expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(99.0);
+        expect(DepartmentSettings::float($this->dept->id, 'MASTER_ROUND_STEP'))->toBe(99.0);
     });
 
     test('forgetSettingsCache() сбрасывает и закэшированную сумму расходов', function () {
@@ -131,11 +131,11 @@ describe('DepartmentSettings — кэш', function () {
     });
 
     test('правка глобальной настройки подхватывается без сброса кэша отдела', function () {
-        Setting::set('MASTER_UNDERCUT_RATE', '30');
-        expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(30.0);
+        Setting::set('MASTER_ROUND_STEP', '30');
+        expect(DepartmentSettings::float($this->dept->id, 'MASTER_ROUND_STEP'))->toBe(30.0);
 
-        Setting::set('MASTER_UNDERCUT_RATE', '77');
-        expect(DepartmentSettings::float($this->dept->id, 'MASTER_UNDERCUT_RATE'))->toBe(77.0);
+        Setting::set('MASTER_ROUND_STEP', '77');
+        expect(DepartmentSettings::float($this->dept->id, 'MASTER_ROUND_STEP'))->toBe(77.0);
     });
 });
 

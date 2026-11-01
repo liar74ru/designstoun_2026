@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\Cache;
 beforeEach(function () {
     Cache::flush();
     Setting::updateOrCreate(['key' => 'PIECE_RATE'],       ['value' => '100']);
-    Setting::updateOrCreate(['key' => 'UNDERCUT_PENALTY'], ['value' => '1.5']);
-    Setting::updateOrCreate(['key' => 'EDGING_COEFF'],     ['value' => '-2.5']);
 });
 
 function makeReceptionServiceForEdging(): StoneReceptionService
