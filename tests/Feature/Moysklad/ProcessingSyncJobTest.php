@@ -60,13 +60,19 @@ function psjEntity()
 /**
  * Фейк МойСклад. Переопределения:
  *  lookup — ответ на поиск по externalCode, post — на создание,
- *  putItems / putState — на обновление позиций / статуса, delete — на удаление.
+ *  putItems / putState — на обновление позиций / статуса, delete — на удаление,
+ *  products — [moysklad_id => ответ или замыкание] на GET товара.
  */
 function psjFake(array $responses = []): void
 {
     Http::fake(function (Request $request) use ($responses) {
         $url = $request->url();
 
+        if (preg_match('~/entity/product/([^/?]+)~', $url, $m) && isset($responses['products'][$m[1]])) {
+            $product = $responses['products'][$m[1]];
+
+            return $product instanceof Closure ? $product() : $product;
+        }
         if (str_contains($url, 'report/stock/bystore')) {
             return Http::response(['rows' => []], 200);
         }
@@ -306,6 +312,91 @@ describe('Статус техоперации приводится к стату
     });
 });
 
+describe('Неполная приёмка не отправляется', function () {
+
+    beforeEach(function () {
+        StoneReceptionItem::create([
+            'stone_reception_id' => $this->reception->id,
+            'product_id'         => H::product(['name' => 'Плитка Б', 'moysklad_id' => 'ms-out-b'])->id,
+            'quantity'           => 3.0,
+        ]);
+    });
+
+    test('товар не прочитался (5xx) → ни POST, ни PUT, документ ждёт повтора', function (?string $processingId) {
+        $this->reception->update(['moysklad_processing_id' => $processingId]);
+        psjFake(['products' => ['ms-out-b' => Http::response(null, 500)]]);
+
+        psjRun($this->reception)->assertReleased(30);
+
+        expect(psjCount('POST'))->toBe(0)->and(psjCount('PUT'))->toBe(0);
+        expect($this->reception->fresh()->isSyncPending())->toBeTrue();
+    })->with(['создание' => [null], 'обновление' => ['proc-1']]);
+
+    test('попытки кончились → ошибка с именем товара, «отправлено» не ставится', function (?string $processingId) {
+        $this->reception->update(['moysklad_processing_id' => $processingId]);
+        psjFake(['products' => ['ms-out-b' => Http::response(null, 500)]]);
+
+        psjRun($this->reception, 6)->assertNotReleased();
+
+        $fresh = $this->reception->fresh();
+        expect(psjCount('POST'))->toBe(0)->and(psjCount('PUT'))->toBe(0);
+        expect($fresh->isSynced())->toBeFalse();
+        expect($fresh->moysklad_sync_status)->toBe(StoneReception::SYNC_STATUS_NOT_SYNCED);
+        expect($fresh->moysklad_sync_error)->toContain('Плитка Б');
+    })->with(['создание' => [null], 'обновление' => ['proc-1']]);
+
+    test('товара нет в МойСклад (404) → ошибка сразу, без повторов', function () {
+        $this->reception->update(['moysklad_processing_id' => 'proc-1']);
+        psjFake(['products' => ['ms-out-b' => Http::response(null, 404)]]);
+
+        psjRun($this->reception)->assertNotReleased();
+
+        expect(psjCount('PUT'))->toBe(0);
+        expect($this->reception->fresh()->moysklad_sync_error)->toContain('Плитка Б');
+    });
+
+    test('сбой прошёл → уходит полный список позиций', function () {
+        $this->reception->update(['moysklad_processing_id' => 'proc-1']);
+        $down = true;
+        psjFake(['products' => ['ms-out-b' => function () use (&$down) {
+            return $down ? Http::response(null, 500) : psjEntity();
+        }]]);
+
+        psjRun($this->reception)->assertReleased(30);
+        $down = false;
+        psjRun($this->reception, 2)->assertNotReleased();
+
+        $put = Http::recorded(fn (Request $r) => $r->method() === 'PUT' && isset($r->data()['products']))->first()[0];
+        expect($put->data()['products'])->toHaveCount(2);
+        expect($this->reception->fresh()->isSynced())->toBeTrue();
+    });
+
+    test('один товар без moysklad_id → ошибка с его именем, PUT не уходит', function () {
+        $this->reception->update(['moysklad_processing_id' => 'proc-1']);
+        StoneReceptionItem::create([
+            'stone_reception_id' => $this->reception->id,
+            'product_id'         => H::product(['name' => 'Локальный', 'moysklad_id' => null])->id,
+            'quantity'           => 1.0,
+        ]);
+        psjFake();
+
+        psjRun($this->reception)->assertNotReleased();
+
+        expect(psjCount('PUT'))->toBe(0);
+        expect($this->reception->fresh()->moysklad_sync_error)->toContain('Локальный');
+    });
+
+    test('сырьё не прочиталось при обновлении → PUT не уходит: иначе осталось бы старое количество', function () {
+        $this->reception->update(['moysklad_processing_id' => 'proc-1']);
+        psjFake(['products' => ['ms-raw' => Http::response(null, 404)]]);
+
+        psjRun($this->reception)->assertNotReleased();
+
+        expect(psjCount('PUT'))->toBe(0);
+        expect($this->reception->fresh()->moysklad_sync_error)->toContain('сырья');
+    });
+});
+
 describe('Цех', function () {
 
     beforeEach(function () {
@@ -369,6 +460,65 @@ describe('Цех', function () {
         psjRunWorkshop($this->workshop)->assertReleased(30);
 
         expect($this->workshop->fresh()->isSyncPending())->toBeTrue();
+    });
+
+    describe('неполная операция не отправляется', function () {
+
+        beforeEach(function () {
+            WorkshopItem::create([
+                'workshop_id' => $this->workshop->id,
+                'product_id'  => Product::factory()->create(['name' => 'Тара', 'moysklad_id' => 'ms-w-pack'])->id,
+                'role'        => WorkshopItem::ROLE_PACKAGE,
+                'quantity'    => 1.0,
+            ]);
+        });
+
+        test('позиция не прочиталась (5xx) → ни POST, ни PUT, документ ждёт повтора', function (?string $processingId) {
+            $this->workshop->update(['moysklad_processing_id' => $processingId]);
+            psjFake(['products' => ['ms-w-pack' => Http::response(null, 500)]]);
+
+            psjRunWorkshop($this->workshop)->assertReleased(30);
+
+            expect(psjCount('POST'))->toBe(0)->and(psjCount('PUT'))->toBe(0);
+            expect($this->workshop->fresh()->isSyncPending())->toBeTrue();
+        })->with(['создание' => [null], 'обновление' => ['proc-1']]);
+
+        test('попытки кончились → ошибка с именем товара, «отправлено» не ставится', function () {
+            $this->workshop->update(['moysklad_processing_id' => 'proc-1']);
+            psjFake(['products' => ['ms-w-pack' => Http::response(null, 500)]]);
+
+            psjRunWorkshop($this->workshop, 6)->assertNotReleased();
+
+            $fresh = $this->workshop->fresh();
+            expect(psjCount('PUT'))->toBe(0);
+            expect($fresh->isSynced())->toBeFalse();
+            expect($fresh->moysklad_sync_error)->toContain('Тара');
+        });
+
+        test('товара нет в МойСклад (404) → ошибка сразу, без повторов', function () {
+            $this->workshop->update(['moysklad_processing_id' => 'proc-1']);
+            psjFake(['products' => ['ms-w-pack' => Http::response(null, 404)]]);
+
+            psjRunWorkshop($this->workshop)->assertNotReleased();
+
+            expect(psjCount('PUT'))->toBe(0);
+            expect($this->workshop->fresh()->moysklad_sync_error)->toContain('Тара');
+        });
+
+        test('позиция без moysklad_id → ошибка с её именем, POST не уходит', function () {
+            WorkshopItem::create([
+                'workshop_id' => $this->workshop->id,
+                'product_id'  => Product::factory()->create(['name' => 'Локальная', 'moysklad_id' => null])->id,
+                'role'        => WorkshopItem::ROLE_RAW,
+                'quantity'    => 1.0,
+            ]);
+            psjFake();
+
+            psjRunWorkshop($this->workshop)->assertNotReleased();
+
+            expect(psjCount('POST'))->toBe(0);
+            expect($this->workshop->fresh()->moysklad_sync_error)->toContain('Локальная');
+        });
     });
 });
 

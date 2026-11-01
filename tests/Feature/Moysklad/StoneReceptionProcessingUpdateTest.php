@@ -248,23 +248,22 @@ describe('StoneReceptionSyncService::updateProcessingProducts()', function () {
         expect($data)->not->toHaveKey('description');
     });
 
-    test('позиции без moysklad_id пропускаются и не участвуют в processingSum', function () {
+    test('позиция без moysklad_id → ошибка с именем товара, PUT не отправляется', function () {
         $local = H::product(['name' => 'Локальный', 'moysklad_id' => null]);
         srpuItem($this->reception, $this->productA, 2.0, 100.0);
         srpuItem($this->reception, $local, 8.0, 1000.0);
 
         srpuFake();
 
-        app(StoneReceptionSyncService::class)->updateProcessingProducts(
+        $result = app(StoneReceptionSyncService::class)->updateProcessingProducts(
             'proc-1',
             $this->reception->fresh()->load('items.product')->items,
             $this->store->id,
         );
 
-        $data = srpuSentPut()->data();
-        expect($data['products'])->toHaveCount(1);
-        expect((float) $data['quantity'])->toBe(2.0);
-        expect($data['processingSum'])->toBe(10000);
+        expect($result['success'])->toBeFalse();
+        expect($result['message'])->toBe('Ошибка: Товар «Локальный» не синхронизирован с МойСклад (нет moysklad_id)');
+        Http::assertNotSent(fn (Request $r) => $r->method() === 'PUT');
     });
 
     test('ошибка МойСклад → success = false, текст из errors[0].error', function () {
@@ -285,8 +284,8 @@ describe('StoneReceptionSyncService::updateProcessingProducts()', function () {
         ]);
     });
 
-    test('нет продуктов с moysklad_id → exception, PUT не отправляется', function () {
-        srpuItem($this->reception, H::product(['moysklad_id' => null]), 2.0);
+    test('нет позиций с количеством → exception, PUT не отправляется', function () {
+        srpuItem($this->reception, $this->productA, 0.0);
 
         srpuFake();
 

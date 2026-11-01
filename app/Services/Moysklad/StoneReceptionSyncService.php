@@ -85,27 +85,13 @@ class StoneReceptionSyncService extends MoySkladBaseService
             $totalQuantity   = 0;
 
             foreach ($reception->items as $item) {
-                $product = $item->product;
-                if (!$product || !$product->moysklad_id) {
-                    Log::warning('createProcessingForReception: товар без moysklad_id', [
-                        'product_id' => $product->id ?? null,
-                    ]);
-                    continue;
-                }
-                $moyskladId = $product->moysklad_id;
+                $moyskladId = $this->positionMoyskladId($item->product);
                 if (isset($productsGrouped[$moyskladId])) {
                     $productsGrouped[$moyskladId]['quantity'] += (float) $item->quantity;
                 } else {
-                    $productMeta = $this->getEntityMeta('product', $moyskladId);
-                    if (!$productMeta) {
-                        Log::warning('createProcessingForReception: не удалось получить мета товара', [
-                            'moysklad_id' => $moyskladId,
-                        ]);
-                        continue;
-                    }
                     $productsGrouped[$moyskladId] = [
                         'quantity'   => (float) $item->quantity,
-                        'assortment' => ['meta' => $productMeta],
+                        'assortment' => ['meta' => $this->positionMeta($item->product)],
                     ];
                 }
                 $totalQuantity += (float) $item->quantity;
@@ -257,21 +243,13 @@ class StoneReceptionSyncService extends MoySkladBaseService
             $totalQuantity   = 0;
 
             foreach ($allItems as $item) {
-                $product = $item->product;
-                if (!$product || !$product->moysklad_id) {
-                    continue;
-                }
-                $moyskladId = $product->moysklad_id;
+                $moyskladId = $this->positionMoyskladId($item->product);
                 if (isset($productsGrouped[$moyskladId])) {
                     $productsGrouped[$moyskladId]['quantity'] += (float) $item->quantity;
                 } else {
-                    $productMeta = $this->getEntityMeta('product', $moyskladId);
-                    if (!$productMeta) {
-                        continue;
-                    }
                     $productsGrouped[$moyskladId] = [
                         'quantity'   => (float) $item->quantity,
-                        'assortment' => ['meta' => $productMeta],
+                        'assortment' => ['meta' => $this->positionMeta($item->product)],
                     ];
                 }
                 $totalQuantity += (float) $item->quantity;
@@ -287,9 +265,6 @@ class StoneReceptionSyncService extends MoySkladBaseService
             $workerSalaryTotal = 0;
             $masterSalaryTotal = 0;
             foreach ($allItems as $item) {
-                if (!$item->product || !$item->product->moysklad_id) {
-                    continue;
-                }
                 $workerSalaryTotal += $item->effectiveProdCost() * (float) $item->quantity;
                 $masterSalaryTotal += (float) ($item->master_cost_per_m2 ?? 0) * (float) $item->quantity;
             }
@@ -321,14 +296,18 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 $payload['description'] = $description;
             }
 
-            if ($materialQuantity !== null && $materialQuantity > 0 && $materialMoyskladId) {
-                $rawProductMeta = $this->getEntityMeta('product', $materialMoyskladId);
-                if ($rawProductMeta) {
-                    $payload['materials'] = [[
-                        'quantity'   => $materialQuantity,
-                        'assortment' => ['meta' => $rawProductMeta],
-                    ]];
+            if ($materialQuantity !== null && $materialQuantity > 0) {
+                if (!$materialMoyskladId) {
+                    throw new \Exception('Товар партии не синхронизирован с МойСклад (нет moysklad_id)');
                 }
+                $rawProductMeta = $this->getEntityMeta('product', $materialMoyskladId);
+                if (!$rawProductMeta) {
+                    throw new \Exception('Не удалось получить метаданные сырья из МойСклад');
+                }
+                $payload['materials'] = [[
+                    'quantity'   => $materialQuantity,
+                    'assortment' => ['meta' => $rawProductMeta],
+                ]];
             }
 
             $response = $this->put('/entity/processing/' . $processingId, $payload);

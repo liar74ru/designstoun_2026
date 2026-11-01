@@ -2,6 +2,7 @@
 
 namespace App\Services\Moysklad\Concerns;
 
+use App\Models\Product;
 use App\Models\Setting;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -50,6 +51,37 @@ trait HandlesProcessingSync
     {
         $errors = $body['errors'] ?? [];
         return $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
+    }
+
+    /**
+     * moysklad_id товара позиции. Пропускать позицию нельзя: документ ушёл бы без неё и получил
+     * статус «отправлен». Исключение становится ошибкой документа, POST/PUT не уходит.
+     *
+     * @throws \Exception
+     */
+    protected function positionMoyskladId(?Product $product): string
+    {
+        if (!$product?->moysklad_id) {
+            throw new \Exception('Товар «' . ($product->name ?? 'без карточки') . '» не синхронизирован с МойСклад (нет moysklad_id)');
+        }
+
+        return $product->moysklad_id;
+    }
+
+    /**
+     * Мета товара позиции. Временный сбой GET отмечен в $transientFailure, поэтому задача
+     * повторится; 404 сразу становится ошибкой.
+     *
+     * @throws \Exception
+     */
+    protected function positionMeta(Product $product): array
+    {
+        $meta = $this->getEntityMeta('product', $this->positionMoyskladId($product));
+        if (!$meta) {
+            throw new \Exception('Не удалось получить товар «' . $product->name . '» из МойСклад');
+        }
+
+        return $meta;
     }
 
     /**

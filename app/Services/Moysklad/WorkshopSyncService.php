@@ -367,32 +367,19 @@ class WorkshopSyncService extends MoySkladBaseService
      *
      * @param  iterable  $items  строки WorkshopItem одной роли
      * @return array  [moysklad_id => ['quantity' => float, 'assortment' => ['meta' => ...]]]
+     * @throws \Exception  позиция не может войти в документ
      */
     private function groupItemsByMoysklad($items): array
     {
         $grouped = [];
         foreach ($items as $item) {
-            $product = $item->product;
-            if (!$product || !$product->moysklad_id) {
-                Log::warning('WorkshopSyncService: товар без moysklad_id', [
-                    'product_id' => $product->id ?? null,
-                ]);
-                continue;
-            }
-            $moyskladId = $product->moysklad_id;
+            $moyskladId = $this->positionMoyskladId($item->product);
             if (isset($grouped[$moyskladId])) {
                 $grouped[$moyskladId]['quantity'] += (float) $item->quantity;
             } else {
-                $meta = $this->getEntityMeta('product', $moyskladId);
-                if (!$meta) {
-                    Log::warning('WorkshopSyncService: не удалось получить мета товара', [
-                        'moysklad_id' => $moyskladId,
-                    ]);
-                    continue;
-                }
                 $grouped[$moyskladId] = [
                     'quantity'   => (float) $item->quantity,
-                    'assortment' => ['meta' => $meta],
+                    'assortment' => ['meta' => $this->positionMeta($item->product)],
                 ];
             }
         }
