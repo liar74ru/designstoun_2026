@@ -106,7 +106,7 @@
                                             </button>
                                         </form>
                                     @endif
-                                    @if($canModify && $batch->status !== 'archived')
+                                    @if($canModify && !$batch->adjustBlockReason())
                                         <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-sm btn-outline-success" title="Скорректировать количество">
                                             <i class="bi bi-plus-slash-minus"></i>
                                         </a>
@@ -202,7 +202,7 @@
                                     <i class="bi bi-pencil"></i> Изменить
                                 </a>
                             @endif
-                            @if($canModify && $batch->status !== 'archived')
+                            @if($canModify && !$batch->adjustBlockReason())
                                 <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-sm btn-outline-success" style="min-width:90px">
                                     <i class="bi bi-plus-slash-minus"></i> Остаток
                                 </a>

@@ -128,7 +128,7 @@
                         <div class="card-body py-2">
                             <div class="d-grid gap-2">
 
-                                @if($canModify)
+                                @if($canModify && !$batch->adjustBlockReason())
                                     <a href="{{ route('raw-batches.adjust.form', $batch) }}" class="btn btn-success">
                                         <i class="bi bi-plus-slash-minus"></i> Изменить количество
                                     </a>

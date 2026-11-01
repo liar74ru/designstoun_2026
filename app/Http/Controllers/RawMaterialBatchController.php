@@ -274,9 +274,8 @@ class RawMaterialBatchController extends Controller
     {
         $this->authorize('modify', $batch);
 
-        if ($batch->status === 'archived') {
-            return redirect()->route('raw-batches.show', $batch)
-                ->with('error', 'Архивная партия недоступна для редактирования.');
+        if ($reason = $batch->adjustBlockReason()) {
+            return redirect()->route('raw-batches.show', $batch)->with('error', $reason);
         }
 
         $stores = Store::orderBy('name')->get();
@@ -288,8 +287,8 @@ class RawMaterialBatchController extends Controller
     {
         $this->authorize('modify', $batch);
 
-        if ($batch->status === 'archived') {
-            return back()->with('error', 'Архивная партия недоступна для редактирования.');
+        if ($reason = $batch->adjustBlockReason()) {
+            return back()->with('error', $reason);
         }
 
         $data = $request->validate([

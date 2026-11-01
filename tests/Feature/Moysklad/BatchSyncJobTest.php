@@ -310,6 +310,86 @@ describe('Возврат', function () {
     });
 });
 
+describe('Корректировка возврата', function () {
+
+    beforeEach(function () {
+        Queue::fake();
+
+        $this->batch = bsjBatch($this, [], ['moysklad_move_id' => 'move-1']);
+        ['newBatch' => $this->child] = app(RawMaterialBatchService::class)
+            ->returnToStore($this->batch, ['quantity' => 2.0, 'to_store_id' => $this->source->id]);
+    });
+
+    test('вошедший в исходное перемещение: отказ, ничего не меняется и не отправляется', function () {
+        $stock     = ProductStock::where('product_id', $this->raw->id)->where('store_id', $this->source->id)->value('quantity');
+        $movements = RawMaterialMovement::count();
+
+        $this->actingAs(H::adminUser())
+            ->from(route('raw-batches.show', $this->child))
+            ->post(route('raw-batches.adjust', $this->child), ['delta' => 1])
+            ->assertRedirect(route('raw-batches.show', $this->child))
+            ->assertSessionHas('error', $this->child->adjustBlockReason());
+
+        $child = $this->child->fresh();
+        expect((float) $child->initial_quantity)->toBe(2.0)
+            ->and((float) $child->remaining_quantity)->toBe(2.0)
+            ->and(RawMaterialMovement::count())->toBe($movements)
+            ->and(ProductStock::where('product_id', $this->raw->id)->where('store_id', $this->source->id)->value('quantity'))->toEqual($stock);
+        Queue::assertNothingPushed();
+    });
+
+    test('форма корректировки: возврат на карточку с причиной', function () {
+        $this->actingAs(H::adminUser())
+            ->get(route('raw-batches.adjust.form', $this->child))
+            ->assertRedirect(route('raw-batches.show', $this->child))
+            ->assertSessionHas('error', $this->child->adjustBlockReason());
+    });
+
+    test('кнопки корректировки нет ни в карточке, ни в списке, у родителя есть', function () {
+        $user = H::adminUser();
+
+        $this->actingAs($user)->get(route('raw-batches.show', $this->child))
+            ->assertOk()
+            ->assertDontSee(route('raw-batches.adjust.form', $this->child));
+
+        $this->actingAs($user)->get(route('raw-batches.show', $this->batch))
+            ->assertSee(route('raw-batches.adjust.form', $this->batch));
+
+        $this->actingAs($user)->get(route('raw-batches.index'))
+            ->assertOk()
+            ->assertSee(route('raw-batches.show', $this->child))
+            ->assertDontSee(route('raw-batches.adjust.form', $this->child))
+            ->assertSee(route('raw-batches.adjust.form', $this->batch));
+    });
+
+    test('возврат на другой склад: своё перемещение есть, корректировка работает', function () {
+        ['newBatch' => $elsewhere] = app(RawMaterialBatchService::class)
+            ->returnToStore($this->batch, ['quantity' => 1.0, 'to_store_id' => $this->other->id]);
+
+        expect($elsewhere->adjustBlockReason())->toBeNull();
+
+        $this->actingAs(H::adminUser())
+            ->post(route('raw-batches.adjust', $elsewhere), ['delta' => 0.5])
+            ->assertSessionHas('success');
+
+        expect((float) $elsewhere->fresh()->initial_quantity)->toBe(1.5);
+        Queue::assertPushed(SyncBatchToMoysklad::class, fn ($job) => $job->batch->is($elsewhere));
+    });
+
+    test('родитель: корректировка работает, в МойСклад уходит количество минус возврат', function () {
+        $this->actingAs(H::adminUser())
+            ->post(route('raw-batches.adjust', $this->batch), ['delta' => -1])
+            ->assertSessionHas('success');
+
+        Queue::assertPushed(SyncBatchToMoysklad::class, fn ($job) => $job->batch->is($this->batch));
+
+        bsjFake();
+        bsjRun($this->batch);
+
+        expect(bsjQuantity(bsjSent('PUT')[0]))->toBe(7.0);
+    });
+});
+
 describe('Идемпотентность создания', function () {
 
     test('ответ на POST потерялся → повтор находит перемещение, второе не создаёт', function () {

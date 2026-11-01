@@ -124,6 +124,21 @@ class RawMaterialBatch extends Model
         return $movement->merged_into_move ? 'Возврат учтён в исходном перемещении партии' : null;
     }
 
+    /**
+     * Почему нельзя скорректировать количество; null — можно. У возврата, вошедшего в исходное
+     * перемещение, своего документа нет: правка осталась бы только в программе.
+     */
+    public function adjustBlockReason(): ?string
+    {
+        if ($this->status === self::STATUS_ARCHIVED) {
+            return 'Архивная партия недоступна для редактирования.';
+        }
+
+        return $this->primaryMovement()?->merged_into_move
+            ? 'Количество этой партии нельзя изменить: возврат учтён в исходном перемещении партии, и правка не дойдёт до МойСклад.'
+            : null;
+    }
+
     public function latestMovement()
     {
         return $this->hasOne(RawMaterialMovement::class, 'batch_id')->latestOfMany();

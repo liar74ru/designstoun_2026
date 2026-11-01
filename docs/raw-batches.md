@@ -87,7 +87,8 @@
 
 ### Изменить количество (корректировка)
 
-- Доступно в любом статусе, кроме «Архив».
+- Доступно в любом статусе, кроме «Архив». Исключение — партия, вернувшаяся на склад-источник: её возврат
+  учтён в исходном перемещении, своего документа в МойСклад нет, и правка туда не дошла бы, поэтому кнопки нет.
 - Вводится изменение в м³: `+1.5` добавить, `-0.5` убрать. Ноль нельзя, убрать больше
   остатка нельзя. Можно указать примечание, админ — дату корректировки.
 - Меняются и «количество», и «остаток» партии, а также остаток на складе, где лежит партия.
@@ -156,7 +157,7 @@
   отправку. Она же выручит, если партия долго «Ожидает».
 - Сырьё, не связанное с товаром МойСклад, в МойСклад не отправляется: в карточке будет
   «Перемещение не создано». То же у партии «Возвращена», вернувшейся на склад-источник: возврат учтён в
-  исходном перемещении, поэтому кнопки отправки у неё нет.
+  исходном перемещении, поэтому кнопок отправки и изменения количества у неё нет.
 
 ## 8. Отделы и видимость
 
@@ -180,7 +181,7 @@
 |---|---|---|
 | 2. Создание | `RawMaterialBatchController::create`, `store`, `copy`, `nextBatchNumber`, `workerBatchByProduct`; `RawMaterialBatchService::create`, `resolveDepartmentId`, `generateBatchNumber`, `findWorkerBatchByProduct` | `RawBatch/RawBatchStoreTest`, `RawMovementStore/RawMovementStoreTest`, `RawBatch/BatchNumberTest`, `RawBatch/BatchByProductTest` |
 | 3. Статусы | `RawMaterialBatch` (`statusLabel`, `canBeMarkedAsUsed`, `canBeArchived`); `RawMaterialBatchController::markAsUsed`, `markAsInWork`, `archive`; `StoneReception::updateStocks`; `StoneReceptionService::closeBatch`, `markCompleted` | `RawBatch/BatchStatusTest`, `RawBatch/RawBatchNewStatusTest`, `RawBatch/RawBatchModelTest` |
-| 4. Изменение | `RawMaterialBatchController::adjust`, `update`, `destroyNew`, `destroy`; `RawMaterialBatchService::adjust`, `update`, `deleteNew` | `RawBatch/RawMaterialBatchServiceTest`, `RawBatch/RawBatchNewStatusTest`, `RawBatch/RawBatchPagesTest` |
+| 4. Изменение | `RawMaterialBatchController::adjust`, `update`, `destroyNew`, `destroy`; `RawMaterialBatchService::adjust`, `update`, `deleteNew`; `RawMaterialBatch::adjustBlockReason` | `RawBatch/RawMaterialBatchServiceTest`, `RawBatch/RawBatchNewStatusTest`, `RawBatch/RawBatchPagesTest`, `Moysklad/BatchSyncJobTest` |
 | 5. Передача / возврат | `RawMaterialBatchService::transfer`, `returnToStore`; `RawMaterialBatch::canBeTransferredOrReturned` | `RawBatch/RawBatchTransferTest`, `RawMovementStore/RawMovementStoreTest` |
 | 6. Разделение | `RawMaterialBatchService::split`, `StoneReceptionService::create` | `RawBatch/RawBatchSplitTest`, `StoneReception/ReceptionCreateSplitTest` |
 | 7. МойСклад | `RawMaterialBatchService::queueSync`, `retrySync`, `returnToStore`; `RawMaterialBatch::primaryMovement`, `moveQuantity`, `moveBlockReason`; `Jobs\SyncBatchToMoysklad`, `Jobs\DeleteMoveInMoysklad`; `Moysklad\RawMaterialBatchSyncService::pushBatch`, `deleteDocument`; `Moysklad\MoySkladMoveService` | `tests/Feature/Moysklad/BatchSyncJobTest`, `MoveServiceHttpTest`, `MoyskladMoveServiceTest`, `RawBatchSyncActionTest` |
