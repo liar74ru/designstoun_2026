@@ -83,7 +83,7 @@ function dashboardReceptionWithRules(Product $tile, float $qty, array $ruleKeys)
 }
 
 /** Операция цеха с одной позицией продукта и набором правил в снапшоте. */
-function dashboardWorkshopWithRules(Product $tile, float $qty, array $ruleKeys): void
+function dashboardWorkshopWithRules(Product $tile, float $qty, array $ruleKeys): Workshop
 {
     $workshop = Workshop::create([
         'packer_id'     => test()->cutter->id,
@@ -131,6 +131,35 @@ function dashboardWorkshopWithRules(Product $tile, float $qty, array $ruleKeys):
         'role'            => WorkshopItem::ROLE_PRODUCT,
         'quantity_delta'  => $qty,
     ]);
+
+    return $workshop;
+}
+
+/** Приёмка с заданными ставками: выработка +qty или −qty по цене именно этого документа. */
+function dashboardReceptionAtCost(Product $tile, float $qty, float $worker, float $master = 0): StoneReception
+{
+    $reception = dashboardReceptionWithRules($tile, $qty, []);
+    $reception->items()->update(['worker_cost_per_m2' => $worker, 'master_cost_per_m2' => $master]);
+
+    return $reception;
+}
+
+function dashboardWorkshopAtCost(Product $tile, float $qty, float $worker, float $master = 0): Workshop
+{
+    $workshop = dashboardWorkshopWithRules($tile, $qty, []);
+    $workshop->items()->where('role', WorkshopItem::ROLE_PRODUCT)
+        ->update(['worker_cost_per_m2' => $worker, 'master_cost_per_m2' => $master]);
+
+    return $workshop;
+}
+
+function dashboardData(?Carbon $from = null, ?Carbon $to = null, ?int $workerId = null): array
+{
+    return app(WorkerDashboardService::class)->getDashboardData(
+        $workerId ?? test()->cutter->id,
+        $from ?? Carbon::now()->subDay()->startOfDay(),
+        $to ?? Carbon::now()->addDay()->endOfDay(),
+    );
 }
 
 function dashboardSummary(): Illuminate\Support\Collection
@@ -206,4 +235,94 @@ test('строка сводки несёт имя, цвет и иконку пр
     expect($rule->name)->toBe('Подкол > 80%')
         ->and($rule->color)->toBe('#FFC107')
         ->and($rule->icon)->toBe('bi-lightning-charge-fill');
+});
+
+describe('Нулевое количество при ненулевой сумме', function () {
+
+    test('приёмки по разным ставкам: строка остаётся, сумма входит в итог', function () {
+        $tile = Product::factory()->create();
+
+        dashboardReceptionAtCost($tile, 10.0, 520);
+        dashboardReceptionAtCost($tile, -10.0, 400);
+
+        $data = dashboardData();
+        $row  = $data['departments']->first()['worker']['summary']->sole();
+
+        expect((float) $row['quantity'])->toEqual(0.0)
+            ->and((float) $row['pay'])->toEqual(1200.0)
+            ->and((float) $data['totalPay'])->toEqual(1200.0);
+    });
+
+    test('цех по разным ставкам: то же', function () {
+        $tile = Product::factory()->create();
+
+        dashboardWorkshopAtCost($tile, 10.0, 520);
+        dashboardWorkshopAtCost($tile, -10.0, 400);
+
+        expect((float) dashboardData()['totalPay'])->toEqual(1200.0);
+    });
+
+    test('сумма мастера тоже не теряется', function () {
+        $tile = Product::factory()->create();
+
+        dashboardReceptionAtCost($tile, 10.0, 0, 150);
+        dashboardReceptionAtCost($tile, -10.0, 0, 100);
+
+        $data = dashboardData(workerId: $this->receiver->id);
+
+        expect((float) $data['totalMasterPay'])->toEqual(500.0);
+    });
+
+    test('приёмка и цех сливаются в ноль: строка остаётся', function () {
+        $tile = Product::factory()->create();
+
+        dashboardReceptionAtCost($tile, 10.0, 520);
+        dashboardWorkshopAtCost($tile, -10.0, 400);
+
+        $row = dashboardSummary()->sole();
+
+        expect((float) $row['quantity'])->toEqual(0.0)
+            ->and((float) $row['pay'])->toEqual(1200.0);
+    });
+
+    test('правка по той же ставке: пустой строки нет', function () {
+        $tile = Product::factory()->create();
+
+        dashboardReceptionAtCost($tile, 10.0, 520);
+        dashboardReceptionAtCost($tile, -10.0, 520);
+
+        $data = dashboardData();
+
+        expect($data['departments'])->toBeEmpty()
+            ->and((float) $data['totalPay'])->toEqual(0.0);
+    });
+
+    test('шум чисел с плавающей точкой пустую строку не создаёт', function () {
+        $tile = Product::factory()->create();
+
+        dashboardReceptionAtCost($tile, 0.1, 100);
+        dashboardReceptionAtCost($tile, 0.2, 100);
+        dashboardReceptionAtCost($tile, -0.3, 100);
+
+        expect(dashboardData()['departments'])->toBeEmpty();
+    });
+
+    test('начисление по неделям равно начислению за весь диапазон: перерасчёт не ложный', function () {
+        $tile   = Product::factory()->create();
+        $monday = Carbon::now()->subWeeks(2)->startOfWeek();
+
+        $reception = dashboardReceptionAtCost($tile, 10.0, 520);
+        ReceptionLog::where('stone_reception_id', $reception->id)->update(['created_at' => $monday->copy()->addDay()]);
+
+        $correction = dashboardReceptionAtCost($tile, -10.0, 400);
+        ReceptionLog::where('stone_reception_id', $correction->id)->update(['created_at' => $monday->copy()->addWeek()->addDay()]);
+
+        $first  = dashboardData($monday, $monday->copy()->endOfWeek())['totalPay'];
+        $second = dashboardData($monday->copy()->addWeek(), $monday->copy()->addWeek()->endOfWeek())['totalPay'];
+        $whole  = dashboardData($monday, $monday->copy()->addWeek()->endOfWeek())['totalPay'];
+
+        expect((float) $first)->toEqual(5200.0)
+            ->and((float) $second)->toEqual(-4000.0)
+            ->and((float) $whole)->toEqual(1200.0);
+    });
 });

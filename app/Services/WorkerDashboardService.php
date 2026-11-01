@@ -510,7 +510,7 @@ class WorkerDashboardService
                     'masterPay'     => $masterPay,
                 ];
             })
-            ->filter(fn($row) => abs($row['quantity']) > 0.0001)
+            ->filter(fn($row) => $this->hasOutput($row))
             ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '#' . $row['signature'])
             ->values();
     }
@@ -584,8 +584,20 @@ class WorkerDashboardService
                     'masterPay'     => $masterPay,
                 ];
             })
-            ->filter(fn($row) => abs($row['quantity']) > 0.0001)
+            ->filter(fn($row) => $this->hasOutput($row))
             ->values();
+    }
+
+    /**
+     * Есть ли в строке сводки что показывать. Нулевое количество ещё не значит нулевую сумму:
+     * +10 м² по 520 ₽ и −10 м² по 400 ₽ — это 1 200 ₽. Без такой строки начисление зависело бы
+     * от нарезки периода: по неделям сумма верна, а в общем диапазоне (перерасчёт) пропадает.
+     */
+    private function hasOutput(array $row): bool
+    {
+        return abs($row['quantity']) > 0.0001
+            || abs($row['pay']) >= 0.005
+            || abs($row['masterPay']) >= 0.005;
     }
 
     /**
@@ -619,7 +631,7 @@ class WorkerDashboardService
                     'masterPay'     => $rows->sum('masterPay'),
                 ];
             })
-            ->filter(fn($row) => abs($row['quantity']) > 0.0001)
+            ->filter(fn($row) => $this->hasOutput($row))
             ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '#' . $row['signature'])
             ->values();
     }

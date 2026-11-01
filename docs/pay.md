@@ -137,6 +137,8 @@
   подколом и без) — разные строки; каждая помечена плашками правил.
 - Приёмки и цех по одному товару с одинаковыми правилами сливаются в одну строку.
 - «Коэф.» и «Ставка» в строке — средние по записям, «Сумма» — точная сумма записей.
+- Строка с нулевым количеством остаётся, если сумма не ноль. Пример: +10 м² в одной приёмке по 520 ₽ и −10 м² в другой
+  по 400 ₽ — количество 0, сумма 1 200 ₽, она входит в начисленное. Запись и её отмена по одной ставке дают ноль, такой строки нет.
 - Сводка разбита **по отделам**, внутри отдела — **по ролям** (работник / мастер): у каждого
   отдела свои ставки, они указаны в карточке отдела. Документ без отдела попадает в группу
   «Без отдела».
@@ -219,7 +221,7 @@
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `StoneReceptionService::updateItemCoeff` / `refreshItemCoeffs`, `WorkshopService::updateItemCoeff` / `refreshItemCoeffs` | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
 | 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `updateLastPayout`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank`; запрет удаления — `WorkerService::delete` (`HISTORY_REFERENCES`) | `tests/Feature/Worker/SalaryPayoutTest`, `SalaryHideBalanceTest`, `WorkerControllerTest` |
-| 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
+| 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `hasOutput`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
 
 Заметки:
 
