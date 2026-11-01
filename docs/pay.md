@@ -14,6 +14,8 @@
   - **как работник** — приёмки, где человек указан **работником** (пильщиком), и операции цеха,
     где он указан **работником**;
   - **как мастер** — приёмки и операции цеха, где он указан **приёмщиком** (в цехе — **мастером**).
+    Правка приёмки: плюс идёт тому, кто правит, минус — тому, кто получил этот плюс, начиная с добавившего
+    последним (подробно — [Приёмки](stone-receptions.md)). Минус попадает в неделю, когда сделана правка.
 
   Мастер, который и принимает, и пилит сам, видит обе части на одной странице. Если в одной
   записи человек и пильщик, и приёмщик, она оплачивается в обеих ролях.
@@ -216,7 +218,7 @@
 | Раздел | Код | Тесты |
 |---|---|---|
 | 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange` (`fridayShowsPrevious`), `SalaryService::expectedPay`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
-| 2. За что начисляется | `WorkerDashboardService::getDashboardData`, `buildProductSummary`, `buildWorkshopProductSummary` | `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `tests/Feature/StoneReception/ReceptionLogTest` |
+| 2. За что начисляется | `WorkerDashboardService::getDashboardData`, `masterReceptionLogs`, `buildProductSummary`, `buildWorkshopProductSummary`; минус за правку — `StoneReceptionService::minusShares`, `reception_log_items.charged_worker_id` | `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `tests/Feature/StoneReception/ReceptionLogTest`, `tests/Feature/StoneReception/ReceptionLogReceiverTest` |
 | 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `pieceRoundStep`, `masterRoundStep`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `StoneReceptionService::updateItemCoeff` / `refreshItemCoeffs`, `WorkshopService::updateItemCoeff` / `refreshItemCoeffs` | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |

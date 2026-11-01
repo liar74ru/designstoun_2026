@@ -223,7 +223,7 @@ class StoneReceptionService
                         $q->whereIn('moysklad_sync_status', $statuses));
                 }),
             ])
-            ->with(['cutter', 'receiver', 'items.product',
+            ->with(['cutter', 'receiver', 'items.product', 'items.chargedWorker',
                 'stoneReception.items.modifiers.modifier',
                 'stoneReception.store', 'stoneReception.department', 'rawMaterialBatch.product'])
             ->when($request->filled('date_from'), fn($q) =>
@@ -466,7 +466,11 @@ class StoneReceptionService
      */
     public function updateLogReceiver(ReceptionLog $log, int $receiverId): void
     {
-        $log->update(['receiver_id' => $receiverId]);
+        DB::transaction(function () use ($log, $receiverId) {
+            $log->update(['receiver_id' => $receiverId]);
+            // Выбор администратора важнее автоматического списания минуса
+            $log->items()->update(['charged_worker_id' => null]);
+        });
     }
 
     public function closeBatch(RawMaterialBatch $batch): bool
@@ -818,26 +822,104 @@ class StoneReceptionService
         ?\DateTimeInterface $createdAt = null,
         ?int $receiverId = null
     ): void {
+        $receiverId ??= auth()->user()->worker_id;
+        // До создания записи: минус считается по уже записанным строкам
+        $lines = $this->logItemLines($reception, $itemDeltas, $receiverId);
+
         $log = ReceptionLog::create([
             'stone_reception_id'    => $reception->id,
             'raw_material_batch_id' => $reception->raw_material_batch_id,
             'cutter_id'             => $reception->cutter_id,
-            'receiver_id'           => $receiverId ?? auth()->user()->worker_id,
+            'receiver_id'           => $receiverId,
             'type'                  => $type,
             'raw_quantity_delta'    => $rawDelta,
             'raw_quantity_snapshot' => $batchSnapshot,
             'created_at'            => $createdAt ?? now(),
         ]);
 
-        if ($itemDeltas) {
+        if ($lines) {
             $now = now();
-            ReceptionLogItem::insert(collect($itemDeltas)->map(fn($delta, $productId) => [
+            ReceptionLogItem::insert(array_map(fn($line) => $line + [
                 'reception_log_id' => $log->id,
-                'product_id'       => $productId,
-                'quantity_delta'   => $delta,
                 'created_at'       => $now,
                 'updated_at'       => $now,
-            ])->values()->toArray());
+            ], $lines));
         }
+    }
+
+    /**
+     * Строки записи журнала. Плюс — приёмщику записи (тому, кто правит), минус — тому, кто получил
+     * этот плюс: один минус может дать несколько строк, если плюс давали разные мастера.
+     *
+     * @param  array<int, float>  $itemDeltas  product_id => дельта
+     * @return array<int, array{product_id: int, quantity_delta: float, charged_worker_id: ?int}>
+     */
+    private function logItemLines(StoneReception $reception, array $itemDeltas, ?int $receiverId): array
+    {
+        $lines = [];
+
+        foreach ($itemDeltas as $productId => $delta) {
+            if ($delta >= 0) {
+                $lines[] = ['product_id' => $productId, 'quantity_delta' => $delta, 'charged_worker_id' => null];
+                continue;
+            }
+
+            foreach ($this->minusShares($reception, $productId, -$delta) as $workerId => $quantity) {
+                $lines[] = [
+                    'product_id'        => $productId,
+                    'quantity_delta'    => -$quantity,
+                    'charged_worker_id' => $workerId === $receiverId ? null : $workerId,
+                ];
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Кому сколько списать: сначала с мастера, добавившего этот товар последним, затем с предыдущего.
+     * Не хватило (старые записи) — остаток на приёмщике приёмки.
+     *
+     * @return array<int, float>  worker_id => количество
+     */
+    private function minusShares(StoneReception $reception, int $productId, float $quantity): array
+    {
+        $lines = ReceptionLogItem::with('receptionLog')
+            ->where('product_id', $productId)
+            ->whereHas('receptionLog', fn($q) => $q->where('stone_reception_id', $reception->id))
+            ->orderBy('id')
+            ->get();
+
+        // Порядок ключей — порядок добавления: мастер с новым плюсом уходит в конец
+        $remaining = [];
+        foreach ($lines as $line) {
+            $workerId = $line->masterWorkerId();
+            $delta    = (float) $line->quantity_delta;
+            $value    = ($remaining[$workerId] ?? 0.0) + $delta;
+
+            if ($delta > 0) {
+                unset($remaining[$workerId]);
+            }
+            $remaining[$workerId] = $value;
+        }
+
+        $shares = [];
+        foreach (array_reverse($remaining, true) as $workerId => $available) {
+            if ($quantity < 0.0005) {
+                break;
+            }
+            if ($available < 0.0005) {
+                continue;
+            }
+
+            $shares[$workerId] = min($available, $quantity);
+            $quantity          = round($quantity - $shares[$workerId], 3);
+        }
+
+        if ($quantity >= 0.0005) {
+            $shares[$reception->receiver_id] = ($shares[$reception->receiver_id] ?? 0.0) + $quantity;
+        }
+
+        return $shares;
     }
 }

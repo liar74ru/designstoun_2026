@@ -296,6 +296,9 @@
                                                     <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }}">
                                                         {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }}
                                                     </span>
+                                                    @if($item->chargedWorker)
+                                                        <span class="text-muted">зарплата: {{ $item->chargedWorker->name }}</span>
+                                                    @endif
                                                 </div>
                                             @endforeach
                                         </td>

@@ -24,6 +24,22 @@
             </div>
         @endif
 
+        {{-- Плюс за правку идёт правящему, минус — тому, кто получил плюс. Админ выбирает приёмщика в форме. --}}
+        @php
+            $isAdminEditor  = auth()->user()->isAdmin();
+            $plusReceiverId = (int) ($isAdminEditor ? old('receiver_id', auth()->user()->worker_id) : auth()->user()->worker_id);
+            $paysToOther    = $plusReceiverId && $plusReceiverId !== (int) $stoneReception->receiver_id;
+        @endphp
+        @if($isAdminEditor || $paysToOther)
+            <div id="receiverPayWarning" class="alert alert-warning py-2 small {{ $paysToOther ? '' : 'd-none' }}"
+                 data-original-receiver-id="{{ $stoneReception->receiver_id }}">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <strong>Приёмщик этой приёмки — {{ $stoneReception->receiver?->name ?? '—' }}.</strong>
+                Зарплата мастера за добавленный продукт будет засчитана {{ $isAdminEditor ? 'выбранному в форме приёмщику' : 'вам' }}.
+                Минус при уменьшении количества спишется с того мастера, кто это количество добавил.
+            </div>
+        @endif
+
         <div class="row g-3">
             <div class="col-12 col-lg-8">
 
@@ -422,6 +438,16 @@
     @vite(['resources/js/product-picker.js', 'resources/js/worker-picker.js'])
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+
+            // ── Предупреждение о зарплате: админ выбирает приёмщика прямо в форме
+            const receiverPayWarning = document.getElementById('receiverPayWarning');
+            const receiverSelect     = document.querySelector('select[name="receiver_id"]');
+            if (receiverPayWarning && receiverSelect) {
+                receiverSelect.addEventListener('change', function () {
+                    receiverPayWarning.classList.toggle('d-none',
+                        !this.value || this.value === receiverPayWarning.dataset.originalReceiverId);
+                });
+            }
 
             // ── Кнопка «Израсходована» для партии с нулевым остатком ─────────────────
             const markUsedBtn = document.getElementById('markUsedBtn');

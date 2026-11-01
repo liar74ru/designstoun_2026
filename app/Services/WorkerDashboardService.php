@@ -63,6 +63,7 @@ class WorkerDashboardService
 
         $logs = ReceptionLog::with([
                 'items.product',
+                'items.chargedWorker',
                 'stoneReception.store',
                 'stoneReception.items.modifiers.modifier',
                 'stoneReception.department',
@@ -72,7 +73,9 @@ class WorkerDashboardService
                 'cutter',
                 'receiver',
             ])
-            ->where(fn($q) => $q->where('cutter_id', $workerId)->orWhere('receiver_id', $workerId))
+            ->where(fn($q) => $q->where('cutter_id', $workerId)
+                ->orWhere('receiver_id', $workerId)
+                ->orWhereHas('items', fn($q2) => $q2->where('charged_worker_id', $workerId)))
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -125,7 +128,7 @@ class WorkerDashboardService
                 $workshopLogs->where('packer_id', $workerId),
             ),
             $this->buildSummaryByDepartment(
-                $logs->where('receiver_id', $workerId),
+                $this->masterReceptionLogs($logs, $workerId),
                 $workshopLogs->where('receiver_id', $workerId),
             ),
         );
@@ -143,6 +146,22 @@ class WorkerDashboardService
             'totalMasterPay',
             'totalPay',
         );
+    }
+
+    /**
+     * Записи приёмок для сводки мастера: только строки, зарплата за которые идёт ему (минус может
+     * уйти другому мастеру). Записи клонируются: те же объекты читает роль пильщика.
+     */
+    private function masterReceptionLogs(Collection $logs, int $workerId): Collection
+    {
+        return $logs
+            ->map(function ($log) use ($workerId) {
+                $items = $log->items->filter(fn($item) => $item->masterWorkerId() === $workerId)->values();
+
+                return $items->isEmpty() ? null : (clone $log)->setRelation('items', $items);
+            })
+            ->filter()
+            ->values();
     }
 
     /**

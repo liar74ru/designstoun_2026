@@ -10,6 +10,7 @@ class ReceptionLogItem extends Model
         'reception_log_id',
         'product_id',
         'quantity_delta',
+        'charged_worker_id',
     ];
 
     protected $casts = [
@@ -22,6 +23,22 @@ class ReceptionLogItem extends Model
     public function receptionLog()
     {
         return $this->belongsTo(ReceptionLog::class);
+    }
+
+    /**
+     * Мастер, с которого списан минус, если это не приёмщик записи
+     */
+    public function chargedWorker()
+    {
+        return $this->belongsTo(Worker::class, 'charged_worker_id');
+    }
+
+    /**
+     * Кому идёт зарплата мастера за эту строку
+     */
+    public function masterWorkerId(): ?int
+    {
+        return $this->charged_worker_id ?? $this->receptionLog?->receiver_id;
     }
 
     /**

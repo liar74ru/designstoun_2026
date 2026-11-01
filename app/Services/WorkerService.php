@@ -7,6 +7,7 @@ use App\Models\PiggyBankEntry;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Models\ReceptionLog;
+use App\Models\ReceptionLogItem;
 use App\Models\SalaryPayout;
 use App\Models\StoneReception;
 use App\Models\SupplierOrder;
@@ -27,6 +28,7 @@ class WorkerService
         PiggyBankEntry::class      => ['worker_id'],
         StoneReception::class      => ['cutter_id', 'receiver_id'],
         ReceptionLog::class        => ['cutter_id', 'receiver_id'],
+        ReceptionLogItem::class    => ['charged_worker_id'],
         Workshop::class            => ['packer_id', 'receiver_id'],
         WorkshopLog::class         => ['packer_id', 'receiver_id'],
         RawMaterialBatch::class    => ['current_worker_id'],

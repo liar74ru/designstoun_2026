@@ -108,6 +108,9 @@
                             {{ $item->product?->name ?? '?' }}
                         </span>
                         <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }} text-nowrap" style="font-size:.72rem">
+                            @if($item->chargedWorker)
+                                <span class="fw-normal text-muted">зарплата: {{ $item->chargedWorker->name }}</span>
+                            @endif
                             {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }} м²
                         </span>
                     </div>
