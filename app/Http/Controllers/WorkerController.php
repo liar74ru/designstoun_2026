@@ -63,7 +63,11 @@ class WorkerController extends Controller
     {
         $this->authorize('modify', $worker);
 
-        $worker->delete();
+        $reason = $this->service->delete($worker);
+
+        if ($reason) {
+            return redirect()->route('workers.index')->with('error', $reason);
+        }
 
         return redirect()->route('workers.index')
             ->with('success', 'Работник успешно удален');

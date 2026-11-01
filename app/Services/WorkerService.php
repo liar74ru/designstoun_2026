@@ -3,8 +3,17 @@
 namespace App\Services;
 
 use App\Models\Department;
+use App\Models\PiggyBankEntry;
+use App\Models\RawMaterialBatch;
+use App\Models\RawMaterialMovement;
+use App\Models\ReceptionLog;
+use App\Models\SalaryPayout;
+use App\Models\StoneReception;
+use App\Models\SupplierOrder;
 use App\Models\User;
 use App\Models\Worker;
+use App\Models\Workshop;
+use App\Models\WorkshopLog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +21,19 @@ use Illuminate\Support\Facades\DB;
 // рефакторинг v2 от 26.04.2026 — controller → service
 class WorkerService
 {
+    /** Записи, при которых работника нельзя удалить: модель => колонки со ссылкой на него. */
+    private const HISTORY_REFERENCES = [
+        SalaryPayout::class        => ['worker_id'],
+        PiggyBankEntry::class      => ['worker_id'],
+        StoneReception::class      => ['cutter_id', 'receiver_id'],
+        ReceptionLog::class        => ['cutter_id', 'receiver_id'],
+        Workshop::class            => ['packer_id', 'receiver_id'],
+        WorkshopLog::class         => ['packer_id', 'receiver_id'],
+        RawMaterialBatch::class    => ['current_worker_id'],
+        RawMaterialMovement::class => ['from_worker_id', 'to_worker_id', 'moved_by'],
+        SupplierOrder::class       => ['receiver_id'],
+    ];
+
     public function buildIndexQuery(array $filters, $authUser): Builder
     {
         $query = Worker::with('department', 'departments');
@@ -127,6 +149,25 @@ class WorkerService
 
             $this->syncPhoneToUser($worker, $data['phone'] ?? null);
         });
+    }
+
+    /**
+     * Работника с выплатами или документами можно только перевести в архив: удаление стёрло бы
+     * выдачи и копилку, а в документах обнулило бы автора и невыданную выработку.
+     *
+     * @return string|null Почему нельзя удалить; null — удалён.
+     */
+    public function delete(Worker $worker): ?string
+    {
+        foreach (self::HISTORY_REFERENCES as $model => $columns) {
+            if ($model::whereAny($columns, '=', $worker->id)->exists()) {
+                return 'Работника нельзя удалить: по нему есть выплаты или документы. Переведите его в архив.';
+            }
+        }
+
+        $worker->delete();
+
+        return null;
     }
 
     /**

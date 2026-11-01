@@ -201,6 +201,9 @@
   показывает суммы. Администратор видит остаток всегда.
 - В истории работник видит каждую выдачу: начислено, на руки, на карту и налог (если были),
   сколько ушло в копилку.
+- **Уволенный работник.** Работника с выплатами, копилкой или документами удалить нельзя — только
+  перевести в архив, тогда история и остаток копилки сохраняются. Удалить можно лишь созданного по
+  ошибке, у которого записей нет.
 
 ## Для разработчиков
 
@@ -215,7 +218,7 @@
 | 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `pieceRoundStep`, `masterRoundStep`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `StoneReceptionService::updateItemCoeff` / `refreshItemCoeffs`, `WorkshopService::updateItemCoeff` / `refreshItemCoeffs` | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
-| 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `updateLastPayout`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank` | `tests/Feature/Worker/SalaryPayoutTest`, `SalaryHideBalanceTest` |
+| 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `updateLastPayout`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank`; запрет удаления — `WorkerService::delete` (`HISTORY_REFERENCES`) | `tests/Feature/Worker/SalaryPayoutTest`, `SalaryHideBalanceTest`, `WorkerControllerTest` |
 | 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
 
 Заметки:

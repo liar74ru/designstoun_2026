@@ -1,8 +1,18 @@
 <?php
 
+use App\Models\Counterparty;
 use App\Models\Department;
+use App\Models\PiggyBankEntry;
+use App\Models\RawMaterialMovement;
+use App\Models\ReceptionLog;
+use App\Models\SupplierOrder;
 use App\Models\User;
 use App\Models\Worker;
+use App\Models\Workshop;
+use App\Models\WorkshopLog;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
+use Tests\Helpers\AccessTestHelper as Access;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 function makeWorker(array $attrs = []): Worker
@@ -18,6 +28,79 @@ function makeWorker(array $attrs = []): Worker
 function makeWorkerTestDept(): Department
 {
     return Department::create(['name' => 'Тест отдел', 'is_active' => true]);
+}
+
+/** Запись, из-за которой работника нельзя удалить. */
+function makeWorkerHistory(string $kind, Worker $worker): Model
+{
+    $other = H::worker('Другой');
+    $store = H::store();
+    $batch = H::batch(H::product(), $store, $other);
+
+    $reception = fn () => H::reception($batch, $other, $other, $store);
+    $workshop  = fn (array $attrs = []) => Workshop::create($attrs + [
+        'packer_id'   => $other->id,
+        'receiver_id' => $other->id,
+        'store_id'    => $store->id,
+    ]);
+    $receptionLog = fn (array $attrs) => ReceptionLog::create($attrs + [
+        'stone_reception_id'    => $reception()->id,
+        'raw_material_batch_id' => $batch->id,
+        'cutter_id'             => $other->id,
+        'receiver_id'           => $other->id,
+        'type'                  => 'created',
+        'raw_quantity_delta'    => 1,
+        'raw_quantity_snapshot' => 1,
+    ]);
+    $workshopLog = fn (array $attrs) => WorkshopLog::create($attrs + [
+        'workshop_id'               => $workshop()->id,
+        'packer_id'                 => $other->id,
+        'receiver_id'               => $other->id,
+        'type'                      => 'created',
+        'package_quantity_delta'    => 1,
+        'package_quantity_snapshot' => 1,
+    ]);
+    $movement = fn (string $column) => RawMaterialMovement::create([
+        'batch_id'      => $batch->id,
+        'movement_type' => 'create',
+        'quantity'      => 1,
+        $column         => $worker->id,
+    ]);
+
+    return match ($kind) {
+        'выдача зарплаты' => $worker->salaryPayouts()->create([
+            'period_from' => now()->subWeek(),
+            'period_to'   => now(),
+            'accrued'     => 1000,
+            'paid_total'  => 1000,
+            'accounted'   => 1000,
+            'to_bank'     => 0,
+            'paid_at'     => now(),
+        ]),
+        'проводка копилки' => $worker->piggyBankEntries()->create([
+            'amount' => -500,
+            'type'   => PiggyBankEntry::TYPE_ADJUSTMENT,
+        ]),
+        'пильщик в приёмке'          => H::reception($batch, $other, $worker, $store),
+        'приёмщик в приёмке'         => H::reception($batch, $worker, $other, $store),
+        'пильщик в журнале приёмок'  => $receptionLog(['cutter_id' => $worker->id]),
+        'приёмщик в журнале приёмок' => $receptionLog(['receiver_id' => $worker->id]),
+        'работник цеха'              => $workshop(['packer_id' => $worker->id]),
+        'приёмщик в цехе'            => $workshop(['receiver_id' => $worker->id]),
+        'работник в журнале цеха'    => $workshopLog(['packer_id' => $worker->id]),
+        'приёмщик в журнале цеха'    => $workshopLog(['receiver_id' => $worker->id]),
+        'партия у работника'         => H::batch(H::product(), $store, $worker),
+        'перемещение от работника'   => $movement('from_worker_id'),
+        'перемещение к работнику'    => $movement('to_worker_id'),
+        'перемещение выполнил'       => $movement('moved_by'),
+        'приёмщик поступления'       => SupplierOrder::create([
+            'number'          => 'HIST-01',
+            'store_id'        => $store->id,
+            'counterparty_id' => Counterparty::create(['name' => 'Поставщик', 'moysklad_id' => 'cp-1'])->id,
+            'status'          => SupplierOrder::STATUS_NEW,
+            'receiver_id'     => $worker->id,
+        ]),
+    };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -207,6 +290,48 @@ describe('WorkerController destroy()', function () {
 
         expect(Worker::find($worker->id))->toBeNull();
     });
+
+    test('мастер своего отдела удаляет работника без истории', function () {
+        $dept   = Access::department();
+        $worker = makeWorker(['department_id' => $dept->id]);
+
+        $this->actingAs(Access::master($dept, 'workers'))
+            ->delete(route('workers.destroy', $worker))
+            ->assertRedirect(route('workers.index'))
+            ->assertSessionHas('success');
+
+        expect(Worker::find($worker->id))->toBeNull();
+    });
+
+    test('работника с историей удалить нельзя, запись остаётся', function (string $kind) {
+        $worker = makeWorker();
+        $record = makeWorkerHistory($kind, $worker);
+
+        $this->actingAs(H::adminUser())
+            ->delete(route('workers.destroy', $worker))
+            ->assertRedirect(route('workers.index'))
+            ->assertSessionHas('error');
+
+        expect(Worker::find($worker->id))->not->toBeNull()
+            ->and($record->fresh())->not->toBeNull();
+    })->with([
+        'выдача зарплаты', 'проводка копилки',
+        'пильщик в приёмке', 'приёмщик в приёмке',
+        'пильщик в журнале приёмок', 'приёмщик в журнале приёмок',
+        'работник цеха', 'приёмщик в цехе',
+        'работник в журнале цеха', 'приёмщик в журнале цеха',
+        'партия у работника',
+        'перемещение от работника', 'перемещение к работнику', 'перемещение выполнил',
+        'приёмщик поступления',
+    ]);
+
+    test('мимо сервиса БД не даёт удалить работника с выдачей и копилкой', function (string $kind) {
+        $worker = makeWorker();
+        $record = makeWorkerHistory($kind, $worker);
+
+        expect(fn () => $worker->delete())->toThrow(QueryException::class)
+            ->and($record->fresh())->not->toBeNull();
+    })->with(['выдача зарплаты', 'проводка копилки']);
 
 });
 
