@@ -104,7 +104,7 @@ class ReceptionTestHelper
             'current_store_id'   => $store->id,
             'current_worker_id'  => $worker->id,
             'status'             => RawMaterialBatch::STATUS_IN_WORK,
-            'batch_number'       => 'TEST-01',
+            'batch_number'       => 'TEST-' . str_pad(RawMaterialBatch::count() + 1, 2, '0', STR_PAD_LEFT),
         ], $attrs));
     }
 

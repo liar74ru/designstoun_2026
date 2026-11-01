@@ -352,6 +352,31 @@ describe('Идемпотентность создания', function () {
         expect($batch->fresh()->moysklad_processing_name)->toBe('Партия: 42_02');
     });
 
+    test('суффикс имени занят другой партией как номер: документ создан, партия синхронизирована', function () {
+        $batch = bsjBatch($this);
+        RawMaterialBatch::create([
+            'product_id'         => $this->raw->id,
+            'initial_quantity'   => 1,
+            'remaining_quantity' => 1,
+            'current_store_id'   => $this->shop->id,
+            'batch_number'       => '42_01',
+            'status'             => RawMaterialBatch::STATUS_IN_WORK,
+        ]);
+        $posts = 0;
+        bsjFake(['post' => function () use (&$posts) {
+            return ++$posts === 1
+                ? Http::response(['errors' => [['error' => 'Имя занято', 'parameter' => 'name']]], 412)
+                : Http::response(['id' => 'move-new'], 200);
+        }]);
+
+        bsjRun($batch);
+
+        $fresh = $batch->fresh();
+        expect($fresh->isSynced())->toBeTrue();
+        expect($fresh->batch_number)->toBe('42');
+        expect($fresh->moysklad_processing_name)->toBe('Партия: 42_01');
+    });
+
     test('PUT шлёт сохранённое имя: с суффиксом не упадёт на занятом', function () {
         $batch = bsjBatch($this, ['moysklad_processing_name' => 'Партия: 42_01'], ['moysklad_move_id' => 'move-1']);
         bsjFake();

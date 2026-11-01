@@ -17,6 +17,7 @@ use App\Support\BatchStock;
 use App\Support\DocumentNaming;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -24,6 +25,9 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class RawMaterialBatchService
 {
+    /** Сколько раз повторять сохранение партии при конфликте номера. */
+    private const NUMBER_ATTEMPTS = 5;
+
     use ManagesStock;
 
     public function getIndexData(Request $request): array
@@ -148,40 +152,59 @@ class RawMaterialBatchService
 
         $departmentId = $this->resolveDepartmentId($data);
 
-        DB::transaction(function () use ($data, $createdAt, $movedBy, $departmentId, $checkSourceStock, &$batch, &$movement) {
-            if ($checkSourceStock) {
-                $this->ensureSourceStock($data['product_id'], $data['from_store_id'], (float) $data['quantity']);
+        $worker = Worker::find($data['worker_id']);
+        $number = $data['batch_number'] ?? null;
+
+        // Номер из формы посчитан при её открытии и мог занять другой. Проверка не закрывает гонку,
+        // её закрывает индекс; PostgreSQL обрывает транзакцию при ошибке, поэтому повторяется вся.
+        for ($attempt = 1; ; $attempt++) {
+            if ($number) {
+                $number = $this->freeNumber($number, $worker);
             }
 
-            $batch = RawMaterialBatch::create([
-                'product_id'         => $data['product_id'],
-                'initial_quantity'   => $data['quantity'],
-                'remaining_quantity' => $data['quantity'],
-                'current_store_id'   => $data['to_store_id'],
-                'current_worker_id'  => $data['worker_id'],
-                'department_id'      => $departmentId,
-                'batch_number'       => $data['batch_number'] ?? null,
-                'status'             => RawMaterialBatch::STATUS_NEW,
-                'created_at'         => $createdAt,
-                'updated_at'         => $createdAt,
-            ]);
+            try {
+                DB::transaction(function () use ($data, $number, $createdAt, $movedBy, $departmentId, $checkSourceStock, &$batch, &$movement) {
+                    if ($checkSourceStock) {
+                        $this->ensureSourceStock($data['product_id'], $data['from_store_id'], (float) $data['quantity']);
+                    }
 
-            $movement = RawMaterialMovement::create([
-                'batch_id'       => $batch->id,
-                'from_store_id'  => $data['from_store_id'],
-                'to_store_id'    => $data['to_store_id'],
-                'from_worker_id' => null,
-                'to_worker_id'   => $data['worker_id'],
-                'moved_by'       => $movedBy,
-                'movement_type'  => 'create',
-                'quantity'       => $data['quantity'],
-                'created_at'     => $createdAt,
-                'updated_at'     => $createdAt,
-            ]);
+                    $batch = RawMaterialBatch::create([
+                        'product_id'         => $data['product_id'],
+                        'initial_quantity'   => $data['quantity'],
+                        'remaining_quantity' => $data['quantity'],
+                        'current_store_id'   => $data['to_store_id'],
+                        'current_worker_id'  => $data['worker_id'],
+                        'department_id'      => $departmentId,
+                        'batch_number'       => $number,
+                        'status'             => RawMaterialBatch::STATUS_NEW,
+                        'created_at'         => $createdAt,
+                        'updated_at'         => $createdAt,
+                    ]);
 
-            $this->adjustStock($data['product_id'], $data['from_store_id'], -$data['quantity']);
-            $this->adjustStock($data['product_id'], $data['to_store_id'],   +$data['quantity']);
-        });
+                    $movement = RawMaterialMovement::create([
+                        'batch_id'       => $batch->id,
+                        'from_store_id'  => $data['from_store_id'],
+                        'to_store_id'    => $data['to_store_id'],
+                        'from_worker_id' => null,
+                        'to_worker_id'   => $data['worker_id'],
+                        'moved_by'       => $movedBy,
+                        'movement_type'  => 'create',
+                        'quantity'       => $data['quantity'],
+                        'created_at'     => $createdAt,
+                        'updated_at'     => $createdAt,
+                    ]);
+
+                    $this->adjustStock($data['product_id'], $data['from_store_id'], -$data['quantity']);
+                    $this->adjustStock($data['product_id'], $data['to_store_id'],   +$data['quantity']);
+                });
+
+                break;
+            } catch (UniqueConstraintViolationException $e) {
+                if (!$number || $attempt >= self::NUMBER_ATTEMPTS) {
+                    throw $e;
+                }
+            }
+        }
 
         return ['batch' => $batch, 'movement' => $movement];
     }
@@ -537,7 +560,7 @@ class RawMaterialBatchService
             $batch->update(['status' => RawMaterialBatch::STATUS_USED]);
 
             $result['newBatch']->update([
-                'batch_number' => ($batch->batch_number ?? $batch->id) . '/' . $batch->id,
+                'batch_number' => $this->freeNumber(($batch->batch_number ?? $batch->id) . '/' . $batch->id),
                 'notes'        => 'Выделена из партии №' . ($batch->batch_number ?? $batch->id),
             ]);
 
@@ -594,7 +617,7 @@ class RawMaterialBatchService
                 'current_store_id'   => $toStoreId,
                 'current_worker_id'  => $data['to_worker_id'],
                 'department_id'      => $targetWorker->department_id,
-                'batch_number'       => ($batch->batch_number ?? $batch->id) . '-' . $targetWorker->name,
+                'batch_number'       => $this->freeNumber(($batch->batch_number ?? $batch->id) . '-' . $targetWorker->name),
                 'status'             => RawMaterialBatch::STATUS_NEW,
                 'notes'              => 'Передана от партии №' . ($batch->batch_number ?? $batch->id),
             ]);
@@ -691,19 +714,47 @@ class RawMaterialBatchService
 
     /**
      * Сгенерировать номер партии для пильщика на текущей ISO-неделе.
-     * Формат: ГГ-НН-Фамилия-ПП
+     * Формат: ГГ-НН-Фамилия-ПП. Порядковый номер — следующий за максимальным среди номеров с этим
+     * префиксом: количество партий падает при передаче и удалении, и номер повторился бы.
+     * В форме это подсказка, окончательный номер назначается при сохранении — см. create().
      */
     public function generateBatchNumber(Worker $worker): string
     {
-        $year  = now()->format('y');
-        $week  = now()->format('W');
-        $name  = explode(' ', trim($worker->name))[0];
+        $name   = $this->numberName($worker);
+        $prefix = DocumentNaming::weekPrefix($name);
 
-        $count = RawMaterialBatch::where('current_worker_id', $worker->id)
-            ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
-            ->count();
+        $sequence = DocumentNaming::nextSequence(
+            RawMaterialBatch::where('batch_number', 'like', $prefix . '%')->pluck('batch_number'),
+            $prefix
+        );
 
-        return "{$year}-{$week}-{$name}-" . str_pad($count + 1, 2, '0', STR_PAD_LEFT);
+        return DocumentNaming::weeklyName($name, $sequence);
+    }
+
+    private function numberName(Worker $worker): string
+    {
+        return explode(' ', trim($worker->name))[0];
+    }
+
+    /**
+     * Свободный номер партии. Занят: автономер пильщика — следующий по счёту, остальные получают
+     * суффикс, как при конфликте имени в МойСклад.
+     */
+    private function freeNumber(string $number, ?Worker $worker = null): string
+    {
+        if (!RawMaterialBatch::where('batch_number', $number)->exists()) {
+            return $number;
+        }
+
+        if ($worker && str_starts_with($number, DocumentNaming::weekPrefix($this->numberName($worker)))) {
+            return $this->generateBatchNumber($worker);
+        }
+
+        do {
+            $number = DocumentNaming::nextSuffix($number);
+        } while (RawMaterialBatch::where('batch_number', $number)->exists());
+
+        return $number;
     }
 
     /**

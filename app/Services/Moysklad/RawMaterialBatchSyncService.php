@@ -153,7 +153,10 @@ class RawMaterialBatchSyncService
             $number = DocumentNaming::nextSuffix($number);
         }
 
-        if ($result['success'] && !$isReturn && $number !== $original) {
+        // Номер уникален: если суффикс занят другой партией, остаётся прежний. Документ уже создан,
+        // поэтому падать здесь нельзя, а имя документа сохранится в любом случае.
+        if ($result['success'] && !$isReturn && $number !== $original
+            && !RawMaterialBatch::where('batch_number', $number)->exists()) {
             $batch->update(['batch_number' => $number]);
         }
 
