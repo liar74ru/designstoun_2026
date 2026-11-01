@@ -80,6 +80,50 @@ class RawMaterialBatch extends Model
         return $this->hasMany(RawMaterialMovement::class, 'batch_id');
     }
 
+    /**
+     * Движение, которому соответствует перемещение партии в МойСклад. Обычно `create`; без него —
+     * первое из остальных: партия могла появиться передачей, а «Возвращена» — возвратом.
+     */
+    public function primaryMovement(): ?RawMaterialMovement
+    {
+        $movements = $this->movements()
+            ->whereIn('movement_type', ['create', 'transfer_to_worker', 'return_to_store'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        return $movements->firstWhere('movement_type', 'create') ?? $movements->first();
+    }
+
+    /**
+     * Количество перемещения в МойСклад: перемещение равно партии. Возврат на склад-источник
+     * уменьшает его, а «количество» партии не трогает. Пустую позицию МойСклад не принимает.
+     */
+    public function moveQuantity(): float
+    {
+        $returned = (float) $this->movements()
+            ->where('movement_type', 'return_to_store')
+            ->where('merged_into_move', true)
+            ->sum('quantity');
+
+        return max(round((float) $this->initial_quantity - $returned, 3), 0.001);
+    }
+
+    /** Почему у партии нет своего перемещения в МойСклад; null — есть что отправлять. */
+    public function moveBlockReason(): ?string
+    {
+        if (!$this->product?->moysklad_id) {
+            return 'Товар не синхронизирован с МойСклад';
+        }
+
+        $movement = $this->primaryMovement();
+        if (!$movement) {
+            return 'Нет перемещения для синхронизации';
+        }
+
+        return $movement->merged_into_move ? 'Возврат учтён в исходном перемещении партии' : null;
+    }
+
     public function latestMovement()
     {
         return $this->hasOne(RawMaterialMovement::class, 'batch_id')->latestOfMany();

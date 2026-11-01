@@ -9,449 +9,174 @@ use Illuminate\Support\Facades\Log;
 
 class RawMaterialBatchSyncService
 {
+    /** Сколько раз подбирать суффикс занятого имени, как у техопераций. */
+    private const NAME_ATTEMPTS = 10;
+
     public function __construct(
         private MoySkladMoveService $moveService,
         private StockSyncService $stockSyncService,
     ) {}
 
     /**
-     * Синхронизирует создание партии с МойСклад.
-     * Вызывается после store().
-     */
-    public function syncCreated(RawMaterialBatch $batch, RawMaterialMovement $movement): void
-    {
-        $product = $batch->product;
-        if (!$product->moysklad_id) {
-            Log::warning('Товар не синхронизирован с МойСклад', ['product_id' => $product->id]);
-            return;
-        }
-
-        try {
-            $batchNumber = $batch->batch_number ?? $batch->id;
-            $moveData = [
-                'from_store_id' => $movement->from_store_id,
-                'to_store_id'   => $movement->to_store_id,
-                'products'      => [['product_id' => $product->moysklad_id, 'quantity' => (float) $batch->initial_quantity]],
-                'name'          => 'Партия: ' . $batchNumber,
-                'description'   => 'Автоматическое перемещение из системы',
-                'external_id'   => 'movement_' . $movement->id,
-                'created_at'    => $batch->created_at,
-            ];
-
-            $result = $this->moveService->createMove($moveData);
-
-            if (!$result['success'] && $result['code'] === 'duplicate_name') {
-                $batchNumber      = DocumentNaming::nextSuffix($batchNumber);
-                $moveData['name'] = 'Партия: ' . $batchNumber;
-                $result           = $this->moveService->createMove($moveData);
-
-                if ($result['success']) {
-                    $batch->update(['batch_number' => $batchNumber]);
-                }
-            }
-
-            if ($result['success']) {
-                $movement->update(['moysklad_move_id' => $result['move_id'], 'moysklad_synced' => true]);
-                $batch->markSynced($result['move_id'], $moveData['name']);
-                Log::info('Перемещение синхронизировано с МойСклад', ['move_id' => $result['move_id']]);
-                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
-            } else {
-                $batch->markSyncError($result['message']);
-                Log::warning('Ошибка синхронизации перемещения с МойСклад', ['error' => $result['message']]);
-            }
-        } catch (\Exception $e) {
-            $batch->markSyncError($e->getMessage());
-            Log::error('Исключение при создании перемещения в МойСклад', ['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Синхронизирует возврат части партии на склад.
-     * Вызывается после return().
-     */
-    public function syncReturned(
-        RawMaterialBatch $newBatch,
-        RawMaterialMovement $movement,
-        string $fromStoreId,
-        string $toStoreId,
-        float $qty
-    ): void {
-        $product = $newBatch->product;
-        if (!$product->moysklad_id) {
-            Log::warning('Товар не синхронизирован с МойСклад при возврате', [
-                'product_id' => $product->id,
-                'batch_id'   => $newBatch->id,
-            ]);
-            return;
-        }
-
-        try {
-            $moveData = [
-                'from_store_id' => $fromStoreId,
-                'to_store_id'   => $toStoreId,
-                'products'      => [['product_id' => $product->moysklad_id, 'quantity' => $qty]],
-                'name'          => 'Возврат партии: ' . ($newBatch->batch_number ?? '№' . $newBatch->id),
-                'description'   => 'Автоматический возврат партии на склад из системы',
-                'external_id'   => 'movement_' . $movement->id . '_return',
-            ];
-
-            $result = $this->moveService->createMove($moveData);
-
-            if ($result['success']) {
-                $movement->update(['moysklad_move_id' => $result['move_id'], 'moysklad_synced' => true]);
-                Log::info('Возврат партии синхронизирован с МойСклад', [
-                    'move_id'  => $result['move_id'],
-                    'batch_id' => $newBatch->id,
-                ]);
-                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
-            } else {
-                Log::warning('Ошибка синхронизации возврата партии с МойСклад', [
-                    'error'    => $result['message'],
-                    'batch_id' => $newBatch->id,
-                ]);
-            }
-        } catch (\Exception $e) {
-            Log::error('Исключение при создании перемещения в МойСклад для возврата партии', [
-                'error'    => $e->getMessage(),
-                'batch_id' => $newBatch->id,
-            ]);
-        }
-    }
-
-    /**
-     * Синхронизирует редактирование партии (товар/количество/дата/склады).
-     * Склады берутся из первичного движения — update() уже записал в него новые.
-     * $previousProductMoyskladId — прежний товар партии, если его сменили: его остаток
-     * в МойСклад тоже меняется и перечитывается.
-     * Вызывается после update().
-     */
-    public function syncEdited(
-        RawMaterialBatch $batch,
-        float $newQuantity,
-        ?\Carbon\Carbon $newCreatedAt = null,
-        ?string $previousProductMoyskladId = null
-    ): void {
-        $batch->refresh();
-        $product = $batch->product;
-
-        if (!$product?->moysklad_id) {
-            Log::warning('Продукт партии не синхронизирован с МойСклад при редактировании', [
-                'batch_id'   => $batch->id,
-                'product_id' => $batch->product_id,
-            ]);
-            return;
-        }
-
-        try {
-            // Ищем первичное движение — у обычной партии это 'create',
-            // у партии из передачи — 'transfer_to_worker'.
-            $originalMovement = $batch->movements()
-                ->whereIn('movement_type', ['create', 'transfer_to_worker'])
-                ->whereNotNull('moysklad_move_id')
-                ->orderBy('created_at')
-                ->first();
-
-            if (!$originalMovement) {
-                Log::info('Нет синхронизированного перемещения для обновления', ['batch_id' => $batch->id]);
-                return;
-            }
-
-            $updateData = [
-                'from_store_id' => $originalMovement->from_store_id,
-                'to_store_id'   => $originalMovement->to_store_id,
-                'products'      => [['product_id' => $product->moysklad_id, 'quantity' => $newQuantity]],
-                'name'          => 'Партия: ' . ($batch->batch_number ?? '№' . $batch->id),
-                'description'   => 'Обновлено через систему. Количество: ' . number_format($newQuantity, 3) . ' м³',
-            ];
-
-            if ($newCreatedAt) {
-                $updateData['created_at'] = $newCreatedAt;
-            }
-
-            $result = $this->moveService->updateMove($originalMovement->moysklad_move_id, $updateData);
-
-            if ($result['success']) {
-                $originalMovement->update(['quantity' => $newQuantity]);
-                Log::info('Перемещение партии обновлено в МойСклад', [
-                    'move_id'  => $originalMovement->moysklad_move_id,
-                    'batch_id' => $batch->id,
-                ]);
-                $this->stockSyncService->refreshProducts([$product->moysklad_id, $previousProductMoyskladId]);
-            } else {
-                Log::warning('Ошибка обновления перемещения партии в МойСклад', [
-                    'error'    => $result['message'],
-                    'batch_id' => $batch->id,
-                ]);
-            }
-        } catch (\Exception $e) {
-            Log::error('Исключение при синхронизации изменений партии с МойСклад', [
-                'error'    => $e->getMessage(),
-                'batch_id' => $batch->id,
-            ]);
-        }
-    }
-
-    /**
-     * Синхронизирует корректировку количества (+/-) партии.
-     * Вызывается после adjust().
-     */
-    public function syncAdjusted(
-        RawMaterialBatch $batch,
-        RawMaterialMovement $movement,
-        float $delta,
-        float $newRemaining
-    ): void {
-        $product = $batch->product;
-        if (!$product?->moysklad_id) {
-            return;
-        }
-
-        try {
-            $originalMovement = $batch->movements()
-                ->whereIn('movement_type', ['create', 'transfer_to_worker'])
-                ->whereNotNull('moysklad_move_id')
-                ->orderBy('created_at')
-                ->first();
-
-            if (!$originalMovement?->moysklad_move_id) {
-                Log::warning('Корректировка без синхронизации МойСклад — исходное перемещение не найдено', [
-                    'batch_id' => $batch->id,
-                ]);
-                return;
-            }
-
-            $originalQty = (float) $originalMovement->quantity;
-            $newTotalQty = $originalQty + $delta;
-
-            if ($newTotalQty <= 0) {
-                $newTotalQty = 0.001;
-                Log::warning('Корректировка обнулила перемещение — выставлено минимальное значение', [
-                    'batch_id'     => $batch->id,
-                    'original_qty' => $originalQty,
-                    'delta'        => $delta,
-                ]);
-            }
-
-            $updateData = [
-                'from_store_id' => $originalMovement->from_store_id,
-                'to_store_id'   => $originalMovement->to_store_id,
-                'products'      => [['product_id' => $product->moysklad_id, 'quantity' => $newTotalQty]],
-                'name'          => 'Партия: ' . ($batch->batch_number ?? '№' . $batch->id),
-                'description'   => 'Скорректировано. Новый остаток: ' . number_format($newRemaining, 3) . ' м³',
-            ];
-
-            $result = $this->moveService->updateMove($originalMovement->moysklad_move_id, $updateData);
-
-            if ($result['success']) {
-                $originalMovement->update(['quantity' => $newTotalQty]);
-                $movement->update([
-                    'moysklad_move_id' => $originalMovement->moysklad_move_id,
-                    'moysklad_synced'  => true,
-                ]);
-                Log::info('Перемещение обновлено в МойСклад', [
-                    'move_id'  => $originalMovement->moysklad_move_id,
-                    'batch_id' => $batch->id,
-                    'old_qty'  => $originalQty,
-                    'delta'    => $delta,
-                    'new_qty'  => $newTotalQty,
-                ]);
-                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
-            } else {
-                Log::warning('Ошибка обновления перемещения в МойСклад', [
-                    'error'    => $result['message'],
-                    'batch_id' => $batch->id,
-                ]);
-            }
-        } catch (\Exception $e) {
-            Log::error('Исключение при синхронизации корректировки с МойСклад', [
-                'error'    => $e->getMessage(),
-                'batch_id' => $batch->id,
-            ]);
-        }
-    }
-
-    /**
-     * Синхронизирует/пересинхронизирует основное перемещение партии с МойСклад.
-     * Используется для ретрая из контроллера.
-     * Возвращает ['success' => bool, 'code' => string, 'message' => string].
-     */
-    public function syncBatchMove(RawMaterialBatch $batch): array
-    {
-        $product = $batch->product;
-        if (!$product?->moysklad_id) {
-            $err = 'Товар не синхронизирован с МойСклад';
-            $batch->markSyncError($err);
-            return ['success' => false, 'code' => 'not_synced', 'message' => $err];
-        }
-
-        $movement = $batch->movements()
-            ->whereIn('movement_type', ['create', 'transfer_to_worker'])
-            ->orderBy('created_at')
-            ->first();
-
-        if (!$movement) {
-            $err = 'Нет перемещения для синхронизации';
-            $batch->markSyncError($err);
-            return ['success' => false, 'code' => 'not_synced', 'message' => $err];
-        }
-
-        try {
-            $batchNumber = $batch->batch_number ?? $batch->id;
-            $moveName    = 'Партия: ' . $batchNumber;
-
-            if ($movement->moysklad_move_id) {
-                $result = $this->moveService->updateMove($movement->moysklad_move_id, [
-                    'from_store_id' => $movement->from_store_id,
-                    'to_store_id'   => $movement->to_store_id,
-                    'products'      => [['product_id' => $product->moysklad_id, 'quantity' => (float) $batch->initial_quantity]],
-                    'name'          => $moveName,
-                ]);
-                $moveId = $movement->moysklad_move_id;
-            } else {
-                $moveData = [
-                    'from_store_id' => $movement->from_store_id,
-                    'to_store_id'   => $movement->to_store_id,
-                    'products'      => [['product_id' => $product->moysklad_id, 'quantity' => (float) $batch->initial_quantity]],
-                    'name'          => $moveName,
-                    'description'   => 'Автоматическое перемещение из системы',
-                    'external_id'   => 'movement_' . $movement->id,
-                    'created_at'    => $batch->created_at,
-                ];
-                $result = $this->moveService->createMove($moveData);
-
-                if (!$result['success'] && $result['code'] === 'duplicate_name') {
-                    $moveName         = DocumentNaming::nextSuffix($moveName);
-                    $moveData['name'] = $moveName;
-                    $result           = $this->moveService->createMove($moveData);
-                }
-
-                $moveId = $result['move_id'] ?? null;
-
-                if ($result['success'] && $moveId) {
-                    $movement->update(['moysklad_move_id' => $moveId, 'moysklad_synced' => true]);
-                }
-            }
-
-            // МойСклад ответил успехом, но без id документа — считать синхронизацией нельзя:
-            // markSynced(null) упал бы TypeError'ом
-            if ($result['success'] && ! $moveId) {
-                $result = ['success' => false, 'code' => 'api_error', 'message' => 'МойСклад не вернул id перемещения'];
-            }
-
-            if ($result['success']) {
-                $batch->markSynced($moveId, $moveName);
-                Log::info('Партия синхронизирована с МойСклад (retry)', [
-                    'batch_id' => $batch->id,
-                    'move_id'  => $moveId,
-                ]);
-                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
-                return ['success' => true, 'code' => 'ok', 'message' => 'Синхронизировано'];
-            }
-
-            $batch->markSyncError($result['message']);
-            return [
-                'success' => false,
-                'code'    => $result['code'] ?? 'api_error',
-                'message' => $result['message'],
-            ];
-
-        } catch (\Throwable $e) {
-            $batch->markSyncError($e->getMessage());
-            Log::error('Исключение при синхронизации партии с МойСклад', [
-                'error'    => $e->getMessage(),
-                'batch_id' => $batch->id,
-            ]);
-            return ['success' => false, 'code' => 'exception', 'message' => $e->getMessage()];
-        }
-    }
-
-    /**
-     * Обновляет количество в оригинальном перемещении родительской партии.
-     * Вызывается после transfer() и return() — когда у родительской партии
-     * изменился remaining_quantity или initial_quantity.
+     * Задача очереди: привести перемещение в МойСклад к текущей партии. Перемещение равно партии,
+     * количество читается при выполнении, поэтому повтор не применит изменение дважды.
      *
-     * @param float|null $quantity Если null — используется remaining_quantity партии.
+     * @param array $alsoRefresh moysklad_id товаров, остатки которых тоже надо перечитать
+     * @return array ['success', 'message', 'retryable']
      */
-    public function updateParentMove(RawMaterialBatch $batch, ?float $quantity = null): void
+    public function pushBatch(RawMaterialBatch $batch, array $alsoRefresh = []): array
     {
-        $product = $batch->product;
-        if (!$product?->moysklad_id) {
-            return;
-        }
-
-        $batch->refresh();
-        $qty = $quantity ?? (float) $batch->remaining_quantity;
+        $this->moveService->resetTransientFailure();
 
         try {
-            // Первичное движение — как в syncBatchMove: партия может появиться и передачей работнику
-            $originalMovement = $batch->movements()
-                ->whereIn('movement_type', ['create', 'transfer_to_worker'])
-                ->orderBy('created_at')
-                ->first();
+            $reason = $batch->moveBlockReason();
+            if ($reason) {
+                $batch->markSyncError($reason);
+                return $this->outcome(false, $reason);
+            }
 
-            // Берём move_id из движения; если там null — fallback на batch.moysklad_processing_id
-            $moveId = $originalMovement?->moysklad_move_id ?? $batch->moysklad_processing_id;
+            $movement = $batch->primaryMovement();
+            if (!$movement->from_store_id || !$movement->to_store_id) {
+                $batch->markSyncError('Нет складов перемещения');
+                return $this->outcome(false, 'Нет складов перемещения');
+            }
+
+            $externalCode = DocumentNaming::externalCode('movement', $movement->id);
+            $moveId       = $movement->moysklad_move_id ?? $batch->moysklad_processing_id;
+            $name         = $batch->moysklad_processing_name;
 
             if (!$moveId) {
-                Log::info('Нет MoySklad перемещения для обновления родительской партии', [
-                    'batch_id' => $batch->id,
-                ]);
-                return;
+                // Таймаут мог оборвать ответ на принятый POST: без поиска повтор создал бы второе
+                // перемещение, и остатки в МойСклад задвоились бы.
+                $found = $this->moveService->findMoveByExternalCode($externalCode);
+
+                if ($found === false) {
+                    $message = 'МойСклад не ответил: не удалось проверить, создано ли перемещение';
+                    $batch->markSyncError($message);
+                    return $this->outcome(false, $message);
+                }
+
+                $moveId = $found['id'] ?? null;
+                $name   = $found['name'] ?? $name;
             }
 
-            // Без складов перемещение не собрать: fallback на moysklad_processing_id даёт id,
-            // но не склады, а null в getEntityMeta — TypeError
-            if (! $originalMovement?->from_store_id || ! $originalMovement?->to_store_id) {
-                Log::warning('Нет складов перемещения родительской партии — обновление пропущено', [
-                    'batch_id' => $batch->id,
-                ]);
-                return;
+            $result = $moveId
+                ? $this->moveService->updateMove($moveId, $this->moveData($batch, $movement) + [
+                    'name'        => $name,
+                    'description' => 'Обновлено через систему. Количество: ' . number_format($batch->moveQuantity(), 3) . ' м³',
+                ])
+                : $this->createMove($batch, $movement, $externalCode);
+
+            $moveId = $moveId ?: ($result['move_id'] ?? null);
+            $name   = $result['name'] ?? $name;
+
+            // МойСклад ответил успехом, но без id документа — считать синхронизацией нельзя
+            if ($result['success'] && !$moveId) {
+                $result = ['success' => false, 'message' => 'МойСклад не вернул id перемещения'];
             }
 
-            $result = $this->moveService->updateMove($moveId, [
-                'from_store_id' => $originalMovement?->from_store_id,
-                'to_store_id'   => $originalMovement?->to_store_id,
-                'products'      => [['product_id' => $product->moysklad_id, 'quantity' => $qty]],
-            ]);
-
-            if ($result['success']) {
-                $this->stockSyncService->refreshProducts([$product->moysklad_id]);
-            } else {
-                Log::warning('Ошибка обновления перемещения родительской партии', [
-                    'error'    => $result['message'],
+            if (!$result['success']) {
+                $batch->markSyncError($result['message']);
+                Log::warning('pushBatch: не удалось отправить перемещение', [
                     'batch_id' => $batch->id,
+                    'message'  => $result['message'],
                 ]);
+                return $this->outcome(false, $result['message']);
             }
+
+            $movement->update(['moysklad_move_id' => $moveId, 'moysklad_synced' => true]);
+            $batch->markSynced($moveId, $name);
+            $this->stockSyncService->refreshProducts([$batch->product->moysklad_id, ...$alsoRefresh]);
+
+            return $this->outcome(true, 'Синхронизировано');
         } catch (\Throwable $e) {
-            Log::error('Исключение при обновлении перемещения родительской партии', [
-                'error'    => $e->getMessage(),
-                'batch_id' => $batch->id,
-            ]);
+            $batch->markSyncError($e->getMessage());
+            Log::error('pushBatch: исключение', ['batch_id' => $batch->id, 'error' => $e->getMessage()]);
+            return $this->outcome(false, $e->getMessage());
         }
     }
 
     /**
-     * Удаляет перемещение партии в МойСклад и подтягивает остатки товара.
-     * Вызывается после локального удаления новой партии.
+     * Удалить перемещение уже удалённой партии и подтянуть остатки товаров.
+     * Без id ищет по внешнему коду: партию могли удалить, пока её создание ждало в очереди.
+     *
+     * @return array ['success', 'message', 'retryable']
      */
-    public function deleteMove(string $moveId, ?string $productMoyskladId): void
+    public function deleteDocument(?string $moveId, string $externalCode, array $moyskladIds = []): array
     {
-        try {
-            $result = $this->moveService->deleteMove($moveId);
+        $this->moveService->resetTransientFailure();
 
-            if ($result['success']) {
-                $this->stockSyncService->refreshProducts([$productMoyskladId]);
-            } else {
-                Log::warning('Не удалось удалить перемещение в МойСклад при удалении партии', [
-                    'move_id' => $moveId,
-                    'error'   => $result['message'],
-                ]);
+        if (!$moveId) {
+            $found = $this->moveService->findMoveByExternalCode($externalCode);
+
+            if ($found === false) {
+                return $this->outcome(false, 'МойСклад не ответил при поиске перемещения');
             }
-        } catch (\Exception $e) {
-            Log::error('Исключение при удалении перемещения в МойСклад', [
-                'move_id' => $moveId,
-                'error'   => $e->getMessage(),
-            ]);
+
+            $moveId = $found['id'] ?? null;
+
+            if (!$moveId) {
+                return $this->outcome(true, 'Перемещение не создавалось');
+            }
         }
+
+        $result = $this->moveService->deleteMove($moveId);
+
+        if ($result['success']) {
+            $this->stockSyncService->refreshProducts($moyskladIds);
+        }
+
+        return $this->outcome($result['success'], $result['message']);
+    }
+
+    private function createMove(RawMaterialBatch $batch, RawMaterialMovement $movement, string $externalCode): array
+    {
+        $isReturn = $movement->movement_type === 'return_to_store';
+        $prefix   = $isReturn ? 'Возврат партии: ' : 'Партия: ';
+        $number   = (string) ($batch->batch_number ?? ($isReturn ? '№' . $batch->id : $batch->id));
+        $original = $number;
+        $result   = [];
+
+        for ($attempt = 0; $attempt < self::NAME_ATTEMPTS; $attempt++) {
+            $result = $this->moveService->createMove($this->moveData($batch, $movement) + [
+                'name'        => $prefix . $number,
+                'description' => $isReturn
+                    ? 'Автоматический возврат партии на склад из системы'
+                    : 'Автоматическое перемещение из системы',
+                'external_id' => $externalCode,
+            ]);
+
+            if ($result['success'] || ($result['code'] ?? '') !== 'duplicate_name') {
+                break;
+            }
+
+            $number = DocumentNaming::nextSuffix($number);
+        }
+
+        if ($result['success'] && !$isReturn && $number !== $original) {
+            $batch->update(['batch_number' => $number]);
+        }
+
+        return $result + ['name' => $prefix . $number];
+    }
+
+    /** Общие поля перемещения: склады, товар и дата читаются из записи при выполнении. */
+    private function moveData(RawMaterialBatch $batch, RawMaterialMovement $movement): array
+    {
+        return [
+            'from_store_id' => $movement->from_store_id,
+            'to_store_id'   => $movement->to_store_id,
+            'products'      => [['product_id' => $batch->product->moysklad_id, 'quantity' => $batch->moveQuantity()]],
+            'created_at'    => $batch->created_at,
+        ];
+    }
+
+    private function outcome(bool $success, string $message): array
+    {
+        return [
+            'success'   => $success,
+            'message'   => $message,
+            'retryable' => $this->moveService->hadTransientFailure(),
+        ];
     }
 }

@@ -7,7 +7,7 @@ use App\Services\Moysklad\StoneReceptionSyncService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Queue\Attributes\WithoutRelations;
 
-class SyncReceptionToMoysklad extends SyncProcessingJob
+class SyncReceptionToMoysklad extends SyncDocumentJob
 {
     /**
      * @param array $alsoRefresh moysklad_id товаров «до правки»: убранные позиции и сырьё прежней

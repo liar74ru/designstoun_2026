@@ -42,6 +42,17 @@ abstract class MoySkladBaseService
         }
     }
 
+    /** Для сервисов-обёрток: сброс перед действием и чтение признака после него. */
+    public function resetTransientFailure(): void
+    {
+        $this->transientFailure = false;
+    }
+
+    public function hadTransientFailure(): bool
+    {
+        return $this->transientFailure;
+    }
+
     public function hasCredentials(): bool
     {
         return !empty($this->token);

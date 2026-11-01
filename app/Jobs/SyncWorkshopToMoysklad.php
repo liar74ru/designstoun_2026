@@ -7,7 +7,7 @@ use App\Services\Moysklad\WorkshopSyncService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Queue\Attributes\WithoutRelations;
 
-class SyncWorkshopToMoysklad extends SyncProcessingJob
+class SyncWorkshopToMoysklad extends SyncDocumentJob
 {
     public function __construct(
         #[WithoutRelations]

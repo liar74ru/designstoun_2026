@@ -16,8 +16,6 @@ class DeleteProcessingInMoysklad implements ShouldQueue
 {
     use Queueable;
 
-    private const BACKOFF = [30, 60, 120, 300, 900];
-
     public int $tries = 6;
 
     public int $timeout = 300;
@@ -42,7 +40,7 @@ class DeleteProcessingInMoysklad implements ShouldQueue
             return;
         }
 
-        $this->release(self::BACKOFF[$this->attempts() - 1]);
+        $this->release(SyncDocumentJob::BACKOFF[$this->attempts() - 1]);
     }
 
     public function failed(?Throwable $e): void

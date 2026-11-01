@@ -184,7 +184,8 @@ class MoySkladMoveService extends MoySkladBaseService
     }
 
     /**
-     * Удалить перемещение в МойСклад (DELETE /entity/move/{id})
+     * Удалить перемещение в МойСклад (DELETE /entity/move/{id}). 404 — его уже нет (прошлая
+     * попытка удалила, но ответ потерялся), это успех.
      *
      * @param string $moveId UUID перемещения в МойСклад
      * @return array ['success' => bool, 'message' => string]
@@ -201,7 +202,7 @@ class MoySkladMoveService extends MoySkladBaseService
         try {
             $response = $this->delete('/entity/move/' . $moveId);
 
-            if ($response->status() === 200 || $response->status() === 204) {
+            if (in_array($response->status(), [200, 204, 404], true)) {
                 $result['success'] = true;
                 $result['message'] = 'Перемещение удалено';
                 Log::info('Перемещение удалено в МойСклад', ['move_id' => $moveId]);
@@ -226,6 +227,30 @@ class MoySkladMoveService extends MoySkladBaseService
             ]);
             return $result;
         }
+    }
+
+    /**
+     * Найти перемещение по внешнему коду.
+     *
+     * @return array|false Строка перемещения; [] — такого нет; false — МойСклад не ответил.
+     */
+    public function findMoveByExternalCode(string $externalCode): array|false
+    {
+        if (!$this->hasCredentials()) {
+            return []; // Об отсутствии токена сообщит создание перемещения
+        }
+
+        $data = $this->get('/entity/move', [
+            'filter' => 'externalCode=' . $externalCode,
+            'limit'  => 1,
+        ]);
+
+        if ($data === null) {
+            $this->transientFailure = true;
+            return false;
+        }
+
+        return $data['rows'][0] ?? [];
     }
 
     private function preparePositions(array $products): array

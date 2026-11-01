@@ -249,17 +249,23 @@ describe('MoySkladMoveService::deleteMove() — HTTP', function () {
     });
 
     test('ошибка API — success=false с HTTP-кодом, без исключения', function () {
-        mvHttpFake(['DELETE /entity/move/move-9' => Http::response(['errors' => [['title' => 'Не найдено', 'error' => 'Объект не найден']]], 404)]);
+        mvHttpFake(['DELETE /entity/move/move-9' => Http::response(['errors' => [['title' => 'Отказ', 'error' => 'Документ заблокирован']]], 423)]);
 
         $result = (new MoySkladMoveService())->deleteMove('move-9');
 
         expect($result['success'])->toBeFalse()
-            ->and($result['message'])->toContain('Объект не найден')
-            ->and($result['message'])->toContain('HTTP 404');
+            ->and($result['message'])->toContain('Документ заблокирован')
+            ->and($result['message'])->toContain('HTTP 423');
+    });
+
+    test('404 — уже удалено, это успех', function () {
+        mvHttpFake(['DELETE /entity/move/move-9' => Http::response(['errors' => [['error' => 'Объект не найден']]], 404)]);
+
+        expect((new MoySkladMoveService())->deleteMove('move-9')['success'])->toBeTrue();
     });
 
     test('ответ только с title — берётся он', function () {
-        mvHttpFake(['DELETE /entity/move/move-9' => Http::response(['errors' => [['title' => 'Не найдено']]], 404)]);
+        mvHttpFake(['DELETE /entity/move/move-9' => Http::response(['errors' => [['title' => 'Не найдено']]], 423)]);
 
         expect((new MoySkladMoveService())->deleteMove('move-9')['message'])->toContain('Не найдено');
     });

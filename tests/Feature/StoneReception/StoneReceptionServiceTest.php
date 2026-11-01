@@ -11,24 +11,19 @@ use App\Models\StoneReceptionItem;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
-use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 
 /**
  * Сборка StoneReceptionService с моками для тестов.
- * Конструктор принимает 3 зависимости — две из них (batchService, batchSyncService)
- * нужны только для split-логики при создании повторной приёмки на партии.
+ * Единственная зависимость — batchService, нужна только для split-логики при создании
+ * повторной приёмки на партии. Очередь подменена: МойСклад здесь не участвует.
  */
 function makeStoneReceptionService(): StoneReceptionService
 {
     Queue::fake();
 
-    $mockBatchSync = \Mockery::mock(RawMaterialBatchSyncService::class);
-    $mockBatchSync->shouldReceive('syncCreated')->andReturn(null);
-    $mockBatchSync->shouldReceive('updateParentMove')->andReturn(null);
-
-    return new StoneReceptionService(app(RawMaterialBatchService::class), $mockBatchSync);
+    return new StoneReceptionService(app(RawMaterialBatchService::class));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

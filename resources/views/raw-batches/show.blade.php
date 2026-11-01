@@ -113,7 +113,7 @@
                 <x-moysklad-sync-status
                     :model="$batch"
                     :sync-route="route('raw-batches.sync', $batch)"
-                    :show-button="$batch->status !== 'archived' && auth()->user()->can('modify', $batch)"
+                    :show-button="$batch->status !== 'archived' && !$batch->primaryMovement()?->merged_into_move && auth()->user()->can('modify', $batch)"
                     empty-text="Перемещение не создано"
                     create-text="Создать перемещение" />
 

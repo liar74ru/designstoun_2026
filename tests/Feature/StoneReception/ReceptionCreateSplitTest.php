@@ -2,10 +2,10 @@
 
 use App\Exceptions\InsufficientRawMaterialException;
 use Illuminate\Support\Facades\Queue;
+use App\Jobs\SyncBatchToMoysklad;
 use App\Jobs\SyncReceptionToMoysklad;
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
-use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Tests\Helpers\ReceptionTestHelper as H;
@@ -34,24 +34,21 @@ function rcsBatchWithHistory(): array
     return ['batch' => $batch->fresh(), 'active' => $active, 'receiver' => $receiver];
 }
 
-function rcsService(RawMaterialBatchSyncService $batchSync): StoneReceptionService
+function rcsService(): StoneReceptionService
 {
-    return new StoneReceptionService(app(RawMaterialBatchService::class), $batchSync);
+    return new StoneReceptionService(app(RawMaterialBatchService::class));
 }
 
 test('приёмка не сохранилась — партия не разделена, прежняя приёмка активна, МойСклад не вызван', function () {
     ['batch' => $batch, 'active' => $active, 'receiver' => $receiver] = rcsBatchWithHistory();
 
-    $batchSync = Mockery::mock(RawMaterialBatchSyncService::class);
-    $batchSync->shouldNotReceive('syncCreated');
-    $batchSync->shouldNotReceive('updateParentMove');
     Queue::fake();
 
     // 8 м³ при остатке 6: предварительную проверку контроллера обходим —
     // так выглядит приёмка, у которой остаток забрали между проверкой и сохранением
     $data = H::receptionPostData($receiver, $batch->currentWorker, $batch->currentStore, $batch, 8.0);
 
-    expect(fn () => rcsService($batchSync)->create($data, false))
+    expect(fn () => rcsService()->create($data, false))
         ->toThrow(InsufficientRawMaterialException::class);
 
     expect(RawMaterialBatch::count())->toBe(1);
@@ -66,24 +63,16 @@ test('приёмка не сохранилась — партия не разд�
     Queue::assertNothingPushed();
 });
 
-test('разделение уходит в МойСклад после того, как приёмка сохранена', function () {
+test('разделение ставится в очередь после сохранения приёмки: дочерняя партия, затем родитель', function () {
     ['batch' => $parent, 'active' => $active, 'receiver' => $receiver] = rcsBatchWithHistory();
 
-    $receptionsAtSync = null;
-    $batchSync = Mockery::mock(RawMaterialBatchSyncService::class);
-    $batchSync->shouldReceive('syncCreated')->once()
-        ->andReturnUsing(function (RawMaterialBatch $child) use (&$receptionsAtSync) {
-            $receptionsAtSync = StoneReception::where('raw_material_batch_id', $child->id)->count();
-        });
-    $batchSync->shouldReceive('updateParentMove')->once()
-        ->withArgs(fn (RawMaterialBatch $batch, float $qty) => $batch->id === $parent->id && $qty === 4.0);
     Queue::fake();
 
     $data = H::receptionPostData($receiver, $parent->currentWorker, $parent->currentStore, $parent, 2.0);
 
-    $reception = rcsService($batchSync)->create($data, false);
+    $reception = rcsService()->create($data, false);
 
-    expect($receptionsAtSync)->toBe(1);
+    // Порядок задач: дочерняя партия, родитель, затем приёмка
     Queue::assertPushed(SyncReceptionToMoysklad::class, fn ($job) => $job->reception->is($reception));
 
     $child = RawMaterialBatch::whereKeyNot($parent->id)->sole();
@@ -91,4 +80,7 @@ test('разделение уходит в МойСклад после того,
     expect((float) $child->remaining_quantity)->toBe(4.0);
     expect($parent->fresh()->status)->toBe(RawMaterialBatch::STATUS_USED);
     expect($active->fresh()->status)->toBe(StoneReception::STATUS_COMPLETED);
+
+    expect(array_map(fn ($entry) => $entry['job']->batch->id, Queue::pushedJobs()[SyncBatchToMoysklad::class]))
+        ->toBe([$child->id, $parent->id]);
 });

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Jobs\DeleteMoveInMoysklad;
+use App\Jobs\SyncBatchToMoysklad;
 use App\Exceptions\InsufficientRawMaterialException;
 use App\Models\Department;
 use App\Models\Product;
@@ -12,6 +14,7 @@ use App\Models\Store;
 use App\Models\StoneReception;
 use App\Models\Worker;
 use App\Support\BatchStock;
+use App\Support\DocumentNaming;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -211,6 +214,44 @@ class RawMaterialBatchService
             ?? Worker::find($data['worker_id'] ?? null)?->department_id;
     }
 
+    /**
+     * Поставить отправку партии в МойСклад в очередь. Вызывается после транзакции. Что отправлять,
+     * задача читает из записи при выполнении; партии без своего перемещения отправлять нечего.
+     *
+     * @param array $alsoRefresh moysklad_id товаров, остатки которых тоже надо перечитать
+     */
+    public function queueSync(RawMaterialBatch $batch, array $alsoRefresh = []): void
+    {
+        if ($batch->moveBlockReason()) {
+            return;
+        }
+
+        $batch->markSyncPending();
+
+        SyncBatchToMoysklad::dispatch($batch, $alsoRefresh);
+    }
+
+    /**
+     * Ручной повтор отправки.
+     *
+     * @return string|null Почему отправлять нечего; null — задача поставлена.
+     */
+    public function retrySync(RawMaterialBatch $batch): ?string
+    {
+        $reason = $batch->moveBlockReason();
+
+        if (!$reason) {
+            $this->queueSync($batch);
+            return null;
+        }
+
+        if (!$batch->primaryMovement()?->merged_into_move) {
+            $batch->markSyncError($reason);
+        }
+
+        return $reason;
+    }
+
     public function updateDepartment(RawMaterialBatch $batch, int $departmentId): void
     {
         $batch->update(['department_id' => $departmentId]);
@@ -298,6 +339,9 @@ class RawMaterialBatchService
             ];
 
             $movementData = [];
+            if ($quantityChanged) {
+                $movementData['quantity'] = $newQuantity;
+            }
             if ($fromStoreChanged || $toStoreChanged) {
                 $movementData['from_store_id'] = $newFromStoreId;
                 $movementData['to_store_id']   = $newToStoreId;
@@ -326,18 +370,16 @@ class RawMaterialBatchService
     }
 
     /**
-     * Удалить новую партию, восстановив остатки.
-     * Возвращает moysklad_move_id до удаления — чтобы контроллер мог удалить Move в МойСклад.
+     * Удалить новую партию, восстановив остатки. Перемещение в МойСклад удаляет задача: записи уже
+     * нет, поэтому в неё уходят значения. Без id она найдёт его по внешнему коду: партию могли
+     * удалить, пока её создание ждало в очереди.
      */
-    public function deleteNew(RawMaterialBatch $batch): ?string
+    public function deleteNew(RawMaterialBatch $batch): void
     {
-        $originalMovement = $batch->movements()
-            ->where('movement_type', 'create')
-            ->whereNotNull('moysklad_move_id')
-            ->orderBy('created_at')
-            ->first();
-
-        $moyskladMoveId = $originalMovement?->moysklad_move_id;
+        $movement          = $batch->primaryMovement();
+        $moyskladMoveId    = $movement?->moysklad_move_id ?? $batch->moysklad_processing_id;
+        $productMoyskladId = $batch->product?->moysklad_id;
+        $hasDocument       = $movement && ($moyskladMoveId || !$batch->moveBlockReason());
 
         DB::transaction(function () use ($batch) {
             BatchStock::lock($batch);
@@ -348,7 +390,13 @@ class RawMaterialBatchService
             $batch->delete();
         });
 
-        return $moyskladMoveId;
+        if ($hasDocument) {
+            DeleteMoveInMoysklad::dispatch(
+                $moyskladMoveId,
+                DocumentNaming::externalCode('movement', $movement->id),
+                array_filter([$productMoyskladId])
+            );
+        }
     }
 
     /**
@@ -377,6 +425,8 @@ class RawMaterialBatchService
                 'remaining_quantity' => $newRemaining,
                 'initial_quantity'   => (float) $batch->initial_quantity + $delta,
             ]);
+
+            $batch->primaryMovement()?->update(['quantity' => (float) $batch->initial_quantity]);
 
             $this->adjustStock($batch->product_id, $batchStoreId, $delta);
 
@@ -577,7 +627,13 @@ class RawMaterialBatchService
         $newBatch  = null;
         $movement  = null;
 
-        DB::transaction(function () use ($batch, $data, $qty, $oldStore, $oldWorker, &$newBatch, &$movement) {
+        // Вернули туда, откуда взяли: перемещение просто уменьшается, отдельное не нужно. На другой
+        // склад сырьё едет из цеха отдельным перемещением, а исходное остаётся как было.
+        $primary = $batch->primaryMovement();
+        $merged  = $primary?->movement_type !== 'return_to_store'
+            && $primary?->from_store_id === $data['to_store_id'];
+
+        DB::transaction(function () use ($batch, $data, $qty, $oldStore, $oldWorker, $merged, &$newBatch, &$movement) {
             BatchStock::lock($batch);
             BatchStock::ensureAvailable($batch, $qty, 'quantity');
             $newRemaining = (float) $batch->remaining_quantity - $qty;
@@ -594,6 +650,7 @@ class RawMaterialBatchService
                 'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => 'return_to_store',
                 'quantity'       => $qty,
+                'merged_into_move' => $merged,
             ]);
 
             $newBatch = RawMaterialBatch::create([
@@ -616,6 +673,7 @@ class RawMaterialBatchService
                 'moved_by'       => auth()->user()?->worker_id ?? null,
                 'movement_type'  => 'return_to_store',
                 'quantity'       => $qty,
+                'merged_into_move' => $merged,
             ]);
 
             $this->adjustStock($batch->product_id, $oldStore, -$qty);

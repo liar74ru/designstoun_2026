@@ -8,7 +8,6 @@ use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Services\DepartmentModifierService;
-use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Illuminate\Support\Facades\Cache;
@@ -24,11 +23,7 @@ function makeReceptionServiceForEdging(): StoneReceptionService
 {
     Queue::fake();
 
-    $mockBatchSync = \Mockery::mock(RawMaterialBatchSyncService::class);
-    $mockBatchSync->shouldReceive('syncCreated')->andReturn(null);
-    $mockBatchSync->shouldReceive('updateParentMove')->andReturn(null);
-
-    return new StoneReceptionService(app(RawMaterialBatchService::class), $mockBatchSync);
+    return new StoneReceptionService(app(RawMaterialBatchService::class));
 }
 
 function makeEdgingFixtures(): array

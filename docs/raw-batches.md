@@ -134,15 +134,26 @@
 
 - Партия передаётся в МойСклад как **перемещение** «Партия: номер» со склада-источника на
   склад-назначение. Техоперации создаёт не партия, а приёмка.
+- **Перемещение равно партии.** Изменили партию или скорректировали её количество — меняется то же
+  перемещение. Партия 10 м³, корректировка `-1` → в перемещении 9.
+- **Передача пильщику:** исходное перемещение уменьшается, у новой партии появляется своё.
+- **Возврат на склад-источник:** исходное перемещение уменьшается, отдельного перемещения нет. Партия
+  10 м³, вернули 2 → в перемещении 8. Количество партии в программе при этом не меняется, уменьшается
+  остаток.
+- **Возврат на другой склад:** исходное перемещение не меняется, создаётся отдельное «Возврат партии: …»
+  из цеха на этот склад.
+- Если партию передали или вернули полностью, в перемещении остаётся 0,001: пустым оно быть не может.
 - Если имя уже занято, к номеру добавляется суффикс `_01`, и партия получает этот номер.
-- Изменение партии и корректировка правят то же перемещение. Возврат на склад создаёт
-  отдельное перемещение «Возврат партии: …», передача пильщику — перемещение новой партии.
-- **Ошибка МойСклад не отменяет действие в программе.** При создании партии ошибка видна в
-  блоке «МойСклад» карточки (плашка «Не синхр» и текст ошибки); кнопка «Синхронизировать с
-  МойСклад» / «Создать перемещение» повторяет отправку. Ошибки корректировки, изменения и
-  возврата в карточке не показываются — они попадают только в журнал программы.
+- **Отправка идёт в фоне:** действие в программе выполняется сразу. Пока документ в пути, в блоке
+  «МойСклад» карточки стоит серая пометка **«Ожидает»**; обычно это секунды. Результат виден после
+  обновления страницы. МойСклад недоступен — программа сама повторяет отправку ещё несколько раз в течение
+  примерно получаса.
+- **Ошибка МойСклад не отменяет действие в программе.** Она видна в блоке «МойСклад» карточки (плашка
+  «Не синхр» и текст ошибки); кнопка «Синхронизировать с МойСклад» / «Создать перемещение» повторяет
+  отправку. Она же выручит, если партия долго «Ожидает».
 - Сырьё, не связанное с товаром МойСклад, в МойСклад не отправляется: в карточке будет
-  «Перемещение не создано».
+  «Перемещение не создано». То же у партии «Возвращена», вернувшейся на склад-источник: возврат учтён в
+  исходном перемещении, поэтому кнопки отправки у неё нет.
 
 ## 8. Отделы и видимость
 
@@ -169,7 +180,7 @@
 | 4. Изменение | `RawMaterialBatchController::adjust`, `update`, `destroyNew`, `destroy`; `RawMaterialBatchService::adjust`, `update`, `deleteNew` | `RawBatch/RawMaterialBatchServiceTest`, `RawBatch/RawBatchNewStatusTest`, `RawBatch/RawBatchPagesTest` |
 | 5. Передача / возврат | `RawMaterialBatchService::transfer`, `returnToStore`; `RawMaterialBatch::canBeTransferredOrReturned` | `RawBatch/RawBatchTransferTest`, `RawMovementStore/RawMovementStoreTest` |
 | 6. Разделение | `RawMaterialBatchService::split`, `StoneReceptionService::create` | `RawBatch/RawBatchSplitTest`, `StoneReception/ReceptionCreateSplitTest` |
-| 7. МойСклад | `Moysklad\RawMaterialBatchSyncService` (`syncCreated`, `syncEdited`, `syncAdjusted`, `syncReturned`, `updateParentMove`, `syncBatchMove`, `deleteMove`) | `RawBatch/RawBatchSyncActionTest` |
+| 7. МойСклад | `RawMaterialBatchService::queueSync`, `retrySync`, `returnToStore`; `RawMaterialBatch::primaryMovement`, `moveQuantity`, `moveBlockReason`; `Jobs\SyncBatchToMoysklad`, `Jobs\DeleteMoveInMoysklad`; `Moysklad\RawMaterialBatchSyncService::pushBatch`, `deleteDocument`; `Moysklad\MoySkladMoveService` | `tests/Feature/Moysklad/BatchSyncJobTest`, `MoveServiceHttpTest`, `MoyskladMoveServiceTest`, `RawBatchSyncActionTest` |
 | Одновременная работа | `App\Support\BatchStock` (`lock`, `ensureAvailable`, `syncStatus`), `App\Exceptions\InsufficientRawMaterialException`, `ManagesStock::adjustStock` | `RawBatch/BatchStockConcurrencyTest` |
 | 8. Видимость | `RawMaterialBatchService::getIndexData`, `updateDepartment`; `DepartmentAccess` | `RawBatch/RawBatchDepartmentAccessTest`, `RawBatch/RawBatchDepartmentChangeTest`, `Access/RecordDepartmentAccessTest` |
 
@@ -193,4 +204,9 @@
 - Отдел партии — только собственный `department_id` (`effectiveDepartmentChain`), без
   фолбэка на работника: работник меняется при передачах.
 - Перемещение МойСклад хранится в `moysklad_processing_id` партии и `moysklad_move_id`
-  движения `create` — поля названы по общему трейту `HasMoyskladSync`.
+  первичного движения — поля названы по общему трейту `HasMoyskladSync`.
+- `merged_into_move` у движений `return_to_store`: возврат вошёл в исходное перемещение. У возвратов до
+  4.0.2 он `false`, у них есть своё перемещение; при следующей отправке исходное такой партии вернётся к
+  полному количеству.
+- `RawMaterialBatchService::delete()` (`destroy`) перемещение в МойСклад не удаляет, это старая
+  нерешённая проблема.

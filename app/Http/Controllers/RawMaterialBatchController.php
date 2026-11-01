@@ -7,7 +7,6 @@ use App\Models\RawMaterialBatch;
 use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
-use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Support\DepartmentAccess;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +20,6 @@ class RawMaterialBatchController extends Controller
 {
     public function __construct(
         private RawMaterialBatchService $service,
-        private RawMaterialBatchSyncService $syncService,
     ) {}
 
     public function index(Request $request): View
@@ -175,13 +173,13 @@ class RawMaterialBatchController extends Controller
 
         // Нехватка на складе-источнике (в т.ч. если её успела забрать параллельная партия) —
         // InsufficientRawMaterialException → ошибка поля quantity
-        ['batch' => $batch, 'movement' => $movement] = $this->service->create(
+        ['batch' => $batch] = $this->service->create(
             $data,
             auth()->user()?->isAdmin() ?? false,
             checkSourceStock: !$ignoreStockCheck
         );
 
-        $this->syncService->syncCreated($batch, $movement);
+        $this->service->queueSync($batch);
 
         if ($request->input('and_reception')) {
             return redirect()->route('stone-receptions.create', [
@@ -251,12 +249,7 @@ class RawMaterialBatchController extends Controller
                 ->with('info', 'Изменений не обнаружено.');
         }
 
-        $this->syncService->syncEdited(
-            $result['batch'],
-            $result['newQuantity'],
-            $result['newCreatedAt'],
-            $result['previousProductMoyskladId']
-        );
+        $this->service->queueSync($result['batch'], array_filter([$result['previousProductMoyskladId']]));
 
         return redirect()->route('raw-batches.show', $batch)
             ->with('success', 'Партия обновлена.');
@@ -271,13 +264,7 @@ class RawMaterialBatchController extends Controller
                 ->with('error', 'Удалить можно только партии в статусе «Новая».');
         }
 
-        // Товар запоминаем до удаления: после него остаток перечитывается из МойСклад
-        $productMoyskladId = $batch->product?->moysklad_id;
-        $moyskladMoveId    = $this->service->deleteNew($batch);
-
-        if ($moyskladMoveId) {
-            $this->syncService->deleteMove($moyskladMoveId, $productMoyskladId);
-        }
+        $this->service->deleteNew($batch);
 
         return redirect()->route('raw-batches.index')
             ->with('success', 'Партия удалена.');
@@ -330,7 +317,7 @@ class RawMaterialBatchController extends Controller
             $request->input('manual_created_at')
         );
 
-        $this->syncService->syncAdjusted($result['batch'], $result['movement'], $delta, $result['newRemaining']);
+        $this->service->queueSync($result['batch']);
 
         $action = $delta > 0
             ? 'добавлено ' . number_format($delta, 3) . ' м³'
@@ -448,10 +435,10 @@ class RawMaterialBatchController extends Controller
             'quantity'     => 'required|numeric|min:0.001|max:' . $batch->remaining_quantity,
         ]);
 
-        ['newBatch' => $newBatch, 'newMovement' => $newMovement] = $this->service->transfer($batch, $data);
+        ['newBatch' => $newBatch] = $this->service->transfer($batch, $data);
 
-        $this->syncService->syncCreated($newBatch, $newMovement);
-        $this->syncService->updateParentMove($batch, (float) $batch->fresh()->initial_quantity);
+        $this->service->queueSync($newBatch);
+        $this->service->queueSync($batch);
 
         return redirect()->route('raw-batches.show', $batch)
             ->with('success', 'Часть партии передана пильщику.');
@@ -490,14 +477,8 @@ class RawMaterialBatchController extends Controller
 
         $result = $this->service->returnToStore($batch, $data);
 
-        $this->syncService->syncReturned(
-            $result['newBatch'],
-            $result['movement'],
-            $result['oldStore'],
-            $result['toStoreId'],
-            $result['qty']
-        );
-        $this->syncService->updateParentMove($batch);
+        $this->service->queueSync($result['newBatch']);
+        $this->service->queueSync($batch);
 
         return redirect()->route('raw-batches.show', $batch)
             ->with('success', 'Часть партии возвращена на склад.');
@@ -507,13 +488,12 @@ class RawMaterialBatchController extends Controller
     {
         $this->authorize('modify', $batch);
 
-        $result = $this->syncService->syncBatchMove($batch);
-        $batch->refresh();
+        $reason = $this->service->retrySync($batch);
 
-        if ($result['success']) {
-            return redirect()->back()->with('success', 'Партия синхронизирована с МойСклад.');
+        if ($reason) {
+            return redirect()->back()->with('error', $reason);
         }
 
-        return redirect()->back()->with('error', 'Ошибка синхронизации: ' . $result['message']);
+        return redirect()->back()->with('success', 'Отправлено в МойСклад.');
     }
 }

@@ -6,7 +6,6 @@ use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Models\StoneReception;
-use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use App\Support\BatchStock;
@@ -34,7 +33,7 @@ function bsReceptionService(): StoneReceptionService
 {
     Queue::fake();
 
-    return new StoneReceptionService(app(RawMaterialBatchService::class), Mockery::mock(RawMaterialBatchSyncService::class));
+    return new StoneReceptionService(app(RawMaterialBatchService::class));
 }
 
 describe('Партия сырья: расчёт от свежего остатка', function () {

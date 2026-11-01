@@ -1,5 +1,7 @@
 <?php
 
+use App\Jobs\DeleteMoveInMoysklad;
+use Illuminate\Support\Facades\Queue;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
@@ -239,9 +241,10 @@ describe('RawMaterialBatchService::deleteNew()', function () {
         ]);
 
         $service = new RawMaterialBatchService();
-        $moyskladMoveId = $service->deleteNew($batch);
+        Queue::fake();
+        $service->deleteNew($batch);
 
-        expect($moyskladMoveId)->toBe('ms-move-123');
+        Queue::assertPushed(DeleteMoveInMoysklad::class, fn ($job) => $job->moveId === 'ms-move-123');
         expect(RawMaterialBatch::find($batch->id))->toBeNull();
     });
 });

@@ -7,7 +7,6 @@ use App\Models\RawMaterialBatch;
 use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
-use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Illuminate\Support\Facades\Cache;
@@ -28,11 +27,7 @@ function snapshotService(): StoneReceptionService
 {
     Queue::fake();
 
-    $batchSync = Mockery::mock(RawMaterialBatchSyncService::class);
-    $batchSync->shouldReceive('syncCreated')->andReturn(null);
-    $batchSync->shouldReceive('updateParentMove')->andReturn(null);
-
-    return new StoneReceptionService(app(RawMaterialBatchService::class), $batchSync);
+    return new StoneReceptionService(app(RawMaterialBatchService::class));
 }
 
 function snapshotFixtures(): array

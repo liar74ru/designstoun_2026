@@ -15,7 +15,6 @@ use App\Models\Store;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
 use App\Models\Worker;
-use App\Services\Moysklad\RawMaterialBatchSyncService;
 use App\Support\BatchStock;
 use App\Support\DepartmentSettings;
 use App\Support\DocumentNaming;
@@ -37,7 +36,6 @@ class StoneReceptionService
 
     public function __construct(
         private RawMaterialBatchService $batchService,
-        private RawMaterialBatchSyncService $batchSyncService,
     ) {}
 
     public function getFormOptions(?StoneReception $reception = null, ?int $cutterId = null): array
@@ -326,9 +324,10 @@ class StoneReceptionService
             );
         });
 
+        // Порядок задач: сперва перемещения партий, чтобы техоперация нашла сырьё на складе
         if ($split) {
-            $this->batchSyncService->syncCreated($split['newBatch'], $split['newMovement']);
-            $this->batchSyncService->updateParentMove($parentBatch, (float) $parentBatch->fresh()->initial_quantity);
+            $this->batchService->queueSync($split['newBatch']);
+            $this->batchService->queueSync($parentBatch);
         }
 
         $this->queueSync($reception, $processingName);

@@ -16,6 +16,10 @@ function mockMoySklad(bool $success = true): void
         'move_id' => 'msk-test-uuid',
         'message' => $success ? '' : 'API error',
     ]);
+    $mock->shouldReceive('updateMove')->andReturn(['success' => $success, 'move_id' => 'msk-test-uuid', 'message' => $success ? '' : 'API error']);
+    $mock->shouldReceive('findMoveByExternalCode')->andReturn([]);
+    $mock->shouldReceive('resetTransientFailure');
+    $mock->shouldReceive('hadTransientFailure')->andReturn(false);
     app()->instance(MoySkladMoveService::class, $mock);
 
     // Остатки после синхронизации из МойСклад не тянем — в тестах сети нет

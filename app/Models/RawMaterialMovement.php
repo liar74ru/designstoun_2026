@@ -17,12 +17,14 @@ class RawMaterialMovement extends Model
         'quantity',
         'moysklad_move_id',
         'moysklad_synced',
+        'merged_into_move',
         'created_at',
         'updated_at',
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:3',
+        'quantity'         => 'decimal:3',
+        'merged_into_move' => 'boolean',
     ];
 
     public function batch()
