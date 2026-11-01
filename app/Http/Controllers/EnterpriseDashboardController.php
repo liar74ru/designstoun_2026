@@ -34,12 +34,13 @@ class EnterpriseDashboardController extends Controller
         $departmentIds = array_filter((array) $request->input('filter.department_id', []));
         $rawProductId  = $request->input('filter.raw_product_id') ?: null;
         $productId     = $request->input('filter.product_id') ?: null;
+        $workerId      = $request->input('filter.worker_id') ?: null;
 
         // Не-админ (мастер/помощник) видит итоги только по своим отделам; админ — все (null).
         $restrictDepartmentIds = $request->user()->accessibleDepartmentIds();
 
         $data = $this->service->getEnterpriseDashboardData(
-            $dateFrom, $dateTo, $departmentIds, $rawProductId, $productId, $restrictDepartmentIds
+            $dateFrom, $dateTo, $departmentIds, $rawProductId, $productId, $restrictDepartmentIds, $workerId
         );
 
         return view('admin.enterprise-dashboard', $data);

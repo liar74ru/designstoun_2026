@@ -2,7 +2,7 @@
     Универсальный блок фильтров.
     Параметры:
       $filterCutters      — Collection|null  (null = скрыть поле)
-      $cutterParam        — string: 'cutter_id' | 'current_worker_id'
+      $cutterParam        — string: 'cutter_id' | 'current_worker_id' | 'packer_id' | 'worker_id'
       $cutterDefaultIds   — array|null: id работников короткого списка, остальные — по чекбоксу «Показать всех работников» (null = чекбокса нет)
       $filterRawProducts  — Collection|null  (null = скрыть поле)
       $rawProductParam    — string: 'raw_product_id' | 'raw_material_product_id' | 'product_id'

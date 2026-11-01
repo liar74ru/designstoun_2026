@@ -18,8 +18,11 @@
 
         @include('partials.alerts')
 
-        {{-- Фильтры: период + отдел + камень/сырьё + продукт (универсальный partial) --}}
+        {{-- Фильтры: период + работник + отдел + камень/сырьё + продукт (универсальный partial) --}}
         @include('partials.filters', [
+            'filterCutters'      => $filterWorkers,
+            'cutterParam'        => 'worker_id',
+            'cutterDefaultIds'   => $workerDefaultIds,
             'filterDepartments'  => $filterDepartments,
             'departmentDefaults' => [],
             'filterRawProducts'  => $filterRawProducts,

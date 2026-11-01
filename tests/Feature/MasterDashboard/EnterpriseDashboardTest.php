@@ -558,3 +558,108 @@ test('строки одного товара из приёмки и цеха о�
         ->and((float) $summary->first()['pay'])->toEqual(1500.0)
         ->and((float) $summary->first()['masterPay'])->toEqual(750.0);
 });
+
+// ─── Фильтр «Работник» ───────────────────────────────────────────────────────
+
+test('фильтр по работнику оставляет только приёмки выбранного пильщика', function () {
+    $dept = Department::create(['name' => 'Отдел пильщиков', 'is_active' => true]);
+
+    makeEnterpriseReception($dept, 'Первый', 10.0);
+    makeEnterpriseReception($dept, 'Второй', 4.0);
+
+    $cutter = Worker::where('name', 'Первый пильщик')->firstOrFail();
+
+    $response = entDashboard($this, H::adminUser(), ['filter' => ['worker_id' => $cutter->id]]);
+
+    $response->assertOk();
+    expect(entTotals($response))->toEqual(['Отдел пильщиков' => 10.0])
+        ->and((float) $response->viewData('grandQuantity'))->toEqual(10.0)
+        ->and((float) $response->viewData('grandPay'))->toEqual(1000.0)
+        ->and((float) $response->viewData('grandMasterPay'))->toEqual(500.0);
+});
+
+test('фильтр по работнику оставляет только операции цеха выбранного работника', function () {
+    $dept = Department::create(['name' => 'Отдел цеха', 'is_active' => true]);
+
+    makeEnterpriseWorkshop($dept, 'Первый', 7.0);
+    makeEnterpriseWorkshop($dept, 'Второй', 3.0);
+    makeEnterpriseReception($dept, 'Третий', 20.0);
+
+    $packer = Worker::where('name', 'Упаковщик Первый')->firstOrFail();
+
+    $response = entDashboard($this, H::adminUser(), ['filter' => ['worker_id' => $packer->id]]);
+
+    expect(entTotals($response))->toEqual(['Отдел цеха' => 7.0]);
+});
+
+test('приёмщик фильтром по работнику не учитывается', function () {
+    $dept = Department::create(['name' => 'Отдел приёмщика', 'is_active' => true]);
+
+    makeEnterpriseReception($dept, 'Приёмщик Е', 10.0);
+    makeEnterpriseWorkshop($dept, 'Е', 5.0);
+
+    $receptionReceiver = Worker::where('name', 'Приёмщик Е')->firstOrFail();
+    $workshopReceiver  = Worker::where('name', 'Приёмщик цеха Е')->firstOrFail();
+
+    foreach ([$receptionReceiver, $workshopReceiver] as $receiver) {
+        $response = entDashboard($this, H::adminUser(), ['filter' => ['worker_id' => $receiver->id]]);
+
+        expect($response->viewData('departments'))->toBeEmpty();
+    }
+});
+
+test('фильтр по работнику не меняет вкладку «Сырьё»', function () {
+    $dept = Department::create(['name' => 'Отдел сырья', 'is_active' => true]);
+
+    makeEnterpriseReception($dept, 'Пильщик сырья', 10.0);
+    entIncomingRaw($dept, 8.0, 'Ж');
+
+    $cutter = Worker::where('name', 'Пильщик сырья пильщик')->firstOrFail();
+
+    $response = entDashboard($this, H::adminUser(), ['filter' => ['worker_id' => $cutter->id]]);
+
+    expect((float) $response->viewData('incomingRawTotal'))->toEqual(8.0);
+});
+
+test('мастер, выбрав работника чужого отдела, не видит чужие документы', function () {
+    $own     = Department::create(['name' => 'Свой отдел', 'is_active' => true]);
+    $foreign = Department::create(['name' => 'Чужой отдел', 'is_active' => true]);
+
+    makeEnterpriseReception($own, 'Свой', 10.0);
+    makeEnterpriseReception($foreign, 'Чужой', 4.0);
+
+    $cutter = Worker::where('name', 'Чужой пильщик')->firstOrFail();
+
+    $response = entDashboard($this, entMaster([$own]), ['filter' => ['worker_id' => $cutter->id]]);
+
+    $response->assertOk();
+    expect($response->viewData('departments'))->toBeEmpty();
+});
+
+test('короткий список работников — свои отделы без уволенных, полный — все с журналами', function () {
+    $own     = Department::create(['name' => 'Свой отдел', 'is_active' => true]);
+    $foreign = Department::create(['name' => 'Чужой отдел', 'is_active' => true]);
+
+    makeEnterpriseReception($own, 'Свой', 1.0);
+    makeEnterpriseWorkshop($own, 'Цеховой', 1.0);
+    makeEnterpriseReception($own, 'Уволенный', 1.0);
+    makeEnterpriseReception($foreign, 'Чужой', 1.0);
+
+    $ownCutter     = Worker::where('name', 'Свой пильщик')->firstOrFail();
+    $packer        = Worker::where('name', 'Упаковщик Цеховой')->firstOrFail();
+    $fired         = Worker::where('name', 'Уволенный пильщик')->firstOrFail();
+    $foreignCutter = Worker::where('name', 'Чужой пильщик')->firstOrFail();
+    $fired->archive();
+
+    // Работник без журналов в список не попадает.
+    $idle = Worker::create(['name' => 'Без выработки', 'position' => 'Работник', 'department_id' => $own->id]);
+
+    $response = entDashboard($this, entMaster([$own]));
+
+    expect($response->viewData('filterWorkers')->pluck('id')->all())
+        ->toEqualCanonicalizing([$ownCutter->id, $packer->id, $fired->id, $foreignCutter->id])
+        ->not->toContain($idle->id);
+
+    expect($response->viewData('workerDefaultIds'))
+        ->toEqualCanonicalizing([$ownCutter->id, $packer->id]);
+});

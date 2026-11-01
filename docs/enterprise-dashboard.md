@@ -33,6 +33,10 @@
   операции цеха, где это сырьё указано на входе. На вкладке «Сырьё» — только этот камень.
 - **Продукт** — оставляет на вкладке «Плитка» строки одной плитки. На вкладку «Сырьё»
   не влияет.
+- **Работник** — оставляет на вкладке «Плитка» выпуск одного пильщика или работника цеха;
+  «ФОТ мастеров» в этом случае — зарплата мастеров за его выпуск. Приёмщик фильтром не
+  учитывается. В списке сначала работники своих отделов без уволенных, остальные — по чекбоксу
+  **«Показать всех работников»**. На вкладку «Сырьё» не влияет.
 - Фильтры по умолчанию свёрнуты; выбранная вкладка запоминается в браузере.
 
 ## 3. Откуда берутся цифры
@@ -103,13 +107,14 @@
   в [Сырьё](raw-batches.md).
 - Отдел поступления — отдел партии. Партии без отдела видны так же, как документы «Без
   отдела» на вкладке «Плитка».
-- Фильтр «Продукт» здесь не действует.
+- Фильтры «Продукт» и «Работник» здесь не действуют.
 
 ## 7. Чего в Итогах нет
 
 - **Накладных расходов и себестоимости.** Накладные отдела уходят в техоперацию МойСклад при
   приёмке — см. [Приём](stone-receptions.md).
-- Разбивки по работникам — она в выработке работника и мастера.
+- Разбивки по работникам — она в выработке работника и мастера. Здесь можно только
+  отфильтровать выпуск одного работника.
 
 ---
 
@@ -122,7 +127,7 @@
 | Раздел | Код | Тесты (`tests/Feature/MasterDashboard/`) |
 |---|---|---|
 | 1. Доступ | операция `enterprise-dashboard` в `config/department_operations.php`, `can:see-enterprise-dashboard`; `User::accessibleDepartmentIds` | `EnterpriseDashboardTest` |
-| 2. Период и фильтры | `EnterpriseDashboardController::index`, `WorkerDashboardService::getDefaultWeekRange`, `getEnterpriseDashboardData` (`$scopeIds`, `$includeUndetermined`); `partials/filters.blade.php` | `EnterpriseDashboardTest` |
+| 2. Период и фильтры | `EnterpriseDashboardController::index`, `WorkerDashboardService::getDefaultWeekRange`, `getEnterpriseDashboardData` (`$scopeIds`, `$includeUndetermined`, `$workerId` — `cutter_id` / `packer_id` журнала); `partials/filters.blade.php` | `EnterpriseDashboardTest` |
 | 3. Журналы | `ReceptionLog` / `ReceptionLogItem`, `WorkshopLog` / `WorkshopLogItem` (`role = product`); `StoneReceptionService::writeReceptionLog`, `WorkshopService::writeWorkshopLog` | `EnterpriseDashboardTest` |
 | 4. Отдел документа | `Concerns\HasEffectiveDepartment` (`effectiveDepartmentId`, `scopeInEffectiveDepartments`), `effectiveDepartmentChain` в `StoneReception`, `Workshop`, `RawMaterialBatch`; `WorkerDashboardService::buildSummaryByDepartment` | `EnterpriseDashboardTest` |
 | 5. «Плитка» | `WorkerDashboardService::buildProductSummary`, `buildWorkshopProductSummary`, `mergeProductSummaries`, `modifierSignature`, `receptionItemFor`, `workshopItemFor`; `StoneReceptionItem::effectiveProdCost`, `WorkshopItem::effectiveProdCost` | `EnterpriseDashboardTest` |

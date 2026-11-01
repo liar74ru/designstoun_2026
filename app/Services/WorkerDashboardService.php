@@ -9,6 +9,7 @@ use App\Models\RawMaterialMovement;
 use App\Models\ReceptionLog;
 use App\Models\ReceptionLogItem;
 use App\Models\StoneReception;
+use App\Models\Worker;
 use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
@@ -249,7 +250,8 @@ class WorkerDashboardService
         array $departmentIds = [],
         $rawProductId = null,
         $productId = null,
-        ?array $restrictDepartmentIds = null
+        ?array $restrictDepartmentIds = null,
+        $workerId = null
     ): array {
         $this->itemMaps = [];
 
@@ -280,6 +282,7 @@ class WorkerDashboardService
                 fn ($q2) => $q2->inEffectiveDepartments($scopeIds, $includeUndetermined)))
             ->when($rawProductId, fn ($q) => $q->whereHas('rawMaterialBatch',
                 fn ($q2) => $q2->where('product_id', $rawProductId)))
+            ->when($workerId, fn ($q) => $q->where('cutter_id', $workerId))
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -299,6 +302,7 @@ class WorkerDashboardService
                 fn ($q2) => $q2->inEffectiveDepartments($scopeIds, $includeUndetermined)))
             ->when($rawProductId, fn ($q) => $q->whereHas('workshop.items',
                 fn ($q2) => $q2->where('role', WorkshopItem::ROLE_RAW)->where('product_id', $rawProductId)))
+            ->when($workerId, fn ($q) => $q->where('packer_id', $workerId))
             ->get();
 
         $workshopLogs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('workshopLog', $log)));
@@ -310,10 +314,15 @@ class WorkerDashboardService
             $productId ? fn($row) => $row['product']?->id == $productId : null,
         );
 
-        // Вкладка «Сырьё»: движения сырья не связаны с плиткой — фильтр $productId не применяется.
+        // Вкладка «Сырьё»: движения сырья не связаны с плиткой и работником —
+        // фильтры $productId и $workerId не применяются.
         $incomingRaw = $this->buildIncomingRawSummary(
             $dateFrom, $dateTo, $scopeIds, $rawProductId, $includeUndetermined
         );
+
+        $filterWorkerIds = ReceptionLog::whereNotNull('cutter_id')->distinct()->pluck('cutter_id')
+            ->merge(WorkshopLog::whereNotNull('packer_id')->distinct()->pluck('packer_id'))
+            ->unique();
 
         return [
             'departments'       => $departments,
@@ -333,6 +342,11 @@ class WorkerDashboardService
                         ->merge(WorkshopLogItem::where('role', WorkshopItem::ROLE_PRODUCT)
                             ->distinct()->pluck('product_id')))
                 ->orderBy('name')->get(),
+            'filterWorkers'     => Worker::whereIn('id', $filterWorkerIds)->orderBy('name')->get(),
+            // Короткий список по умолчанию: работники отделов пользователя без уволенных
+            'workerDefaultIds'  => Worker::whereIn('id', $filterWorkerIds)
+                ->activeInDepartments($restrictDepartmentIds)
+                ->pluck('id')->all(),
             'dateFrom'          => $dateFrom,
             'dateTo'            => $dateTo,
         ];
