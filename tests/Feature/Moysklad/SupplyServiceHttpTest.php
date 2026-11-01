@@ -121,6 +121,18 @@ describe('MoySkladSupplyService::createSupply() — HTTP', function () {
             ->and($result['message'])->toBe('Ошибка МойСклад: Склад закрыт');
     });
 
+    test('товар без moysklad_id — ошибка с именем товара, POST не отправляется', function () {
+        $order = supMakeOrder();
+        $order->items()->first()->product->update(['moysklad_id' => null, 'name' => 'Плитка без связи']);
+        supHttpFake(['POST /entity/supply' => Http::response(['id' => 'supply-new'])]);
+
+        $result = (new MoySkladSupplyService())->createSupply($order->fresh());
+
+        expect($result['success'])->toBeFalse()
+            ->and($result['message'])->toContain('Плитка без связи');
+        Http::assertNotSent(fn (Request $r) => $r->method() === 'POST');
+    });
+
     test('коллизия имени — код duplicate_name', function () {
         $order = supMakeOrder();
         supHttpFake(['POST /entity/supply' => Http::response(['errors' => [['error' => 'Значение поля name должно быть уникальным', 'parameter' => 'name']]], 412)]);

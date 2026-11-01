@@ -230,11 +230,9 @@ abstract class MoySkladBaseService
 
         foreach ($order->items()->with('product')->get() as $item) {
             $product = $item->product;
+            // Документ уходит целиком: выпавшая позиция разошлась бы с программой молча.
             if (!$product?->moysklad_id) {
-                Log::warning('Товар не синхронизирован с МойСклад, пропускаем', [
-                    'product_id' => $item->product_id,
-                ]);
-                continue;
+                throw new \Exception('Товар «' . ($product->name ?? 'без карточки') . '» не синхронизирован с МойСклад (нет moysklad_id)');
             }
 
             $priceKopecks = (int) round($product->effectiveBuyPrice() * 100);

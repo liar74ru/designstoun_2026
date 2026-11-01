@@ -506,6 +506,9 @@ class CustomerOrderSyncService extends MoySkladBaseService
             if ($departmentIds === []) {
                 return ['success' => false, 'code' => 'no_executor', 'message' => 'У внутреннего заказа должен остаться отдел-исполнитель.'];
             }
+            if (in_array((int) $order->customer_department_id, $departmentIds, true)) {
+                return ['success' => false, 'code' => 'executor_is_customer', 'message' => 'Исполнитель должен отличаться от заказчика'];
+            }
 
             $order->departments()->sync($departmentIds);
 

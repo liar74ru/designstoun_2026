@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\WorkerDashboardService;
-use Carbon\Carbon;
+use App\Support\QueryParam;
 use Illuminate\Http\Request;
 
 class EnterpriseDashboardController extends Controller
@@ -23,18 +23,13 @@ class EnterpriseDashboardController extends Controller
             ]));
         }
 
-        $dateFrom = $request->filled('date_from')
-            ? Carbon::parse($request->input('date_from'))->startOfDay()
-            : null;
+        $dateFrom = QueryParam::date($request, 'date_from')?->startOfDay();
+        $dateTo   = QueryParam::date($request, 'date_to')?->endOfDay();
 
-        $dateTo = $request->filled('date_to')
-            ? Carbon::parse($request->input('date_to'))->endOfDay()
-            : null;
-
-        $departmentIds = array_filter((array) $request->input('filter.department_id', []));
-        $rawProductId  = $request->input('filter.raw_product_id') ?: null;
-        $productId     = $request->input('filter.product_id') ?: null;
-        $workerId      = $request->input('filter.worker_id') ?: null;
+        $departmentIds = QueryParam::ids($request, 'filter.department_id');
+        $rawProductId  = QueryParam::id($request, 'filter.raw_product_id');
+        $productId     = QueryParam::id($request, 'filter.product_id');
+        $workerId      = QueryParam::id($request, 'filter.worker_id');
 
         // Не-админ (мастер/помощник) видит итоги только по своим отделам; админ — все (null).
         $restrictDepartmentIds = $request->user()->accessibleDepartmentIds();

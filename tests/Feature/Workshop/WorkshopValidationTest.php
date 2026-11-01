@@ -1,7 +1,9 @@
 <?php
 
+use App\Models\Department;
 use App\Models\Product;
 use App\Models\Worker;
+use App\Services\WorkshopService;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 beforeEach(function () {
@@ -90,5 +92,35 @@ describe('Валидация блоков сырья/продукта', function
                 'manual_processing_sum' => -5,
             ])
             ->assertSessionHasErrors('manual_processing_sum');
+    });
+});
+
+describe('Сбой при сохранении', function () {
+
+    beforeEach(function () {
+        $this->validPayload = $this->basePayload + [
+            'product_store_id' => $this->store->id,
+            'department_id'    => Department::create(['name' => 'Упаковка'])->id,
+        ];
+    });
+
+    test('создание: подробности только в логе, пользователю общий текст', function () {
+        $this->partialMock(WorkshopService::class, fn ($mock) => $mock
+            ->shouldReceive('create')->andThrow(new \RuntimeException('SQLSTATE секретная деталь')));
+
+        $this->actingAs(H::adminUser())
+            ->post(route('workshops.store'), $this->validPayload)
+            ->assertSessionHasErrors(['error' => 'Не удалось сохранить операцию цеха. Попробуйте ещё раз, если повторится — сообщите администратору.']);
+    });
+
+    test('правка: подробности только в логе, пользователю общий текст', function () {
+        $workshop = app(WorkshopService::class)->create($this->validPayload, false);
+
+        $this->partialMock(WorkshopService::class, fn ($mock) => $mock
+            ->shouldReceive('update')->andThrow(new \RuntimeException('SQLSTATE секретная деталь')));
+
+        $this->actingAs(H::adminUser())
+            ->put(route('workshops.update', $workshop), $this->validPayload)
+            ->assertSessionHasErrors(['error' => 'Не удалось сохранить операцию цеха. Попробуйте ещё раз, если повторится — сообщите администратору.']);
     });
 });

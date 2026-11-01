@@ -116,15 +116,28 @@ describe('MoySkladPurchaseOrderService::createPurchaseOrder() — HTTP', functio
         Http::assertSent(fn (Request $r) => $r->method() === 'POST' && $r->data()['name'] === 'ЗП-15_01');
     });
 
-    test('товар без moysklad_id пропускается', function () {
+    test('товар без moysklad_id — ошибка с именем товара, POST не отправляется', function () {
         $order = poMakeOrder();
-        $order->items()->first()->product->update(['moysklad_id' => null]);
+        $order->items()->first()->product->update(['moysklad_id' => null, 'name' => 'Плитка без связи']);
         poHttpFake(['POST /entity/purchaseorder' => Http::response(['id' => 'po-new'])]);
 
         $result = (new MoySkladPurchaseOrderService())->createPurchaseOrder($order);
 
-        expect($result['success'])->toBeTrue();
-        Http::assertSent(fn (Request $r) => $r->method() === 'POST' && count($r->data()['positions']) === 1);
+        expect($result['success'])->toBeFalse()
+            ->and($result['message'])->toContain('Плитка без связи');
+        Http::assertNotSent(fn (Request $r) => $r->method() === 'POST');
+    });
+
+    test('при обновлении товар без moysklad_id — ошибка с именем товара, PUT не отправляется', function () {
+        $order = poMakeOrder(['moysklad_id' => 'po-1']);
+        $order->items()->first()->product->update(['moysklad_id' => null, 'name' => 'Плитка без связи']);
+        poHttpFake();
+
+        $result = (new MoySkladPurchaseOrderService())->updatePurchaseOrder($order->fresh());
+
+        expect($result['success'])->toBeFalse()
+            ->and($result['message'])->toContain('Плитка без связи');
+        Http::assertNotSent(fn (Request $r) => $r->method() === 'PUT');
     });
 
     test('без позиций — ошибка, POST не отправляется', function () {

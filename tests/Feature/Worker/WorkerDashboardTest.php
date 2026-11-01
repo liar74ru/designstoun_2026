@@ -110,3 +110,18 @@ test('страница выработки считает зарплату по �
         ->assertStatus(200)
         ->assertSee('4 500'); // Laravel форматирует с пробелом-разделителем тысяч
 });
+
+test('неверная дата в адресе показывает неделю по умолчанию', function (mixed $value) {
+    $worker = Worker::create(['name' => 'Иванов', 'position' => 'Работник']);
+    $user   = User::factory()->create(['worker_id' => $worker->id, 'is_admin' => false]);
+
+    $expected = $this->actingAs($user)->get(route('worker.dashboard'))->assertOk();
+
+    $this->actingAs($user)->get(route('worker.dashboard', ['date_from' => $value, 'date_to' => $value]))
+        ->assertOk()
+        ->assertViewHas('dateFrom', fn ($from) => $from->eq($expected->viewData('dateFrom')))
+        ->assertViewHas('dateTo', fn ($to) => $to->eq($expected->viewData('dateTo')));
+})->with([
+    'текст'  => ['abc'],
+    'массив' => [['x']],
+]);

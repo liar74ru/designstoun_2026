@@ -185,3 +185,42 @@ describe('цех', function () {
             ->and($item->disabled_modifier_keys)->toBeNull();
     });
 });
+
+describe('границы коэффициента', function () {
+
+    $documents = [
+        'приёмка' => ['stone-receptions.update-item-coeff', fn ($ctx) => maskTileReception($ctx), 'reception'],
+        'цех'     => ['workshops.update-item-coeff', fn ($ctx) => maskTileWorkshopItem($ctx), 'workshop'],
+    ];
+
+    foreach ($documents as $name => [$route, $makeItem, $relation]) {
+        test("{$name}: за пределами ±100 — ошибка, значения не меняются", function (string $field, float $value) use ($route, $makeItem, $relation) {
+            $item   = $makeItem($this);
+            $before = (float) $item->fresh()->effective_cost_coeff;
+
+            $this->actingAs($this->admin)->post(route($route, $item->$relation), ['items' => [[
+                'item_id'           => $item->id,
+                'base_coeff'        => 1.0,
+                'master_base_coeff' => 0,
+                $field              => $value,
+            ]]])->assertSessionHasErrors("items.0.{$field}");
+
+            expect((float) $item->fresh()->effective_cost_coeff)->toBe($before);
+        })->with([
+            'пильщик +101' => ['base_coeff', 101],
+            'пильщик −101' => ['base_coeff', -101],
+            'мастер +101'  => ['master_base_coeff', 101],
+            'мастер −101'  => ['master_base_coeff', -101],
+        ]);
+
+        test("{$name}: граница 100 проходит", function () use ($route, $makeItem, $relation) {
+            $item = $makeItem($this);
+
+            $this->actingAs($this->admin)->post(route($route, $item->$relation), ['items' => [[
+                'item_id'           => $item->id,
+                'base_coeff'        => 100,
+                'master_base_coeff' => -100,
+            ]]])->assertSessionHasNoErrors();
+        });
+    }
+});

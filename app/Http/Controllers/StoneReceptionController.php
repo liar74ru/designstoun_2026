@@ -130,7 +130,7 @@ class StoneReceptionController extends Controller
             return $e->render();
         } catch (\Exception $e) {
             Log::error('Ошибка создания приёмки:', ['error' => $e->getMessage(), 'data' => $data]);
-            return back()->withErrors(['error' => 'Ошибка: ' . $e->getMessage()])->withInput();
+            return back()->withErrors(['error' => 'Не удалось сохранить приёмку. Попробуйте ещё раз, если повторится — сообщите администратору.'])->withInput();
         }
     }
 
@@ -200,7 +200,7 @@ class StoneReceptionController extends Controller
             return $e->render();
         } catch (\Exception $e) {
             Log::error('Ошибка обновления приёмки:', ['error' => $e->getMessage()]);
-            return back()->withErrors(['error' => 'Ошибка: ' . $e->getMessage()])->withInput();
+            return back()->withErrors(['error' => 'Не удалось сохранить приёмку. Попробуйте ещё раз, если повторится — сообщите администратору.'])->withInput();
         }
     }
 
@@ -313,10 +313,13 @@ class StoneReceptionController extends Controller
         $validated = $request->validate([
             'items'               => ['required', 'array'],
             'items.*.item_id'     => ['required', 'integer'],
-            'items.*.base_coeff'        => ['required', 'numeric'],
-            'items.*.master_base_coeff' => ['required', 'numeric'],
+            'items.*.base_coeff'        => ['required', 'numeric', 'between:-100,100'],
+            'items.*.master_base_coeff' => ['required', 'numeric', 'between:-100,100'],
             'items.*.modifiers'         => 'nullable|array',
             'items.*.modifiers.*'       => 'string|max:64',
+        ], [
+            'items.*.base_coeff.between'        => 'Коэффициент пильщика — от -100 до 100',
+            'items.*.master_base_coeff.between' => 'Коэффициент мастера — от -100 до 100',
         ]);
 
         $this->service->updateItemCoeff($stoneReception, $validated);

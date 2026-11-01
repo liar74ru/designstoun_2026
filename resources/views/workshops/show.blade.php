@@ -486,14 +486,14 @@
                                                 <input type="number"
                                                        name="items[{{ $i }}][base_coeff]"
                                                        class="form-control form-control-sm text-center coeff-base-input"
-                                                       step="0.0001"
+                                                       step="0.0001" min="-100" max="100"
                                                        value="{{ number_format($item->base_coeff, 4, '.', '') }}"
                                                        data-row="{{ $i }}"
                                                        title="Пильщик">
                                                 <input type="number"
                                                        name="items[{{ $i }}][master_base_coeff]"
                                                        class="form-control form-control-sm text-center coeff-master-base-input mt-1"
-                                                       step="0.0001"
+                                                       step="0.0001" min="-100" max="100"
                                                        value="{{ number_format($item->master_base_cost_coeff ?? $item->product?->master_cost_coeff ?? 0, 4, '.', '') }}"
                                                        data-row="{{ $i }}"
                                                        title="Мастер">

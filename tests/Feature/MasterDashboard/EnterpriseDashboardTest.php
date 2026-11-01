@@ -663,3 +663,25 @@ test('короткий список работников — свои отдел
     expect($response->viewData('workerDefaultIds'))
         ->toEqualCanonicalizing([$ownCutter->id, $packer->id]);
 });
+
+test('неверные параметры адреса не роняют дашборд предприятия', function (array $query) {
+    $admin = User::factory()->create(['worker_id' => null, 'is_admin' => true]);
+
+    $this->actingAs($admin)->get(route('admin.enterprise-dashboard', $query))->assertOk();
+})->with([
+    'дата-текст'       => [['date_from' => 'abc', 'date_to' => 'abc']],
+    'дата-массив'      => [['date_from' => ['x'], 'date_to' => ['x']]],
+    'работник-текст'   => [['filter' => ['worker_id' => 'abc']]],
+    'работник-массив'  => [['filter' => ['worker_id' => ['abc']]]],
+    'товар-массив'     => [['filter' => ['product_id' => ['abc'], 'raw_product_id' => ['abc']]]],
+    'отдел-текст'      => [['filter' => ['department_id' => ['abc']]]],
+]);
+
+test('неверная дата считается незаданной, верная работает', function () {
+    $admin = User::factory()->create(['worker_id' => null, 'is_admin' => true]);
+
+    $this->actingAs($admin)->get(route('admin.enterprise-dashboard', ['date_from' => 'abc', 'date_to' => '2026-03-05']))
+        ->assertOk()
+        ->assertViewHas('dateFrom', null)
+        ->assertViewHas('dateTo', fn ($to) => $to->format('Y-m-d H:i:s') === '2026-03-05 23:59:59');
+});

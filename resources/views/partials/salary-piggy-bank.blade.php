@@ -133,7 +133,8 @@
                         <button type="button" class="btn btn-outline-secondary" data-salary-step-btn="-1"
                                 title="−{{ $step }} ₽"><i class="bi bi-dash-lg"></i></button>
                         <input type="number" name="amount" min="0" step="{{ $step }}" data-salary-step="{{ $step }}"
-                               @unless($isAdmin) max="{{ $salary['maxRequest'] }}" @endunless
+                               {{-- Предел содержит остаток: при скрытом остатке его проверяет только сервер --}}
+                               @unless($isAdmin || $hideBalance) max="{{ $salary['maxRequest'] }}" @endunless
                                value="{{ old('amount', $wantAmount) }}"
                                class="form-control text-center fw-semibold @error('amount') is-invalid @enderror">
                         <button type="button" class="btn btn-outline-secondary" data-salary-step-btn="1"

@@ -687,3 +687,18 @@ describe('Подсказка из шаблонов цеха', function () {
             ->assertSee('Заполнить по шаблонам');
     });
 });
+
+describe('Исполнитель через назначение отделов', function () {
+
+    test('отдел-заказчик исполнителем не назначается, отделы не меняются', function () {
+        $f = internalFixture();
+        placeInternal($f);
+        $order = Order::internal()->sole();
+
+        $this->actingAs(H::adminUser())
+            ->post(route('orders.departments.update', $order->uuid), ['departments' => [$f['shop']->id, $f['galt']->id]])
+            ->assertSessionHas('error', 'Исполнитель должен отличаться от заказчика');
+
+        expect($order->departments()->pluck('departments.id')->all())->toBe([$f['shop']->id]);
+    });
+});

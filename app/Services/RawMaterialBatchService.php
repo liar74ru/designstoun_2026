@@ -549,7 +549,7 @@ class RawMaterialBatchService
 
             $workerId = $batch->current_worker_id;
             if (!$workerId) {
-                throw new \RuntimeException('У партии не назначен работник для split');
+                throw new InsufficientRawMaterialException('raw_material_batch_id', 'У партии не назначен работник. Назначьте работника и повторите.');
             }
 
             $result = $this->transfer($batch, [

@@ -51,9 +51,11 @@
                    + (!empty($showSyncStatus) ? 1 : 0)
                    + ($filterDepartments ? 1 : 0);
     $colClass      = $filterCount >= 4 ? 'col-lg-3' : ($filterCount === 3 ? 'col-lg-4' : 'col-lg-6');
-    $rawValue      = request()->input("filter.$rawProductParam", '');
+    // Значения из адреса могут быть массивом (ссылку правят руками), а в разметку идут строкой.
+    $scalarParam   = fn (string $key) => is_scalar($value = request()->input($key)) ? $value : '';
+    $rawValue      = $scalarParam("filter.$rawProductParam");
     $rawLabel      = $filterRawProducts ? ($filterRawProducts->firstWhere('id', $rawValue)?->name ?? '') : '';
-    $pickerValue   = request('filter.product_id', '');
+    $pickerValue   = $scalarParam('filter.product_id');
     $pickerLabel   = $filterProducts ? ($filterProducts->firstWhere('id', $pickerValue)?->name ?? '') : '';
 @endphp
 
@@ -95,12 +97,12 @@
                 <div class="col-6 col-sm-auto">
                     <label class="form-label small text-muted mb-1">С</label>
                     <input type="date" name="date_from" id="date_from"
-                           class="form-control" style="border-radius:.4rem" value="{{ request('date_from') }}">
+                           class="form-control" style="border-radius:.4rem" value="{{ $scalarParam('date_from') }}">
                 </div>
                 <div class="col-6 col-sm-auto">
                     <label class="form-label small text-muted mb-1">По</label>
                     <input type="date" name="date_to" id="date_to"
-                           class="form-control" style="border-radius:.4rem" value="{{ request('date_to') }}">
+                           class="form-control" style="border-radius:.4rem" value="{{ $scalarParam('date_to') }}">
                 </div>
             </div>
 

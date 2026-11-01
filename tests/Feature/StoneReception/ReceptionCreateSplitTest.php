@@ -4,6 +4,7 @@ use App\Exceptions\InsufficientRawMaterialException;
 use Illuminate\Support\Facades\Queue;
 use App\Jobs\SyncBatchToMoysklad;
 use App\Jobs\SyncReceptionToMoysklad;
+use App\Models\Department;
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
 use App\Services\RawMaterialBatchService;
@@ -83,4 +84,46 @@ test('разделение ставится в очередь после сох�
 
     expect(array_map(fn ($entry) => $entry['job']->batch->id, Queue::pushedJobs()[SyncBatchToMoysklad::class]))
         ->toBe([$child->id, $parent->id]);
+});
+
+test('партия без работника при разделении — понятная ошибка, приёмка не создана', function () {
+    ['batch' => $batch, 'receiver' => $receiver] = rcsBatchWithHistory();
+    $cutter = $batch->currentWorker;
+    $store  = $batch->currentStore;
+    $batch->update(['current_worker_id' => null]);
+
+    Queue::fake();
+
+    $this->actingAs(H::adminUser())
+        ->post(route('stone-receptions.store'), H::receptionPostData($receiver, $cutter, $store, $batch, 1.0) + ['department_id' => Department::create(['name' => 'Распил'])->id])
+        ->assertSessionHasErrors(['raw_material_batch_id' => 'У партии не назначен работник. Назначьте работника и повторите.']);
+
+    expect(StoneReception::count())->toBe(2)
+        ->and(RawMaterialBatch::count())->toBe(1);
+});
+
+test('сбой при создании приёмки: подробности только в логе, пользователю общий текст', function () {
+    ['batch' => $batch, 'receiver' => $receiver] = rcsBatchWithHistory();
+    $data = H::receptionPostData($receiver, $batch->currentWorker, $batch->currentStore, $batch, 1.0)
+        + ['department_id' => Department::create(['name' => 'Распил'])->id];
+
+    $this->partialMock(StoneReceptionService::class, fn ($mock) => $mock
+        ->shouldReceive('create')->andThrow(new \RuntimeException('SQLSTATE секретная деталь')));
+
+    $response = $this->actingAs(H::adminUser())->post(route('stone-receptions.store'), $data);
+
+    $response->assertSessionHasErrors(['error' => 'Не удалось сохранить приёмку. Попробуйте ещё раз, если повторится — сообщите администратору.']);
+    expect(session('errors')->first('error'))->not->toContain('SQLSTATE');
+});
+
+test('сбой при правке приёмки: подробности только в логе, пользователю общий текст', function () {
+    ['batch' => $batch, 'active' => $active, 'receiver' => $receiver] = rcsBatchWithHistory();
+    $data = H::receptionPostData($receiver, $batch->currentWorker, $batch->currentStore, $batch, 1.0)
+        + ['department_id' => Department::create(['name' => 'Распил'])->id];
+
+    $this->partialMock(StoneReceptionService::class, fn ($mock) => $mock
+        ->shouldReceive('update')->andThrow(new \RuntimeException('SQLSTATE секретная деталь')));
+
+    $this->actingAs(H::adminUser())->put(route('stone-receptions.update', $active), $data)
+        ->assertSessionHasErrors(['error' => 'Не удалось сохранить приёмку. Попробуйте ещё раз, если повторится — сообщите администратору.']);
 });

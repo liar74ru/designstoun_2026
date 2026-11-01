@@ -572,3 +572,52 @@ test('скрытый остаток на своей странице админ�
         ->assertSee('id="payout-piggy"', false)
         ->assertDontSee('data-balance', false);
 });
+
+test('повторная отправка корректировки не проводит деньги дважды', function () {
+    $payload = ['piggy_amount' => -5000, 'piggy_comment' => 'Аванс'];
+
+    foreach ([1, 2] as $attempt) {
+        $this->actingAs($this->admin)
+            ->post(route('salary.piggy-adjust', $this->worker), $payload)
+            ->assertSessionHas('success');
+    }
+
+    expect($this->worker->piggyBankEntries()->count())->toBe(1)
+        ->and(app(SalaryService::class)->piggyBalance($this->worker))->toBe(-5000.0);
+});
+
+test('такая же корректировка проводится после окна защиты от повтора', function () {
+    $service = app(SalaryService::class);
+
+    $service->adjustPiggy($this->worker, -5000, 'Аванс', $this->admin);
+    $this->travel(61)->seconds();
+    $service->adjustPiggy($this->worker, -5000, 'Аванс', $this->admin);
+
+    expect($service->piggyBalance($this->worker))->toBe(-10000.0);
+});
+
+test('корректировки с другой суммой или комментарием не считаются повтором', function () {
+    $service = app(SalaryService::class);
+
+    $service->adjustPiggy($this->worker, -5000, 'Аванс', $this->admin);
+    $service->adjustPiggy($this->worker, -4000, 'Аванс', $this->admin);
+    $service->adjustPiggy($this->worker, -5000, 'Долг', $this->admin);
+
+    expect($this->worker->piggyBankEntries()->count())->toBe(3);
+});
+
+test('при скрытом остатке предел суммы не выводится в разметку', function () {
+    salaryAccrue($this->worker, 37000);
+    app(SalaryService::class)->adjustPiggy($this->worker, 12500, 'Стартовый остаток', $this->admin);
+
+    $shown = $this->actingAs($this->user)->get(route('worker.dashboard'))->assertOk()->getContent();
+
+    $this->worker->update(['hide_piggy_balance' => true]);
+    $this->user->unsetRelation('worker');
+    $hidden = $this->actingAs($this->user)->get(route('worker.dashboard'))->assertOk()->getContent();
+
+    expect($shown)->toMatch('/name="amount"[^>]*\bmax="49500/s')
+        ->and($hidden)->toContain('name="amount"')
+        ->and($hidden)->not->toMatch('/name="amount"[^>]*\bmax=/s')
+        ->and($hidden)->not->toContain('49500');
+});

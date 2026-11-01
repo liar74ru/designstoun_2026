@@ -22,6 +22,9 @@ use Illuminate\Validation\ValidationException;
  */
 class SalaryService
 {
+    /** Окно, в котором одинаковая корректировка копилки считается повторной отправкой формы. */
+    private const ADJUST_REPEAT_SECONDS = 60;
+
     public function __construct(private readonly WorkerDashboardService $dashboard) {}
 
     /** Последняя прошедшая отсечка периода (по умолчанию — четверг 21:00). */
@@ -375,15 +378,32 @@ class SalaryService
         });
     }
 
-    /** Корректировка копилки администратором: аванс, долг (−), стартовый остаток (+). */
+    /**
+     * Корректировка копилки администратором: аванс, долг (−), стартовый остаток (+).
+     * Такая же корректировка в пределах ADJUST_REPEAT_SECONDS считается повторной отправкой формы:
+     * возвращается уже проведённая, деньги дважды не проводятся.
+     */
     public function adjustPiggy(Worker $worker, float $amount, string $comment, User $actor): PiggyBankEntry
     {
-        return $worker->piggyBankEntries()->create([
-            'amount'             => round($amount, 2),
-            'type'               => PiggyBankEntry::TYPE_ADJUSTMENT,
-            'comment'            => $comment,
-            'created_by_user_id' => $actor->id,
-        ]);
+        return DB::transaction(function () use ($worker, $amount, $comment, $actor) {
+            $worker = Worker::whereKey($worker->id)->lockForUpdate()->firstOrFail();
+            $amount = round($amount, 2);
+
+            $repeat = $worker->piggyBankEntries()->adjustments()
+                ->where('amount', $amount)
+                ->where('comment', $comment)
+                ->where('created_by_user_id', $actor->id)
+                ->where('created_at', '>=', Carbon::now()->subSeconds(self::ADJUST_REPEAT_SECONDS))
+                ->latest('id')
+                ->first();
+
+            return $repeat ?? $worker->piggyBankEntries()->create([
+                'amount'             => $amount,
+                'type'               => PiggyBankEntry::TYPE_ADJUSTMENT,
+                'comment'            => $comment,
+                'created_by_user_id' => $actor->id,
+            ]);
+        });
     }
 
     /** Выдачи, чьи недели ещё пересчитываются (закончились не раньше recalc_weeks назад). */

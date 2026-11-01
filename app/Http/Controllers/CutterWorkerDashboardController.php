@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Worker;
 use App\Services\SalaryService;
 use App\Services\WorkerDashboardService;
-use Carbon\Carbon;
+use App\Support\QueryParam;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -34,13 +34,8 @@ class CutterWorkerDashboardController extends Controller
 
         [$defaultFrom, $defaultTo] = $this->service->getDefaultWeekRange(fridayShowsPrevious: true);
 
-        $dateFrom = $request->filled('date_from')
-            ? Carbon::parse($request->input('date_from'))->startOfDay()
-            : $defaultFrom;
-
-        $dateTo = $request->filled('date_to')
-            ? Carbon::parse($request->input('date_to'))->endOfDay()
-            : $defaultTo;
+        $dateFrom = QueryParam::date($request, 'date_from')?->startOfDay() ?? $defaultFrom;
+        $dateTo   = QueryParam::date($request, 'date_to')?->endOfDay() ?? $defaultTo;
 
         $data = $this->service->getDashboardData($worker->id, $dateFrom, $dateTo);
 
