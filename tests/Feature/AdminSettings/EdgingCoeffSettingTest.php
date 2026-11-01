@@ -11,66 +11,22 @@ function edgingSeedSetting(string $key, string $value, string $label = ''): void
     Setting::updateOrCreate(['key' => $key], ['value' => $value, 'label' => $label]);
 }
 
-describe('POST /admin/settings — валидация EDGING_COEFF (whitelist отрицательных)', function () {
+describe('POST /admin/settings — отрицательные значения', function () {
 
-    test('администратор сохраняет отрицательное значение EDGING_COEFF', function () {
-        edgingSeedSetting('EDGING_COEFF', '-2.5', 'Торцовка');
-
-        $this->actingAs(H::adminUser())
-            ->from(route('admin.settings.rates'))
-            ->post('/admin/settings', [
-                'settings' => [
-                    ['key' => 'EDGING_COEFF', 'value' => '-3.5'],
-                ],
-            ])
-            ->assertRedirect(route('admin.settings.rates'))
-            ->assertSessionHasNoErrors();
-
-        expect(Setting::where('key', 'EDGING_COEFF')->value('value'))->toBe('-3.5');
-    });
-
-    test('UNDERCUT_PENALTY с отрицательным значением по-прежнему даёт ошибку (whitelist точечный)', function () {
-        edgingSeedSetting('UNDERCUT_PENALTY', '1.5', 'Подкол');
+    // Отрицательным мог быть только EDGING_COEFF, он больше не участвует в расчётах
+    test('отрицательное значение отклоняется для любого ключа', function (string $key) {
+        edgingSeedSetting($key, '1', 'Настройка');
 
         $this->actingAs(H::adminUser())
             ->post('/admin/settings', [
                 'settings' => [
-                    ['key' => 'UNDERCUT_PENALTY', 'value' => '-1'],
+                    ['key' => $key, 'value' => '-1'],
                 ],
             ])
             ->assertSessionHasErrors();
-    });
 
-    test('EDGING_COEFF принимает положительное значение тоже', function () {
-        edgingSeedSetting('EDGING_COEFF', '-2.5', 'Торцовка');
-
-        $this->actingAs(H::adminUser())
-            ->post('/admin/settings', [
-                'settings' => [
-                    ['key' => 'EDGING_COEFF', 'value' => '0.5'],
-                ],
-            ])
-            ->assertSessionHasNoErrors();
-
-        expect(Setting::where('key', 'EDGING_COEFF')->value('value'))->toBe('0.5');
-    });
-
-    test('смешанный пакет: EDGING_COEFF=-2.5 и PIECE_RATE=400 — обе сохраняются', function () {
-        edgingSeedSetting('EDGING_COEFF', '-2.5', 'Торцовка');
-        edgingSeedSetting('PIECE_RATE',   '390',  'Ставка');
-
-        $this->actingAs(H::adminUser())
-            ->post('/admin/settings', [
-                'settings' => [
-                    ['key' => 'EDGING_COEFF', 'value' => '-2.5'],
-                    ['key' => 'PIECE_RATE',   'value' => '400'],
-                ],
-            ])
-            ->assertSessionHasNoErrors();
-
-        expect(Setting::where('key', 'EDGING_COEFF')->value('value'))->toBe('-2.5');
-        expect(Setting::where('key', 'PIECE_RATE')->value('value'))->toBe('400');
-    });
+        expect(Setting::where('key', $key)->value('value'))->toBe('1');
+    })->with(['EDGING_COEFF', 'UNDERCUT_PENALTY', 'PIECE_RATE']);
 
     test('PIECE_RATE остаётся блокирующим: отрицательное значение даёт ошибку', function () {
         edgingSeedSetting('PIECE_RATE', '390', 'Ставка');

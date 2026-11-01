@@ -45,31 +45,9 @@ class StoneReceptionSyncService extends MoySkladBaseService
     public function createProcessingForReception(StoneReception $reception, ?string $customName = null, ?string $description = null): array
     {
         $reception->loadMissing('rawMaterialBatch.product');
-        $batch = $reception->rawMaterialBatch;
+        $batch            = $reception->rawMaterialBatch;
+        $materialQuantity = (float) $reception->raw_quantity_used;
 
-        return $this->createProcessingForBatch(
-            $batch,
-            (float) $reception->raw_quantity_used,
-            $reception,
-            $customName,
-            $description
-        );
-    }
-
-    /**
-     * @deprecated Используйте createProcessingForReception()
-     *
-     * Создать техоперацию для партии сырья на основе первой приёмки.
-     *
-     * @return array ['success', 'processing_id', 'processing_name', 'code', 'message']
-     */
-    public function createProcessingForBatch(
-        RawMaterialBatch $batch,
-        float $materialQuantity,
-        StoneReception $reception,
-        ?string $customName = null,
-        ?string $description = null
-    ): array {
         $result = [
             'success'         => false,
             'processing_id'   => null,
@@ -109,7 +87,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
             foreach ($reception->items as $item) {
                 $product = $item->product;
                 if (!$product || !$product->moysklad_id) {
-                    Log::warning('createProcessingForBatch: товар без moysklad_id', [
+                    Log::warning('createProcessingForReception: товар без moysklad_id', [
                         'product_id' => $product->id ?? null,
                     ]);
                     continue;
@@ -120,7 +98,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 } else {
                     $productMeta = $this->getEntityMeta('product', $moyskladId);
                     if (!$productMeta) {
-                        Log::warning('createProcessingForBatch: не удалось получить мета товара', [
+                        Log::warning('createProcessingForReception: не удалось получить мета товара', [
                             'moysklad_id' => $moyskladId,
                         ]);
                         continue;
@@ -210,10 +188,10 @@ class StoneReceptionSyncService extends MoySkladBaseService
             if (!$response->successful()) {
                 $result['code']    = 'api_error';
                 $result['message'] = 'Ошибка МойСклад: ' . $this->extractApiError($response->json());
-                Log::error('createProcessingForBatch: ошибка API', [
-                    'status'   => $response->status(),
-                    'response' => $response->json(),
-                    'batch_id' => $batch->id,
+                Log::error('createProcessingForReception: ошибка API', [
+                    'status'       => $response->status(),
+                    'response'     => $response->json(),
+                    'reception_id' => $reception->id,
                 ]);
                 return $result;
             }
@@ -224,10 +202,10 @@ class StoneReceptionSyncService extends MoySkladBaseService
             $result['processing_name'] = $data['name'] ?? $name;
             $result['message']         = 'Техоперация создана: ' . ($data['name'] ?? $name);
 
-            Log::info('createProcessingForBatch: успешно', [
+            Log::info('createProcessingForReception: успешно', [
                 'processing_id'   => $result['processing_id'],
                 'processing_name' => $result['processing_name'],
-                'batch_id'        => $batch->id,
+                'reception_id'    => $reception->id,
             ]);
 
             return $result;
@@ -235,9 +213,9 @@ class StoneReceptionSyncService extends MoySkladBaseService
         } catch (\Exception $e) {
             $result['code']    = 'exception';
             $result['message'] = 'Ошибка: ' . $e->getMessage();
-            Log::error('createProcessingForBatch: исключение', [
-                'batch_id' => $batch->id,
-                'error'    => $e->getMessage(),
+            Log::error('createProcessingForReception: исключение', [
+                'reception_id' => $reception->id,
+                'error'        => $e->getMessage(),
             ]);
             return $result;
         }

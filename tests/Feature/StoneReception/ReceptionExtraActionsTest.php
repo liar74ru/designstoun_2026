@@ -225,7 +225,6 @@ describe('StoneReceptionController refreshItemCoeffs()', function () {
         // Подкол (−1.5) сохранился и лёг на новую базу 2.0
         expect((float) $item->base_cost_coeff)->toBe(2.0)
             ->and((float) $item->effective_cost_coeff)->toBe(0.5)
-            ->and($item->is_undercut)->toBeTrue()
             ->and($item->modifiers->pluck('key')->all())->toBe(['undercut']);
     });
 

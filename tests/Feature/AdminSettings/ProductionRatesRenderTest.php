@@ -48,7 +48,8 @@ test('форма создания операции цеха рендерится
         ->get(route('workshops.create'))
         ->assertOk()
         ->assertSee('window.ProductionRates', false)
-        ->assertSee('MASK_TILE_COEFF_BONUS', false);
+        ->assertDontSee('global: {', false)
+        ->assertDontSee('MASK_TILE_COEFF_BONUS', false);
 });
 
 test('страница операции цеха рендерится со ставками', function () {
@@ -72,15 +73,6 @@ test('в JS уходит ставка отдела, а не только гло�
         ->get(route('workshops.create'))
         ->assertOk()
         ->assertSee('"' . $dept->id . '":420', false);
-});
-
-test('коэффициенты приходят актуальными после правки настройки', function () {
-    Setting::set('UNDERCUT_PENALTY', '7.25');
-
-    $this->actingAs(H::adminUser())
-        ->get(route('workshops.create'))
-        ->assertOk()
-        ->assertSee('7.25', false);
 });
 
 /**

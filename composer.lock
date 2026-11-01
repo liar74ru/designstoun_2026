@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8564d88ff081c1e48d4671a51e79c822",
+    "content-hash": "ac12f875bf79b340cf7171edf1d66a7a",
     "packages": [
         {
             "name": "brick/math",
@@ -507,52 +507,6 @@
                 }
             ],
             "time": "2025-03-06T22:45:56+00:00"
-        },
-        {
-            "name": "evgeek/moysklad",
-            "version": "v0.12.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/evgeek/moysklad.git",
-                "reference": "f1d9a8df54e6e420965cb7be26869a3f9ea1fab2"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/evgeek/moysklad/zipball/f1d9a8df54e6e420965cb7be26869a3f9ea1fab2",
-                "reference": "f1d9a8df54e6e420965cb7be26869a3f9ea1fab2",
-                "shasum": ""
-            },
-            "require": {
-                "guzzlehttp/guzzle": "^7.0",
-                "php": "^8.1"
-            },
-            "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.15",
-                "phpstan/phpstan": "^1.10",
-                "phpunit/phpunit": "^10.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Evgeek\\Moysklad\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Eugene Ivanov",
-                    "email": "evgeeek@gmail.com"
-                }
-            ],
-            "description": "SDK for MoySklad JSON API 1.2",
-            "support": {
-                "issues": "https://github.com/evgeek/moysklad/issues",
-                "source": "https://github.com/evgeek/moysklad/tree/v0.12.0"
-            },
-            "time": "2024-12-08T13:50:21+00:00"
         },
         {
             "name": "fruitcake/php-cors",
@@ -6019,47 +5973,6 @@
                 "source": "https://github.com/tijsverkoyen/CssToInlineStyles/tree/v2.4.0"
             },
             "time": "2025-12-02T11:56:42+00:00"
-        },
-        {
-            "name": "tooyz/moysklad",
-            "version": "0.7.5",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/tooyz/moysklad.git",
-                "reference": "baf3d4e5746ec8d5d0da892e754820e014e64123"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/tooyz/moysklad/zipball/baf3d4e5746ec8d5d0da892e754820e014e64123",
-                "reference": "baf3d4e5746ec8d5d0da892e754820e014e64123",
-                "shasum": ""
-            },
-            "require": {
-                "guzzlehttp/guzzle": "^7.0.1",
-                "php": ">=7.2"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "MoySklad\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Tooyz",
-                    "email": "nikkoltz@mail.ru"
-                }
-            ],
-            "description": "Get it here: https://github.com/Tooyz/moysklad",
-            "support": {
-                "issues": "https://github.com/tooyz/moysklad/issues",
-                "source": "https://github.com/tooyz/moysklad/tree/0.7.5"
-            },
-            "time": "2025-06-30T09:03:47+00:00"
         },
         {
             "name": "vlucas/phpdotenv",

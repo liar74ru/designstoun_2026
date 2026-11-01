@@ -17,19 +17,15 @@ describe('StoneReceptionItem::getBaseCoeffAttribute()', function () {
         $item = new StoneReceptionItem([
             'base_cost_coeff'      => 2.0,
             'effective_cost_coeff' => 0.5,
-            'is_undercut'          => true,
-            'is_edging'            => false,
         ]);
 
         expect($item->base_coeff)->toBe(2.0);
     });
 
-    test('база не зависит от флагов позиции', function () {
+    test('база не зависит от эффективного коэффициента', function () {
         $item = new StoneReceptionItem([
             'base_cost_coeff'      => 3.0,
             'effective_cost_coeff' => -2.5,
-            'is_undercut'          => false,
-            'is_edging'            => true,
         ]);
 
         expect($item->base_coeff)->toBe(3.0);
@@ -50,7 +46,6 @@ describe('StoneReceptionItem::getBaseCoeffAttribute()', function () {
         $product = Product::factory()->create(['prod_cost_coeff' => 4.2]);
         $item    = new StoneReceptionItem([
             'effective_cost_coeff' => -2.5,
-            'is_edging'            => true,
             'product_id'           => $product->id,
         ]);
         $item->setRelation('product', $product);

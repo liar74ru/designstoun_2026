@@ -6,7 +6,6 @@ use App\Models\Department;
 use App\Models\Setting;
 use App\Services\SkuColorService;
 use App\Support\DepartmentSettings;
-use App\Support\ProductionRates;
 use Illuminate\Http\Request;
 
 class AdminSettingController extends Controller
@@ -71,14 +70,7 @@ class AdminSettingController extends Controller
                 'required',
                 'string',
                 'max:500',
-                // Какие ключи допускают отрицательное значение — решает реестр
-                // config/production_rates.php, а не список в контроллере.
-                function ($attribute, $value, $fail) use ($request) {
-                    $idx = explode('.', $attribute)[1] ?? null;
-                    $key = $request->input("settings.{$idx}.key");
-                    if ($key !== null && ProductionRates::allowsNegative($key)) {
-                        return;
-                    }
+                function ($attribute, $value, $fail) {
                     if (is_numeric($value) && (float) $value < 0) {
                         $fail('Значение не может быть отрицательным.');
                     }

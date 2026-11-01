@@ -136,7 +136,6 @@ describe('StoneReceptionController updateItemCoeff()', function () {
             'product_id'           => $product->id,
             'quantity'             => 2.0,
             'effective_cost_coeff' => 1.0,
-            'is_undercut'          => false,
         ]);
 
         $this->actingAs($user)->post(route('stone-receptions.update-item-coeff', $reception), [
@@ -171,7 +170,6 @@ describe('StoneReceptionController updateItemCoeff()', function () {
             'product_id'           => $product->id,
             'quantity'             => 2.0,
             'effective_cost_coeff' => 1.0,
-            'is_undercut'          => false,
         ]);
 
         $this->actingAs($user)->post(route('stone-receptions.update-item-coeff', $reception), [
@@ -188,7 +186,6 @@ describe('StoneReceptionController updateItemCoeff()', function () {
         $item->refresh();
         // Подкол — слагаемое −1.5 к базе 1.0
         expect((float) $item->effective_cost_coeff)->toBe(-0.5);
-        expect($item->is_undercut)->toBeTrue();
         expect($item->modifiers->pluck('key')->all())->toBe(['undercut']);
     });
 

@@ -171,6 +171,5 @@
   правь оба файла.
 - Общие коэффициенты `UNDERCUT_PENALTY`, `EDGING_COEFF`, `MASK_TILE_COEFF_BONUS` и ставка
   `MASTER_UNDERCUT_RATE` в расчётах не участвуют (их заменили правила отдела) и со страниц
-  убраны. Остатки кода (`ProductionRates`, `config/production_rates.php`, строки `settings`) —
-  к удалению.
+  убраны. Код удалён в 4.0.4, строки `settings` остаются до миграции 4.0.5.
 - Кнопка «?» на всех страницах настроек ведёт сюда: `@include('partials.help-button', ['page' => 'settings'])`.

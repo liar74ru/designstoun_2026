@@ -76,7 +76,7 @@ processingSum = round(totalRubles × 100 / totalQty)
 
 | Метод | `totalRubles` | Зарплата пильщика | Зарплата мастера |
 |---|---|---|---|
-| `createProcessingForBatch` | `workerSalaryTotal + masterSalaryTotal + накладные × totalQty` | Да | Да |
+| `createProcessingForReception` | `workerSalaryTotal + masterSalaryTotal + накладные × totalQty` | Да | Да |
 | `updateProcessingProducts` | `workerSalaryTotal + masterSalaryTotal + накладные × totalQty` | Да | Да |
 
 Накладные в обоих случаях считаются по `effectiveDepartmentId()` приёмки.

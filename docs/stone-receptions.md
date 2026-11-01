@@ -162,7 +162,7 @@
 | 4. Статусы | `StoneReceptionService::markCompleted`, `closeBatch`, `resetStatus`; `RawMaterialBatchService::markAsUsed` / `markAsInWork` | `ReceptionActionsTest`, `ReceptionStatusCascadeTest`, `StoneReceptionServiceTest` |
 | 5. Правка | `StoneReceptionService::update`, `updateReceptionItems`, `writeReceptionLog`, `updateLogReceiver`; `HandlesBatchStock::handleBatchChanges` | `StoneReceptionTest`, `ReceptionLogTest`, `ReceptionLogReceiverTest` |
 | 6. Коэффициенты | `StoneReceptionService::updateItemCoeff`, `refreshItemCoeffs`; `Support\ItemCost`; снятые sku-правила — `stone_reception_items.disabled_modifier_keys`, `ModifierEngine::disabledSkuKeys` | `ReceptionActionsTest`, `ReceptionExtraActionsTest`, `StoneReceptionEdgingFlowTest`, `EdgingCoeffTest`, `Modifier/DisabledSkuModifierTest` |
-| 7. МойСклад | `StoneReceptionService::queueSync`; `Jobs\SyncReceptionToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\StoneReceptionSyncService::pushReception`, `syncReception`, `createProcessingForBatch`, `updateProcessingProducts`, `buildReceptionDescription`, `buildCostSummary`; `DocumentNaming` | `ReceptionExtraActionsTest`, `tests/Feature/Moysklad/ProcessingSyncJobTest`, `StoneReceptionSyncServiceTest`, `StoneReceptionProcessingUpdateTest`, `ReceptionDescriptionCostTest` |
+| 7. МойСклад | `StoneReceptionService::queueSync`; `Jobs\SyncReceptionToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\StoneReceptionSyncService::pushReception`, `syncReception`, `createProcessingForReception`, `updateProcessingProducts`, `buildReceptionDescription`, `buildCostSummary`; `DocumentNaming` | `ReceptionExtraActionsTest`, `tests/Feature/Moysklad/ProcessingSyncJobTest`, `StoneReceptionSyncServiceTest`, `StoneReceptionProcessingUpdateTest`, `ReceptionDescriptionCostTest` |
 | 8. Удаление | `StoneReceptionService::delete`, `StoneReception::booted` (`deleted`) | `StoneReceptionServiceTest`, `StoneReceptionTest` |
 | 9. Список и доступ | `StoneReceptionService::getFilteredReceptions`, `getFilteredLogs`, `getBatchesWithoutReceptions`, `getFilterData`; `StoneReceptionPolicy::modify` | `StoneReceptionDepartmentAccessTest`, `BatchesWithoutReceptionsTest`, `ReceptionIndexWorkerFilterTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
 
@@ -170,7 +170,7 @@
 
 - Статусы `processed` и `error` в коде объявлены и учитываются в фильтрах, но никем не
   выставляются. Ошибка синхронизации живёт отдельно: `moysklad_sync_status` / `moysklad_sync_error`.
-- 1 приёмка = 1 техоперация (`createProcessingForReception`); `createProcessingForBatch` — устаревшее
+- 1 приёмка = 1 техоперация (`createProcessingForReception`).
   имя, внутри которого и живёт создание.
 - `processingSum` = round((Σ worker + Σ master + накладные × Σ qty) × 100 / Σ qty) — копейки за
   единицу. Накладные — `DepartmentSettings::overheadPerUnit(effectiveDepartmentId())`; сами накладные

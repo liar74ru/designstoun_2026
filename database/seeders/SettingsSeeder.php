@@ -23,12 +23,6 @@ class SettingsSeeder extends Seeder
                 'description' => 'Базовая ставка мастера за каждый м² принятой продукции.',
             ],
             [
-                'key'         => 'MASTER_UNDERCUT_RATE',
-                'value'       => '50',
-                'label'       => 'Подкол > 80%, ₽/м²',
-                'description' => 'Ставка за приёмки с флагом подкол > 80%.',
-            ],
-            [
                 'key'         => 'MOYSKLAD_IN_WORK_STATE',
                 'value'       => 'В работе',
                 'label'       => 'Статус «В работе»',

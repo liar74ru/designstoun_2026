@@ -59,10 +59,6 @@ class ItemCost
                 'effective_cost_coeff'        => $effCoeff,
                 'master_base_cost_coeff'      => (float) ($product?->master_cost_coeff ?? 0),
                 'master_effective_cost_coeff' => $masterCoeff,
-                // Старые булевы колонки продолжают писаться по прежним правилам —
-                // на них ещё завязаны формы, группировки и бейджи (этапы 4–5).
-                'is_undercut'          => in_array('undercut', $manualKeys, true),
-                'is_edging'            => in_array('edging', $manualKeys, true),
                 'is_small_tile'        => StoneReceptionItem::skuIsSmallTile($product?->sku),
                 'worker_cost_per_m2'   => $product?->prodCost($effCoeff, $departmentId),
                 'master_cost_per_m2'   => $product

@@ -76,8 +76,7 @@ describe('StoneReceptionService::create() — правило «торцовка�
 
         $item = $reception->items->first();
 
-        expect((bool) $item->is_edging)->toBeTrue();
-        expect((bool) $item->is_undercut)->toBeFalse();
+        expect($item->modifiers->pluck('key')->all())->toBe(['edging']);
         expect((float) $item->effective_cost_coeff)->toBe(0.5);
     });
 
@@ -98,8 +97,7 @@ describe('StoneReceptionService::create() — правило «торцовка�
         $item = $reception->items->first();
 
         expect((float) $item->effective_cost_coeff)->toBe(-1.0);
-        expect((bool) $item->is_edging)->toBeTrue();
-        expect((bool) $item->is_undercut)->toBeTrue();
+        expect($item->modifiers->pluck('key')->sort()->values()->all())->toBe(['edging', 'undercut']);
     });
 
     test('без правил → effective_cost_coeff = prod_cost_coeff продукта', function () {
@@ -118,7 +116,7 @@ describe('StoneReceptionService::create() — правило «торцовка�
 
         $item = $reception->items->first();
 
-        expect((bool) $item->is_edging)->toBeFalse();
+        expect($item->modifiers->pluck('key')->all())->not->toContain('edging');
         expect((float) $item->effective_cost_coeff)->toBe(3.0);
     });
 
@@ -168,7 +166,7 @@ describe('StoneReceptionService::refreshItemCoeffs() — сохраняет вы
 
         $item = $reception->items()->first();
 
-        expect((bool) $item->is_edging)->toBeTrue();
+        expect($item->fresh()->modifiers->pluck('key')->all())->toContain('edging');
         expect((float) $item->effective_cost_coeff)->toBe(7.5);
     });
 });

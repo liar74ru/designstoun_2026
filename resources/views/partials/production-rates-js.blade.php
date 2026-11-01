@@ -59,7 +59,6 @@
 @endphp
 <script>
     window.ProductionRates = {
-        global: @json(\App\Support\ProductionRates::all()),
         coeffShare: {{ \App\Support\RateFormula::COEFF_SHARE }},
         pieceRate: {
             default: {{ \App\Support\DepartmentSettings::pieceRate(null) }},
