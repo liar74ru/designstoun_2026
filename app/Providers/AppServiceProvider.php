@@ -14,7 +14,10 @@ use App\Policies\SupplierOrderPolicy;
 use App\Policies\WorkerPolicy;
 use App\Policies\WorkshopPolicy;
 use App\Support\OperationAccessor;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -31,6 +34,10 @@ class AppServiceProvider extends ServiceProvider
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
         }
+
+        // Перебор с одного адреса. Весь цех выходит с одного IP, поэтому лимит с запасом;
+        // попытки на конкретный логин ограничивает LoginRequest.
+        RateLimiter::for('login', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
 
         foreach (array_keys(config('department_operations', [])) as $key) {
             Gate::define("see-{$key}", fn (?User $user) => OperationAccessor::canSee($user, $key));

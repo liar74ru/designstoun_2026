@@ -37,7 +37,7 @@ class AdminUserSeeder extends Seeder
             ]);
 
             // 2. Создаём user и сразу привязываем к worker
-            $user = User::create([
+            $user = User::forceCreate([
                 'name'      => 'Администратор',
                 'phone'     => $phone,
                 'email'     => null,

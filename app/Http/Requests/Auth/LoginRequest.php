@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -54,8 +55,9 @@ class LoginRequest extends FormRequest
         $field = $this->getLoginField();
         $login = $this->normalizeLogin($this->input('login'));
 
-        if (! Auth::attempt(
+        if (! Auth::attemptWhen(
             [$field => $login, 'password' => $this->input('password')],
+            fn (User $user) => ! $user->isLoginBlocked(),
             $this->boolean('remember')
         )) {
             RateLimiter::hit($this->throttleKey());
@@ -88,6 +90,7 @@ class LoginRequest extends FormRequest
 
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('login')) . '|' . $this->ip());
+        // От нормализованного логина: иначе каждый формат одного телефона — свой счётчик попыток
+        return Str::transliterate(Str::lower($this->normalizeLogin($this->input('login'))) . '|' . $this->ip());
     }
 }

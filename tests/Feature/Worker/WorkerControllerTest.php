@@ -380,6 +380,16 @@ describe('WorkerController storeUser()', function () {
         expect(User::where('worker_id', $worker->id)->exists())->toBeTrue();
     });
 
+    test('отклоняет пароль короче 8 символов', function () {
+        $worker = makeWorker(['phone' => '79001112235']);
+
+        $this->actingAs(H::adminUser())
+            ->post(route('workers.store-user', $worker), ['password' => '1234567'])
+            ->assertSessionHasErrors('password');
+
+        expect(User::where('worker_id', $worker->id)->exists())->toBeFalse();
+    });
+
     test('отклоняет если у работника уже есть учётка', function () {
         $worker = makeWorker(['phone' => '79001112234']);
         User::create([
@@ -496,10 +506,51 @@ describe('WorkerController updateUser()', function () {
 
         $this->actingAs(H::adminUser())
             ->put(route('workers.update-user', $worker), [
-                'password'              => '123',
-                'password_confirmation' => '123',
+                'password'              => '1234567',
+                'password_confirmation' => '1234567',
             ])
             ->assertSessionHasErrors('password');
+    });
+
+    test('работник не может выдать себе права администратора', function () {
+        $worker = makeWorker(['phone' => '79555555555']);
+        $user   = User::create([
+            'name'      => $worker->name,
+            'phone'     => $worker->phone,
+            'password'  => bcrypt('old'),
+            'worker_id' => $worker->id,
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('workers.update-user', $worker), [
+                'password'              => 'newpass1',
+                'password_confirmation' => 'newpass1',
+                'is_admin'              => '1',
+            ]);
+
+        expect($user->fresh()->is_admin)->toBeFalse();
+    });
+
+    test('администратор выдаёт и снимает права администратора', function () {
+        $worker = makeWorker(['phone' => '79666666666']);
+        $user   = User::create([
+            'name'      => $worker->name,
+            'phone'     => $worker->phone,
+            'password'  => bcrypt('old'),
+            'worker_id' => $worker->id,
+        ]);
+        $admin = H::adminUser();
+        $form  = ['password' => 'newpass1', 'password_confirmation' => 'newpass1'];
+
+        $this->actingAs($admin)->put(route('workers.update-user', $worker), $form + ['is_admin' => '1']);
+        expect($user->fresh()->is_admin)->toBeTrue();
+
+        $this->actingAs($admin)->put(route('workers.update-user', $worker), $form);
+        expect($user->fresh()->is_admin)->toBeFalse();
+    });
+
+    test('is_admin нельзя задать массовым присваиванием', function () {
+        expect((new User)->fill(['is_admin' => true])->is_admin)->toBeNull();
     });
 
     test('редиректит если user нет', function () {

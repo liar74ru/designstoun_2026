@@ -68,6 +68,104 @@ test('вход несуществующего пользователя не ав
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Архивные работники
+// ──────────────────────────────────────────────────────────────────────────────
+
+function loginUser(array $workerAttrs = [], array $userAttrs = []): User
+{
+    $worker = Worker::create($workerAttrs + ['name' => 'Иванов Иван', 'position' => 'Работник']);
+
+    return User::factory()->create($userAttrs + [
+        'phone'     => '79991234567',
+        'worker_id' => $worker->id,
+        'password'  => bcrypt('password'),
+    ]);
+}
+
+test('работник в архиве не может войти', function () {
+    loginUser(['archived_at' => now()]);
+
+    $this->post('/login', ['login' => '79991234567', 'password' => 'password'])
+        ->assertSessionHasErrors('login');
+
+    $this->assertGuest();
+});
+
+test('после возврата из архива вход снова работает', function () {
+    $user = loginUser(['archived_at' => now()]);
+    $user->worker->restore();
+
+    $this->post('/login', ['login' => '79991234567', 'password' => 'password']);
+
+    $this->assertAuthenticatedAs($user);
+});
+
+test('перевод в архив обрывает действующую сессию', function () {
+    $user = loginUser();
+
+    $this->actingAs($user)->get('/my-work')->assertOk();
+
+    $user->worker->archive();
+
+    $this->actingAs($user->fresh())->get('/my-work')
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors('login');
+
+    $this->assertGuest();
+});
+
+test('админ в архиве не входит, если есть другой действующий админ', function () {
+    loginUser(['archived_at' => now()], ['is_admin' => true]);
+    User::factory()->create(['is_admin' => true]);
+
+    $this->post('/login', ['login' => '79991234567', 'password' => 'password']);
+
+    $this->assertGuest();
+});
+
+test('единственный админ в архиве может войти', function () {
+    $user = loginUser(['archived_at' => now()], ['is_admin' => true]);
+
+    $this->post('/login', ['login' => '79991234567', 'password' => 'password']);
+
+    $this->assertAuthenticatedAs($user);
+});
+
+test('админ в архиве может войти, если остальные админы тоже в архиве', function () {
+    $user = loginUser(['archived_at' => now()], ['is_admin' => true]);
+    loginUser(['archived_at' => now()], ['is_admin' => true, 'phone' => '79990000000']);
+
+    $this->post('/login', ['login' => '79991234567', 'password' => 'password']);
+
+    $this->assertAuthenticatedAs($user);
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Лимит попыток
+// ──────────────────────────────────────────────────────────────────────────────
+
+test('разные форматы одного телефона считаются одним логином', function () {
+    User::factory()->create(['phone' => '79991234567', 'password' => bcrypt('password')]);
+
+    foreach (['79991234567', '+79991234567', '+7 999 123-45-67', '7 (999) 1234567', '7-999-123-45-67'] as $format) {
+        $this->post('/login', ['login' => $format, 'password' => 'wrong']);
+    }
+
+    $this->post('/login', ['login' => '+7 (999) 123-45-67', 'password' => 'password'])
+        ->assertSessionHasErrors('login');
+
+    $this->assertGuest();
+});
+
+test('с одного адреса не больше 30 попыток входа в минуту', function () {
+    foreach (range(1, 30) as $i) {
+        $this->post('/login', ['login' => '7000000' . $i, 'password' => 'wrong'])->assertRedirect();
+    }
+
+    $this->post('/login', ['login' => '70000099', 'password' => 'wrong'])->assertStatus(429);
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Редиректы после входа
 // ──────────────────────────────────────────────────────────────────────────────
 

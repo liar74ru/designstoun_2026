@@ -17,7 +17,6 @@ class User extends Authenticatable
         'phone',
         'password',
         'worker_id',
-        'is_admin',
     ];
 
     protected $hidden = [
@@ -49,6 +48,26 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->is_admin;
+    }
+
+    /**
+     * Вход закрыт: работник в архиве. Админа блокируем, только если остаётся другой
+     * действующий админ, иначе систему некому будет вести.
+     */
+    public function isLoginBlocked(): bool
+    {
+        if (!$this->worker?->isArchived()) {
+            return false;
+        }
+
+        if (!$this->is_admin) {
+            return true;
+        }
+
+        return self::where('is_admin', true)
+            ->whereKeyNot($this->id)
+            ->where(fn ($q) => $q->whereNull('worker_id')->orWhereHas('worker', fn ($w) => $w->active()))
+            ->exists();
     }
 
     public function isMaster(): bool

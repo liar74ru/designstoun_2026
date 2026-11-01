@@ -240,7 +240,6 @@ class WorkerService
             'phone'     => $worker->phone,
             'password'  => bcrypt($password),
             'worker_id' => $worker->id,
-            'is_admin'  => false,
         ]);
 
         return ['success' => true];
@@ -248,16 +247,18 @@ class WorkerService
 
     public function updateUser(Worker $worker, string $password, bool $setAdmin, bool $callerIsAdmin): void
     {
-        $data = [
+        $user = $worker->user;
+
+        $user->fill([
             'password' => bcrypt($password),
             'phone'    => $worker->phone,
-        ];
+        ]);
 
         if ($callerIsAdmin) {
-            $data['is_admin'] = $setAdmin;
+            $user->is_admin = $setAdmin;
         }
 
-        $worker->user->update($data);
+        $user->save();
     }
 
     private function positionSortSql(): string

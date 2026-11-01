@@ -77,11 +77,11 @@
                                        name="password"
                                        placeholder="Введите пароль"
                                        {{ $worker->phone ? 'required' : 'disabled' }}
-                                       minlength="6">
+                                       minlength="8">
                                 @error('password')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
-                                <small class="text-muted">Минимум 6 символов</small>
+                                <small class="text-muted">Минимум 8 символов</small>
                             </div>
 
                             {{-- Кнопки --}}

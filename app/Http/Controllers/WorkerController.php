@@ -127,7 +127,7 @@ class WorkerController extends Controller
         }
 
         $validated = $request->validate([
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:8',
         ]);
 
         $result = $this->service->createUser($worker, $validated['password']);
@@ -150,11 +150,11 @@ class WorkerController extends Controller
         }
 
         $validated = $request->validate([
-            'password' => 'required|string|min:6|confirmed',
+            'password' => 'required|string|min:8|confirmed',
             'is_admin' => 'boolean',
         ], [
             'password.required'  => 'Введите новый пароль',
-            'password.min'       => 'Пароль должен быть не менее 6 символов',
+            'password.min'       => 'Пароль должен быть не менее 8 символов',
             'password.confirmed' => 'Пароли не совпадают',
         ]);
 
