@@ -258,7 +258,7 @@
                 <div class="card-body d-flex justify-content-between align-items-center py-2 px-3">
                     <span class="text-muted small">Удалить отдел навсегда</span>
                     <form method="POST" data-submit-guard action="{{ route('admin.departments.destroy', $department) }}"
-                          onsubmit="return confirm('Удалить отдел «{{ $department->name }}»? Это действие необратимо.')">
+                          data-confirm="Удалить отдел «{{ $department->name }}»? Это действие необратимо.">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-outline-danger">
@@ -542,7 +542,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     <form method="POST" data-submit-guard action="{{ route('admin.departments.modifiers.destroy', [$department, $modifier]) }}"
-                                          onsubmit="return confirm('Удалить правило «{{ $modifier->name }}»?')">
+                                          data-confirm="Удалить правило «{{ $modifier->name }}»?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
@@ -614,7 +614,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     <form method="POST" data-submit-guard action="{{ route('admin.departments.presets.destroy', [$department, $preset]) }}"
-                                          onsubmit="return confirm('Удалить пресет «{{ $preset->name }}»?')">
+                                          data-confirm="Удалить пресет «{{ $preset->name }}»?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">

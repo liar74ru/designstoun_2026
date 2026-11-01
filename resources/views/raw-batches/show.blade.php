@@ -196,7 +196,7 @@
 
                                 @if($canModify && $batch->canBeEditedOrDeleted())
                                     <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
-                                          onsubmit="return confirm('Удалить партию #{{ $batch->id }}? Это действие необратимо.')">
+                                          data-confirm="Удалить партию #{{ $batch->id }}? Это действие необратимо.">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="btn btn-danger w-100">
                                             <i class="bi bi-trash"></i> Удалить <span class="opacity-75 small">(Только для новой)</span>

@@ -235,7 +235,7 @@
                         @can('modify', $workshop)
                         <form method="POST"
                               action="{{ route('workshops.destroy', $workshop) }}"
-                              onsubmit="return confirm('Удалить операцию Цех #{{ $workshop->id }}? Тара будет возвращена на склад.')"
+                              data-confirm="Удалить операцию Цех #{{ $workshop->id }}? Тара будет возвращена на склад."
                               data-submit-guard>
                             @csrf
                             @method('DELETE')

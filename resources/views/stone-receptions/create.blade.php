@@ -538,17 +538,17 @@
 
                 const items = receptions.map(r => {
                     const productsHtml = r.items.map(i =>
-                        `<div class="text-muted" style="font-size:.75rem">${i.product_name} <span class="text-dark">× ${i.quantity}</span></div>`
+                        `<div class="text-muted" style="font-size:.75rem">${escapeHtml(i.product_name)} <span class="text-dark">× ${i.quantity}</span></div>`
                     ).join('');
                     const cutterHtml = r.cutter_name
-                        ? `<div class="text-muted mt-1" style="font-size:.72rem"><i class="bi bi-hammer me-1"></i>${r.cutter_name}</div>`
+                        ? `<div class="text-muted mt-1" style="font-size:.72rem"><i class="bi bi-hammer me-1"></i>${escapeHtml(r.cutter_name)}</div>`
                         : '';
 
-                    const itemsJson = JSON.stringify(r.items.map(i => ({
+                    const itemsJson = escapeHtml(JSON.stringify(r.items.map(i => ({
                         product_id:    i.product_id,
                         product_label: i.product_label,
                         modifiers:     i.modifiers,
-                    }))).replace(/"/g, '&quot;');
+                    }))));
 
                     return `<div class="list-group-item px-2 py-2">
                         <div class="d-flex justify-content-between align-items-start">

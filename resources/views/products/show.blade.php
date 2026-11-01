@@ -41,7 +41,7 @@
         // Склады, где всё по нулям (остаток, резерв, в пути), не показываем — только считаем.
         $visibleStocks     = $product->stocks->reject(fn ($s) => $s->quantity == 0 && $s->reserved == 0 && $s->in_transit == 0);
         $hiddenStocksCount = $product->stocks->count() - $visibleStocks->count();
-        $refreshConfirm  = "return confirm('Обновить данные товара из МойСклад?')";
+        $refreshConfirm  = 'Обновить данные товара из МойСклад?';
 
         // После неудачного сохранения коэффициентов блок с формой остаётся раскрытым.
         $coeffFormOpen = $errors->hasAny(['prod_cost_coeff', 'master_cost_coeff']) || old('prod_cost_coeff') !== null;
@@ -51,7 +51,7 @@
         <x-page-header :title="$product->name" :backUrl="route('products.index')" backLabel="К списку">
             <x-slot:actions>
                 <form method="POST" action="{{ route('products.refresh', $product->moysklad_id) }}"
-                      class="d-inline" data-submit-guard onsubmit="{{ $refreshConfirm }}">
+                      class="d-inline" data-submit-guard data-confirm="{{ $refreshConfirm }}">
                     @csrf
                     <button type="submit" class="btn btn-warning">
                         <i class="bi bi-arrow-repeat"></i> Обновить
@@ -60,7 +60,7 @@
             </x-slot:actions>
             <x-slot:mobileActions>
                 <form method="POST" action="{{ route('products.refresh', $product->moysklad_id) }}"
-                      class="d-inline" data-submit-guard onsubmit="{{ $refreshConfirm }}">
+                      class="d-inline" data-submit-guard data-confirm="{{ $refreshConfirm }}">
                     @csrf
                     <button type="submit" class="btn btn-warning btn-sm" title="Обновить">
                         <i class="bi bi-arrow-repeat"></i>

@@ -63,8 +63,10 @@
                    transition: background-color 0.2s;
                    {{ !$activeGroupId ? 'background-color: #0d6efd; color: white;' : '' }}
                "
-               onmouseover="if('{{ $activeGroupId }}' !== '') this.style.backgroundColor='#f8f9fa';"
-               onmouseout="if('{{ $activeGroupId }}' !== '') this.style.backgroundColor='transparent';">
+               @if($activeGroupId)
+               onmouseover="this.style.backgroundColor='#f8f9fa';"
+               onmouseout="this.style.backgroundColor='transparent';"
+               @endif>
                 <span style="display: flex; align-items: center;">
                     <i class="bi bi-folder" style="margin-right: 8px;"></i>
                     <span>Все группы</span>
@@ -243,7 +245,7 @@
 
             // Обновляем текст на кнопке
             if (groupId) {
-                btn.innerHTML = `<span class="truncate-text"><i class="bi bi-folder me-1"></i>${groupName}</span><i class="bi bi-chevron-down ms-2 group-filter-chevron"></i>`;
+                btn.innerHTML = `<span class="truncate-text"><i class="bi bi-folder me-1"></i>${escapeHtml(groupName)}</span><i class="bi bi-chevron-down ms-2 group-filter-chevron"></i>`;
             } else {
                 btn.innerHTML = `<span class="truncate-text"><i class="bi bi-folder me-1"></i>Все группы</span><i class="bi bi-chevron-down ms-2 group-filter-chevron"></i>`;
             }

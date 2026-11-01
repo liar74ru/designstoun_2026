@@ -153,7 +153,7 @@
                 Сырьё вернётся на склад-источник.
             </p>
             <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
-                  onsubmit="return confirm('Удалить партию #{{ $batch->id }}? Это действие необратимо.')">
+                  data-confirm="Удалить партию #{{ $batch->id }}? Это действие необратимо.">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-outline-danger btn-sm">

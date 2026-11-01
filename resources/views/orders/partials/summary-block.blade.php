@@ -113,7 +113,7 @@
                     <i class="bi bi-pencil"></i> Изменить состав
                 </a>
                 <form method="POST" action="{{ route('orders.internal.destroy', $order->uuid) }}" data-submit-guard
-                      onsubmit="return confirm('Удалить внутренний заказ {{ $order->name }}?')">
+                      data-confirm="Удалить внутренний заказ {{ $order->name }}?">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить внутренний заказ">

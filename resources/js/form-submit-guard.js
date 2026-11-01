@@ -2,6 +2,20 @@
 // Форма помечается атрибутом data-submit-guard: при отправке активная кнопка
 // получает спиннер «Сохранение…», все submit-кнопки блокируются, повторная
 // отправка гасится. Возврат по «Назад» из bfcache восстанавливает кнопки.
+//
+// Форма с атрибутом data-confirm="текст" спрашивает подтверждение перед отправкой. Текст может
+// содержать данные: в отличие от onsubmit="confirm('{{ $x }}')", он не выполняется как код.
+// Перехват на всплытии не подходит: обработчик самой формы успел бы её отправить.
+document.addEventListener('submit', (e) => {
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement) || form.dataset.confirm === undefined) return;
+    if (form.dataset.submitting === '1') return;
+    if (!window.confirm(form.dataset.confirm)) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+}, true);
+
 document.addEventListener('submit', (e) => {
     const form = e.target;
     if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-submit-guard')) return;

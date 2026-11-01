@@ -140,7 +140,7 @@
                                     </form>
                                 @else
                                     <form method="POST" action="{{ route('workers.archive', $worker) }}"
-                                          onsubmit="return confirm('Перевести работника {{ $worker->name }} в архив?')">
+                                          data-confirm="Перевести работника {{ $worker->name }} в архив?">
                                         @csrf
                                         @method('PATCH')
                                         <button type="submit" class="btn btn-outline-warning">
@@ -150,7 +150,7 @@
                                 @endif
 
                                 <form method="POST" action="{{ route('workers.destroy', $worker) }}"
-                                      onsubmit="return confirm('Вы уверены, что хотите удалить работника {{ $worker->name }}? Действие необратимо.')">
+                                      data-confirm="Вы уверены, что хотите удалить работника {{ $worker->name }}? Действие необратимо.">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-outline-danger">

@@ -249,7 +249,8 @@ function renderTree(groups, filter = '') {
             const pBtn = document.createElement('button');
             pBtn.type = 'button';
             pBtn.className = 'btn btn-sm btn-light text-start w-100 py-1 mb-1 small';
-            pBtn.innerHTML = `<i class="bi bi-gem text-secondary me-1"></i>${product.label}`;
+            pBtn.innerHTML = '<i class="bi bi-gem text-secondary me-1"></i>';
+            pBtn.append(product.label);
             pBtn.addEventListener('click', () => {
                 const modal = pBtn.closest('.modal');
                 const modalId = modal.id;

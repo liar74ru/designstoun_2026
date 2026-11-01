@@ -208,7 +208,7 @@
 
                             <form method="POST"
                                   action="{{ route('stone-receptions.destroy', $stoneReception) }}"
-                                  onsubmit="return confirm('Удалить приёмку #{{ $stoneReception->id }}? Остатки будут возвращены в партию.')">
+                                  data-confirm="Удалить приёмку #{{ $stoneReception->id }}? Остатки будут возвращены в партию.">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-danger w-100">

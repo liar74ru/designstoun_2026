@@ -199,7 +199,7 @@
                 Поступление будет безвозвратно удалено. Запись в МойСклад также будет удалена.
             </p>
             <form method="POST" action="{{ route('supplier-orders.destroy', $supplierOrder) }}"
-                  onsubmit="return confirm('Удалить поступление №{{ $supplierOrder->number }}? Это действие необратимо.')">
+                  data-confirm="Удалить поступление №{{ $supplierOrder->number }}? Это действие необратимо.">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-outline-danger btn-sm">
@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function () {
                          class="list-group-item list-group-item-action py-1 px-2 cp-item"
                          style="font-size:.82rem"
                          data-id="${c.id}"
-                         data-name="${c.name.replace(/"/g,'&quot;')}">${c.name}</button>`
+                         data-name="${escapeHtml(c.name)}">${escapeHtml(c.name)}</button>`
             ).join('');
             dropdownEl.style.display = '';
         }

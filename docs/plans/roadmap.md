@@ -8,7 +8,7 @@
 
 - Это единственный список порядка работ. Подробности пунктов `A*` — в
   [architecture-review.md](architecture-review.md), статусы ведутся здесь.
-- Один пункт — одна версия, следующая — `4.0.8`.
+- Один пункт — одна версия, следующая — `4.0.9`.
 - Перед стартом пункта согласовать скоуп, после него — поменять статус и вписать версию.
 - Новые тесты пишем только по подтверждению для конкретного пункта (правило CLAUDE.md).
 
@@ -31,7 +31,7 @@
 |---|---|---|---|---|---|
 | [S1](#s1-удаление-работника-стирает-выплаты-и-копилку) | Удаление работника стирает выплаты и копилку | S | новое | done | 4.0.6 |
 | [S2](#s2-вход-в-систему) | Вход: архивные работники, лимит попыток, пароль, `is_admin` | S | п.12 | done | 4.0.7 |
-| [S3](#s3-xss) | XSS: `innerHTML` и `confirm()` с данными | M | п.11 | todo | |
+| [S3](#s3-xss) | XSS: `innerHTML` и `confirm()` с данными | M | п.11 | done | 4.0.8 |
 | [S4](#s4-обновление-зависимостей) | Обновление зависимостей | S | новое | todo | |
 
 ### S1. Удаление работника стирает выплаты и копилку
@@ -58,17 +58,18 @@
 
 ### S3. XSS
 
-Хранимые данные (имена работников, названия товаров из МойСклад) попадают в разметку без экранирования, общего хелпера нет.
+**Итог 4.0.8.**
 
-- `stone-receptions/create.blade.php`, ~строки 536–575: `product_name`, `cutter_name` в `innerHTML`.
-- `product-picker.js:252`: `product.label` в `innerHTML`.
-- 17 форм с `onsubmit="return confirm('… {{ $x }} …')"`: браузер раскодирует `&#039;` до запуска JS, так
-  что `'` в имени ломает строку и позволяет выполнить код. Опасны те, где подставляется текст:
-  `workers/edit`, `admin/departments/show`, `orders/partials/summary-block`, `supplier-orders/*`.
-  Единое решение: атрибут `data-confirm` и обработчик в `form-submit-guard.js`, либо `Js::from`.
-- Проверить `supplier-orders/{create,edit}` (`dropdownEl.innerHTML`) и `components/group-filter` (`groupName`).
+- **Отражённый XSS.** `request('filter.group_id')` попадал в `onmouseover` в `components/group-filter*`: ссылка с подготовленным
+  параметром выполняла код у вошедшего пользователя. Значение в обработчики больше не подставляется.
+- **Подтверждения.** Атрибут формы `data-confirm` вместо `onsubmit="return confirm('… {{ $x }} …')"` в 19 формах: текст не
+  выполняется как код. В `stores/index` подтверждение из-за кавычек не работало вообще — теперь спрашивает.
+- **`innerHTML`.** Хелпер `window.escapeHtml` (`resources/js/escape-html.js`) в `stone-receptions/create`, `supplier-orders/{create,edit}`,
+  `group-filter`; в `product-picker` — вставка текстом.
+- **Alpine.** `Js::from` для значений из `old()` в `admin/departments/modifiers/_form`.
 
-`help/show` с `{!! $html !!}` безопасен: источник — свои файлы, `html_input: strip`.
+`help/show` с `{!! $html !!}` безопасен: источник — свои файлы, `html_input: strip`. Числа в `raw-batches/adjust` и `partials/filters` не трогали.
+В браузере не проверялось; автотестов на подтверждение нет, JS-тестов в проекте нет.
 
 ### S4. Обновление зависимостей
 

@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', function () {
                          class="list-group-item list-group-item-action py-1 px-2 cp-item"
                          style="font-size:.82rem"
                          data-id="${c.id}"
-                         data-name="${c.name.replace(/"/g,'&quot;')}">${c.name}</button>`
+                         data-name="${escapeHtml(c.name)}">${escapeHtml(c.name)}</button>`
             ).join('');
             dropdownEl.style.display = '';
         }

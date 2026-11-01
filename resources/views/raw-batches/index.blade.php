@@ -99,7 +99,7 @@
                                         </a>
                                         <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
                                               class="d-inline"
-                                              onsubmit="return confirm('Удалить партию #{{ $batch->id }}? Это действие необратимо.')">
+                                              data-confirm="Удалить партию #{{ $batch->id }}? Это действие необратимо.">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
                                                 <i class="bi bi-trash"></i>

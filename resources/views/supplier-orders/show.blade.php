@@ -172,7 +172,7 @@
                                 @endif
                                 @if($canDelete)
                                     <form method="POST" action="{{ route('supplier-orders.destroy', $supplierOrder) }}"
-                                          onsubmit="return confirm('{{ $confirmText }}')">
+                                          data-confirm="{{ $confirmText }}">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="btn btn-danger w-100">
                                             <i class="bi bi-trash me-1"></i>Удалить

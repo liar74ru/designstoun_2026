@@ -96,7 +96,7 @@
                                     @if($order->status === \App\Models\SupplierOrder::STATUS_NEW && auth()->user()->can('modify', $order))
                                         <form method="POST" action="{{ route('supplier-orders.sync', $order) }}"
                                               class="d-inline"
-                                              onsubmit="return confirm('Создать приёмку в МойСклад для поступления №{{ $order->number }}?')">
+                                              data-confirm="Создать приёмку в МойСклад для поступления №{{ $order->number }}?">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-outline-primary" title="Создать приёмку в МойСклад">
                                                 <i class="bi bi-cloud-upload"></i>
@@ -113,7 +113,7 @@
                                         </a>
                                         <form method="POST" action="{{ route('supplier-orders.destroy', $order) }}"
                                               class="d-inline"
-                                              onsubmit="return confirm('Удалить поступление №{{ $order->number }}? Запись также будет удалена в МойСклад.')">
+                                              data-confirm="Удалить поступление №{{ $order->number }}? Запись также будет удалена в МойСклад.">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
                                                 <i class="bi bi-trash"></i>
@@ -179,7 +179,7 @@
                         <div class="d-flex flex-column gap-1 flex-shrink-0" style="width:88px">
                             @if($order->status === \App\Models\SupplierOrder::STATUS_NEW && auth()->user()->can('modify', $order))
                                 <form method="POST" action="{{ route('supplier-orders.sync', $order) }}"
-                                      onsubmit="return confirm('Создать приёмку в МойСклад для поступления №{{ $order->number }}?')">
+                                      data-confirm="Создать приёмку в МойСклад для поступления №{{ $order->number }}?">
                                     @csrf
                                     <button type="submit" class="btn btn-outline-primary w-100"
                                             style="font-size:.8rem;padding:.23rem .35rem">
@@ -204,7 +204,7 @@
                                     <i class="bi bi-pencil"></i> Изменить
                                 </a>
                                 <form method="POST" action="{{ route('supplier-orders.destroy', $order) }}"
-                                      onsubmit="return confirm('Удалить поступление №{{ $order->number }}? Запись также будет удалена в МойСклад.')">
+                                      data-confirm="Удалить поступление №{{ $order->number }}? Запись также будет удалена в МойСклад.">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-outline-danger w-100"
                                             style="font-size:.8rem;padding:.23rem .35rem">

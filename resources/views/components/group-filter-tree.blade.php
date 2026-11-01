@@ -28,8 +28,10 @@
                            min-width: 0;
                            {{ $activeGroupId == $group['id'] ? 'background-color: #0d6efd; color: white;' : '' }}
                        "
-                       onmouseover="if('{{ $activeGroupId }}' !== '{{ $group['id'] }}') this.style.backgroundColor='#f8f9fa';"
-                       onmouseout="if('{{ $activeGroupId }}' !== '{{ $group['id'] }}') this.style.backgroundColor='transparent';">
+                       @if($activeGroupId != $group['id'])
+                       onmouseover="this.style.backgroundColor='#f8f9fa';"
+                       onmouseout="this.style.backgroundColor='transparent';"
+                       @endif>
                         @else
                             <!-- Обычный элемент без ссылки -->
                             <a href="#"
@@ -42,8 +44,10 @@
                            cursor: default;
                            {{ $activeGroupId == $group['id'] ? 'background-color: #0d6efd; color: white;' : '' }}
                        "
-                               onmouseover="if('{{ $activeGroupId }}' !== '{{ $group['id'] }}') this.style.backgroundColor='#f8f9fa';"
-                               onmouseout="if('{{ $activeGroupId }}' !== '{{ $group['id'] }}') this.style.backgroundColor='transparent';">
+                               @if($activeGroupId != $group['id'])
+                               onmouseover="this.style.backgroundColor='#f8f9fa';"
+                               onmouseout="this.style.backgroundColor='transparent';"
+                               @endif>
                                 @endif
                                 <span style="display: flex; align-items: center; flex-grow: 1; min-width: 0;">
                         <i class="bi bi-folder" style="margin-right: 8px; flex-shrink: 0; color: {{ $activeGroupId == $group['id'] ? 'white' : '#ffc107' }};"></i>

@@ -40,7 +40,7 @@
 @endpush
 
 <form method="POST" action="{{ $action }}" data-submit-guard
-      x-data="{ trigger: '{{ $trigger }}' }">
+      x-data="{ trigger: {{ Js::from($trigger) }} }">
     @csrf
     @if($method !== 'POST')
         @method($method)
@@ -220,7 +220,7 @@
     {{-- ③ На что влияет --}}
     <div class="card shadow-sm mb-3"
          x-data="{
-            workerDelta: '{{ old('worker_coeff_delta', $modifier?->worker_coeff_delta) }}',
+            workerDelta: {{ Js::from((string) old('worker_coeff_delta', $modifier?->worker_coeff_delta)) }},
             get preview() {
                 const rates = window.RateFormula;
                 if (!rates) return null;
