@@ -1,12 +1,12 @@
 <?php
 
 use App\Exceptions\InsufficientRawMaterialException;
+use Illuminate\Support\Facades\Queue;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Models\StoneReception;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
-use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use App\Support\BatchStock;
@@ -32,10 +32,9 @@ function bsChangeRemainingBehind(RawMaterialBatch $batch, float $remaining): voi
 
 function bsReceptionService(): StoneReceptionService
 {
-    $sync = Mockery::mock(StoneReceptionSyncService::class);
-    $sync->shouldReceive('syncReception')->andReturn(null);
+    Queue::fake();
 
-    return new StoneReceptionService($sync, app(RawMaterialBatchService::class), Mockery::mock(RawMaterialBatchSyncService::class));
+    return new StoneReceptionService(app(RawMaterialBatchService::class), Mockery::mock(RawMaterialBatchSyncService::class));
 }
 
 describe('Партия сырья: расчёт от свежего остатка', function () {

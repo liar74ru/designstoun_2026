@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Department;
+use Illuminate\Support\Facades\Queue;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
@@ -8,7 +9,6 @@ use App\Models\Store;
 use App\Models\Worker;
 use App\Services\DepartmentModifierService;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
-use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Illuminate\Support\Facades\Cache;
@@ -22,14 +22,13 @@ beforeEach(function () {
 
 function makeReceptionServiceForEdging(): StoneReceptionService
 {
-    $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-    $mockSync->shouldReceive('syncReception')->andReturn(null);
+    Queue::fake();
 
     $mockBatchSync = \Mockery::mock(RawMaterialBatchSyncService::class);
     $mockBatchSync->shouldReceive('syncCreated')->andReturn(null);
     $mockBatchSync->shouldReceive('updateParentMove')->andReturn(null);
 
-    return new StoneReceptionService($mockSync, app(RawMaterialBatchService::class), $mockBatchSync);
+    return new StoneReceptionService(app(RawMaterialBatchService::class), $mockBatchSync);
 }
 
 function makeEdgingFixtures(): array

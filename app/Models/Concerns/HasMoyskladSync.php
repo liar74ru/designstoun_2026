@@ -6,6 +6,7 @@ trait HasMoyskladSync
 {
     const SYNC_STATUS_SYNCED     = 'synced';
     const SYNC_STATUS_NOT_SYNCED = 'not_synced';
+    const SYNC_STATUS_PENDING    = 'pending';
 
     public function hasMoySkladProcessing(): bool
     {
@@ -22,14 +23,36 @@ trait HasMoyskladSync
         return $this->moysklad_sync_status === self::SYNC_STATUS_SYNCED;
     }
 
+    public function isSyncPending(): bool
+    {
+        return $this->moysklad_sync_status === self::SYNC_STATUS_PENDING;
+    }
+
     public function syncStatusLabel(): string
     {
+        if ($this->isSyncPending()) {
+            return 'Ожидает';
+        }
+
         return $this->isSynced() ? 'Синхр' : 'Не синхр';
     }
 
     public function syncStatusBadgeClass(): string
     {
+        if ($this->isSyncPending()) {
+            return 'bg-secondary';
+        }
+
         return $this->isSynced() ? 'bg-success' : 'bg-danger';
+    }
+
+    /** Документ ждёт отправки в очереди: прежняя ошибка больше не актуальна. */
+    public function markSyncPending(): void
+    {
+        $this->update([
+            'moysklad_sync_status' => self::SYNC_STATUS_PENDING,
+            'moysklad_sync_error'  => null,
+        ]);
     }
 
     public function markSynced(string $processingId, ?string $processingName = null): void

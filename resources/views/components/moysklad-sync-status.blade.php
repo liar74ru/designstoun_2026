@@ -29,6 +29,10 @@
                 <i class="bi bi-exclamation-triangle me-1"></i>
                 <strong>Ошибка:</strong> {{ $model->moysklad_sync_error }}
             </div>
+        @elseif($model->isSyncPending())
+            <div class="small text-muted">
+                <i class="bi bi-hourglass-split me-1"></i>Ожидает отправки в МойСклад
+            </div>
         @elseif($model->isSynced())
             <div class="small text-success">
                 <i class="bi bi-check-circle me-1"></i>Синхронизировано

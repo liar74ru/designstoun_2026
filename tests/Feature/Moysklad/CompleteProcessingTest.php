@@ -3,6 +3,7 @@
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
 use App\Models\StoneReception;
+use App\Models\StoneReceptionItem;
 use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\Moysklad\WorkshopSyncService;
 use App\Services\StoneReceptionService;
@@ -168,23 +169,59 @@ describe('HandlesProcessingSync::reactivateProcessing()', function () {
 // StoneReceptionService::closeBatch() — партия закрыта → техоперации завершаются
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('StoneReceptionService::closeBatch() → completeProcessing()', function () {
+/** Фейк: GET сущностей отвечает метой, PUT статуса — $statePut, PUT позиций — $itemsPut. */
+function cptCloseFake($statePut = null, $itemsPut = null): void
+{
+    Http::fake(function (Request $request) use ($statePut, $itemsPut) {
+        if (str_contains($request->url(), '/entity/processing/metadata')) {
+            return Http::response(['states' => [
+                ['name' => 'В работе', 'meta' => ['href' => CPT_IN_WORK_HREF]],
+                ['name' => 'Готово',   'meta' => ['href' => CPT_DONE_HREF]],
+            ]], 200);
+        }
+        if (str_contains($request->url(), 'report/stock/bystore')) {
+            return Http::response(['rows' => []], 200);
+        }
+        if ($request->method() === 'PUT') {
+            return isset($request->data()['state'])
+                ? ($statePut ?? Http::response(['id' => 'proc-1'], 200))
+                : ($itemsPut ?? Http::response(['id' => 'proc-1'], 200));
+        }
+
+        return Http::response(['id' => 'proc-1', 'meta' => ['href' => 'h', 'type' => 'x', 'mediaType' => 'application/json']], 200);
+    });
+}
+
+function cptSentStates(): array
+{
+    return Http::recorded(fn (Request $r) => $r->method() === 'PUT' && isset($r->data()['state']))
+        ->map(fn ($pair) => $pair[0]->data()['state']['meta']['href'])
+        ->values()
+        ->all();
+}
+
+describe('StoneReceptionService::closeBatch() → задача завершает техоперацию', function () {
 
     beforeEach(function () {
         $store    = H::store();
         $receiver = H::worker('Приёмщик');
         $cutter   = H::cutter();
-        $raw      = H::product(['name' => 'Сырьё']);
+        $raw      = H::product(['name' => 'Сырьё', 'moysklad_id' => 'ms-raw']);
 
         $this->batch     = H::batch($raw, $store, $cutter, 5.0);
         $this->reception = H::reception($this->batch, $receiver, $cutter, $store, 5.0, [
             'moysklad_processing_id' => 'proc-1',
             'moysklad_sync_status'   => StoneReception::SYNC_STATUS_SYNCED,
         ]);
+        StoneReceptionItem::create([
+            'stone_reception_id' => $this->reception->id,
+            'product_id'         => H::product(['moysklad_id' => 'ms-out'])->id,
+            'quantity'           => 2.0,
+        ]);
     });
 
     test('израсходованная партия → used, приёмка completed, техоперация в «Готово»', function () {
-        cptFake();
+        cptCloseFake();
 
         expect(app(StoneReceptionService::class)->closeBatch($this->batch->fresh()))->toBeTrue();
 
@@ -193,11 +230,11 @@ describe('StoneReceptionService::closeBatch() → completeProcessing()', functio
         $reception = $this->reception->fresh();
         expect($reception->status)->toBe(StoneReception::STATUS_COMPLETED);
         expect($reception->isSynced())->toBeTrue();
-        expect(cptSentState()['meta']['href'])->toBe(CPT_DONE_HREF);
+        expect(cptSentStates())->toBe([CPT_DONE_HREF]);
     });
 
     test('ошибка МойСклад → приёмка завершена локально, ошибка в moysklad_sync_error', function () {
-        cptFake(Http::response(['errors' => [['error' => 'Документ заблокирован']]], 423));
+        cptCloseFake(Http::response(['errors' => [['error' => 'Документ заблокирован']]], 423));
 
         app(StoneReceptionService::class)->closeBatch($this->batch->fresh());
 
@@ -207,13 +244,12 @@ describe('StoneReceptionService::closeBatch() → completeProcessing()', functio
         expect($reception->moysklad_sync_error)->toBe('Ошибка МойСклад: Документ заблокирован');
     });
 
-    test('приёмка с незакрытой ошибкой синхронизации не завершается в МойСклад', function () {
-        $this->reception->markSyncError('позиции не доехали');
-        Http::fake();
+    test('позиции не обновились → статус техоперации не меняется', function () {
+        cptCloseFake(null, Http::response(['errors' => [['error' => 'Товар не найден']]], 412));
 
         app(StoneReceptionService::class)->closeBatch($this->batch->fresh());
 
-        Http::assertNothingSent();
-        expect($this->reception->fresh()->moysklad_sync_error)->toBe('позиции не доехали');
+        expect(cptSentStates())->toBe([]);
+        expect($this->reception->fresh()->moysklad_sync_error)->toBe('Ошибка МойСклад: Товар не найден');
     });
 });

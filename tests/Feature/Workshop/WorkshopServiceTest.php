@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Department;
+use Illuminate\Support\Facades\Queue;
+use App\Jobs\DeleteProcessingInMoysklad;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
 use App\Models\Product;
@@ -8,7 +10,6 @@ use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Services\WorkshopService;
-use App\Services\Moysklad\WorkshopSyncService;
 
 beforeEach(function () {
     Setting::set('PIECE_RATE', 390);
@@ -30,8 +31,7 @@ beforeEach(function () {
         'prod_cost_coeff' => 1.0,
     ]);
 
-    $this->mockSync = \Mockery::mock(WorkshopSyncService::class);
-    $this->mockSync->shouldReceive('syncWorkshop')->andReturn(null);
+    Queue::fake();
 });
 
 /** Базовый payload новой формы цеха. */
@@ -60,7 +60,7 @@ function basePayload($ctx, array $overrides = []): array
 describe('WorkshopService::create()', function () {
 
     test('строки сырья/упаковки/продукта раскладываются по ролям', function () {
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
 
         expect($workshop->rawItems()->count())->toBe(1)
@@ -71,7 +71,7 @@ describe('WorkshopService::create()', function () {
     });
 
     test('сохраняет worker_cost_per_m2 продукта по формуле prodCost (как в приёмке)', function () {
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
 
         // prodCost(1.0): floor((390 + 390×0.17×1.0) / 10) × 10 = floor(45.63) × 10 = 450
@@ -81,7 +81,7 @@ describe('WorkshopService::create()', function () {
     test('worker_cost_per_m2 не зависит от коэффициента упаковочной тары', function () {
         $this->packageProduct->update(['prod_cost_coeff' => 3.5]);
 
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
 
         // Тара на зарплату рабочего не влияет — только коэф продукта (1.0) → prodCost = 450
@@ -91,7 +91,7 @@ describe('WorkshopService::create()', function () {
     test('сохраняет manual_processing_sum и явно переданный department_id', function () {
         $dept = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
 
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this, [
             'department_id'         => $dept->id,
             'manual_processing_sum' => 12.50,
@@ -105,7 +105,7 @@ describe('WorkshopService::create()', function () {
         $dept = Department::create(['name' => 'Цех', 'code' => 'TSEH']);
         $this->packer->update(['department_id' => $dept->id]);
 
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
 
         expect($workshop->manual_processing_sum)->toBeNull()
@@ -113,7 +113,7 @@ describe('WorkshopService::create()', function () {
     });
 
     test('операция без упаковки создаётся (packages опциональны)', function () {
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this, ['packages' => []]), false);
 
         expect($workshop->packageItems()->count())->toBe(0)
@@ -128,7 +128,7 @@ describe('WorkshopService::create()', function () {
 describe('WorkshopService::update()', function () {
 
     test('добавляет и удаляет продукт на выходе', function () {
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
 
         $extra = Product::factory()->create(['sku' => '05-02-02']);
@@ -158,7 +158,7 @@ describe('WorkshopService::update()', function () {
             'department_id' => $deptB->id,
         ]);
 
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
         expect($workshop->packer_id)->toBe($this->packer->id);
 
@@ -169,7 +169,7 @@ describe('WorkshopService::update()', function () {
     });
 
     test('обновляет manual_processing_sum', function () {
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
 
         $service->update($workshop, basePayload($this, ['manual_processing_sum' => 33.0]), false);
@@ -185,7 +185,7 @@ describe('WorkshopService: склады', function () {
 
     test('create сохраняет product_store_id', function () {
         $productStore = Store::factory()->create();
-        $service      = new WorkshopService($this->mockSync);
+        $service      = new WorkshopService();
 
         $workshop = $service->create(basePayload($this, [
             'product_store_id' => $productStore->id,
@@ -196,7 +196,7 @@ describe('WorkshopService: склады', function () {
     });
 
     test('create списывает тару со склада сырья', function () {
-        $service = new WorkshopService($this->mockSync);
+        $service = new WorkshopService();
         $service->create(basePayload($this, [
             'product_store_id' => $this->store->id,
             'packages'         => [['product_id' => $this->packageProduct->id, 'quantity' => 3.0]],
@@ -208,7 +208,7 @@ describe('WorkshopService: склады', function () {
     });
 
     test('update со сменой склада сырья переносит списанную тару', function () {
-        $service = new WorkshopService($this->mockSync);
+        $service = new WorkshopService();
 
         $workshop = $service->create(basePayload($this, [
             'product_store_id' => $this->store->id,
@@ -235,7 +235,7 @@ describe('WorkshopService: склады', function () {
     });
 
     test('update без смены склада корректирует остаток на дельту тары', function () {
-        $service = new WorkshopService($this->mockSync);
+        $service = new WorkshopService();
 
         $workshop = $service->create(basePayload($this, [
             'product_store_id' => $this->store->id,
@@ -254,7 +254,7 @@ describe('WorkshopService: склады', function () {
     });
 
     test('удаление операции возвращает тару на склад', function () {
-        $service = new WorkshopService($this->mockSync);
+        $service = new WorkshopService();
         $workshop = $service->create(basePayload($this, [
             'product_store_id' => $this->store->id,
             'packages'         => [['product_id' => $this->packageProduct->id, 'quantity' => 3.0]],
@@ -274,44 +274,25 @@ describe('WorkshopService: склады', function () {
 
 describe('WorkshopService::delete()', function () {
 
-    test('удаляет техоперацию в МойСклад при наличии moysklad_processing_id', function () {
-        $service  = new WorkshopService($this->mockSync);
+    test('удаление техоперации уходит в очередь со значениями: записи уже нет', function () {
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
         $workshop->update(['moysklad_processing_id' => 'ms-uuid-1']);
 
-        $this->mockSync->shouldReceive('deleteProcessingForWorkshop')
-            ->once()
-            ->withArgs(fn (Workshop $w) => $w->moysklad_processing_id === 'ms-uuid-1')
-            ->andReturn(['success' => true, 'message' => 'Техоперация удалена']);
-
         $service->delete($workshop->fresh());
 
         expect(Workshop::find($workshop->id))->toBeNull();
+        Queue::assertPushed(DeleteProcessingInMoysklad::class, fn ($job) => $job->processingId === 'ms-uuid-1'
+            && str_ends_with($job->externalCode, 'workshop_' . $workshop->id));
     });
 
-    test('ошибка удаления в МойСклад не блокирует локальное удаление', function () {
-        $service  = new WorkshopService($this->mockSync);
+    test('без moysklad_processing_id задача ищет техоперацию по внешнему коду', function () {
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
-        $workshop->update(['moysklad_processing_id' => 'ms-uuid-2']);
-
-        $this->mockSync->shouldReceive('deleteProcessingForWorkshop')
-            ->once()
-            ->withArgs(fn (Workshop $w) => $w->moysklad_processing_id === 'ms-uuid-2')
-            ->andReturn(['success' => false, 'message' => 'Ошибка API МойСклад']);
-
-        $service->delete($workshop->fresh());
-
-        expect(Workshop::find($workshop->id))->toBeNull();
-    });
-
-    test('без moysklad_processing_id запрос в МойСклад не отправляется', function () {
-        $service  = new WorkshopService($this->mockSync);
-        $workshop = $service->create(basePayload($this), false);
-
-        $this->mockSync->shouldNotReceive('deleteProcessingForWorkshop');
 
         $service->delete($workshop);
 
+        Queue::assertPushed(DeleteProcessingInMoysklad::class, fn ($job) => $job->processingId === null);
         expect(Workshop::find($workshop->id))->toBeNull();
     });
 });
@@ -323,7 +304,7 @@ describe('WorkshopService::delete()', function () {
 describe('WorkshopService::refreshItemCoeffs()', function () {
 
     test('пересчитывает worker_cost_per_m2 продукта после изменения настроек', function () {
-        $service  = new WorkshopService($this->mockSync);
+        $service  = new WorkshopService();
         $workshop = $service->create(basePayload($this), false);
 
         Setting::set('PIECE_RATE', 500);

@@ -35,7 +35,7 @@
 ```php
 $table->string('moysklad_processing_id')->nullable();       // UUID техоперации в МойСклад
 $table->string('moysklad_processing_name')->nullable();     // Имя техоперации (для отображения)
-$table->string('moysklad_sync_status')->nullable();         // 'synced' | 'not_synced'
+$table->string('moysklad_sync_status')->nullable();         // 'synced' | 'pending' | 'not_synced'
 $table->text('moysklad_sync_error')->nullable();            // Текст ошибки последней синхронизации
 $table->timestamp('synced_at')->nullable();                 // Время последней попытки синхронизации
 ```
@@ -66,67 +66,76 @@ class Workshop extends Model
 | `hasMoySkladProcessing(): bool` | Есть ли UUID техоперации |
 | `hasSyncError(): bool` | Есть ли текст ошибки |
 | `isSynced(): bool` | `moysklad_sync_status === SYNCED` |
-| `syncStatusLabel(): string` | «Синхр» / «Не синхр» |
-| `syncStatusBadgeClass(): string` | `bg-success` / `bg-danger` |
+| `syncStatusLabel(): string` | «Синхр» / «Ожидает» / «Не синхр» |
+| `syncStatusBadgeClass(): string` | `bg-success` / `bg-secondary` / `bg-danger` |
 | `markSynced(string $processingId, ?string $processingName = null)` | Поставить `synced`, очистить ошибку |
 | `markSyncError(string $error)` | Поставить `not_synced`, записать ошибку |
+| `SYNC_STATUS_PENDING`, `isSyncPending()`, `markSyncPending()` | Документ ждёт в очереди; ошибка сбрасывается |
 
 Реализация: [app/Models/Concerns/HasMoyskladSync.php](../app/Models/Concerns/HasMoyskladSync.php).
 
 ---
 
+## Очередь: приёмка и цех
+
+Приёмка и цех отправляются в МойСклад задачами очереди (`app/Jobs`), работник МойСклад не ждёт.
+Партии, заказы поставщикам и заявки пока синхронные: их логика зависит от мгновенного ответа
+или ещё не идемпотентна.
+
+```
+Сервис: транзакция → queueSync() (markSyncPending + dispatch)
+Задача: push*() → sync*() (создать/обновить) → статус техоперации по статусу документа
+```
+
+**Одна задача на документ, состояние читается при выполнении.** Задача не знает, какое действие её
+поставило: она приводит техоперацию к текущей записи (`HandlesProcessingSync::applyDocumentState`).
+Поэтому порядок «завершили → сбросили» не важен, а `ShouldBeUnique` не нужен: лишний запуск — это
+обычный PUT, а отброшенная задача унесла бы `alsoRefresh`. После неудачного обновления статус
+техоперации не меняется.
+
+**Один воркер.** `numprocs=1` в `docker/supervisord.conf` даёт порядок FIFO и исключает параллельную
+обработку документа. Увеличивать нельзя без блокировки по документу.
+
+**Идемпотентность создания.** POST не повторяется вслепую: таймаут мог оборвать ответ на принятый
+запрос, и повтор создал бы второй документ с задвоением остатков. Поэтому у техоперации есть
+`externalCode` (`DocumentNaming::externalCode()`), а перед каждым POST идёт поиск по нему
+(`adoptExistingProcessing`). Нашлась — документ привязывается и идёт как обновление. Поиск не удался —
+POST не отправляется. Вне прода код получает префикс окружения: локальная база работает с тем же
+аккаунтом МойСклад, и её id совпали бы с прод-документами.
+
+**Повторы** (`SyncProcessingJob`, 6 попыток, паузы 30 с, 1, 2, 5, 15 мин):
+
+| Исход | Статус документа | Что дальше |
+|---|---|---|
+| Успех | `synced` | — |
+| 429, 5xx, сеть, таймаут | `pending` | `release()` с паузой |
+| Прочие 4xx, нет `moysklad_id` и т.п. | `not_synced` + текст ошибки | кнопка повтора |
+| Исчерпаны попытки | `not_synced` + текст ошибки | кнопка повтора |
+| Воркер упал или вышел по таймауту | `not_synced` (`failed()`) | кнопка повтора |
+
+Признак временного сбоя ставит `MoySkladBaseService` на каждом запросе (`$transientFailure`): `get()`
+глотает ошибки, и по итогу метода их не отличить от постоянных. Успех с таким признаком тоже
+повторяется: из-за неудачного GET товар мог выпасть из техоперации.
+
+**Удаление.** Записи уже нет, поэтому `DeleteProcessingInMoysklad` получает значения. Без id ищет по
+`externalCode`: документ могли удалить, пока его создание ждало в очереди. 404 — успех. Показать ошибку
+негде, она остаётся в логе и `failed_jobs`.
+
+**Сроки.** `--timeout=300` меньше `retry_after=360`, иначе задачу возьмут второй раз, пока идёт первая.
+`stopwaitsecs=330` даёт дождаться её при деплое. Локально воркер запускает `make start-queue`
+(или `composer dev`), без него документы остаются «Ожидает».
+
+**Тесты.** В `phpunit.xml` драйвер `sync`: задача выполняется внутри запроса и `release()` ничего не
+делает. Поведение очереди проверяет `Queue::fake()`, исходы задачи — `withFakeQueueInteractions()`
+(`tests/Feature/Moysklad/ProcessingSyncJobTest.php`).
+
+---
+
 ## Паттерн синхронизации (сервисный уровень)
 
-Логика синхронизации вынесена в `StoneReceptionSyncService::syncReception()`. Сервис приёмки вызывает её после транзакции:
-
-```php
-// StoneReceptionService::create() / update()
-$this->syncService->syncReception($reception, $customName);
-```
-
-Сам `syncReception` выглядит так:
-
-```php
-public function syncReception(StoneReception $reception, ?string $customName = null): void
-{
-    $batch = $reception->rawMaterialBatch;
-    if (!$batch) {
-        return;
-    }
-
-    try {
-        $reception->loadMissing('items.product', 'rawMaterialBatch.product');
-        $description = $this->buildReceptionDescription($reception, $batch);
-
-        if (!$reception->hasMoySkladProcessing()) {
-            $result = $this->createProcessingForReception($reception, $customName, $description ?: null);
-            if ($result['success']) {
-                $reception->markSynced($result['processing_id'], $result['processing_name']);
-            } else {
-                $reception->markSyncError($result['message']);
-            }
-        } else {
-            $result = $this->updateProcessingProducts(
-                $reception->moysklad_processing_id,
-                $reception->items,
-                $reception->store_id ?? '',
-                (float) $reception->raw_quantity_used,
-                $batch->product->moysklad_id ?? '',
-                $description ?: null
-            );
-            if ($result['success']) {
-                $reception->markSynced($reception->moysklad_processing_id);
-            } else {
-                $reception->markSyncError($result['message']);
-            }
-        }
-    } catch (\Exception $e) {
-        $reception->markSyncError('Ошибка: ' . $e->getMessage());
-    }
-}
-```
-
-Вызывается **вне транзакции**, не блокирует основное действие.
+`syncReception()` / `syncWorkshop()` создают или обновляют техоперацию, сами пишут `markSynced` /
+`markSyncError` и возвращают `['success', 'message', 'retryable', 'created']`. Вызывает их задача
+очереди, а не сервис документа.
 
 ### description техоперации
 
@@ -136,44 +145,17 @@ public function syncReception(StoneReception $reception, ?string $customName = n
 
 ## Правило финального статуса
 
-Финальный статус (например, `completed`) ставится **локально всегда**, независимо от результата синхронизации. Если синхронизация завершения с МойСклад не удалась — `sync_status = 'not_synced'` с сохранением ошибки. Пользователь видит предупреждение и может повторить вручную.
-
-```php
-// StoneReceptionService::markCompleted()
-DB::transaction(function () use ($reception) {
-    $reception->markAsCompleted();
-    // обновление статуса партии...
-});
-
-$reception->refresh();
-
-if ($reception->hasMoySkladProcessing()) {
-    $result = $this->syncService->completeProcessing($reception->moysklad_processing_id);
-
-    if ($result['success']) {
-        $reception->markSynced($reception->moysklad_processing_id);
-        return ['success' => true, 'message' => 'Приёмка завершена.'];
-    }
-
-    $reception->markSyncError($result['message']);
-    return [
-        'success' => false,
-        'message' => 'Приёмка завершена локально, но ошибка синхронизации с МойСклад: ' . $result['message'],
-    ];
-}
-
-return ['success' => true, 'message' => 'Приёмка завершена.'];
-```
+Финальный статус (например, `completed`) ставится **локально всегда**, независимо от МойСклад.
+`markCompleted()` выполняет транзакцию и вызывает `queueSync()`; задача сначала обновляет позиции, затем
+переводит техоперацию в `MOYSKLAD_DONE_STATE`. Не удалось — `not_synced` с текстом ошибки и кнопка повтора.
 
 ---
 
 ## Сброс статуса (reactivate)
 
-`StoneReceptionService::resetStatus()` возвращает приёмку в активный статус:
-1. Локально очищает все sync-поля (`moysklad_processing_id`, `moysklad_sync_status` и т.д.) и ставит `status = active`
-2. Вызывает `$this->syncService->reactivateProcessing($processingId)` — переводит техоперацию в МойСклад обратно в статус «В работе» (берётся из `Setting::get('MOYSKLAD_IN_WORK_STATE')`)
-
-Локальный сброс выполняется в транзакции и происходит **всегда**; синхронизация — после транзакции. Ошибка синхронизации возвращается как строка (не исключение).
+`resetStatus()` возвращает документ в активный статус в транзакции, связь с техоперацией сохраняется.
+Если техоперация есть, задача вернёт её в `MOYSKLAD_IN_WORK_STATE`. Правка активного документа шлёт этот
+статус тоже: настройка пуста — шаг пропускается.
 
 ---
 
@@ -218,6 +200,8 @@ return ['success' => true, 'message' => 'Приёмка завершена.'];
 | `updateProcessingState(string $processingId, string $stateName, string $context): array` | Перевод техоперации в указанный статус |
 | `completeProcessing(string $processingId): array` | Перевод в `MOYSKLAD_DONE_STATE` |
 | `reactivateProcessing(string $processingId): array` | Возврат в `MOYSKLAD_IN_WORK_STATE` |
+| `findProcessingByExternalCode()`, `adoptExistingProcessing()` | Поиск техоперации прошлой попытки перед POST |
+| `applyDocumentState()` | Статус техоперации по статусу документа |
 
 Возврат всех методов: `['success' => bool, 'code' => string, 'message' => string]`.
 
@@ -229,7 +213,7 @@ return ['success' => true, 'message' => 'Приёмка завершена.'];
 
 | Модель | Статус |
 |---|---|
-| `StoneReception` | Реализован |
-| `Workshop` | Реализован |
+| `StoneReception` | Реализован, через очередь |
+| `Workshop` | Реализован, через очередь |
 | `RawMaterialBatch` | Реализован (синхронизация через перемещения, не техоперацию; trait моделей и UI-компонент общие, серверный trait `HandlesProcessingSync` неприменим) |
 | `SupplierOrder` | Использует свой паттерн (заказ + приёмка через `MoySkladPurchaseOrderService` + `MoySkladSupplyService`); общий trait/компонент **не применяется** |

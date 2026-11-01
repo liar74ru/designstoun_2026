@@ -10,7 +10,6 @@ use App\Models\ReceptionLog;
 use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\Worker;
-use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\StoneReceptionService;
 use App\Support\DepartmentAccess;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +24,6 @@ class StoneReceptionController extends Controller
 {
     public function __construct(
         private StoneReceptionService $service,
-        private StoneReceptionSyncService $syncService,
     ) {}
 
     public function index(Request $request): View
@@ -122,11 +120,11 @@ class StoneReceptionController extends Controller
             if ($request->boolean('close_batch')) {
                 $batch = $reception->rawMaterialBatch()->first();
                 if ($batch && $this->service->closeBatch($batch)) {
-                    return $this->withSyncFlash($redirect, $reception, 'Приёмка создана. Партия закрыта.');
+                    return $redirect->with('success', 'Приёмка создана. Партия закрыта.');
                 }
             }
 
-            return $this->withSyncFlash($redirect, $reception, 'Приемка создана');
+            return $redirect->with('success', 'Приемка создана');
 
         } catch (InsufficientRawMaterialException $e) {
             return $e->render();
@@ -191,11 +189,11 @@ class StoneReceptionController extends Controller
 
             if ($request->boolean('close_batch') && $stoneReception->rawMaterialBatch) {
                 if ($this->service->closeBatch($stoneReception->rawMaterialBatch)) {
-                    return $this->withSyncFlash($redirect, $stoneReception, 'Приёмка обновлена. Партия закрыта.');
+                    return $redirect->with('success', 'Приёмка обновлена. Партия закрыта.');
                 }
             }
 
-            return $this->withSyncFlash($redirect, $stoneReception, 'Приемка обновлена');
+            return $redirect->with('success', 'Приемка обновлена');
 
         } catch (InsufficientRawMaterialException $e) {
             return $e->render();
@@ -203,27 +201,6 @@ class StoneReceptionController extends Controller
             Log::error('Ошибка обновления приёмки:', ['error' => $e->getMessage()]);
             return back()->withErrors(['error' => 'Ошибка: ' . $e->getMessage()])->withInput();
         }
-    }
-
-    /**
-     * Флеш по итогам сохранения приёмки: если синхронизация с МойСклад не прошла,
-     * пользователь должен узнать об этом сразу, а не по бейджу в реестре.
-     */
-    private function withSyncFlash(
-        RedirectResponse $redirect,
-        StoneReception $reception,
-        string $okMessage
-    ): RedirectResponse {
-        $reception->refresh();
-
-        if ($reception->hasSyncError()) {
-            return $redirect->with(
-                'warning',
-                $okMessage . ' Ошибка синхронизации с МойСклад: ' . $reception->moysklad_sync_error
-            );
-        }
-
-        return $redirect->with('success', $okMessage);
     }
 
     public function updateLogReceiver(Request $request, ReceptionLog $receptionLog): JsonResponse
@@ -273,14 +250,9 @@ class StoneReceptionController extends Controller
             return back()->with('error', 'Партия сырья не найдена.');
         }
 
-        $this->syncService->syncReception($stoneReception);
-        $stoneReception->refresh();
+        $this->service->queueSync($stoneReception);
 
-        if ($stoneReception->isSynced()) {
-            return back()->with('success', 'Техоперация синхронизирована с МойСклад.');
-        }
-
-        return back()->with('error', 'Ошибка синхронизации: ' . $stoneReception->moysklad_sync_error);
+        return back()->with('success', 'Отправлено в МойСклад.');
     }
 
     public function resetStatus(StoneReception $stoneReception): RedirectResponse
@@ -302,13 +274,9 @@ class StoneReceptionController extends Controller
 
         abort_unless($stoneReception->status === StoneReception::STATUS_ACTIVE, 403, 'Завершить можно только активную приёмку');
 
-        $result = $this->service->markCompleted($stoneReception);
+        $this->service->markCompleted($stoneReception);
 
-        if (!$result['success']) {
-            return back()->with('warning', $result['message']);
-        }
-
-        return back()->with('success', $result['message']);
+        return back()->with('success', 'Приёмка завершена.');
     }
 
     public function updateStore(Request $request, StoneReception $stoneReception): RedirectResponse

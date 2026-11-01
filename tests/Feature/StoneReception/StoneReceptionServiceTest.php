@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\Product;
+use Illuminate\Support\Facades\Queue;
+use App\Jobs\SyncReceptionToMoysklad;
+use App\Jobs\DeleteProcessingInMoysklad;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
 use App\Models\StoneReception;
@@ -9,7 +12,6 @@ use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
-use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 
@@ -18,13 +20,15 @@ use App\Services\StoneReceptionService;
  * Конструктор принимает 3 зависимости — две из них (batchService, batchSyncService)
  * нужны только для split-логики при создании повторной приёмки на партии.
  */
-function makeStoneReceptionService(StoneReceptionSyncService $sync): StoneReceptionService
+function makeStoneReceptionService(): StoneReceptionService
 {
+    Queue::fake();
+
     $mockBatchSync = \Mockery::mock(RawMaterialBatchSyncService::class);
     $mockBatchSync->shouldReceive('syncCreated')->andReturn(null);
     $mockBatchSync->shouldReceive('updateParentMove')->andReturn(null);
 
-    return new StoneReceptionService($sync, app(RawMaterialBatchService::class), $mockBatchSync);
+    return new StoneReceptionService(app(RawMaterialBatchService::class), $mockBatchSync);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -57,10 +61,7 @@ describe('StoneReceptionService::getFilterData()', function () {
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('syncReception')->andReturn(null);
-        
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $result = $service->getFilterData();
 
         expect($result['filterRawProducts'])->not->toBeNull();
@@ -91,10 +92,7 @@ describe('StoneReceptionService::create()', function () {
 
         $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('syncReception')->andReturn(null);
-        
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $reception = $service->create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -126,10 +124,7 @@ describe('StoneReceptionService::create()', function () {
 
         $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('syncReception')->andReturn(null);
-
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $reception = $service->create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -172,10 +167,7 @@ describe('StoneReceptionService::create()', function () {
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('syncReception')->andReturn(null);
-
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $newReception = $service->create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -243,10 +235,7 @@ describe('StoneReceptionService::update()', function () {
         $editorUser = User::factory()->create(['worker_id' => $editor->id]);
         $this->actingAs($editorUser);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('syncReception')->andReturn(null);
-
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $service->update($reception, [
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -298,15 +287,8 @@ describe('StoneReceptionService::update()', function () {
 
         $this->actingAs(User::factory()->create(['worker_id' => $receiver->id]));
 
-        // Убранная позиция и сырьё партии уходят в syncReception() на перечитывание остатков
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('syncReception')
-            ->once()
-            ->withArgs(fn ($r, $name, array $alsoRefresh) => in_array('ms-removed', $alsoRefresh, true)
-                && in_array('ms-raw', $alsoRefresh, true))
-            ->andReturn(null);
-
-        makeStoneReceptionService($mockSync)->update($reception, [
+        // Убранная позиция и сырьё партии уезжают в задаче на перечитывание остатков
+        makeStoneReceptionService()->update($reception, [
             'receiver_id'           => $receiver->id,
             'cutter_id'             => $cutter->id,
             'store_id'              => $store->id,
@@ -319,6 +301,8 @@ describe('StoneReceptionService::update()', function () {
         ], false);
 
         expect($reception->fresh()->items)->toHaveCount(1);
+        Queue::assertPushed(SyncReceptionToMoysklad::class, fn ($job) => in_array('ms-removed', $job->alsoRefresh, true)
+            && in_array('ms-raw', $job->alsoRefresh, true));
     });
 
     test('не пишет лог если ничего не изменилось', function () {
@@ -350,10 +334,7 @@ describe('StoneReceptionService::update()', function () {
             'quantity' => 2.0,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('syncReception')->andReturn(null);
-        
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $service->update($reception, [
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -400,12 +381,7 @@ describe('StoneReceptionService::delete()', function () {
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('deleteProcessingForReception')
-            ->once()
-            ->andReturn(['success' => true, 'message' => 'Техоперация не синхронизирована']);
-
-        $service = makeStoneReceptionService($mockSync);
+        $service = makeStoneReceptionService();
         $service->delete($reception);
 
         expect(StoneReception::find($reception->id))->toBeNull();
@@ -435,51 +411,11 @@ describe('StoneReceptionService::delete()', function () {
             'moysklad_processing_id' => 'ms-uuid-1',
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('deleteProcessingForReception')
-            ->once()
-            ->with(\Mockery::on(fn($r) => $r->id === $reception->id))
-            ->andReturn(['success' => true, 'message' => 'Техоперация удалена']);
-
-        $service = makeStoneReceptionService($mockSync);
+        $service = makeStoneReceptionService();
         $service->delete($reception);
 
         expect(StoneReception::find($reception->id))->toBeNull();
-    });
-
-    test('ошибка удаления в МойСклад не блокирует локальное удаление', function () {
-        $rawProduct = Product::factory()->create(['name' => 'Гранит']);
-        $store = Store::factory()->create();
-        $cutter = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
-        $batch = RawMaterialBatch::create([
-            'product_id' => $rawProduct->id,
-            'initial_quantity' => 100.0,
-            'remaining_quantity' => 100.0,
-            'current_store_id' => $store->id,
-            'current_worker_id' => $cutter->id,
-            'status' => RawMaterialBatch::STATUS_IN_WORK,
-        ]);
-
-        $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
-        $reception = StoneReception::create([
-            'receiver_id' => $receiver->id,
-            'cutter_id' => $cutter->id,
-            'store_id' => $store->id,
-            'raw_material_batch_id' => $batch->id,
-            'raw_quantity_used' => 5.0,
-            'status' => StoneReception::STATUS_ACTIVE,
-            'moysklad_processing_id' => 'ms-uuid-2',
-        ]);
-
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('deleteProcessingForReception')
-            ->once()
-            ->andReturn(['success' => false, 'message' => 'Ошибка API МойСклад']);
-
-        $service = makeStoneReceptionService($mockSync);
-        $service->delete($reception);
-
-        expect(StoneReception::find($reception->id))->toBeNull();
+        Queue::assertPushed(DeleteProcessingInMoysklad::class, fn ($job) => $job->processingId === 'ms-uuid-1');
     });
 });
 
@@ -513,10 +449,7 @@ describe('StoneReceptionService::closeBatch()', function () {
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('completeProcessing')->andReturn(['success' => false, 'message' => 'no processing']);
-        
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $result = $service->closeBatch($batch);
 
         expect($result)->toBeTrue();
@@ -540,9 +473,7 @@ describe('StoneReceptionService::closeBatch()', function () {
             'status' => RawMaterialBatch::STATUS_USED,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $result = $service->closeBatch($batch);
 
         expect($result)->toBeFalse();
@@ -574,21 +505,20 @@ describe('StoneReceptionService::closeBatch()', function () {
             'moysklad_sync_error' => 'Ошибка МойСклад: товар не найден',
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldNotReceive('completeProcessing');
-
-        $service = makeStoneReceptionService($mockSync);
+        $service = makeStoneReceptionService();
         $result = $service->closeBatch($batch);
 
         expect($result)->toBeTrue();
 
+        // Ошибку разбирает задача: статус техоперации она сменит только после успешного обновления
         $reception->refresh();
         expect($reception->status)->toBe(StoneReception::STATUS_COMPLETED);
-        expect($reception->moysklad_sync_status)->toBe(StoneReception::SYNC_STATUS_NOT_SYNCED);
-        expect($reception->moysklad_sync_error)->toBe('Ошибка МойСклад: товар не найден');
+        expect($reception->isSyncPending())->toBeTrue();
+        expect($reception->moysklad_sync_error)->toBeNull();
+        Queue::assertPushed(SyncReceptionToMoysklad::class);
     });
 
-    test('приёмка без ошибки завершается в МойСклад и помечается синхронизированной', function () {
+    test('приёмка без ошибки ставится в очередь на завершение', function () {
         $rawProduct = Product::factory()->create(['name' => 'Гранит']);
         $store = Store::factory()->create();
         $cutter = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
@@ -613,16 +543,13 @@ describe('StoneReceptionService::closeBatch()', function () {
             'moysklad_sync_status' => StoneReception::SYNC_STATUS_SYNCED,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('completeProcessing')->once()->with('proc-uuid')
-            ->andReturn(['success' => true, 'message' => 'ok']);
-
-        $service = makeStoneReceptionService($mockSync);
+        $service = makeStoneReceptionService();
         $service->closeBatch($batch);
 
         $reception->refresh();
-        expect($reception->moysklad_sync_status)->toBe(StoneReception::SYNC_STATUS_SYNCED);
-        expect($reception->moysklad_sync_error)->toBeNull();
+        expect($reception->status)->toBe(StoneReception::STATUS_COMPLETED);
+        expect($reception->isSyncPending())->toBeTrue();
+        Queue::assertPushed(SyncReceptionToMoysklad::class, fn ($job) => $job->reception->is($reception));
     });
 });
 
@@ -655,14 +582,9 @@ describe('StoneReceptionService::markCompleted()', function () {
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        $mockSync->shouldReceive('syncReception')->andReturnNull();
-        $mockSync->shouldReceive('completeProcessing')->andReturn(['success' => false, 'message' => 'no id']);
+$service = makeStoneReceptionService();
+        $service->markCompleted($reception);
 
-        $service = makeStoneReceptionService($mockSync);
-        $result = $service->markCompleted($reception);
-
-        expect($result['success'])->toBeTrue();
         $reception->refresh();
         expect($reception->status)->toBe(StoneReception::STATUS_COMPLETED);
     });
@@ -697,9 +619,7 @@ describe('StoneReceptionService::resetStatus()', function () {
             'status' => StoneReception::STATUS_COMPLETED,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $result = $service->resetStatus($reception);
 
         expect($result)->toBeTrue();
@@ -738,9 +658,7 @@ describe('StoneReceptionService::resetStatus()', function () {
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-        $mockSync = \Mockery::mock(StoneReceptionSyncService::class);
-        
-        $service = makeStoneReceptionService($mockSync);
+$service = makeStoneReceptionService();
         $result = $service->resetStatus($oldReception);
 
         expect($result)->toBeString();

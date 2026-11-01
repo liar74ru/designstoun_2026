@@ -1,11 +1,12 @@
 <?php
 
 use App\Models\Department;
+use Illuminate\Support\Facades\Queue;
+use App\Jobs\SyncReceptionToMoysklad;
 use App\Models\DepartmentExpense;
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
-use App\Services\Moysklad\StoneReceptionSyncService;
 use Tests\Helpers\AccessTestHelper as Access;
 use Tests\Helpers\ReceptionTestHelper as H;
 
@@ -29,72 +30,43 @@ function rxaFixture(array $batchAttrs = [], array $receptionAttrs = []): array
     ];
 }
 
-/** Подменить сервис синхронизации приёмок; $onSync выполняется вместо вызова МойСклад. */
-function rxaMockSync(?callable $onSync = null, int $times = 1): void
-{
-    $mock = Mockery::mock(StoneReceptionSyncService::class);
-    $expectation = $mock->shouldReceive('syncReception')->times($times);
-
-    if ($onSync) {
-        $expectation->andReturnUsing($onSync);
-    }
-
-    app()->instance(StoneReceptionSyncService::class, $mock);
-}
-
 // ══════════════════════════════════════════════════════════════════════════════
 // syncToProcessing()
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('StoneReceptionController syncToProcessing()', function () {
 
-    test('успешная синхронизация — флеш success', function () {
-        ['reception' => $reception] = rxaFixture();
+    beforeEach(fn () => Queue::fake());
 
-        rxaMockSync(function (StoneReception $r) {
-            $r->markSynced('ms-proc-1', 'ТО-1');
-        });
+    test('ставит задачу в очередь, приёмка ждёт отправки', function () {
+        ['reception' => $reception] = rxaFixture();
+        $reception->markSyncError('Прошлая ошибка');
 
         $this->actingAs(H::adminUser())
             ->from(route('stone-receptions.show', $reception))
             ->post(route('stone-receptions.sync', $reception))
             ->assertRedirect(route('stone-receptions.show', $reception))
-            ->assertSessionHas('success', 'Техоперация синхронизирована с МойСклад.');
+            ->assertSessionHas('success', 'Отправлено в МойСклад.');
 
         $reception->refresh();
-        expect($reception->isSynced())->toBeTrue()
-            ->and($reception->moysklad_processing_id)->toBe('ms-proc-1');
-    });
-
-    test('ошибка синхронизации — флеш error с текстом ошибки', function () {
-        ['reception' => $reception] = rxaFixture();
-
-        rxaMockSync(function (StoneReception $r) {
-            $r->markSyncError('Товар не найден');
-        });
-
-        $this->actingAs(H::adminUser())
-            ->post(route('stone-receptions.sync', $reception))
-            ->assertRedirect()
-            ->assertSessionHas('error', 'Ошибка синхронизации: Товар не найден');
-
-        expect($reception->fresh()->isSynced())->toBeFalse();
+        expect($reception->isSyncPending())->toBeTrue()
+            ->and($reception->moysklad_sync_error)->toBeNull();
+        Queue::assertPushed(SyncReceptionToMoysklad::class, fn ($job) => $job->reception->is($reception));
     });
 
     test('приёмка без партии сырья — ошибка, МойСклад не вызывается', function () {
         ['reception' => $reception] = rxaFixture([], ['raw_material_batch_id' => null]);
 
-        rxaMockSync(null, 0);
-
         $this->actingAs(H::adminUser())
             ->post(route('stone-receptions.sync', $reception))
             ->assertRedirect()
             ->assertSessionHas('error', 'Партия сырья не найдена.');
+
+        Queue::assertNothingPushed();
     });
 
     test('мастер отдела без операции stone-receptions — 403', function () {
         ['reception' => $reception] = rxaFixture();
-        rxaMockSync(null, 0);
 
         $master = Access::master(Access::department(), 'raw-batches');
 
@@ -105,7 +77,6 @@ describe('StoneReceptionController syncToProcessing()', function () {
 
     test('работник — 403', function () {
         ['reception' => $reception] = rxaFixture();
-        rxaMockSync(null, 0);
 
         $this->actingAs(Access::userWithPosition('Работник', Access::department()))
             ->post(route('stone-receptions.sync', $reception))
@@ -115,8 +86,6 @@ describe('StoneReceptionController syncToProcessing()', function () {
     test('мастер отдела с операцией stone-receptions может синхронизировать', function () {
         $dept = Access::department();
         ['reception' => $reception] = rxaFixture(['department_id' => $dept->id], ['department_id' => $dept->id]);
-
-        rxaMockSync(fn (StoneReception $r) => $r->markSynced('ms-proc-2'));
 
         $this->actingAs(Access::master($dept, 'stone-receptions'))
             ->post(route('stone-receptions.sync', $reception))

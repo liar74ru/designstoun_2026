@@ -23,6 +23,13 @@ abstract class MoySkladBaseService
     protected string $baseUrl;
     protected ?array $organizationMeta = null;
 
+    /**
+     * Был ли сбой, который стоит повторить: 429, 5xx или сеть (включая таймаут).
+     * get() такие ошибки глотает, и по итогу метода («не удалось получить склад»)
+     * их не отличить от постоянных. Читают задачи очереди — см. App\Jobs.
+     */
+    protected bool $transientFailure = false;
+
     public function __construct()
     {
         // Без MOYSKLAD_TOKEN в .env конфиг отдаёт null — типизированное свойство упало бы
@@ -43,7 +50,7 @@ abstract class MoySkladBaseService
     protected function get(string $endpoint, array $query = []): ?array
     {
         try {
-            $response = $this->request()->get($this->baseUrl . $endpoint, $query);
+            $response = $this->tracked(fn () => $this->request()->get($this->baseUrl . $endpoint, $query));
 
             return $response->successful() ? $response->json() : null;
         } catch (\Exception $e) {
@@ -93,17 +100,33 @@ abstract class MoySkladBaseService
     /** POST создаёт документ: повтор только там, где МойСклад его точно не принял. */
     protected function post(string $endpoint, array $body): Response
     {
-        return $this->request(idempotent: false)->asJson()->post($this->baseUrl . $endpoint, $body);
+        return $this->tracked(fn () => $this->request(idempotent: false)->asJson()->post($this->baseUrl . $endpoint, $body));
     }
 
     protected function put(string $endpoint, array $body): Response
     {
-        return $this->request()->asJson()->put($this->baseUrl . $endpoint, $body);
+        return $this->tracked(fn () => $this->request()->asJson()->put($this->baseUrl . $endpoint, $body));
     }
 
     protected function delete(string $endpoint): Response
     {
-        return $this->request()->delete($this->baseUrl . $endpoint);
+        return $this->tracked(fn () => $this->request()->delete($this->baseUrl . $endpoint));
+    }
+
+    private function tracked(callable $send): Response
+    {
+        try {
+            $response = $send();
+        } catch (ConnectionException $e) {
+            $this->transientFailure = true;
+            throw $e;
+        }
+
+        if ($response->serverError() || $response->status() === 429) {
+            $this->transientFailure = true;
+        }
+
+        return $response;
     }
 
     private function request(bool $idempotent = true): PendingRequest

@@ -173,6 +173,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                     'assortment' => ['meta' => $rawProductMeta],
                 ]],
                 'name'           => $name,
+                'externalCode'   => DocumentNaming::externalCode('reception', $reception->id),
                 'quantity'       => $totalQuantity,
                 'moment'         => MoyskladMoment::format($receptionDate),
             ];
@@ -384,9 +385,13 @@ class StoneReceptionSyncService extends MoySkladBaseService
     /**
      * Синхронизирует приёмку с МойСклад: создаёт техоперацию (первая синхронизация)
      * или обновляет продукты/материал (повторная).
+     *
+     * @return array ['success', 'message', 'retryable', 'created']
      */
-    public function syncReception(StoneReception $reception, ?string $customName = null, array $alsoRefresh = []): void
+    public function syncReception(StoneReception $reception, ?string $customName = null, array $alsoRefresh = []): array
     {
+        $this->transientFailure = false;
+
         $batch = $reception->rawMaterialBatch;
         if (!$batch) {
             // Молчать нельзя: приёмка осталась бы с пустым moysklad_sync_status,
@@ -395,12 +400,19 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 'reception_id' => $reception->id,
             ]);
             $reception->markSyncError('Партия сырья не привязана к приёмке');
-            return;
+            return $this->syncOutcome(false, 'Партия сырья не привязана к приёмке');
         }
 
         try {
             $reception->loadMissing('items.product', 'rawMaterialBatch.product');
             $description = $this->buildReceptionDescription($reception, $batch);
+
+            if (!$reception->hasMoySkladProcessing()
+                && !$this->adoptExistingProcessing($reception, DocumentNaming::externalCode('reception', $reception->id))) {
+                $message = 'МойСклад не ответил: не удалось проверить, создана ли техоперация';
+                $reception->markSyncError($message);
+                return $this->syncOutcome(false, $message);
+            }
 
             if (!$reception->hasMoySkladProcessing()) {
                 $result = $this->createProcessingForReception($reception, $customName, $description ?: null);
@@ -415,36 +427,51 @@ class StoneReceptionSyncService extends MoySkladBaseService
                         'message'      => $result['message'],
                     ]);
                 }
-            } else {
-                $result = $this->updateProcessingProducts(
-                    $reception->moysklad_processing_id,
-                    $reception->items,
-                    $reception->store_id ?? '',
-                    (float) $reception->raw_quantity_used,
-                    $batch->product->moysklad_id ?? '',
-                    $description ?: null,
-                    $reception->effectiveDepartmentId()
-                );
 
-                if ($result['success']) {
-                    $reception->markSynced($reception->moysklad_processing_id);
-                    $this->refreshAffectedStocks($reception, $alsoRefresh);
-                } else {
-                    $reception->markSyncError($result['message']);
-                    Log::warning('syncReception: не удалось обновить техоперацию', [
-                        'reception_id'  => $reception->id,
-                        'processing_id' => $reception->moysklad_processing_id,
-                        'message'       => $result['message'],
-                    ]);
-                }
+                return $this->syncOutcome($result['success'], $result['message'], $result['success']);
             }
+
+            $result = $this->updateProcessingProducts(
+                $reception->moysklad_processing_id,
+                $reception->items,
+                $reception->store_id ?? '',
+                (float) $reception->raw_quantity_used,
+                $batch->product->moysklad_id ?? '',
+                $description ?: null,
+                $reception->effectiveDepartmentId()
+            );
+
+            if ($result['success']) {
+                $reception->markSynced($reception->moysklad_processing_id);
+                $this->refreshAffectedStocks($reception, $alsoRefresh);
+            } else {
+                $reception->markSyncError($result['message']);
+                Log::warning('syncReception: не удалось обновить техоперацию', [
+                    'reception_id'  => $reception->id,
+                    'processing_id' => $reception->moysklad_processing_id,
+                    'message'       => $result['message'],
+                ]);
+            }
+
+            return $this->syncOutcome($result['success'], $result['message']);
         } catch (\Exception $e) {
             Log::error('syncReception: исключение', [
                 'reception_id' => $reception->id,
                 'error'        => $e->getMessage(),
             ]);
             $reception->markSyncError('Ошибка: ' . $e->getMessage());
+            return $this->syncOutcome(false, 'Ошибка: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Задача очереди: синхронизировать приёмку и привести статус техоперации к её статусу.
+     *
+     * @return array ['success', 'message', 'retryable', 'created']
+     */
+    public function pushReception(StoneReception $reception, ?string $customName = null, array $alsoRefresh = []): array
+    {
+        return $this->applyDocumentState($reception, $this->syncReception($reception, $customName, $alsoRefresh));
     }
 
     /**
@@ -556,27 +583,5 @@ class StoneReceptionSyncService extends MoySkladBaseService
         }
 
         return $this->get('/entity/processing/' . $processingId);
-    }
-
-    /**
-     * Удалить техоперацию приёмки в МойСклад и подтянуть остатки затронутых
-     * товаров. Вызывается после локального удаления приёмки — отношения
-     * (items.product, rawMaterialBatch.product) должны быть загружены заранее.
-     *
-     * @return array ['success' => bool, 'message' => string]
-     */
-    public function deleteProcessingForReception(StoneReception $reception): array
-    {
-        if (!$reception->moysklad_processing_id) {
-            return ['success' => true, 'message' => 'Техоперация не синхронизирована'];
-        }
-
-        $result = $this->deleteProcessing($reception->moysklad_processing_id);
-
-        if ($result['success']) {
-            $this->refreshAffectedStocks($reception);
-        }
-
-        return $result;
     }
 }

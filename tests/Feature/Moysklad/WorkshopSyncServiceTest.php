@@ -56,6 +56,7 @@ function fakeMoyskladForWorkshop(): void {
     Http::fake([
         '*report/stock/bystore*'         => Http::response(['rows' => []], 200),
         '*entity/processing/metadata*'   => Http::response(['states' => []], 200),
+        '*entity/processing?*'           => Http::response(['rows' => []], 200),
         '*entity/organization*'          => Http::response([
             'rows' => [['meta' => ['href' => 'org-href', 'type' => 'organization', 'mediaType' => 'application/json']]],
         ], 200),
@@ -287,48 +288,6 @@ describe('WorkshopSyncService: нумерация ЦЕХ', function () {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// deleteProcessingForWorkshop(): актуализация остатков после удаления
-// ══════════════════════════════════════════════════════════════════════════════
-
-describe('WorkshopSyncService::deleteProcessingForWorkshop()', function () {
-
-    test('после удаления техоперации дергает остатки всех позиций', function () {
-        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 5.0);
-        wsItem($this->workshop, $this->outProduct, WorkshopItem::ROLE_PRODUCT, 5.0);
-        $this->workshop->update(['moysklad_processing_id' => 'proc-del']);
-
-        Http::fake([
-            '*entity/processing/proc-del' => Http::response(null, 200),
-            '*report/stock/bystore*'      => Http::response(['rows' => []], 200),
-        ]);
-
-        $result = app(WorkshopSyncService::class)
-            ->deleteProcessingForWorkshop($this->workshop->fresh()->load('items.product'));
-
-        expect($result['success'])->toBeTrue();
-        expect(Http::recorded(fn ($request) => str_contains($request->url(), 'report/stock/bystore')))
-            ->toHaveCount(2);
-    });
-
-    test('при ошибке удаления остатки не дергаются', function () {
-        wsItem($this->workshop, $this->product, WorkshopItem::ROLE_RAW, 5.0);
-        $this->workshop->update(['moysklad_processing_id' => 'proc-del']);
-
-        Http::fake([
-            '*entity/processing/proc-del' => Http::response(['errors' => [['error' => 'Не найдено']]], 404),
-            '*report/stock/bystore*'      => Http::response(['rows' => []], 200),
-        ]);
-
-        $result = app(WorkshopSyncService::class)
-            ->deleteProcessingForWorkshop($this->workshop->fresh()->load('items.product'));
-
-        expect($result['success'])->toBeFalse();
-        expect(Http::recorded(fn ($request) => str_contains($request->url(), 'report/stock/bystore')))
-            ->toHaveCount(0);
-    });
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
 // syncWorkshop(): актуализация остатков после успешного синка
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -373,6 +332,7 @@ describe('WorkshopSyncService::syncWorkshop() — остатки', function () {
         Http::fake([
             '*report/stock/bystore*'       => Http::response(['rows' => []], 200),
             '*entity/processing/metadata*' => Http::response(['states' => []], 200),
+            '*entity/processing?*'         => Http::response(['rows' => []], 200),
             '*entity/organization*'        => Http::response([
                 'rows' => [['meta' => ['href' => 'org-href', 'type' => 'organization', 'mediaType' => 'application/json']]],
             ], 200),

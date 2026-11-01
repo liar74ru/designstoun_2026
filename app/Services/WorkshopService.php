@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Jobs\DeleteProcessingInMoysklad;
+use App\Jobs\SyncWorkshopToMoysklad;
 use App\Models\Department;
 use App\Models\DepartmentModifier;
 use App\Models\Workshop;
@@ -12,23 +14,18 @@ use App\Models\Product;
 use App\Models\Store;
 use App\Models\StoneReceptionItem;
 use App\Models\Worker;
-use App\Services\Moysklad\WorkshopSyncService;
+use App\Support\DocumentNaming;
 use App\Support\ItemCost;
 use App\Support\ModifierEngine;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 class WorkshopService
 {
-    public function __construct(
-        private WorkshopSyncService $syncService,
-    ) {}
-
     public function getFormOptions(?Workshop $workshop = null): array
     {
         // При редактировании сохраняем уже назначенных работников в списках,
@@ -213,7 +210,7 @@ class WorkshopService
             );
         });
 
-        $this->syncService->syncWorkshop($workshop, $processingName);
+        $this->queueSync($workshop, $processingName);
 
         return $workshop;
     }
@@ -278,9 +275,20 @@ class WorkshopService
         });
 
         $workshop->refresh();
-        $this->syncService->syncWorkshop($workshop);
+        $this->queueSync($workshop);
 
         return $workshop;
+    }
+
+    /**
+     * Поставить отправку операции в МойСклад в очередь. Вызывается после транзакции.
+     * Что отправлять, задача читает из записи при выполнении — см. pushWorkshop().
+     */
+    public function queueSync(Workshop $workshop, ?string $customName = null): void
+    {
+        $workshop->markSyncPending();
+
+        SyncWorkshopToMoysklad::dispatch($workshop, $customName);
     }
 
     /** Справочники для правки складов и отдела на странице просмотра операции. */
@@ -318,7 +326,7 @@ class WorkshopService
         });
 
         $workshop->refresh();
-        $this->syncService->syncWorkshop($workshop);
+        $this->queueSync($workshop);
     }
 
     public function updateDepartment(Workshop $workshop, int $departmentId): void
@@ -379,27 +387,26 @@ class WorkshopService
 
     public function delete(Workshop $workshop): void
     {
-        $processingId = $workshop->moysklad_processing_id;
-
         // Позиции нужны в памяти: после удаления по ним подтягиваются остатки из МойСклад.
         $workshop->loadMissing('items.product');
 
         DB::transaction(fn() => $workshop->delete());
 
-        if ($processingId) {
-            $result = $this->syncService->deleteProcessingForWorkshop($workshop);
-
-            if (!$result['success']) {
-                Log::warning('Не удалось удалить техоперацию в МойСклад при удалении операции цеха', [
-                    'workshop_id'   => $workshop->id,
-                    'processing_id' => $processingId,
-                    'error'         => $result['message'],
-                ]);
-            }
-        }
+        // Запись уже удалена, поэтому в задачу — только значения. Без id техоперацию найдёт
+        // по внешнему коду: операцию могли удалить, пока её создание ждало в очереди.
+        DeleteProcessingInMoysklad::dispatch(
+            $workshop->moysklad_processing_id,
+            DocumentNaming::externalCode('workshop', $workshop->id),
+            $workshop->items
+                ->map(fn ($item) => $item->product?->moysklad_id)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all()
+        );
     }
 
-    public function markCompleted(Workshop $workshop): array
+    public function markCompleted(Workshop $workshop): void
     {
         DB::transaction(function () use ($workshop) {
             $workshop->markAsCompleted();
@@ -407,45 +414,20 @@ class WorkshopService
 
         $workshop->refresh();
 
-        if ($workshop->hasMoySkladProcessing()) {
-            $result = $this->syncService->completeProcessing($workshop->moysklad_processing_id);
-
-            if ($result['success']) {
-                $workshop->markSynced($workshop->moysklad_processing_id);
-                return ['success' => true, 'message' => 'Операция закрыта.'];
-            }
-
-            $workshop->markSyncError($result['message']);
-            return [
-                'success' => false,
-                'message' => 'Операция закрыта локально, но ошибка синхронизации с МойСклад: ' . $result['message'],
-            ];
-        }
-
-        return ['success' => true, 'message' => 'Операция закрыта.'];
+        $this->queueSync($workshop);
     }
 
-    public function resetStatus(Workshop $workshop): bool|string
+    public function resetStatus(Workshop $workshop): void
     {
-        $processingId = $workshop->moysklad_processing_id;
-
         // Связь с техоперацией не рвём: её же переводим обратно «в работу», и следующая
         // синхронизация правит её, а не создаёт вторую (остатки в МойСклад задвоились бы).
         DB::transaction(function () use ($workshop) {
             $workshop->update(['status' => Workshop::STATUS_ACTIVE]);
         });
 
-        if ($processingId) {
-            $result = $this->syncService->reactivateProcessing($processingId);
-            if ($result['success']) {
-                $workshop->markSynced($processingId);
-            } else {
-                $workshop->markSyncError($result['message']);
-                return 'Статус сброшен локально, но ошибка синхронизации с МойСклад: ' . $result['message'];
-            }
+        if ($workshop->hasMoySkladProcessing()) {
+            $this->queueSync($workshop);
         }
-
-        return true;
     }
 
     public function syncToProcessing(Workshop $workshop): array
@@ -454,12 +436,9 @@ class WorkshopService
             return ['success' => false, 'message' => 'Склад не указан — синхронизация невозможна.'];
         }
 
-        $this->syncService->syncWorkshop($workshop);
-        $workshop->refresh();
+        $this->queueSync($workshop);
 
-        return $workshop->isSynced()
-            ? ['success' => true, 'message' => 'Техоперация синхронизирована с МойСклад.']
-            : ['success' => false, 'message' => 'Ошибка синхронизации: ' . ($workshop->moysklad_sync_error ?? 'неизвестная ошибка')];
+        return ['success' => true, 'message' => 'Отправлено в МойСклад.'];
     }
 
     public function updateItemCoeff(Workshop $workshop, array $validated): void

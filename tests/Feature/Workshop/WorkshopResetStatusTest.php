@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Setting;
+use Illuminate\Support\Facades\Queue;
+use App\Jobs\SyncWorkshopToMoysklad;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Models\Workshop;
@@ -25,51 +28,34 @@ beforeEach(function () {
     ]);
 });
 
-test('после сброса техоперация та же, операция активна и синхронизирована', function () {
-    $sync = Mockery::mock(WorkshopSyncService::class);
-    $sync->shouldReceive('reactivateProcessing')->once()->with('proc-1')->andReturn(['success' => true, 'message' => '']);
+test('после сброса техоперация та же, операция активна и ждёт отправки', function () {
+    Queue::fake();
 
-    $result = (new WorkshopService($sync))->resetStatus($this->workshop);
-
-    expect($result)->toBeTrue();
+    (new WorkshopService())->resetStatus($this->workshop);
 
     $workshop = $this->workshop->fresh();
     expect($workshop->status)->toBe(Workshop::STATUS_ACTIVE);
     expect($workshop->moysklad_processing_id)->toBe('proc-1');
     expect($workshop->moysklad_processing_name)->toBe('ЦЕХ-26-01');
-    expect($workshop->moysklad_sync_status)->toBe(Workshop::SYNC_STATUS_SYNCED);
-    expect($workshop->moysklad_sync_error)->toBeNull();
+    expect($workshop->isSyncPending())->toBeTrue();
+    Queue::assertPushed(SyncWorkshopToMoysklad::class, fn ($job) => $job->workshop->is($this->workshop));
 });
 
-test('ошибка МойСклад при сбросе записывается в операцию, связь с техоперацией остаётся', function () {
-    $sync = Mockery::mock(WorkshopSyncService::class);
-    $sync->shouldReceive('reactivateProcessing')->once()->andReturn(['success' => false, 'message' => 'Статус не найден']);
-
-    $result = (new WorkshopService($sync))->resetStatus($this->workshop);
-
-    expect($result)->toContain('Статус не найден');
-
-    $workshop = $this->workshop->fresh();
-    expect($workshop->status)->toBe(Workshop::STATUS_ACTIVE);
-    expect($workshop->moysklad_processing_id)->toBe('proc-1');
-    expect($workshop->moysklad_sync_status)->toBe(Workshop::SYNC_STATUS_NOT_SYNCED);
-    expect($workshop->moysklad_sync_error)->toBe('Статус не найден');
-});
-
-test('следующая синхронизация после сброса правит ту же техоперацию, а не создаёт новую', function () {
+test('задача после сброса правит ту же техоперацию и возвращает её в работу', function () {
     // Настоящий syncWorkshop (выбор «создать / обновить»), подменены только запросы в МойСклад
     $stocks = Mockery::mock(StockSyncService::class);
     $stocks->shouldReceive('refreshProducts');
     $sync = Mockery::mock(WorkshopSyncService::class, [$stocks])->makePartial();
-    $sync->shouldReceive('reactivateProcessing')->andReturn(['success' => true, 'message' => '']);
+    $sync->shouldReceive('reactivateProcessing')->once()->with('proc-1')->andReturn(['success' => true, 'message' => '']);
     $sync->shouldNotReceive('createProcessingForWorkshop');
     $sync->shouldReceive('updateProcessingProducts')->once()
         ->withArgs(fn (string $processingId) => $processingId === 'proc-1')
         ->andReturn(['success' => true, 'message' => '']);
+    app()->instance(WorkshopSyncService::class, $sync);
+    Setting::set('MOYSKLAD_IN_WORK_STATE', 'В работе');
 
-    $service = new WorkshopService($sync);
-    $service->resetStatus($this->workshop);
-    $service->syncToProcessing($this->workshop->fresh());
+    (new WorkshopService())->resetStatus($this->workshop);
 
     expect($this->workshop->fresh()->moysklad_processing_id)->toBe('proc-1');
+    expect($this->workshop->fresh()->isSynced())->toBeTrue();
 });

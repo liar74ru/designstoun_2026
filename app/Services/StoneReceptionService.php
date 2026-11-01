@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Exceptions\InsufficientRawMaterialException;
+use App\Jobs\DeleteProcessingInMoysklad;
+use App\Jobs\SyncReceptionToMoysklad;
 use App\Models\Department;
 use App\Models\DepartmentModifier;
 use App\Models\Product;
@@ -14,9 +16,9 @@ use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
 use App\Models\Worker;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
-use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Support\BatchStock;
 use App\Support\DepartmentSettings;
+use App\Support\DocumentNaming;
 use App\Support\ItemCost;
 use App\Support\ModifierEngine;
 use App\Traits\HandlesBatchStock;
@@ -26,7 +28,6 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -35,7 +36,6 @@ class StoneReceptionService
     use ManagesStock, HandlesBatchStock;
 
     public function __construct(
-        private StoneReceptionSyncService $syncService,
         private RawMaterialBatchService $batchService,
         private RawMaterialBatchSyncService $batchSyncService,
     ) {}
@@ -331,7 +331,7 @@ class StoneReceptionService
             $this->batchSyncService->updateParentMove($parentBatch, (float) $parentBatch->fresh()->initial_quantity);
         }
 
-        $this->syncService->syncReception($reception, $processingName);
+        $this->queueSync($reception, $processingName);
 
         return $reception;
     }
@@ -409,9 +409,20 @@ class StoneReceptionService
         });
 
         $reception->refresh();
-        $this->syncService->syncReception($reception, null, $previousMoyskladIds);
+        $this->queueSync($reception, null, $previousMoyskladIds);
 
         return $reception;
+    }
+
+    /**
+     * Поставить отправку приёмки в МойСклад в очередь. Вызывается после транзакции.
+     * Что отправлять, задача читает из записи при выполнении — см. pushReception().
+     */
+    public function queueSync(StoneReception $reception, ?string $customName = null, array $alsoRefresh = []): void
+    {
+        $reception->markSyncPending();
+
+        SyncReceptionToMoysklad::dispatch($reception, $customName, $alsoRefresh);
     }
 
     public function delete(StoneReception $reception): void
@@ -422,15 +433,20 @@ class StoneReceptionService
 
         DB::transaction(fn() => $reception->delete());
 
-        $result = $this->syncService->deleteProcessingForReception($reception);
-
-        if (!$result['success']) {
-            Log::warning('Не удалось удалить техоперацию в МойСклад при удалении приёмки', [
-                'reception_id'  => $reception->id,
-                'processing_id' => $reception->moysklad_processing_id,
-                'error'         => $result['message'],
-            ]);
-        }
+        // Запись уже удалена, поэтому в задачу — только значения. Без id техоперацию найдёт
+        // по внешнему коду: приёмку могли удалить, пока её создание ждало в очереди.
+        DeleteProcessingInMoysklad::dispatch(
+            $reception->moysklad_processing_id,
+            DocumentNaming::externalCode('reception', $reception->id),
+            $reception->items
+                ->toBase()
+                ->map(fn ($item) => $item->product?->moysklad_id)
+                ->push($reception->rawMaterialBatch?->product?->moysklad_id)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all()
+        );
     }
 
     /**
@@ -480,36 +496,13 @@ class StoneReceptionService
 
         foreach ($activeReceptions as $reception) {
             $reception->refresh();
-
-            // Приёмку с незакрытой ошибкой синхронизации не завершаем: смена статуса
-            // техоперации проходит и с непроехавшими позициями, а markSynced() затёр бы
-            // ошибку — приёмка выглядела бы синхронизированной. Ср. markCompleted().
-            if ($reception->hasSyncError()) {
-                Log::warning('closeBatch: приёмка пропущена — не закрыта ошибка синхронизации', [
-                    'reception_id' => $reception->id,
-                    'error'        => $reception->moysklad_sync_error,
-                ]);
-                continue;
-            }
-
-            if ($reception->hasMoySkladProcessing()) {
-                $result = $this->syncService->completeProcessing($reception->moysklad_processing_id);
-                if ($result['success']) {
-                    $reception->markSynced($reception->moysklad_processing_id);
-                } else {
-                    $reception->markSyncError($result['message']);
-                    Log::warning('closeBatch: не удалось завершить техоперацию', [
-                        'reception_id' => $reception->id,
-                        'error'        => $result['message'],
-                    ]);
-                }
-            }
+            $this->queueCompletion($reception);
         }
 
         return true;
     }
 
-    public function markCompleted(StoneReception $reception): array
+    public function markCompleted(StoneReception $reception): void
     {
         DB::transaction(function () use ($reception) {
             $reception->markAsCompleted();
@@ -526,34 +519,15 @@ class StoneReceptionService
 
         $reception->refresh();
 
-        if ($reception->store_id && $reception->rawMaterialBatch) {
-            $this->syncService->syncReception($reception);
-            $reception->refresh();
+        $this->queueCompletion($reception);
+    }
+
+    /** Без склада и партии техоперацию не создать: отправлять нечего, если её ещё нет. */
+    private function queueCompletion(StoneReception $reception): void
+    {
+        if ($reception->hasMoySkladProcessing() || ($reception->store_id && $reception->rawMaterialBatch)) {
+            $this->queueSync($reception);
         }
-
-        if ($reception->hasMoySkladProcessing() && !$reception->hasSyncError()) {
-            $result = $this->syncService->completeProcessing($reception->moysklad_processing_id);
-
-            if ($result['success']) {
-                $reception->markSynced($reception->moysklad_processing_id);
-                return ['success' => true, 'message' => 'Приёмка завершена и синхронизирована с МойСклад.'];
-            }
-
-            $reception->markSyncError($result['message']);
-            return [
-                'success' => false,
-                'message' => 'Приёмка завершена локально, но ошибка синхронизации с МойСклад: ' . $result['message'],
-            ];
-        }
-
-        if ($reception->hasSyncError()) {
-            return [
-                'success' => false,
-                'message' => 'Приёмка завершена локально, но ошибка синхронизации с МойСклад: ' . $reception->moysklad_sync_error,
-            ];
-        }
-
-        return ['success' => true, 'message' => 'Приёмка завершена.'];
     }
 
     public function updateStore(StoneReception $reception, string $storeId): void
@@ -581,8 +555,6 @@ class StoneReceptionService
             }
         }
 
-        $processingId = $reception->moysklad_processing_id;
-
         DB::transaction(function () use ($reception) {
             $reception->update(['status' => StoneReception::STATUS_ACTIVE]);
 
@@ -592,14 +564,8 @@ class StoneReceptionService
             }
         });
 
-        if ($processingId) {
-            $result = $this->syncService->reactivateProcessing($processingId);
-            if ($result['success']) {
-                $reception->markSynced($processingId);
-            } else {
-                $reception->markSyncError($result['message']);
-                return 'Статус сброшен локально, но ошибка синхронизации с МойСклад: ' . $result['message'];
-            }
+        if ($reception->hasMoySkladProcessing()) {
+            $this->queueSync($reception);
         }
 
         return true;

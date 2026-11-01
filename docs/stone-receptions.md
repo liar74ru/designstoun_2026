@@ -64,7 +64,8 @@
 
 - **«Завершить приёмку»** (в списке) и **«Завершена (сырьё израсходовано)»** (на странице приёмки,
   если в партии не осталось сырья) завершают приёмку. Партия становится «Израсходована», если
-  сырья в ней нет, иначе — «Уточнена». Техоперация в МойСклад переводится в завершающий статус.
+  сырья в ней нет, иначе — «Уточнена». Техоперация в МойСклад следом, в фоне, переводится в
+  завершающий статус, но только если до этого в неё прошли все позиции.
 - **«Сохранить + Закрыть партию»** — сохранить и сразу закрыть партию: все её активные приёмки
   становятся «Завершена», партия — «Израсходована» или «Уточнена» по тому же правилу.
 - **«Сбросить статус»** (в списке) / **«Вернуть в работу»** (на странице) возвращает приёмку в
@@ -109,7 +110,10 @@
 ## 7. Техоперация в МойСклад
 
 - Каждая приёмка — **своя техоперация**: сырьё партии — материал, продукция — результат, склад —
-  склад приёмки. Создаётся при сохранении приёмки, дальше обновляется при каждой правке.
+  склад приёмки. Создаётся после сохранения приёмки, дальше обновляется при каждой правке.
+- **Отправка идёт в фоне:** приёмка сохраняется сразу, ждать МойСклад не нужно. Пока документ в
+  пути, в списке и на странице приёмки стоит серая пометка **«Ожидает»**; обычно это секунды.
+  Результат виден после обновления страницы.
 - Имя — **ГГ-НН-ТО-ПП**: год, номер недели, «ТО», порядковый номер за неделю, например
   `26-40-ТО-03`. Если такое имя в МойСклад уже занято, добавляется хвост: `26-40-ТО-03_01`.
 - **Сумма обработки** за единицу продукции = накладные расходы отдела + средняя зарплата пильщика
@@ -117,9 +121,11 @@
 - В примечание техоперации пишутся: партия, все записи журнала (дата, приёмщик, товары с «+/−» и
   правилами) и эти три суммы.
 - После успешной синхронизации остатки затронутых товаров подтягиваются из МойСклад.
-- Не получилось — приёмка сохраняется, сверху появляется предупреждение с текстом ошибки, а в
-  списке — пометка **«Не синхр.»**. На странице приёмки есть кнопка **«Синхронизировать с
-  МойСклад»**.
+- МойСклад недоступен — программа сама повторяет отправку ещё несколько раз в течение примерно
+  получаса, всё это время приёмка «Ожидает».
+- Не получилось — приёмка остаётся сохранённой, в списке пометка **«Не синхр.»**, а на странице
+  приёмки текст ошибки и кнопка **«Синхронизировать с МойСклад»**. Она же выручит, если приёмка
+  долго «Ожидает».
 
 ## 8. Удаление
 
@@ -156,7 +162,7 @@
 | 4. Статусы | `StoneReceptionService::markCompleted`, `closeBatch`, `resetStatus`; `RawMaterialBatchService::markAsUsed` / `markAsInWork` | `ReceptionActionsTest`, `ReceptionStatusCascadeTest`, `StoneReceptionServiceTest` |
 | 5. Правка | `StoneReceptionService::update`, `updateReceptionItems`, `writeReceptionLog`, `updateLogReceiver`; `HandlesBatchStock::handleBatchChanges` | `StoneReceptionTest`, `ReceptionLogTest`, `ReceptionLogReceiverTest` |
 | 6. Коэффициенты | `StoneReceptionService::updateItemCoeff`, `refreshItemCoeffs`; `Support\ItemCost`; снятые sku-правила — `stone_reception_items.disabled_modifier_keys`, `ModifierEngine::disabledSkuKeys` | `ReceptionActionsTest`, `ReceptionExtraActionsTest`, `StoneReceptionEdgingFlowTest`, `EdgingCoeffTest`, `Modifier/DisabledSkuModifierTest` |
-| 7. МойСклад | `Moysklad\StoneReceptionSyncService::syncReception`, `createProcessingForBatch`, `updateProcessingProducts`, `buildReceptionDescription`, `buildCostSummary`; `DocumentNaming` | `ReceptionExtraActionsTest`, `tests/Feature/Moysklad/StoneReceptionSyncServiceTest`, `StoneReceptionProcessingUpdateTest`, `ReceptionDescriptionCostTest` |
+| 7. МойСклад | `StoneReceptionService::queueSync`; `Jobs\SyncReceptionToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\StoneReceptionSyncService::pushReception`, `syncReception`, `createProcessingForBatch`, `updateProcessingProducts`, `buildReceptionDescription`, `buildCostSummary`; `DocumentNaming` | `ReceptionExtraActionsTest`, `tests/Feature/Moysklad/ProcessingSyncJobTest`, `StoneReceptionSyncServiceTest`, `StoneReceptionProcessingUpdateTest`, `ReceptionDescriptionCostTest` |
 | 8. Удаление | `StoneReceptionService::delete`, `StoneReception::booted` (`deleted`) | `StoneReceptionServiceTest`, `StoneReceptionTest` |
 | 9. Список и доступ | `StoneReceptionService::getFilteredReceptions`, `getFilteredLogs`, `getBatchesWithoutReceptions`, `getFilterData`; `StoneReceptionPolicy::modify` | `StoneReceptionDepartmentAccessTest`, `BatchesWithoutReceptionsTest`, `ReceptionIndexWorkerFilterTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
 

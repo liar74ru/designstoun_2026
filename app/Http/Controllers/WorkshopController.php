@@ -151,11 +151,8 @@ class WorkshopController extends Controller
             $this->service->update($workshop, $data, auth()->user()?->isAdmin() ?? false);
 
             if ($request->boolean('close_workshop')) {
-                $result = $this->service->markCompleted($workshop);
-                return redirect()->route('workshops.index')->with(
-                    $result['success'] ? 'success' : 'warning',
-                    $result['message']
-                );
+                $this->service->markCompleted($workshop);
+                return redirect()->route('workshops.index')->with('success', 'Операция закрыта.');
             }
 
             return redirect()->route('workshops.index')->with('success', 'Операция обновлена');
@@ -202,11 +199,7 @@ class WorkshopController extends Controller
     {
         $this->authorize('modify', $workshop);
 
-        $result = $this->service->resetStatus($workshop);
-
-        if ($result !== true) {
-            return back()->with('error', $result);
-        }
+        $this->service->resetStatus($workshop);
 
         return back()->with('success', 'Статус сброшен на Активна');
     }
@@ -217,13 +210,9 @@ class WorkshopController extends Controller
 
         abort_unless($workshop->status === Workshop::STATUS_ACTIVE, 403, 'Закрыть можно только активную операцию');
 
-        $result = $this->service->markCompleted($workshop);
+        $this->service->markCompleted($workshop);
 
-        if (!$result['success']) {
-            return back()->with('warning', $result['message']);
-        }
-
-        return back()->with('success', $result['message']);
+        return back()->with('success', 'Операция закрыта.');
     }
 
     public function updateItemCoeff(Request $request, Workshop $workshop): RedirectResponse

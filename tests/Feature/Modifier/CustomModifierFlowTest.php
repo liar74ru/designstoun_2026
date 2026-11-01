@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\DepartmentModifier;
+use Illuminate\Support\Facades\Queue;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
@@ -9,7 +10,6 @@ use App\Models\StoneReceptionItem;
 use App\Models\Worker;
 use App\Services\DepartmentModifierService;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
-use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Illuminate\Support\Facades\Cache;
@@ -39,14 +39,13 @@ beforeEach(function () {
 
 function customFlowService(): StoneReceptionService
 {
-    $sync = Mockery::mock(StoneReceptionSyncService::class);
-    $sync->shouldReceive('syncReception')->andReturn(null);
+    Queue::fake();
 
     $batchSync = Mockery::mock(RawMaterialBatchSyncService::class);
     $batchSync->shouldReceive('syncCreated')->andReturn(null);
     $batchSync->shouldReceive('updateParentMove')->andReturn(null);
 
-    return new StoneReceptionService($sync, app(RawMaterialBatchService::class), $batchSync);
+    return new StoneReceptionService(app(RawMaterialBatchService::class), $batchSync);
 }
 
 function customFlowReception(array $modifiers, float $coeff = 3.0): StoneReceptionItem

@@ -1,10 +1,11 @@
 <?php
 
 use App\Exceptions\InsufficientRawMaterialException;
+use Illuminate\Support\Facades\Queue;
+use App\Jobs\SyncReceptionToMoysklad;
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
-use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Tests\Helpers\ReceptionTestHelper as H;
@@ -33,9 +34,9 @@ function rcsBatchWithHistory(): array
     return ['batch' => $batch->fresh(), 'active' => $active, 'receiver' => $receiver];
 }
 
-function rcsService(RawMaterialBatchSyncService $batchSync, StoneReceptionSyncService $sync): StoneReceptionService
+function rcsService(RawMaterialBatchSyncService $batchSync): StoneReceptionService
 {
-    return new StoneReceptionService($sync, app(RawMaterialBatchService::class), $batchSync);
+    return new StoneReceptionService(app(RawMaterialBatchService::class), $batchSync);
 }
 
 test('приёмка не сохранилась — партия не разделена, прежняя приёмка активна, МойСклад не вызван', function () {
@@ -44,14 +45,13 @@ test('приёмка не сохранилась — партия не разд�
     $batchSync = Mockery::mock(RawMaterialBatchSyncService::class);
     $batchSync->shouldNotReceive('syncCreated');
     $batchSync->shouldNotReceive('updateParentMove');
-    $sync = Mockery::mock(StoneReceptionSyncService::class);
-    $sync->shouldNotReceive('syncReception');
+    Queue::fake();
 
     // 8 м³ при остатке 6: предварительную проверку контроллера обходим —
     // так выглядит приёмка, у которой остаток забрали между проверкой и сохранением
     $data = H::receptionPostData($receiver, $batch->currentWorker, $batch->currentStore, $batch, 8.0);
 
-    expect(fn () => rcsService($batchSync, $sync)->create($data, false))
+    expect(fn () => rcsService($batchSync)->create($data, false))
         ->toThrow(InsufficientRawMaterialException::class);
 
     expect(RawMaterialBatch::count())->toBe(1);
@@ -63,6 +63,7 @@ test('приёмка не сохранилась — партия не разд�
 
     expect($active->fresh()->status)->toBe(StoneReception::STATUS_ACTIVE);
     expect(StoneReception::count())->toBe(2);
+    Queue::assertNothingPushed();
 });
 
 test('разделение уходит в МойСклад после того, как приёмка сохранена', function () {
@@ -76,14 +77,14 @@ test('разделение уходит в МойСклад после того,
         });
     $batchSync->shouldReceive('updateParentMove')->once()
         ->withArgs(fn (RawMaterialBatch $batch, float $qty) => $batch->id === $parent->id && $qty === 4.0);
-    $sync = Mockery::mock(StoneReceptionSyncService::class);
-    $sync->shouldReceive('syncReception')->once();
+    Queue::fake();
 
     $data = H::receptionPostData($receiver, $parent->currentWorker, $parent->currentStore, $parent, 2.0);
 
-    $reception = rcsService($batchSync, $sync)->create($data, false);
+    $reception = rcsService($batchSync)->create($data, false);
 
     expect($receptionsAtSync)->toBe(1);
+    Queue::assertPushed(SyncReceptionToMoysklad::class, fn ($job) => $job->reception->is($reception));
 
     $child = RawMaterialBatch::whereKeyNot($parent->id)->sole();
     expect($reception->raw_material_batch_id)->toBe($child->id);

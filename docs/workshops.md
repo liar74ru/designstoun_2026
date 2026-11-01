@@ -122,23 +122,28 @@
 - Накладные расходы берутся из карточки отдела операции («Накладные расходы отдела»).
 - В примечание техоперации пишется история изменений: дата, работник, приёмщик и строки с
   пометками [Сырьё] / [Упаковка] / [Продукт].
-- Не получилось синхронизировать — операция сохраняется, в списке пометка **«Не синхр»**, на
-  странице операции кнопка **«Синхронизировать с МойСклад»**.
+- **Отправка идёт в фоне:** операция сохраняется сразу, ждать МойСклад не нужно. Пока документ в
+  пути, стоит серая пометка **«Ожидает»**; обычно это секунды. Результат виден после обновления
+  страницы. МойСклад недоступен — программа сама повторяет отправку ещё несколько раз в течение
+  примерно получаса.
+- Не получилось синхронизировать — операция остаётся сохранённой, в списке пометка **«Не синхр»**,
+  на странице операции текст ошибки и кнопка **«Синхронизировать с МойСклад»**. Она же выручит,
+  если операция долго «Ожидает».
 
 ## 9. Закрытие, активация, удаление
 
 | Статус | Что значит |
 |---|---|
 | **Активна** | Операцию можно править, закрывать и удалять. |
-| **Закрыта** | Работа завершена; техоперация в МойСклад в завершающем статусе. |
+| **Закрыта** | Работа завершена; техоперация в МойСклад следом, в фоне, переходит в завершающий статус, но только если до этого в неё прошли все позиции. |
 
 - **«Закрыть»** — перевести в «Закрыта».
 
 В списке кнопки показаны иконками в строке с датой; название кнопки всплывает при наведении.
 - **«Сбросить»** (в списке — стрелка по кругу) / **«Активировать»** (на странице) возвращает операцию в «Активна»,
   а её техоперацию в МойСклад — в статус «в работе». Операция остаётся связана с той же
-  техоперацией: следующее сохранение правит её, новая не создаётся. Если МойСклад не ответил,
-  операция всё равно становится активной, а ошибка видна у операции — нажмите «Синхронизировать».
+  техоперацией: следующее сохранение правит её, новая не создаётся. Операция становится активной
+  сразу, а если МойСклад не примет изменение, ошибка будет видна у операции — нажмите «Синхронизировать».
 - **«Удалить»** — в списке у активной операции, на странице операции — при любом статусе. Тара
   возвращается на склад, техоперация удаляется из МойСклад. Вместе с операцией удаляется её история — **выработка по ней пропадает из всех
   недель**, в том числе прошлых.
@@ -172,7 +177,7 @@
 | 5. Тара | `Workshop::adjustPackageStock`, `adjustAllPackageStock`, `booted` (`deleting`); `WorkshopService::movePackageStock`, `applyPackageDeltas`, `updateStores` | `WorkshopServiceTest` |
 | 6. Правка | `WorkshopService::update`, `syncRoleItems`, `diffItemDeltas`, `writeWorkshopLog`; JS «Итого продукта» в `workshops/edit.blade.php` (спека `docs/superpowers/specs/2026-07-19-workshop-edit-proportional-scaling-design.md`) | `WorkshopServiceTest` |
 | 7. Зарплата | `WorkshopService::createProductItem`, `updateItemCoeff`, `refreshItemCoeffs`; `WorkshopItem::effectiveProdCost`; снятые sku-правила — `workshop_items.disabled_modifier_keys` | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `Modifier/DisabledSkuModifierTest` |
-| 8. МойСклад | `Moysklad\WorkshopSyncService::syncWorkshop`, `createProcessingForWorkshop`, `updateProcessingProducts`, `computeProcessingSum`, `buildWorkshopDescription` | `tests/Feature/Moysklad/WorkshopSyncServiceTest`, `WorkshopProcessingUpdateTest` |
+| 8. МойСклад | `WorkshopService::queueSync`; `Jobs\SyncWorkshopToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\WorkshopSyncService::pushWorkshop`, `syncWorkshop`, `createProcessingForWorkshop`, `updateProcessingProducts`, `computeProcessingSum`, `buildWorkshopDescription` | `tests/Feature/Moysklad/ProcessingSyncJobTest`, `WorkshopSyncServiceTest`, `WorkshopProcessingUpdateTest` |
 | 9. Статусы, удаление | `WorkshopService::markCompleted`, `resetStatus`, `delete` | `WorkshopServiceTest`, `WorkshopResetStatusTest` |
 | 10. Список и доступ | `WorkshopService::getFilteredWorkshops` (порядок групп — `orderByRaw`), `getFilterData`, `WorkshopPolicy::modify` | `WorkshopIndexOrderTest`, `WorkshopIndexFilterTest`, `WorkshopIndexWorkerFilterTest`, `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
 

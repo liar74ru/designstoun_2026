@@ -1,14 +1,13 @@
 <?php
 
 use App\Models\Product;
+use Illuminate\Support\Facades\Queue;
 use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Models\Workshop;
-use App\Services\Moysklad\StoneReceptionSyncService;
-use App\Services\Moysklad\WorkshopSyncService;
 use App\Services\StoneReceptionService;
 use App\Services\WorkshopService;
 use Illuminate\Support\Facades\Cache;
@@ -27,8 +26,7 @@ beforeEach(function () {
     Cache::flush();
     Setting::updateOrCreate(['key' => 'PIECE_RATE'], ['value' => '100']);
 
-    $this->mock(StoneReceptionSyncService::class, fn ($m) => $m->shouldReceive('syncReception')->andReturn(null));
-    $this->mock(WorkshopSyncService::class, fn ($m) => $m->shouldReceive('syncWorkshop')->andReturn(null));
+    Queue::fake();
 
     $this->admin      = H::adminUser();
     $this->department = H::departmentWithModifiers();

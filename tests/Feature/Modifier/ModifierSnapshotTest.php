@@ -1,13 +1,13 @@
 <?php
 
 use App\Models\Product;
+use Illuminate\Support\Facades\Queue;
 use App\Models\ProductionItemModifier;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
-use App\Services\Moysklad\StoneReceptionSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Illuminate\Support\Facades\Cache;
@@ -26,14 +26,13 @@ beforeEach(function () {
 
 function snapshotService(): StoneReceptionService
 {
-    $sync = Mockery::mock(StoneReceptionSyncService::class);
-    $sync->shouldReceive('syncReception')->andReturn(null);
+    Queue::fake();
 
     $batchSync = Mockery::mock(RawMaterialBatchSyncService::class);
     $batchSync->shouldReceive('syncCreated')->andReturn(null);
     $batchSync->shouldReceive('updateParentMove')->andReturn(null);
 
-    return new StoneReceptionService($sync, app(RawMaterialBatchService::class), $batchSync);
+    return new StoneReceptionService(app(RawMaterialBatchService::class), $batchSync);
 }
 
 function snapshotFixtures(): array

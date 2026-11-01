@@ -409,38 +409,6 @@ describe('StoneReceptionSyncService::syncReception() — повторная пр
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// deleteProcessingForReception() — refreshAffectedStocks после удаления
-// ══════════════════════════════════════════════════════════════════════════════
-
-describe('StoneReceptionSyncService::deleteProcessingForReception()', function () {
-
-    test('после удаления подтягивает остатки сырья и продукции', function () {
-        srpuItem($this->reception, $this->productA, 2.0);
-        $this->reception->update(['moysklad_processing_id' => 'proc-del']);
-
-        Http::fake([
-            '*entity/processing/proc-del' => Http::response(null, 200),
-            '*report/stock/bystore*'      => Http::response(['rows' => []], 200),
-        ]);
-
-        $result = app(StoneReceptionSyncService::class)
-            ->deleteProcessingForReception($this->reception->fresh()->load('items.product', 'rawMaterialBatch.product'));
-
-        expect($result['success'])->toBeTrue();
-        expect(srpuStockIds())->toBe(collect([$this->rawProduct->moysklad_id, $this->productA->moysklad_id])->sort()->values()->all());
-    });
-
-    test('приёмка без техоперации → успех без запросов', function () {
-        Http::fake();
-
-        $result = app(StoneReceptionSyncService::class)->deleteProcessingForReception($this->reception->fresh());
-
-        expect($result)->toBe(['success' => true, 'message' => 'Техоперация не синхронизирована']);
-        Http::assertNothingSent();
-    });
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
 // getProcessing()
 // ══════════════════════════════════════════════════════════════════════════════
 

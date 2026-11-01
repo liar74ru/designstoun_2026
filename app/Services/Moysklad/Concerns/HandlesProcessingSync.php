@@ -3,6 +3,7 @@
 namespace App\Services\Moysklad\Concerns;
 
 use App\Models\Setting;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 
 trait HandlesProcessingSync
@@ -142,6 +143,104 @@ trait HandlesProcessingSync
     }
 
     /**
+     * Найти техоперацию по внешнему коду.
+     *
+     * @return array|false Строка техоперации; [] — такой нет; false — МойСклад не ответил.
+     */
+    protected function findProcessingByExternalCode(string $externalCode): array|false
+    {
+        $data = $this->get('/entity/processing', [
+            'filter' => 'externalCode=' . $externalCode,
+            'limit'  => 1,
+        ]);
+
+        if ($data === null) {
+            $this->transientFailure = true;
+            return false;
+        }
+
+        return $data['rows'][0] ?? [];
+    }
+
+    /**
+     * Перед созданием техоперации проверить, не создана ли она прошлой попыткой: таймаут
+     * мог оборвать ответ на принятый POST. Без этого повтор упёрся бы в занятое имя, получил
+     * суффикс и создал второй документ — остатки в МойСклад задвоились бы.
+     *
+     * @return bool false — проверить не удалось, POST делать нельзя.
+     */
+    protected function adoptExistingProcessing(Model $document, string $externalCode): bool
+    {
+        if (!$this->hasCredentials()) {
+            return true; // Об отсутствии токена сообщит создание техоперации
+        }
+
+        $found = $this->findProcessingByExternalCode($externalCode);
+        if ($found === false) {
+            return false;
+        }
+
+        if (!empty($found['id'])) {
+            $document->update([
+                'moysklad_processing_id'   => $found['id'],
+                'moysklad_processing_name' => $found['name'] ?? $document->moysklad_processing_name,
+            ]);
+            Log::info(static::class . ': найдена техоперация прошлой попытки', [
+                'processing_id' => $found['id'],
+                'external_code' => $externalCode,
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Итог синхронизации для задачи очереди.
+     *
+     * @return array ['success', 'message', 'retryable', 'created']
+     */
+    protected function syncOutcome(bool $success, string $message, bool $created = false): array
+    {
+        return [
+            'success'   => $success,
+            'message'   => $message,
+            'retryable' => $this->transientFailure,
+            'created'   => $created,
+        ];
+    }
+
+    /**
+     * Привести статус техоперации к статусу документа. Состояние читается в момент выполнения,
+     * поэтому порядок «завершили → сбросили» не важен. После неудачного обновления статус не
+     * трогаем: смена статуса прошла бы и с непроехавшими позициями, а markSynced() затёр бы ошибку.
+     */
+    protected function applyDocumentState(Model $document, array $outcome): array
+    {
+        if (!$outcome['success']) {
+            return $outcome;
+        }
+
+        $state = null;
+        if ($document->status === $document::STATUS_COMPLETED) {
+            $state = $this->completeProcessing($document->moysklad_processing_id);
+        } elseif (
+            $document->status === $document::STATUS_ACTIVE
+            && !$outcome['created'] // Статус «в работе» ушёл в POST
+            && Setting::get('MOYSKLAD_IN_WORK_STATE', '')
+        ) {
+            $state = $this->reactivateProcessing($document->moysklad_processing_id);
+        }
+
+        if ($state === null || $state['success']) {
+            return $outcome;
+        }
+
+        $document->markSyncError($state['message']);
+
+        return $this->syncOutcome(false, $state['message']);
+    }
+
+    /**
      * Перевести техоперацию в завершённый статус (MOYSKLAD_DONE_STATE).
      *
      * @return array ['success', 'code', 'message']
@@ -170,7 +269,8 @@ trait HandlesProcessingSync
     }
 
     /**
-     * Удалить техоперацию в МойСклад.
+     * Удалить техоперацию в МойСклад. 404 — её уже нет (прошлая попытка удалила,
+     * но ответ потерялся), это успех.
      *
      * @return array ['success' => bool, 'message' => string]
      */
@@ -186,7 +286,7 @@ trait HandlesProcessingSync
         try {
             $response = $this->delete('/entity/processing/' . $processingId);
 
-            if ($response->status() === 200 || $response->status() === 204) {
+            if (in_array($response->status(), [200, 204, 404], true)) {
                 $result['success'] = true;
                 $result['message'] = 'Техоперация удалена';
                 Log::info('Техоперация удалена в МойСклад', ['processing_id' => $processingId]);

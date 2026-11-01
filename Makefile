@@ -2,7 +2,7 @@
 #  designstoun — команды управления проектом
 # ================================================================
 
-.PHONY: setup install start start-frontend db migrate seed \
+.PHONY: setup install start start-frontend start-queue db migrate seed \
         watch console log test test-coverage lint lint-fix \
         ide-helper dump deploy help
 
@@ -103,6 +103,9 @@ start:
 start-frontend:
 	npm run dev
 
+start-queue:
+	php artisan queue:work --timeout=300
+
 watch:
 	npm run watch
 
@@ -188,6 +191,7 @@ help:
 	@echo "  make seed           — повторный запуск сидов"
 	@echo "  make start          — запустить сервер"
 	@echo "  make start-frontend — запустить Vite dev"
+	@echo "  make start-queue    — запустить воркер очереди (отправка в МойСклад)"
 	@echo "  make migrate        — применить новые миграции"
 	@echo "  make migrate-status — статус миграций"
 	@echo "  make rollback       — откатить последнюю миграцию"

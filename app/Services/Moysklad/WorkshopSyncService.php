@@ -88,6 +88,7 @@ class WorkshopSyncService extends MoySkladBaseService
                 'products'       => $products,
                 'materials'      => $materials,
                 'name'           => $name,
+                'externalCode'   => DocumentNaming::externalCode('workshop', $workshop->id),
                 'quantity'       => $totalQuantity,
                 'moment'         => MoyskladMoment::format($workshopDate),
             ];
@@ -261,12 +262,23 @@ class WorkshopSyncService extends MoySkladBaseService
 
     /**
      * Синхронизировать операцию цеха с МойСклад: создать техоперацию или обновить.
+     *
+     * @return array ['success', 'message', 'retryable', 'created']
      */
-    public function syncWorkshop(Workshop $workshop, ?string $customName = null): void
+    public function syncWorkshop(Workshop $workshop, ?string $customName = null): array
     {
+        $this->transientFailure = false;
+
         try {
             $workshop->loadMissing('items.product');
             $description = $this->buildWorkshopDescription($workshop);
+
+            if (!$workshop->hasMoySkladProcessing()
+                && !$this->adoptExistingProcessing($workshop, DocumentNaming::externalCode('workshop', $workshop->id))) {
+                $message = 'МойСклад не ответил: не удалось проверить, создана ли техоперация';
+                $workshop->markSyncError($message);
+                return $this->syncOutcome(false, $message);
+            }
 
             if (!$workshop->hasMoySkladProcessing()) {
                 $result = $this->createProcessingForWorkshop($workshop, $customName, $description ?: null);
@@ -281,32 +293,47 @@ class WorkshopSyncService extends MoySkladBaseService
                         'message'      => $result['message'],
                     ]);
                 }
-            } else {
-                $result = $this->updateProcessingProducts(
-                    $workshop->moysklad_processing_id,
-                    $workshop,
-                    $description ?: null
-                );
 
-                if ($result['success']) {
-                    $workshop->markSynced($workshop->moysklad_processing_id);
-                    $this->refreshAffectedStocks($workshop);
-                } else {
-                    $workshop->markSyncError($result['message']);
-                    Log::warning('syncWorkshop: не удалось обновить техоперацию', [
-                        'workshop_id'  => $workshop->id,
-                        'processing_id' => $workshop->moysklad_processing_id,
-                        'message'       => $result['message'],
-                    ]);
-                }
+                return $this->syncOutcome($result['success'], $result['message'], $result['success']);
             }
+
+            $result = $this->updateProcessingProducts(
+                $workshop->moysklad_processing_id,
+                $workshop,
+                $description ?: null
+            );
+
+            if ($result['success']) {
+                $workshop->markSynced($workshop->moysklad_processing_id);
+                $this->refreshAffectedStocks($workshop);
+            } else {
+                $workshop->markSyncError($result['message']);
+                Log::warning('syncWorkshop: не удалось обновить техоперацию', [
+                    'workshop_id'  => $workshop->id,
+                    'processing_id' => $workshop->moysklad_processing_id,
+                    'message'       => $result['message'],
+                ]);
+            }
+
+            return $this->syncOutcome($result['success'], $result['message']);
         } catch (\Exception $e) {
             Log::error('syncWorkshop: исключение', [
                 'workshop_id' => $workshop->id,
                 'error'        => $e->getMessage(),
             ]);
             $workshop->markSyncError('Ошибка: ' . $e->getMessage());
+            return $this->syncOutcome(false, 'Ошибка: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Задача очереди: синхронизировать операцию и привести статус техоперации к её статусу.
+     *
+     * @return array ['success', 'message', 'retryable', 'created']
+     */
+    public function pushWorkshop(Workshop $workshop, ?string $customName = null): array
+    {
+        return $this->applyDocumentState($workshop, $this->syncWorkshop($workshop, $customName));
     }
 
     /**
@@ -427,23 +454,6 @@ class WorkshopSyncService extends MoySkladBaseService
         $this->stockSyncService->refreshProducts(
             $workshop->items->map(fn ($item) => $item->product?->moysklad_id)
         );
-    }
-
-    /**
-     * Удалить техоперацию цеха в МойСклад и подтянуть остатки затронутых товаров.
-     * Вызывается после локального удаления — items.product должны быть загружены заранее.
-     *
-     * @return array ['success' => bool, 'message' => string]
-     */
-    public function deleteProcessingForWorkshop(Workshop $workshop): array
-    {
-        $result = $this->deleteProcessing($workshop->moysklad_processing_id);
-
-        if ($result['success']) {
-            $this->refreshAffectedStocks($workshop);
-        }
-
-        return $result;
     }
 
     private function buildWorkshopDescription(Workshop $workshop): string

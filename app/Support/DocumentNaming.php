@@ -5,6 +5,18 @@ namespace App\Support;
 class DocumentNaming
 {
     /**
+     * Внешний код документа в МойСклад: по нему повтор находит техоперацию, ответ на
+     * создание которой потерялся. Вне прода — с префиксом окружения: локальная база
+     * работает с тем же аккаунтом, и её id совпали бы с id прод-документов.
+     */
+    public static function externalCode(string $type, int $id): string
+    {
+        $prefix = app()->environment('production') ? '' : app()->environment() . '_';
+
+        return $prefix . $type . '_' . $id;
+    }
+
+    /**
      * Генерирует имя документа по формату: «ГГ-НН-ПРЕФИКС-ПП»
      * Например: «26-15-ПРОГ-01», «26-15-ТО-03»
      *

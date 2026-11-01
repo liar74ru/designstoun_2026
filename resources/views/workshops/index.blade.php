@@ -35,7 +35,7 @@
         'statusOptions'         => ['active' => 'Активна', 'completed' => 'Закрыта', 'error' => 'Ошибка'],
         'statusDefaults'        => [],
         'showSyncStatus'        => true,
-        'syncStatusOptions'     => ['synced' => 'Синхр.', 'not_synced' => 'Не синхр.'],
+        'syncStatusOptions'     => ['synced' => 'Синхр.', 'pending' => 'Ожидает', 'not_synced' => 'Не синхр.'],
         'filterDepartments'     => $filterDepartments,
         'departmentDefaults'    => $departmentDefaults,
     ])
