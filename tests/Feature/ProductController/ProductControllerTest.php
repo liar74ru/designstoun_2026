@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Order;
+use App\Models\OrderState;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Models\ProductStock;
@@ -18,6 +20,35 @@ use Tests\Helpers\ReceptionTestHelper as H;
 function makeProduct(array $attrs = []): Product
 {
     return Product::factory()->create($attrs);
+}
+
+/** Заявка в статусе $stateId с одной позицией — товаром $product. */
+function makeOrderWith(Product $product, string $stateId, array $attrs = []): Order
+{
+    $order = Order::create(array_merge([
+        'moysklad_id'       => (string) Str::uuid(),
+        'name'              => 'Заявка',
+        'state_moysklad_id' => $stateId,
+    ], $attrs));
+    $order->items()->create([
+        'product_id'   => $product->id,
+        'product_name' => $product->name,
+        'quantity'     => 10,
+        'shipped'      => 0,
+    ]);
+
+    return $order;
+}
+
+/** Товары дерева api.products.tree по id (одна корневая группа). */
+function treeProducts($test): \Illuminate\Support\Collection
+{
+    return collect(
+        $test->actingAs(H::adminUser())
+            ->get(route('api.products.tree'))
+            ->assertStatus(200)
+            ->json('0.products')
+    )->keyBy('id');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -755,6 +786,68 @@ describe('ProductController groupsJson()', function () {
         expect($products)->toHaveCount(2)
             ->and($products[$hidden->id]['hidden'])->toBeTrue()
             ->and($products[$visible->id]['hidden'])->toBeFalse();
+    });
+
+    test('скрытый товар из загруженной заявки виден и отмечен in_order', function () {
+        Cache::flush();
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+        $state = OrderState::create(['id' => (string) Str::uuid(), 'name' => 'Новый', 'is_enabled' => true]);
+
+        $ordered = makeProduct(['group_id' => $groupId, 'name' => 'Редкая плитка', 'is_hidden' => true]);
+        $other   = makeProduct(['group_id' => $groupId, 'name' => 'Похожая плитка', 'is_hidden' => false]);
+        makeOrderWith($ordered, $state->id);
+
+        $products = treeProducts($this);
+
+        expect($products[$ordered->id]['hidden'])->toBeFalse()
+            ->and($products[$ordered->id]['in_order'])->toBeTrue()
+            ->and($products[$other->id]['in_order'])->toBeFalse();
+    });
+
+    test('заявка в неиспользуемом статусе товар не открывает', function () {
+        Cache::flush();
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+        $state = OrderState::create(['id' => (string) Str::uuid(), 'name' => 'Отгружен', 'is_enabled' => false]);
+
+        $product = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
+        makeOrderWith($product, $state->id);
+
+        $products = treeProducts($this);
+
+        expect($products[$product->id]['hidden'])->toBeTrue()
+            ->and($products[$product->id]['in_order'])->toBeFalse();
+    });
+
+    test('позиция внутреннего заказа тоже открывает товар', function () {
+        Cache::flush();
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+        $state = OrderState::create(['id' => (string) Str::uuid(), 'name' => 'В процессе', 'is_enabled' => true]);
+
+        $product = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
+        makeOrderWith($product, $state->id, ['kind' => Order::KIND_INTERNAL, 'moysklad_id' => null]);
+
+        expect(treeProducts($this)[$product->id]['in_order'])->toBeTrue();
+    });
+
+    test('смена статуса заявки видна сразу, без сброса кэша дерева', function () {
+        Cache::flush();
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+        $used   = OrderState::create(['id' => (string) Str::uuid(), 'name' => 'Новый', 'is_enabled' => true]);
+        $unused = OrderState::create(['id' => (string) Str::uuid(), 'name' => 'Отгружен', 'is_enabled' => false]);
+
+        $product = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
+        $order = makeOrderWith($product, $used->id);
+
+        expect(treeProducts($this)[$product->id]['hidden'])->toBeFalse();
+
+        $order->update(['state_moysklad_id' => $unused->id]);
+
+        expect(Cache::has('products_tree_json_v4'))->toBeTrue()
+            ->and(treeProducts($this)[$product->id]['hidden'])->toBeTrue();
     });
 
     test('кэширует ответ на 10 минут', function () {

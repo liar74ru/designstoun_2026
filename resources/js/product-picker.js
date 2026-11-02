@@ -66,6 +66,20 @@ function isVisible(product, showHidden) {
     return showHidden || !product.hidden;
 }
 
+// ─── Товары из активных заявок ────────────────────────────────────────────────
+// in_order=true — товар есть в загруженной заявке: в быстром поиске он идёт первым,
+// чтобы не перепутать его с похожим по названию товаром не из заявки.
+function orderedFirst(products) {
+    return [...products.filter(p => p.in_order), ...products.filter(p => !p.in_order)];
+}
+
+function orderMark() {
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-cart-check text-success me-1';
+    icon.title = 'Есть в активной заявке';
+    return icon;
+}
+
 // ─── Маппинг: первая группа сырья → первая группа продукта ───────────────────
 const SKU_GROUP_MAP = { '01': '04' };
 
@@ -141,7 +155,8 @@ function initSearch(row) {
             const label = document.createElement('span');
             label.className = 'flex-grow-1';
             label.style.cssText = 'font-size:.78rem;line-height:1.3;word-break:break-word';
-            label.textContent = p.label;
+            if (p.in_order) label.appendChild(orderMark());
+            label.append(p.label);
             btn.appendChild(label);
 
             // Остатки, если доступны
@@ -173,7 +188,7 @@ function initSearch(row) {
     searchInput.addEventListener('input', () => {
         const q = searchInput.value.trim();
         if (q.length < 1) { hideDrop(); hiddenInput.value = ''; return; }
-        const matched = getActiveProducts().filter(p => fuzzyMatch(p.label, q));
+        const matched = orderedFirst(getActiveProducts().filter(p => fuzzyMatch(p.label, q)));
         showDrop(matched);
     });
 
@@ -264,6 +279,7 @@ function renderTree(groups, filter = '', showHidden = false) {
             pBtn.type = 'button';
             pBtn.className = 'btn btn-sm btn-light text-start w-100 py-1 mb-1 small';
             pBtn.innerHTML = '<i class="bi bi-gem text-secondary me-1"></i>';
+            if (product.in_order) pBtn.appendChild(orderMark());
             pBtn.append(product.label);
             pBtn.addEventListener('click', () => {
                 const modal = pBtn.closest('.modal');

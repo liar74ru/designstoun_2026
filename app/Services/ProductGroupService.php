@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\OrderItem;
+use App\Models\OrderState;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use Illuminate\Support\Facades\DB;
@@ -119,4 +121,47 @@ class ProductGroupService
         return $groups;
     }
 
+    /**
+     * Товары из активных заявок — любых загруженных (статус «Исп.»), всех отделов.
+     * Заявки покупателей в других статусах синк удаляет сам; условие по статусу — для
+     * внутренних заказов, которых синк не трогает.
+     */
+    public function productIdsInActiveOrders(): array
+    {
+        return OrderItem::whereNotNull('product_id')
+            ->whereHas('order', fn ($q) => $q->whereIn('state_moysklad_id', OrderState::enabled()->select('id')))
+            ->distinct()
+            ->pluck('product_id')
+            ->all();
+    }
+
+    /**
+     * Метит товары дерева из активных заявок: in_order — первыми в быстром поиске,
+     * и hidden снимается — заявленный товар виден даже с флажком hiddenByDefault.
+     * Накладывается поверх кэша дерева: заявки меняются чаще, чем он живёт.
+     */
+    public function markOrderedProducts(array $groups, array $productIds): array
+    {
+        $ids = array_flip($productIds);
+
+        $mark = function (array $groups) use (&$mark, $ids) {
+            foreach ($groups as &$group) {
+                foreach ($group['products'] as &$product) {
+                    $product['in_order'] = isset($ids[$product['id']]);
+                    if ($product['in_order']) {
+                        $product['hidden'] = false;
+                    }
+                }
+                unset($product);
+
+                if (!empty($group['children'])) {
+                    $group['children'] = $mark($group['children']);
+                }
+            }
+
+            return $groups;
+        };
+
+        return $mark($groups);
+    }
 }
