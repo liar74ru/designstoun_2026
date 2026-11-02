@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Product\ProductCoeffRequest;
+use App\Http\Requests\Product\ProductHiddenRequest;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Services\Moysklad\MoySkladService;
@@ -157,6 +158,19 @@ class ProductController extends Controller
 
         return redirect()->route('products.show', $moyskladId)
             ->with('success', $result['message']);
+    }
+
+    /**
+     * Скрыть товар в выборе товара или вернуть его — флажок hiddenByDefault в МойСклад.
+     */
+    public function updateHidden(ProductHiddenRequest $request, $moyskladId)
+    {
+        $product = Product::where('moysklad_id', $moyskladId)->firstOrFail();
+
+        $result = $this->productService->updateHidden($product, $request->boolean('hidden'));
+
+        return redirect()->route('products.show', $moyskladId)
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
     /**

@@ -102,9 +102,11 @@ class ProductGroupService
         foreach ($groups as &$group) {
             $group['products'] = Product::where('group_id', $group['id'])
                 ->orderBy('name')
-                ->get(['id', 'name', 'sku', 'uom', 'is_hidden'])
+                ->get(['id', 'moysklad_id', 'name', 'sku', 'uom', 'is_hidden'])
                 ->map(fn ($p) => [
                     'id'     => $p->id,
+                    // moysklad_id — ссылка на карточку товара из мобильного каталога-дерева на products.index
+                    'ms_id'  => $p->moysklad_id,
                     'label'  => $p->name,
                     'sku'    => $p->sku ?? '',
                     'unit'   => $p->uom,

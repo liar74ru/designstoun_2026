@@ -499,6 +499,36 @@ class MoySkladService extends MoySkladBaseService
      */
     public function updateProductCostCoeffs(Product $product, float $prodCoeff, float $masterCoeff): array
     {
+        return $this->updateProductAttributes(
+            $product,
+            ['prodCostCoeff' => $prodCoeff, 'masterCostCoeff' => $masterCoeff],
+            ['prod_cost_coeff' => $prodCoeff, 'master_cost_coeff' => $masterCoeff],
+            'Коэффициенты товара сохранены в МойСклад',
+            'коэффициентов',
+        );
+    }
+
+    /**
+     * Записать флажок hiddenByDefault («скрыт в выборе товара») в товар МойСклад.
+     * Локальная запись обновляется только после успешного ответа API.
+     */
+    public function updateProductHidden(Product $product, bool $hidden): array
+    {
+        return $this->updateProductAttributes(
+            $product,
+            ['hiddenByDefault' => $hidden],
+            ['is_hidden' => $hidden],
+            $hidden ? 'Товар скрыт в выборе товара' : 'Товар снова виден в выборе товара',
+            'флажка скрытия',
+        );
+    }
+
+    /**
+     * Записать реквизиты $values (имя реквизита МойСклад → значение) в товар и, после успешного
+     * ответа API, поля $local в локальную запись.
+     */
+    private function updateProductAttributes(Product $product, array $values, array $local, string $successMessage, string $logLabel): array
+    {
         $result = ['success' => false, 'code' => '', 'message' => ''];
 
         if (! $this->hasCredentials()) {
@@ -525,11 +555,6 @@ class MoySkladService extends MoySkladBaseService
                 }
             }
 
-            $values = [
-                'prodCostCoeff'   => $prodCoeff,
-                'masterCostCoeff' => $masterCoeff,
-            ];
-
             $missing = array_diff(array_keys($values), array_keys($attributeMeta));
             if ($missing) {
                 $result['code']    = 'no_attribute';
@@ -550,7 +575,7 @@ class MoySkladService extends MoySkladBaseService
                 $result['code']    = 'api_error';
                 $result['message'] = 'Ошибка МойСклад: ' . ($errors[0]['error'] ?? 'Неизвестная ошибка');
 
-                Log::error('Ошибка записи коэффициентов товара в МойСклад', [
+                Log::error("Ошибка записи {$logLabel} товара в МойСклад", [
                     'product_id' => $product->id,
                     'status'     => $response->status(),
                     'response'   => $response->json(),
@@ -559,24 +584,17 @@ class MoySkladService extends MoySkladBaseService
                 return $result;
             }
 
-            $product->update([
-                'prod_cost_coeff'   => $prodCoeff,
-                'master_cost_coeff' => $masterCoeff,
-            ]);
+            $product->update($local);
 
             $result['success'] = true;
-            $result['message'] = 'Коэффициенты товара сохранены в МойСклад';
+            $result['message'] = $successMessage;
 
-            Log::info('Коэффициенты товара изменены', [
-                'product_id'        => $product->id,
-                'prod_cost_coeff'   => $prodCoeff,
-                'master_cost_coeff' => $masterCoeff,
-            ]);
+            Log::info("Изменение {$logLabel} товара", ['product_id' => $product->id] + $local);
         } catch (\Throwable $e) {
             $result['code']    = 'exception';
             $result['message'] = 'Ошибка: ' . $e->getMessage();
 
-            Log::error('Исключение при записи коэффициентов товара', [
+            Log::error("Исключение при записи {$logLabel} товара", [
                 'product_id' => $product->id,
                 'error'      => $e->getMessage(),
             ]);

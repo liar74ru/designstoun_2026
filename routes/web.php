@@ -79,6 +79,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/products/groups/tree', [ProductController::class, 'groups'])->name('products.groups');
         Route::post('/products/groups/sync', [ProductController::class, 'syncGroups'])->name('products.groups.sync');
         Route::post('/products/{moyskladId}/stocks-sync', [ProductController::class, 'syncStocks'])->name('products.stocks.sync');
+        // Скрытие в выборе товара (hiddenByDefault) — всем с доступом к «Товарам»
+        Route::patch('/products/{moyskladId}/hidden', [ProductController::class, 'updateHidden'])->name('products.hidden.update');
         // Коэффициенты ставок влияют на зарплату — правит только админ
         Route::patch('/products/{moyskladId}/coeffs', [ProductController::class, 'updateCoeffs'])
             ->name('products.coeffs.update')

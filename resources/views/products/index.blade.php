@@ -3,9 +3,41 @@
 @section('title', 'Товары')
 
 @section('content')
-    <div class="container py-4">
+    <div class="container py-3 py-md-4">
+        {{-- Мобильный заголовок --}}
+        <div class="d-flex d-md-none justify-content-between align-items-center mb-2">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-box"></i> Товары</h6>
+            <div class="d-flex gap-1 align-items-center">
+                @include('partials.help-button', ['page' => 'products', 'class' => 'btn-outline-secondary btn-sm'])
+                <form action="{{ route('products.stocks.sync-all-by-stores') }}" method="POST" data-submit-guard
+                      data-confirm="Обновить остатки по складам для ВСЕХ товаров? Это может занять несколько минут.">
+                    @csrf
+                    <button type="submit" class="btn btn-info btn-sm" title="Обновить остатки по складам">
+                        <i class="bi bi-boxes"></i>
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('products.sync') }}" data-submit-guard
+                      data-confirm="Загрузить/обновить товары и группы из МойСклад?">
+                    @csrf
+                    <button type="submit" class="btn btn-success btn-sm" title="Синхронизировать">
+                        <i class="bi bi-cloud-download"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {{-- Мобильная навигация вместо плиток --}}
+        <div class="d-flex d-md-none gap-2 mb-2 small">
+            <a href="{{ route('stores.index') }}" class="btn btn-outline-secondary btn-sm flex-fill">
+                <i class="bi bi-building"></i> Склады
+            </a>
+            <a href="{{ route('products.groups') }}" class="btn btn-outline-secondary btn-sm flex-fill">
+                <i class="bi bi-folder"></i> Группы
+            </a>
+        </div>
+
         <!-- Заголовок и кнопки действий -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-none d-md-flex justify-content-between align-items-center mb-4">
             <h1 class="h2 mb-0">
                 <i class="bi bi-box"></i> Товары в локальной базе
             </h1>
@@ -50,7 +82,7 @@
         @endif
 
         <!-- Навигационные плитки -->
-        <div class="row mb-4">
+        <div class="row mb-4 d-none d-md-flex">
             <!-- Товары (текущий раздел) -->
             <div class="col-md-3">
                 <a href="{{ route('products.index') }}" class="text-decoration-none">
@@ -136,8 +168,8 @@
             </div>
         </div>
 
-        <!-- Фильтры -->
-        <div class="card mb-4">
+        <!-- Фильтры (на мобильном — поиск внутри каталога-дерева) -->
+        <div class="card mb-4 d-none d-md-block">
             <div class="card-body">
                 <form method="GET" action="{{ route('products.index') }}" class="row g-3" id="filterForm" data-filter-memory>
                     <!-- Поиск -->
@@ -204,8 +236,10 @@
         </div>
 
         <!-- Таблица товаров -->
+        @include('products.partials.mobile-list')
+
         @if($products->count() > 0)
-            <div class="card shadow-sm">
+            <div class="card shadow-sm d-none d-md-block">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
@@ -326,7 +360,7 @@
             </div>
 
             <!-- Пагинация -->
-            <div class="d-flex justify-content-between align-items-center mt-4">
+            <div class="d-none d-md-flex justify-content-between align-items-center mt-4">
                 <div>
                     Показано {{ $products->firstItem() }} - {{ $products->lastItem() }} из {{ $products->total() }} товаров
                 </div>
@@ -335,7 +369,7 @@
                 </div>
             </div>
         @else
-            <div class="text-center py-5">
+            <div class="text-center py-5 d-none d-md-block">
                 <div class="display-1 text-muted mb-4">📦</div>
                 <h3 class="text-muted mb-3">Товары не найдены</h3>
                 <p class="mb-4">
@@ -519,3 +553,4 @@
         }
     </style>
 @endpush
+

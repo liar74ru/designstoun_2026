@@ -72,4 +72,18 @@ class ProductService
 
         return $result;
     }
+
+    /**
+     * Скрыть товар в выборе товара или вернуть его (флажок hiddenByDefault в МойСклад).
+     */
+    public function updateHidden(Product $product, bool $hidden): array
+    {
+        $result = $this->moySkladService->updateProductHidden($product, $hidden);
+
+        if ($result['success']) {
+            cache()->forget('products_tree_json_v4');
+        }
+
+        return $result;
+    }
 }

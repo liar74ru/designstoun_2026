@@ -263,7 +263,7 @@
                             @endcannot
 
                             <dt class="col-5 col-md-3 fw-normal text-muted">Статус</dt>
-                            <dd class="col-7 col-md-9">
+                            <dd class="col-7 col-md-9 d-flex flex-wrap align-items-center gap-1">
                                 @if($product->is_active)
                                     <span class="badge bg-success">Активен</span>
                                 @else
@@ -274,6 +274,23 @@
                                         <i class="bi bi-eye-slash"></i> Скрыт по умолчанию
                                     </span>
                                 @endif
+                                {{-- Флажок hiddenByDefault пишется в МойСклад сразу, точечно по этому товару --}}
+                                <form action="{{ route('products.hidden.update', $product->moysklad_id) }}"
+                                      method="POST" class="d-inline" data-submit-guard
+                                      data-confirm="{{ $product->is_hidden
+                                          ? 'Снова показывать товар в выборе товара? Флажок запишется в МойСклад.'
+                                          : 'Скрыть товар в выборе товара? Флажок запишется в МойСклад.' }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="hidden" value="{{ $product->is_hidden ? 0 : 1 }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary py-0">
+                                        @if($product->is_hidden)
+                                            <i class="bi bi-eye"></i> Показать
+                                        @else
+                                            <i class="bi bi-eye-slash"></i> Скрыть
+                                        @endif
+                                    </button>
+                                </form>
                             </dd>
 
                             <dt class="col-5 col-md-3 fw-normal text-muted">Добавлен</dt>
