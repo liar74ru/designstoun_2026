@@ -52,6 +52,11 @@ class ProductController extends Controller
                         $query->whereDoesntHave('stocks', fn ($q) => $q->where('quantity', '>', 0));
                     }
                 }),
+                AllowedFilter::callback('hidden', function ($query, $value) {
+                    if ($value === '1' || $value === '0') {
+                        $query->where('is_hidden', $value === '1');
+                    }
+                }),
             ])
             ->defaultSort('id')
             ->allowedSorts(['name', 'sku', 'price', 'quantity', 'group_id', 'created_at'])
@@ -109,7 +114,7 @@ class ProductController extends Controller
             $message .= ". Синхронизировано групп: {$groupsResult['synced']}";
         }
 
-        cache()->forget('products_tree_json_v3');
+        cache()->forget('products_tree_json_v4');
 
         return redirect()->route('products.index')->with('success', $message);
     }
@@ -129,7 +134,7 @@ class ProductController extends Controller
             return back()->with('error', $result['message']);
         }
 
-        cache()->forget('products_tree_json_v3');
+        cache()->forget('products_tree_json_v4');
 
         return redirect()->route('products.show', $result['product']->moysklad_id)
             ->with('success', 'Товар обновлен');
@@ -198,7 +203,7 @@ class ProductController extends Controller
      */
     public function groupsJson()
     {
-        $tree = cache()->remember('products_tree_json_v3', 600, function () {
+        $tree = cache()->remember('products_tree_json_v4', 600, function () {
             $groups = $this->productGroupService->getGroupsTree();
 
             return $this->productGroupService->attachProductsToTree($groups);

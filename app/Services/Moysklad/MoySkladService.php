@@ -418,6 +418,8 @@ class MoySkladService extends MoySkladBaseService
         // Атрибут не заведён или не заполнен → 0 (мастер получает базовую ставку).
         $prodCostCoeff   = $this->extractAttribute($productData, 'prodCostCoeff');
         $masterCostCoeff = $this->extractAttribute($productData, 'masterCostCoeff') ?? 0;
+        // Флажок «скрыт по умолчанию»: снятый МойСклад может не отдавать вовсе → false.
+        $isHidden = $this->extractAttribute($productData, 'hiddenByDefault') === true;
 
         // Сохранение
         Product::updateOrCreate(
@@ -437,6 +439,7 @@ class MoySkladService extends MoySkladBaseService
                 'master_cost_coeff' => $masterCostCoeff,
                 'quantity' => $productData['stock'] ?? 0,
                 'is_active' => true,
+                'is_hidden' => $isHidden,
                 'attributes' => json_encode([
                     'code' => $productData['code'] ?? null,
                     'article' => $productData['article'] ?? null,

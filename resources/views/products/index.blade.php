@@ -169,6 +169,16 @@
                         </select>
                     </div>
 
+                    <!-- Фильтр по видимости в выборе товара -->
+                    <div class="col-md-2">
+                        <label class="form-label">Видимость</label>
+                        <select name="filter[hidden]" class="form-select">
+                            <option value="">Все</option>
+                            <option value="0" {{ request('filter.hidden') == '0' ? 'selected' : '' }}>Видимые</option>
+                            <option value="1" {{ request('filter.hidden') == '1' ? 'selected' : '' }}>Скрытые</option>
+                        </select>
+                    </div>
+
                     <!-- Фильтр по цене -->
                     <div class="col-md-3">
                         <label class="form-label">Цена</label>
@@ -248,6 +258,11 @@
                                        class="text-decoration-none fw-bold">
                                         {{ $product->name }}
                                     </a>
+                                    @if($product->is_hidden)
+                                        <span class="badge bg-light text-muted border" title="Не показывается при выборе товара без «весь каталог»">
+                                            <i class="bi bi-eye-slash"></i> скрыт
+                                        </span>
+                                    @endif
                                     @if($product->description)
                                         <br><small class="text-muted">{{ Str::limit($product->description, 50) }}</small>
                                     @endif

@@ -414,6 +414,71 @@ describe('MoySkladService::syncProducts()', function () {
         $product = Product::where('moysklad_id', 'product-003')->first();
         expect((float) $product->master_cost_coeff)->toBe(0.0);
     });
+
+    test('флажок hiddenByDefault отмечен → товар скрыт', function () {
+        config()->set('services.moysklad.token', 'test-token');
+
+        Http::fake([
+            '*' => Http::response([
+                'rows' => [
+                    [
+                        'id' => 'product-hidden',
+                        'name' => 'Технический товар',
+                        'attributes' => [
+                            ['name' => 'hiddenByDefault', 'value' => true],
+                        ],
+                    ],
+                ],
+                'meta' => ['size' => 1],
+            ], 200),
+        ]);
+
+        (new MoySkladService())->syncProducts();
+
+        expect(Product::where('moysklad_id', 'product-hidden')->first()->is_hidden)->toBeTrue();
+    });
+
+    test('атрибута hiddenByDefault нет → товар видим', function () {
+        config()->set('services.moysklad.token', 'test-token');
+
+        Http::fake([
+            '*' => Http::response([
+                'rows' => [
+                    ['id' => 'product-visible', 'name' => 'Обычный товар', 'attributes' => []],
+                ],
+                'meta' => ['size' => 1],
+            ], 200),
+        ]);
+
+        (new MoySkladService())->syncProducts();
+
+        expect(Product::where('moysklad_id', 'product-visible')->first()->is_hidden)->toBeFalse();
+    });
+
+    test('флажок hiddenByDefault снят в МойСклад → товар снова видим', function () {
+        config()->set('services.moysklad.token', 'test-token');
+
+        Product::create(['moysklad_id' => 'product-unhide', 'name' => 'Был скрыт', 'is_hidden' => true]);
+
+        Http::fake([
+            '*' => Http::response([
+                'rows' => [
+                    [
+                        'id' => 'product-unhide',
+                        'name' => 'Был скрыт',
+                        'attributes' => [
+                            ['name' => 'hiddenByDefault', 'value' => false],
+                        ],
+                    ],
+                ],
+                'meta' => ['size' => 1],
+            ], 200),
+        ]);
+
+        (new MoySkladService())->syncProducts();
+
+        expect(Product::where('moysklad_id', 'product-unhide')->first()->is_hidden)->toBeFalse();
+    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════

@@ -55,6 +55,17 @@ function fuzzyMatch(productLabel, query) {
 }
 
 
+// ─── Скрытые товары ───────────────────────────────────────────────────────────
+// Товар с флажком hiddenByDefault в МойСклад приходит с hidden=true и в пикере не виден,
+// пока на странице не включён «весь каталог» (в дереве — ещё и «Показать скрытые»).
+function catalogShowsHidden() {
+    return !!document.getElementById('allCatalogCheck')?.checked;
+}
+
+function isVisible(product, showHidden) {
+    return showHidden || !product.hidden;
+}
+
 // ─── Маппинг: первая группа сырья → первая группа продукта ───────────────────
 const SKU_GROUP_MAP = { '01': '04' };
 
@@ -88,6 +99,8 @@ function initSearch(row) {
         if (prefix) products = products.filter(p => p.sku && p.sku.startsWith(prefix));
 
         const allowedAttr = row.dataset.allowedIds;
+        // В фильтрах списков (allowedIds) скрытые не прячем: там только товары из документов
+        if (!allowedAttr && !catalogShowsHidden()) products = products.filter(p => !p.hidden);
         if (allowedAttr) {
             try {
                 const ids = new Set(JSON.parse(allowedAttr));
@@ -187,17 +200,18 @@ function selectProduct(searchInput, hiddenInput, product, row) {
 }
 
 // ─── Дерево в модале ──────────────────────────────────────────────────────────
-function renderTree(groups, filter = '') {
+function renderTree(groups, filter = '', showHidden = false) {
     const ul = document.createElement('ul');
     ul.className = 'list-unstyled ms-2';
 
     for (const group of groups) {
         const matchedProducts = (group.products || []).filter(p =>
-            !filter || fuzzyMatch(p.label, filter)
+            isVisible(p, showHidden) && (!filter || fuzzyMatch(p.label, filter))
         );
-        const hasMatchInChildren = filter ? groupHasMatch(group.children || [], filter) : true;
+        const hasMatchInChildren = groupHasMatch(group.children || [], filter, showHidden);
 
-        if (filter && !matchedProducts.length && !hasMatchInChildren) continue;
+        // Пустую группу (в т.ч. из одних скрытых товаров) не показываем
+        if (!matchedProducts.length && !hasMatchInChildren) continue;
 
         const li = document.createElement('li');
         li.className = 'mb-1';
@@ -269,7 +283,7 @@ function renderTree(groups, filter = '') {
         });
 
         if (group.children?.length) {
-            sub.appendChild(renderTree(group.children, filter));
+            sub.appendChild(renderTree(group.children, filter, showHidden));
         }
 
         li.appendChild(sub);
@@ -279,10 +293,10 @@ function renderTree(groups, filter = '') {
     return ul;
 }
 
-function groupHasMatch(groups, filter) {
+function groupHasMatch(groups, filter, showHidden) {
     for (const g of groups) {
-        if ((g.products || []).some(p => fuzzyMatch(p.label, filter))) return true;
-        if (g.children?.length && groupHasMatch(g.children, filter)) return true;
+        if ((g.products || []).some(p => isVisible(p, showHidden) && (!filter || fuzzyMatch(p.label, filter)))) return true;
+        if (g.children?.length && groupHasMatch(g.children, filter, showHidden)) return true;
     }
     return false;
 }
@@ -292,6 +306,7 @@ async function openTreeModal(btn) {
     const modalEl     = document.getElementById(modalId);
     const container   = modalEl.querySelector('.product-tree-container');
     const searchInput = modalEl.querySelector('.tree-search-input');
+    const hiddenCheck = modalEl.querySelector('.tree-show-hidden');
 
     // Показываем модал через встроенный Bootstrap API data-атрибутов —
     // не требует window.bootstrap
@@ -324,13 +339,17 @@ async function openTreeModal(btn) {
     // Загружаем дерево
     const tree = await fetchTree();
 
-    function render(filter = '') {
+    // «Весь каталог» на странице открывает дерево сразу со скрытыми
+    if (hiddenCheck) hiddenCheck.checked = catalogShowsHidden();
+
+    function render() {
         container.innerHTML = '';
-        container.appendChild(renderTree(tree, filter));
+        container.appendChild(renderTree(tree, searchInput.value.trim(), !!hiddenCheck?.checked));
     }
 
     render();
-    searchInput.oninput = () => render(searchInput.value.trim());
+    searchInput.oninput = render;
+    if (hiddenCheck) hiddenCheck.onchange = render;
 }
 
 // ─── Инициализация строки ─────────────────────────────────────────────────────

@@ -118,6 +118,7 @@
 - **Поиск** — по названию, артикулу и описанию, без учёта регистра. Достаточно части слова.
 - **Группа товаров** — выбранная группа **вместе со всеми вложенными** подгруппами.
 - **Наличие** — «Все», «В наличии», «Нет в наличии».
+- **Видимость** — «Все», «Видимые», «Скрытые» (флажок `hiddenByDefault`, см. раздел 6).
 - На странице 15 товаров. Щелчок по заголовку колонки «Название», «Артикул» или «Цена»
   сортирует список по этой колонке.
 - Плитка **«Группы»** открывает дерево групп с кнопкой синхронизации только групп.
@@ -133,6 +134,13 @@
   остаток есть, красный — нет.
 - В приёмке по партии сырья список плитки сужается до того же камня: для сырья `01-01`
   предлагается плитка `04-01-…`. Галочка **«весь каталог»** снимает это ограничение.
+- **Скрытые товары.** Технические, архивные и редкие позиции можно убрать из выбора: в карточке
+  товара в МойСклад отметьте флажок `hiddenByDefault` и синхронизируйте товары (или обновите
+  этот товар). Такой товар не показывается ни в быстром поиске, ни в дереве каталога. Увидеть
+  его можно двумя способами: включить галочку **«весь каталог»** (она есть не во всех формах)
+  или отметить **«Показать скрытые»** в окне «Выбрать из каталога». Документы, где товар уже
+  есть, открываются и правятся как обычно, а в фильтрах списков он виден всегда. В списке
+  товаров у скрытого стоит метка «скрыт», а фильтр **«Видимость»** отбирает скрытые.
 - Каталог для выбора обновляется не чаще раза в 10 минут. После синхронизации, обновления
   товара или смены коэффициентов он сбрасывается сразу; уже открытую форму нужно
   перезагрузить.
@@ -147,12 +155,12 @@
 
 | Раздел | Код | Тесты |
 |---|---|---|
-| 1. Синхронизация | `ProductController::syncFromMoySklad`, `refresh`, `syncGroups`; `Moysklad\MoySkladService::syncProducts`, `processProduct`, `syncGroups`; `ProductService::refreshFromMoysklad` | `ProductController/ProductControllerTest` |
+| 1. Синхронизация | `ProductController::syncFromMoySklad`, `refresh`, `syncGroups`; `Moysklad\MoySkladService::syncProducts`, `processProduct`, `syncGroups`; `ProductService::refreshFromMoysklad` | `ProductController/ProductControllerTest`, `Moysklad/MoyskladServiceTest` (в т.ч. `hiddenByDefault`) |
 | 2. Артикул | `Product::getIconBySku`, `getColorBySku` (`SKU_ICONS`, `SKU_COLORS`); `StoneReceptionItem::skuIsSmallTile`; правило `small_tile` в `config/production_modifiers.php` | — |
 | 3. Коэффициенты | `ProductController::updateCoeffs`, `Requests\Product\ProductCoeffRequest`, `ProductService::updateCostCoeffs`, `MoySkladService::updateProductCostCoeffs`; вывод — `RateFormula::formatCoeff` | `Unit/RateFormulaTest` (формат); на запись в МойСклад тестов нет |
 | 4. Остатки | `Moysklad\StockSyncService::applyRows`, `syncAllProductsStocksByStores`, `updateProductStocksByMoyskladId`, `refreshProducts`; команда `moysklad:sync-stocks` в `routes/console.php`; `Product::getTotalQuantityAttribute`, `getInStockAttribute` | `Stock/ProductStockTest`, `Moysklad/StockSyncServiceTest`, `Moysklad/StockSyncByStoreTest` |
 | 5. Список | `ProductController::index`, `ProductGroupService::getGroupAndChildrenIds` | `ProductController/ProductControllerTest` |
-| 6. Выбор товара | `resources/js/product-picker.js`, `partials/product-picker*.blade.php`; `ProductController::groupsJson` (кэш `products_tree_json_v3`, 600 с), `stocksJson`, `getCoeff` | `ProductController/ProductControllerTest` |
+| 6. Выбор товара | `resources/js/product-picker.js`, `partials/product-picker*.blade.php`; `ProductController::groupsJson` (кэш `products_tree_json_v4`, 600 с); скрытые — `products.is_hidden` из атрибута `hiddenByDefault` (`processProduct`, `refreshFromMoysklad`), поле `hidden` в `ProductGroupService::attachProductsToTree`, фильтрует клиент (`catalogShowsHidden`, `.tree-show-hidden`), `stocksJson`, `getCoeff` | `ProductController/ProductControllerTest` |
 
 Заметки:
 

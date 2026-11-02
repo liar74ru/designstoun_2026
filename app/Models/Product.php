@@ -25,6 +25,7 @@ class Product extends Model
         'prod_cost_coeff',
         'master_cost_coeff',
         'is_active',
+        'is_hidden',
         'attributes',
     ];
 
@@ -38,6 +39,8 @@ class Product extends Model
         // 0 (в т.ч. когда атрибут не заведён или не заполнен) = базовая ставка без надбавки.
         'master_cost_coeff' => 'decimal:4',
         'is_active'       => 'boolean',
+        // Флажок hiddenByDefault МойСклад: товар не виден в пикерах без «весь каталог».
+        'is_hidden'       => 'boolean',
         'attributes'      => 'array',
     ];
 

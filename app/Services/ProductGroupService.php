@@ -100,12 +100,14 @@ class ProductGroupService
         foreach ($groups as &$group) {
             $group['products'] = Product::where('group_id', $group['id'])
                 ->orderBy('name')
-                ->get(['id', 'name', 'sku', 'uom'])
+                ->get(['id', 'name', 'sku', 'uom', 'is_hidden'])
                 ->map(fn ($p) => [
-                    'id'    => $p->id,
-                    'label' => $p->name,
-                    'sku'   => $p->sku ?? '',
-                    'unit'  => $p->uom,
+                    'id'     => $p->id,
+                    'label'  => $p->name,
+                    'sku'    => $p->sku ?? '',
+                    'unit'   => $p->uom,
+                    // Скрытые отдаются вместе со всеми: прячет их пикер, пока не включён «весь каталог»
+                    'hidden' => $p->is_hidden,
                 ])
                 ->toArray();
 

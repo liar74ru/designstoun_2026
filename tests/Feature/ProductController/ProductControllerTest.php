@@ -103,6 +103,28 @@ describe('ProductController index() — фильтры search', function () {
             ->assertDontSee('Товар без группы');
     });
 
+    test('фильтр hidden=1 показывает только скрытые товары', function () {
+        makeProduct(['name' => 'Скрытый товар', 'is_hidden' => true]);
+        makeProduct(['name' => 'Видимый товар', 'is_hidden' => false]);
+
+        $this->actingAs(H::adminUser())
+            ->get(route('products.index', ['filter[hidden]' => '1']))
+            ->assertStatus(200)
+            ->assertSee('Скрытый товар')
+            ->assertDontSee('Видимый товар');
+    });
+
+    test('фильтр hidden=0 показывает только видимые товары', function () {
+        makeProduct(['name' => 'Скрытый товар', 'is_hidden' => true]);
+        makeProduct(['name' => 'Видимый товар', 'is_hidden' => false]);
+
+        $this->actingAs(H::adminUser())
+            ->get(route('products.index', ['filter[hidden]' => '0']))
+            ->assertStatus(200)
+            ->assertDontSee('Скрытый товар')
+            ->assertSee('Видимый товар');
+    });
+
     test('сортировка по имени не ломает страницу', function () {
         $this->actingAs(H::adminUser())
             ->get(route('products.index', ['sort' => 'name', 'direction' => 'asc']))
@@ -302,7 +324,7 @@ describe('ProductController syncFromMoySklad()', function () {
     });
 
     test('очищает кэш после успешной синхронизации', function () {
-        Cache::put('products_tree_json_v3', ['test' => 'data'], 3600);
+        Cache::put('products_tree_json_v4', ['test' => 'data'], 3600);
 
         $mock = Mockery::mock(MoySkladService::class);
         $mock->shouldReceive('hasCredentials')
@@ -322,13 +344,13 @@ describe('ProductController syncFromMoySklad()', function () {
 
         app()->instance(MoySkladService::class, $mock);
 
-        expect(Cache::has('products_tree_json_v3'))->toBeTrue();
+        expect(Cache::has('products_tree_json_v4'))->toBeTrue();
 
         $this->actingAs(H::adminUser())
             ->post(route('products.sync'))
             ->assertRedirect(route('products.index'));
 
-        expect(Cache::has('products_tree_json_v3'))->toBeFalse();
+        expect(Cache::has('products_tree_json_v4'))->toBeFalse();
     });
 
     test('обрабатывает ситуацию когда syncGroups вернул success=false', function () {
@@ -430,7 +452,7 @@ describe('ProductController refresh()', function () {
                 'stock' => 100,
             ]);
         $mock->shouldReceive('extractAttributePublic')
-            ->twice() // prodCostCoeff + masterCostCoeff
+            ->times(3) // prodCostCoeff + masterCostCoeff + hiddenByDefault
             ->andReturn(null);
 
         app()->instance(MoySkladService::class, $mock);
@@ -445,6 +467,32 @@ describe('ProductController refresh()', function () {
         expect(Product::where('moysklad_id', $moyskladId)->exists())->toBeTrue();
         $product = Product::where('moysklad_id', $moyskladId)->first();
         expect($product->name)->toBe('Новый товар');
+    });
+
+    test('переносит флажок hiddenByDefault в is_hidden', function () {
+        $product = makeProduct(['moysklad_id' => 'hide-me', 'is_hidden' => false]);
+
+        // Частичный мок: extractAttributePublic настоящий, чтобы проверить чтение флажка
+        $mock = Mockery::mock(MoySkladService::class)->makePartial();
+        $mock->shouldReceive('hasCredentials')->andReturn(true);
+        $mock->shouldReceive('fetchProduct')
+            ->once()
+            ->with('hide-me')
+            ->andReturn([
+                'id' => 'hide-me',
+                'name' => 'Технический товар',
+                'attributes' => [
+                    ['name' => 'hiddenByDefault', 'value' => true],
+                ],
+            ]);
+
+        app()->instance(MoySkladService::class, $mock);
+
+        $this->actingAs(H::adminUser())
+            ->post(route('products.refresh', 'hide-me'))
+            ->assertRedirect(route('products.show', 'hide-me'));
+
+        expect($product->fresh()->is_hidden)->toBeTrue();
     });
 
     test('обрабатывает товар без salePrices - price = 0', function () {
@@ -463,7 +511,7 @@ describe('ProductController refresh()', function () {
                 'stock' => 0,
             ]);
         $mock->shouldReceive('extractAttributePublic')
-            ->twice() // prodCostCoeff + masterCostCoeff
+            ->times(3) // prodCostCoeff + masterCostCoeff + hiddenByDefault
             ->andReturn(null);
 
         app()->instance(MoySkladService::class, $mock);
@@ -479,7 +527,7 @@ describe('ProductController refresh()', function () {
 
     test('очищает кэш после обновления товара', function () {
         $product = makeProduct();
-        Cache::put('products_tree_json_v3', ['test' => 'data'], 3600);
+        Cache::put('products_tree_json_v4', ['test' => 'data'], 3600);
 
         $mock = Mockery::mock(MoySkladService::class);
         $mock->shouldReceive('hasCredentials')
@@ -493,17 +541,17 @@ describe('ProductController refresh()', function () {
                 'salePrices' => [['value' => 100000]],
             ]);
         $mock->shouldReceive('extractAttributePublic')
-            ->twice() // prodCostCoeff + masterCostCoeff
+            ->times(3) // prodCostCoeff + masterCostCoeff + hiddenByDefault
             ->andReturn(null);
 
         app()->instance(MoySkladService::class, $mock);
 
-        expect(Cache::has('products_tree_json_v3'))->toBeTrue();
+        expect(Cache::has('products_tree_json_v4'))->toBeTrue();
 
         $this->actingAs(H::adminUser())
             ->post(route('products.refresh', $product->moysklad_id));
 
-        expect(Cache::has('products_tree_json_v3'))->toBeFalse();
+        expect(Cache::has('products_tree_json_v4'))->toBeFalse();
     });
 
 });
@@ -687,6 +735,28 @@ describe('ProductController groupsJson()', function () {
             ]);
     });
 
+    test('отдаёт признак hidden у каждого товара', function () {
+        Cache::flush();
+
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+
+        $hidden  = makeProduct(['group_id' => $groupId, 'name' => 'Скрытый', 'is_hidden' => true]);
+        $visible = makeProduct(['group_id' => $groupId, 'name' => 'Видимый', 'is_hidden' => false]);
+
+        $products = collect(
+            $this->actingAs(H::adminUser())
+                ->get(route('api.products.tree'))
+                ->assertStatus(200)
+                ->json('0.products')
+        )->keyBy('id');
+
+        // Скрытые не вырезаются на сервере: под «весь каталог» их показывает пикер
+        expect($products)->toHaveCount(2)
+            ->and($products[$hidden->id]['hidden'])->toBeTrue()
+            ->and($products[$visible->id]['hidden'])->toBeFalse();
+    });
+
     test('кэширует ответ на 10 минут', function () {
         Cache::flush();
 
@@ -703,7 +773,7 @@ describe('ProductController groupsJson()', function () {
             ->get(route('api.products.tree'))
             ->assertStatus(200);
 
-        $cachedData = Cache::get('products_tree_json_v3');
+        $cachedData = Cache::get('products_tree_json_v4');
         expect($cachedData)->not->toBeNull();
 
         // Второй запрос - должен вернуть те же данные из кэша

@@ -73,8 +73,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body product-tree-modal-body">
-                <input type="text" class="form-control mb-3 tree-search-input"
+                <input type="text" class="form-control mb-2 tree-search-input"
                        placeholder="Поиск по каталогу...">
+                <label class="form-check small text-muted mb-3">
+                    <input type="checkbox" class="form-check-input tree-show-hidden">
+                    <span class="form-check-label">Показать скрытые</span>
+                </label>
                 <div class="product-tree-container"></div>
             </div>
         </div>

@@ -269,6 +269,11 @@
                                 @else
                                     <span class="badge bg-secondary">Неактивен</span>
                                 @endif
+                                @if($product->is_hidden)
+                                    <span class="badge bg-light text-muted border" title="Флажок hiddenByDefault в МойСклад">
+                                        <i class="bi bi-eye-slash"></i> Скрыт по умолчанию
+                                    </span>
+                                @endif
                             </dd>
 
                             <dt class="col-5 col-md-3 fw-normal text-muted">Добавлен</dt>

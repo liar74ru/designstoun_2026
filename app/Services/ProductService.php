@@ -40,6 +40,8 @@ class ProductService
                 'prod_cost_coeff' => $this->moySkladService->extractAttributePublic($item, 'prodCostCoeff'),
                 // Атрибут не заведён или не заполнен → 0 (мастер получает базовую ставку)
                 'master_cost_coeff' => $this->moySkladService->extractAttributePublic($item, 'masterCostCoeff') ?? 0,
+                // Флажок «скрыт по умолчанию»: снятый МойСклад может не отдавать вовсе → false
+                'is_hidden'       => $this->moySkladService->extractAttributePublic($item, 'hiddenByDefault') === true,
                 'attributes'      => json_encode([
                     'code'      => $item['code'] ?? null,
                     'article'   => $item['article'] ?? null,
@@ -65,7 +67,7 @@ class ProductService
         );
 
         if ($result['success']) {
-            cache()->forget('products_tree_json_v3');
+            cache()->forget('products_tree_json_v4');
         }
 
         return $result;
