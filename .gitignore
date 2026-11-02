@@ -37,6 +37,8 @@ storage/framework/views/*
 npm-debug.log
 yarn-error.log
 CLAUDE.md
+# Внутренний план работ — только локально
+docs/plans/roadmap.md
 coverage-report
 C:*
 --cache-result
