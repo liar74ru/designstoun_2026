@@ -565,72 +565,39 @@
         </div>
 
         <div class="tab-pane fade" id="tab-workshop" role="tabpanel">
-            {{-- 8. Пресеты цеха --}}
-            <div class="card shadow-sm mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center py-2">
-                    <span class="fw-semibold">Пресеты цеха ({{ $presets->count() }})</span>
-                    <a href="{{ route('admin.departments.presets.create', $department) }}"
-                       class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-plus-circle"></i> Добавить
-                    </a>
-                </div>
-                <div class="card-body p-0">
-                    @forelse($presets as $preset)
-                        @php
-                            $rawCount     = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_RAW)->count();
-                            $packageCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PACKAGE)->count();
-                            $productCount = $preset->items->where('role', \App\Models\WorkshopItem::ROLE_PRODUCT)->count();
-                            $prodItem     = $preset->items->firstWhere('role', \App\Models\WorkshopItem::ROLE_PRODUCT);
-                            $skuColor     = \App\Models\Product::getColorBySku($prodItem?->product?->sku);
-                            $skuBg        = $skuColor === '#FFFFFF' ? '' : $skuColor . '18';
-                        @endphp
-                        <div class="px-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }}"
-                             style="border-left:4px solid {{ $skuColor }};{{ $skuBg ? 'background:'.$skuBg.';' : '' }}">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                <div class="me-2">
-                                    <div class="fw-semibold small">{{ $preset->name }}</div>
-                                    <div class="text-muted" style="font-size:.75rem">
-                                        сырьё: {{ $rawCount }} · тара: {{ $packageCount }} · продукт: {{ $productCount }}
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    <form method="POST" data-submit-guard action="{{ route('admin.departments.presets.copy', [$department, $preset]) }}"
-                                          class="d-flex align-items-center gap-1">
-                                        @csrf
-                                        <select name="target_department_id" class="form-select form-select-sm"
-                                                style="border-radius:.4rem;width:auto">
-                                            @foreach($allDepartments as $dept)
-                                                <option value="{{ $dept->id }}" {{ $dept->id === $department->id ? 'selected' : '' }}>
-                                                    {{ $dept->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Копировать в выбранный отдел">
-                                            <i class="bi bi-copy"></i>
-                                        </button>
-                                    </form>
-                                    <a href="{{ route('admin.departments.presets.edit', [$department, $preset]) }}"
-                                       class="btn btn-sm btn-outline-primary" title="Изменить">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <form method="POST" data-submit-guard action="{{ route('admin.departments.presets.destroy', [$department, $preset]) }}"
-                                          data-confirm="Удалить пресет «{{ $preset->name }}»?">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="text-center text-muted py-3 small">
-                            Пресетов нет. Добавьте первый — он появится в форме цеха в блоке «Шаблоны».
-                        </div>
-                    @endforelse
-                </div>
+            {{-- 8. Пресеты цеха: слева группы, справа карточки пресетов выбранной группы. --}}
+            @php
+                $presetsByGroup = $presets->groupBy(fn($p) => $p->workshop_preset_group_id ?? 0);
+                $ungrouped      = $presetsByGroup->get(0, collect());
+                $presetMeta     = $presets->mapWithKeys(function ($preset) {
+                    $byRole = fn($role) => $preset->items->where('role', $role);
+                    $color  = \App\Models\Product::getColorBySku(
+                        $byRole(\App\Models\WorkshopItem::ROLE_PRODUCT)->first()?->product?->sku
+                    );
+                    $color  = $color === '#FFFFFF' ? null : $color;
+
+                    return [$preset->id => [
+                        'color'    => $color,
+                        'products' => $byRole(\App\Models\WorkshopItem::ROLE_PRODUCT)->map(fn($i) => $i->product?->name)->filter()->implode(', '),
+                        'raw'      => $byRole(\App\Models\WorkshopItem::ROLE_RAW)->count(),
+                        'package'  => $byRole(\App\Models\WorkshopItem::ROLE_PACKAGE)->count(),
+                    ]];
+                });
+            @endphp
+
+            <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+                <span class="fw-semibold">Пресеты цеха ({{ $presets->count() }})</span>
+                {{-- Выбрана группа слева — новый пресет создаётся сразу в ней (href меняет фильтр). --}}
+                <a href="{{ route('admin.departments.presets.create', $department) }}" class="btn btn-sm btn-outline-primary"
+                   data-preset-create>
+                    <i class="bi bi-plus-circle"></i> Пресет
+                </a>
+                <a href="{{ route('admin.departments.preset-groups.create', $department) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-folder-plus"></i> Группа
+                </a>
             </div>
+
+            @include('admin.departments.presets._list')
         </div>
 
         <div class="tab-pane fade" id="tab-workers" role="tabpanel">
@@ -696,6 +663,17 @@
 .dept-tabs { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .dept-tabs::-webkit-scrollbar { display: none; }
 .dept-tabs .nav-link { white-space: nowrap; }
+
+/* Вкладка «Пресеты» */
+.pl-count { display:inline-block; min-width:1.1rem; padding:0 .3rem; border-radius:1rem; background:rgba(0,0,0,.08);
+            font-size:.68rem; line-height:1.1rem; text-align:center; }
+.active .pl-count { background:rgba(255,255,255,.3); }
+.pl-split-item { display:flex; align-items:center; gap:.4rem; padding:.45rem .75rem; }
+.pl-split-btn { flex:1 1 auto; min-width:0; border:0; background:none; padding:0; color:inherit; text-align:left;
+                overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pl-split-edit { color:inherit; opacity:.55; }
+.pl-split-edit:hover { opacity:1; }
+.pl-split-item.active .pl-split-edit { color:#fff; }
 </style>
 
 <script>
@@ -705,6 +683,36 @@
     function show(name) {
         const btn = document.querySelector(`[data-dept-tab="${name}"]`);
         if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+    }
+
+    // Вкладка «Пресеты»: фильтр карточек по группе слева.
+    function initPresetFilter() {
+        const box = document.querySelector('[data-preset-filterable]');
+        if (!box) return;
+        const createLink = document.querySelector('[data-preset-create]');
+        const createBase = createLink?.getAttribute('href');
+
+        box.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-filter-key]');
+            if (!btn) return;
+            const key = btn.dataset.filterKey;
+
+            box.querySelectorAll('[data-filter-key]').forEach(b => {
+                b.closest('[data-filter-wrap]').classList.toggle('active', b === btn);
+            });
+
+            let visible = 0;
+            box.querySelectorAll('[data-group-key]').forEach(item => {
+                const show = key === 'all' || item.dataset.groupKey === key;
+                item.classList.toggle('d-none', !show);
+                if (show) visible++;
+            });
+            box.querySelector('[data-filter-empty]').classList.toggle('d-none', visible > 0);
+
+            if (createLink) {
+                createLink.href = /^\d+$/.test(key) ? `${createBase}?group=${key}` : createBase;
+            }
+        });
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -719,6 +727,8 @@
         } else if (window.location.hash) {
             show(window.location.hash.slice(1));
         }
+
+        initPresetFilter();
 
         // replaceState, а не hash=: без прыжка прокрутки и лишних записей в истории
         document.querySelectorAll('[data-dept-tab]').forEach(btn => {

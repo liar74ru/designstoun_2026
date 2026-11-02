@@ -38,6 +38,19 @@
 .pf-badge{font-size:.72rem;font-weight:600;padding:.15rem .5rem;border-radius:.4rem;background:#fff}
 .pf-node.raw .pf-badge{color:var(--pf-raw)}
 .pf-node.prod .pf-badge{color:var(--pf-prod)}
+/* Выбор шаблона (workshop-preset-picker.js) */
+.wpp-menu{max-height:340px;overflow-y:auto;min-width:min(320px,90vw)}
+.wpp-rich{white-space:normal;padding:.4rem .75rem}
+.wpp-rich__sub{font-size:.72rem;color:#495057}
+.dropdown-item.active .wpp-rich__sub,.dropdown-item.active .text-muted{color:rgba(255,255,255,.85)!important}
+.wpp-gcard{display:flex;flex-direction:column;align-items:flex-start;width:100%;height:100%;padding:.5rem .65rem;border:1px solid #dee2e6;border-radius:.5rem;background:#fff;text-align:left;line-height:1.2}
+.wpp-gcard:hover{border-color:#86b7fe}
+.wpp-gcard.is-active{border-color:#0d6efd;background:#f0f6ff;box-shadow:0 0 0 2px rgba(13,110,253,.2)}
+.wpp-gcard__icon{font-size:1.3rem;color:#0d6efd;margin-bottom:.15rem}
+.wpp-gcard__name{font-size:.82rem;font-weight:600}
+.wpp-gcard__sub{font-size:.7rem;color:#6c757d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.wpp-selbar{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;padding:.45rem .6rem;border:1px solid #dee2e6;border-radius:.5rem}
+.min-w-0{min-width:0}
 </style>
 
 <div class="container py-3 py-md-4" style="max-width:980px">
@@ -189,35 +202,15 @@
                     </div>
                 </div>
 
-                {{-- Блок: Шаблоны (пресеты отдела) --}}
+                {{-- Блок: Шаблоны (пресеты отдела). Свёрнут, пока у отдела нет шаблонов. --}}
                 <div class="card shadow-sm mb-2">
                     <div class="card-header bg-white py-2" role="button" id="presetToggle">
                         <span class="small fw-semibold text-muted"><i class="bi bi-collection me-1"></i> Шаблоны</span>
-                        <i class="bi bi-chevron-up float-end" id="presetChevron"></i>
+                        <span class="small text-muted ms-1" id="presetTotal"></span>
+                        <i class="bi bi-chevron-down float-end" id="presetChevron"></i>
                     </div>
-                    <div class="card-body py-2" id="presetBody">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-12 col-sm-6">
-                                <label for="presetSelect" class="form-label small text-muted mb-1">Шаблон</label>
-                                <select id="presetSelect" class="form-select form-select-sm compact-select" style="border-radius:.4rem">
-                                    <option value="">— выберите шаблон —</option>
-                                </select>
-                            </div>
-                            <div class="col-6 col-sm-3">
-                                <label for="presetCount" class="form-label small text-muted mb-1">Кол-во продукции</label>
-                                <input type="number" id="presetCount" class="form-control form-control-sm"
-                                       style="border-radius:.4rem" step="0.001" min="0.001" value="1">
-                            </div>
-                            <div class="col-6 col-sm-3">
-                                <button type="button" id="presetApplyBtn" class="btn btn-sm btn-primary w-100" disabled>
-                                    Применить
-                                </button>
-                            </div>
-                        </div>
-                        <div class="form-text" style="font-size:.7rem">
-                            Заполнит сырьё, тару и продукт: количество = норма из шаблона × кол-во продукции.
-                            Текущие строки будут заменены.
-                        </div>
+                    <div class="card-body py-2" id="presetBody" style="display:none">
+                        <div id="presetPicker"></div>
                     </div>
                 </div>
 
@@ -634,47 +627,48 @@
     });
 
     // ── Шаблоны (пресеты отдела) ─────────────────────────────────────────────
-    const presetSelect   = document.getElementById('presetSelect');
-    const presetCount    = document.getElementById('presetCount');
-    const presetApplyBtn = document.getElementById('presetApplyBtn');
-    let presetsById = {};
+    const presetBody    = document.getElementById('presetBody');
+    const presetChevron = document.getElementById('presetChevron');
+    const presetTotal   = document.getElementById('presetTotal');
 
-    function updatePresetApplyState() {
-        presetApplyBtn.disabled = !presetsById[presetSelect.value];
+    function setPresetBodyOpen(open) {
+        presetBody.style.display = open ? '' : 'none';
+        presetChevron.className  = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
     }
+    document.getElementById('presetToggle').addEventListener('click', () => {
+        setPresetBodyOpen(presetBody.style.display === 'none');
+    });
 
-    // Цвет выбранного шаблона по типу плитки (продукта) — на самом селекте.
-    function applyPresetColor() {
-        const color = presetsById[presetSelect.value]?.color;
-        presetSelect.style.backgroundColor = (color && color !== '#FFFFFF') ? color + '18' : '';
+    // Модули Vite (app.js) исполняются после этого инлайн-скрипта — пикер создаём на DOMContentLoaded.
+    let presetPicker = null;
+    document.addEventListener('DOMContentLoaded', () => {
+        presetPicker = new WorkshopPresetPicker(document.getElementById('presetPicker'),
+            { onApply: applyPreset });
+        loadPresets();
+    });
+
+    // Нет шаблонов у отдела — блок свёрнут; есть — развёрнут.
+    function showPresetTotal(total, emptyText = '— у отдела нет') {
+        presetTotal.textContent = total ? `(${total})` : emptyText;
+        setPresetBodyOpen(total > 0);
     }
 
     async function loadPresets() {
-        presetSelect.innerHTML = '<option value="">— выберите шаблон —</option>';
-        presetsById = {};
-        updatePresetApplyState();
+        if (!presetPicker) return;
+        presetPicker.setData(null);
         const deptId = departmentSelect.value;
-        if (!deptId) return;
+        if (!deptId) { showPresetTotal(0, '— выберите отдел'); return; }
         try {
             const res = await fetch(`/api/departments/${deptId}/workshop-presets`,
                 { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!res.ok) return;
-            (await res.json()).forEach(p => {
-                presetsById[p.id] = p;
-                const opt = new Option(p.name, p.id);
-                if (p.color && p.color !== '#FFFFFF') opt.style.backgroundColor = p.color + '18';
-                presetSelect.add(opt);
-            });
+            showPresetTotal(presetPicker.setData(await res.json()));
         } catch (err) {
             console.error('loadPresets', err);
         }
-        applyPresetColor();
     }
 
-    function applyPreset() {
-        const preset = presetsById[presetSelect.value];
-        if (!preset) return;
-        const count = parseFloat(presetCount.value) || 1; // пустое поле = 1
+    function applyPreset(preset, count) {
         ['raw', 'package', 'product'].forEach(t => { blocks[t].container.innerHTML = ''; });
         rowIndex = 0;
         preset.items.forEach(it => {
@@ -684,12 +678,9 @@
         });
     }
 
-    presetApplyBtn.addEventListener('click', applyPreset);
-    presetSelect.addEventListener('change', () => { updatePresetApplyState(); applyPresetColor(); });
     departmentSelect.addEventListener('change', loadPresets);
     // Ставки и накладные — отдела; сменили отдел → подсказка затрат пересчитывается.
     departmentSelect.addEventListener('change', recomputeSuggestedCost);
-    loadPresets();
 
     // ── Склады строк по блокам ───────────────────────────────────────────────
     function applyStores() {
@@ -795,14 +786,6 @@
         sel.addEventListener('invalid', openStoreBody);
     });
 
-    const presetToggle  = document.getElementById('presetToggle');
-    const presetBody    = document.getElementById('presetBody');
-    const presetChevron = document.getElementById('presetChevron');
-    presetToggle.addEventListener('click', () => {
-        const open = presetBody.style.display === 'none';
-        presetBody.style.display = open ? '' : 'none';
-        presetChevron.className  = open ? 'bi bi-chevron-up float-end' : 'bi bi-chevron-down float-end';
-    });
 
     const manualCb = document.getElementById('manualProcessingName');
     const procName = document.getElementById('processingNameInput');

@@ -20,13 +20,16 @@ class WorkshopPresetService
 
     public function getForDepartment(Department $department): Collection
     {
-        return $department->presets()->with('items.product')->orderBy('name')->get();
+        return $department->presets()->with(['group', 'items.product'])->orderBy('name')->get();
     }
 
     public function create(Department $department, array $data): WorkshopPreset
     {
         return DB::transaction(function () use ($department, $data) {
-            $preset = $department->presets()->create(['name' => $data['name']]);
+            $preset = $department->presets()->create([
+                'name'                     => $data['name'],
+                'workshop_preset_group_id' => $data['workshop_preset_group_id'] ?? null,
+            ]);
             $this->createItems($preset, $data);
 
             return $preset;
@@ -36,7 +39,10 @@ class WorkshopPresetService
     public function update(WorkshopPreset $preset, array $data): WorkshopPreset
     {
         return DB::transaction(function () use ($preset, $data) {
-            $preset->update(['name' => $data['name']]);
+            $preset->update([
+                'name'                     => $data['name'],
+                'workshop_preset_group_id' => $data['workshop_preset_group_id'] ?? null,
+            ]);
             $preset->items()->delete();
             $this->createItems($preset, $data);
 
@@ -57,7 +63,15 @@ class WorkshopPresetService
                 $name .= ' (копия)';
             }
 
-            $copy = $target->presets()->create(['name' => $name]);
+            // Группа принадлежит отделу: в целевом берём одноимённую, иначе — без группы.
+            $groupId = $preset->group
+                ? $target->presetGroups()->where('name', $preset->group->name)->value('id')
+                : null;
+
+            $copy = $target->presets()->create([
+                'name'                     => $name,
+                'workshop_preset_group_id' => $groupId,
+            ]);
             foreach ($preset->items as $item) {
                 $copy->items()->create([
                     'product_id' => $item->product_id,
@@ -71,23 +85,31 @@ class WorkshopPresetService
     }
 
     /**
-     * Пресеты отдела для формы цеха: [{id, name, items: [{role, product_id, product_label, quantity}]}].
+     * Группы и пресеты отдела для формы цеха:
+     * {groups: [{id, name, icon}], presets: [{id, name, color, group_id, items: [{role, product_id, product_label, quantity}]}]}.
+     * group_id = null — пресет без группы.
      */
     public function getPresetsJsonFor(Department $department): array
     {
-        return $this->getForDepartment($department)->map(fn($preset) => [
-            'id'    => $preset->id,
-            'name'  => $preset->name,
-            'color' => Product::getColorBySku(
-                $preset->items->firstWhere('role', WorkshopItem::ROLE_PRODUCT)?->product?->sku
-            ),
-            'items' => $preset->items->map(fn($item) => [
-                'role'          => $item->role,
-                'product_id'    => $item->product_id,
-                'product_label' => $item->product?->name ?? '',
-                'quantity'      => (float) $item->quantity,
+        return [
+            'groups'  => $department->presetGroups()->get(['id', 'name', 'icon'])
+                ->map(fn($group) => $group->only(['id', 'name', 'icon']))
+                ->all(),
+            'presets' => $this->getForDepartment($department)->map(fn($preset) => [
+                'id'       => $preset->id,
+                'name'     => $preset->name,
+                'group_id' => $preset->workshop_preset_group_id,
+                'color'    => Product::getColorBySku(
+                    $preset->items->firstWhere('role', WorkshopItem::ROLE_PRODUCT)?->product?->sku
+                ),
+                'items'    => $preset->items->map(fn($item) => [
+                    'role'          => $item->role,
+                    'product_id'    => $item->product_id,
+                    'product_label' => $item->product?->name ?? '',
+                    'quantity'      => (float) $item->quantity,
+                ])->values()->all(),
             ])->values()->all(),
-        ])->values()->all();
+        ];
     }
 
     /**

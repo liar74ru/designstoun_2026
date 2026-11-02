@@ -51,6 +51,7 @@ class DepartmentController extends Controller
         $operations        = config('department_operations');
         $allowedPositions  = $department->allowedPositionsByOperation();
         $presets           = $presetService->getForDepartment($department);
+        $presetGroups      = $department->presetGroups;
         $allDepartments    = Department::where('is_active', true)->orderBy('name')->get();
         $costGroups        = config('department_settings');
         $costSettings      = $department->settings()->pluck('value', 'key')->all();
@@ -60,7 +61,7 @@ class DepartmentController extends Controller
 
         return view('admin.departments.show', compact(
             'department', 'workers', 'stores', 'allWorkers', 'operations', 'allowedPositions',
-            'presets', 'allDepartments', 'costGroups', 'costSettings', 'globalDefaults', 'expenses',
+            'presets', 'presetGroups', 'allDepartments', 'costGroups', 'costSettings', 'globalDefaults', 'expenses',
             'modifiers'
         ));
     }

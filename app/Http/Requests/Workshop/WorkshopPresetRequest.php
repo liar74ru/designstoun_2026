@@ -22,6 +22,12 @@ class WorkshopPresetRequest extends FormRequest
                     ->ignore($this->route('preset')?->id),
             ],
 
+            'workshop_preset_group_id' => [
+                'nullable',
+                Rule::exists('workshop_preset_groups', 'id')
+                    ->where('department_id', $this->route('department')->id),
+            ],
+
             'raw_materials'              => 'required|array|min:1',
             'raw_materials.*.product_id' => 'required|exists:products,id',
             'raw_materials.*.quantity'   => 'required|numeric|min:0.001',
@@ -41,6 +47,8 @@ class WorkshopPresetRequest extends FormRequest
         return [
             'name.required' => 'Укажите название пресета',
             'name.unique'   => 'Пресет с таким названием уже есть в этом отделе',
+
+            'workshop_preset_group_id.exists' => 'Выберите группу этого отдела',
 
             'raw_materials.required'              => 'Добавьте хотя бы одну позицию сырья',
             'raw_materials.*.product_id.required' => 'Выберите сырьё',

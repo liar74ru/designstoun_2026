@@ -44,9 +44,13 @@
 Шаблон — готовый состав операции для типового изделия: сырьё, упаковка и продукт с
 количествами на одну единицу.
 
-- Блок **«Шаблоны»** показывает шаблоны выбранного отдела.
-- Выберите шаблон, укажите **«Кол-во продукции»** и нажмите **«Применить»**: все количества
-  шаблона умножатся на это число. Пустое поле — одна единица.
+- Блок **«Шаблоны»** показывает шаблоны выбранного отдела, разложенные по группам (шаблоны
+  без группы — в разделе «Без группы»).
+- Если у отдела нет шаблонов, блок свёрнут; в заголовке — число шаблонов отдела.
+- Группы показаны карточками: нажмите на группу — выпадет список её шаблонов с составом
+  (продукт с нормой, сколько позиций сырья и тары).
+- Выберите шаблон — под карточками появится его плашка. Укажите кол-во продукции и нажмите
+  **«Применить»**: все количества шаблона умножатся на это число. Пустое поле — одна единица.
 - «Применить» **заменяет** все строки формы.
 - Шаблоны заводит администратор в карточке отдела ([Настройки](app:settings)).
 
@@ -172,7 +176,7 @@
 | Раздел | Код | Тесты (`tests/Feature/Workshop/`) |
 |---|---|---|
 | 1–2. Состав, создание | `WorkshopController::create`, `store`, `copy`; `WorkshopService::create`, `createWorkshopItems`; `StoreWorkshopRequest` | `WorkshopServiceTest`, `WorkshopValidationTest` |
-| 3. Шаблоны | `WorkshopPresetService::getPresetsJsonFor`, `WorkshopController::getPresetsJson`, `Admin\WorkshopPresetController`; JS `applyPreset` в `workshops/create.blade.php` | — |
+| 3. Шаблоны | `WorkshopPresetService::getPresetsJsonFor`, `WorkshopController::getPresetsJson`, `Admin\WorkshopPresetController`, `Admin\WorkshopPresetGroupController`; JS `resources/js/workshop-preset-picker.js` (выбор по группам), `applyPreset` в `workshops/create.blade.php` | `Workshop/WorkshopPresetGroupTest` |
 | 4. Отдел | `WorkshopService::resolveDepartmentId`, `prepareWorkshopData`, `updateDepartment`; `Workshop::effectiveDepartmentChain` | `WorkshopServiceTest`, `tests/Feature/MasterDashboard/EnterpriseDashboardTest` |
 | 5. Тара | `Workshop::adjustPackageStock`, `adjustAllPackageStock`, `booted` (`deleting`); `WorkshopService::movePackageStock`, `applyPackageDeltas`, `updateStores` | `WorkshopServiceTest` |
 | 6. Правка | `WorkshopService::update`, `syncRoleItems`, `diffItemDeltas`, `writeWorkshopLog`; JS «Итого продукта» в `workshops/edit.blade.php` (спека `docs/superpowers/specs/2026-07-19-workshop-edit-proportional-scaling-design.md`) | `WorkshopServiceTest` |

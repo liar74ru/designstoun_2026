@@ -5,6 +5,7 @@ import './filter-memory';
 import './back-link';
 import './rate-formula';
 import './modifier-picker';
+import './workshop-preset-picker';
 
 import Alpine from 'alpinejs';
 

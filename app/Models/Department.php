@@ -91,6 +91,11 @@ class Department extends Model
         return $this->hasMany(WorkshopPreset::class);
     }
 
+    public function presetGroups(): HasMany
+    {
+        return $this->hasMany(WorkshopPresetGroup::class)->orderBy('name');
+    }
+
     /** Заявки, распределённые на этот отдел */
     public function orders(): BelongsToMany
     {

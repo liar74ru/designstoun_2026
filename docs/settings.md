@@ -127,6 +127,16 @@
 единицу готовой продукции**: в форме цеха они умножаются на введённое количество. Нужны хотя бы
 одно сырьё и один продукт; тара — по желанию. Шаблон можно **скопировать** в другой отдел.
 
+**Группы шаблонов** раскладывают шаблоны по разделам — удобно, когда их много. Группа — название
+и иконка, у каждого отдела свой набор (новый отдел стартует без групп). Шаблон лежит максимум в
+одной группе; группу выбирают в форме шаблона, можно оставить «без группы». Удалили группу —
+её шаблоны остаются, но уже без группы. При копировании шаблона в другой отдел он попадёт в
+группу с тем же названием, если такая там есть, иначе — без группы.
+
+На вкладке слева — список групп (с числом шаблонов), справа — карточки шаблонов. Нажмите на
+группу — останутся только её шаблоны, а кнопка «+ Пресет» создаст новый сразу в этой группе.
+Изменить группу — карандаш рядом с ней; удалить — на странице правки группы.
+
 ## 4. Статусы заявок
 
 Справочник повторяет статусы заказов покупателей из МойСклад — имена, цвета и порядок.
@@ -162,7 +172,7 @@
 | 3. Накладные | `DepartmentController::updateExpenses`, `DepartmentExpenseService`, `DepartmentSettings::overheadPerUnit` | `AdminSettings/DepartmentExpensesControllerTest` |
 | 3. Правила | `Admin\DepartmentModifierController`, `DepartmentModifierRequest`, `DepartmentModifierService`, `ModifierEngine`, `ItemCost`; `config/production_modifiers.php` | `AdminSettings/DepartmentModifierControllerTest`, `AdminSettings/DepartmentModifierCreatePageTest`, `Modifier/*` |
 | 3. Склады | `AdminSettingController::updateDepartmentStores`, `Setting::dept*Store` | `AdminSettings/DepartmentStoresSettingTest` |
-| 3. Шаблоны цеха | `Admin\WorkshopPresetController`, `WorkshopPresetService` | — |
+| 3. Шаблоны цеха | `Admin\WorkshopPresetController`, `WorkshopPresetService`; группы — `Admin\WorkshopPresetGroupController`, `WorkshopPresetGroupService`, `WorkshopPresetGroup::ICONS` | `Workshop/WorkshopPresetGroupTest` |
 | 4. Статусы заявок | `Admin\OrderStateController`, `OrderState`, `Moysklad\OrderStateSyncService` | `Order/OrderStateTest`, `Order/OrderStateSyncActionTest` |
 
 Заметки:

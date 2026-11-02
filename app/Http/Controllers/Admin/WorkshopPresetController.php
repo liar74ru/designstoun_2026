@@ -17,11 +17,14 @@ class WorkshopPresetController extends Controller
         private WorkshopPresetService $service,
     ) {}
 
-    public function create(Department $department): View
+    public function create(Request $request, Department $department): View
     {
         return view('admin.departments.presets.create', [
-            'department'   => $department,
-            'prefillItems' => $this->service->prefillItems(null, $this->oldItemsInput()),
+            'department'     => $department,
+            'groups'         => $department->presetGroups,
+            // «+ Пресет» из карточки группы: группа подставляется, если она этого отдела.
+            'defaultGroupId' => $department->presetGroups->firstWhere('id', $request->integer('group'))?->id,
+            'prefillItems'   => $this->service->prefillItems(null, $this->oldItemsInput()),
         ]);
     }
 
@@ -40,6 +43,7 @@ class WorkshopPresetController extends Controller
         return view('admin.departments.presets.edit', [
             'department'   => $department,
             'preset'       => $preset,
+            'groups'       => $department->presetGroups,
             'prefillItems' => $this->service->prefillItems($preset, $this->oldItemsInput()),
         ]);
     }

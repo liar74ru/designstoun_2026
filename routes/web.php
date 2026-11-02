@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\DepartmentModifierController;
 use App\Http\Controllers\Admin\OrderStateController;
 use App\Http\Controllers\Admin\SkuColorController;
 use App\Http\Controllers\Admin\WorkshopPresetController;
+use App\Http\Controllers\Admin\WorkshopPresetGroupController;
 use App\Http\Controllers\AdminSettingController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\CutterWorkerDashboardController;
@@ -287,6 +288,12 @@ Route::middleware(['auth'])->group(function () {
             Route::patch ('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'update'])->name('departments.presets.update');
             Route::delete('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'destroy'])->name('departments.presets.destroy');
             Route::post  ('/departments/{department}/presets/{preset}/copy', [WorkshopPresetController::class, 'copy'])->name('departments.presets.copy');
+
+            Route::get   ('/departments/{department}/preset-groups/create',             [WorkshopPresetGroupController::class, 'create'])->name('departments.preset-groups.create');
+            Route::post  ('/departments/{department}/preset-groups',                    [WorkshopPresetGroupController::class, 'store'])->name('departments.preset-groups.store');
+            Route::get   ('/departments/{department}/preset-groups/{presetGroup}/edit', [WorkshopPresetGroupController::class, 'edit'])->name('departments.preset-groups.edit');
+            Route::patch ('/departments/{department}/preset-groups/{presetGroup}',      [WorkshopPresetGroupController::class, 'update'])->name('departments.preset-groups.update');
+            Route::delete('/departments/{department}/preset-groups/{presetGroup}',      [WorkshopPresetGroupController::class, 'destroy'])->name('departments.preset-groups.destroy');
         });
 
         // Правила-модификаторы себестоимости отдела

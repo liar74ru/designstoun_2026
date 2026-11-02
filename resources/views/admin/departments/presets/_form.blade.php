@@ -27,6 +27,27 @@
                 Количества ниже — норма на 1 единицу готовой продукции. В форме цеха они
                 умножаются на введённое количество.
             </div>
+
+            <label for="presetGroup" class="form-label fw-semibold mt-3">Группа</label>
+            <select id="presetGroup" name="workshop_preset_group_id"
+                    class="form-select @error('workshop_preset_group_id') is-invalid @enderror"
+                    style="border-radius:.4rem">
+                <option value="">— без группы —</option>
+                @foreach($groups as $group)
+                    <option value="{{ $group->id }}"
+                        @selected((string) old('workshop_preset_group_id', $preset?->workshop_preset_group_id ?? ($defaultGroupId ?? null)) === (string) $group->id)>
+                        {{ $group->name }}
+                    </option>
+                @endforeach
+            </select>
+            @error('workshop_preset_group_id')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+            @if($groups->isEmpty())
+                <div class="form-text" style="font-size:.72rem">
+                    Групп у отдела пока нет — их заводят на вкладке «Пресеты» карточки отдела.
+                </div>
+            @endif
         </div>
     </div>
 
