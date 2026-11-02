@@ -128,8 +128,12 @@ class ProductGroupService
      */
     public function productIdsInActiveOrders(): array
     {
+        // Список id, а не подзапрос: orders.state_moysklad_id — varchar, order_states.id — uuid,
+        // и PostgreSQL не сравнивает их без приведения
+        $stateIds = OrderState::enabled()->pluck('id')->all();
+
         return OrderItem::whereNotNull('product_id')
-            ->whereHas('order', fn ($q) => $q->whereIn('state_moysklad_id', OrderState::enabled()->select('id')))
+            ->whereHas('order', fn ($q) => $q->whereIn('state_moysklad_id', $stateIds))
             ->distinct()
             ->pluck('product_id')
             ->all();
