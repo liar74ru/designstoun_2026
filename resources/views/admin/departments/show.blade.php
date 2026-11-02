@@ -567,8 +567,11 @@
         <div class="tab-pane fade" id="tab-workshop" role="tabpanel">
             {{-- 8. Пресеты цеха: слева группы, справа карточки пресетов выбранной группы. --}}
             @php
-                $presetsByGroup = $presets->groupBy(fn($p) => $p->workshop_preset_group_id ?? 0);
-                $ungrouped      = $presetsByGroup->get(0, collect());
+                // Пресет может быть в нескольких группах — считаем по каждой отдельно.
+                $presetsByGroup = $presetGroups->mapWithKeys(fn($g) => [
+                    $g->id => $presets->filter(fn($p) => $p->groups->contains('id', $g->id)),
+                ]);
+                $ungrouped      = $presets->filter(fn($p) => $p->groups->isEmpty());
                 $presetMeta     = $presets->mapWithKeys(function ($preset) {
                     $byRole = fn($role) => $preset->items->where('role', $role);
                     $color  = \App\Models\Product::getColorBySku(
@@ -702,8 +705,8 @@
             });
 
             let visible = 0;
-            box.querySelectorAll('[data-group-key]').forEach(item => {
-                const show = key === 'all' || item.dataset.groupKey === key;
+            box.querySelectorAll('[data-group-keys]').forEach(item => {
+                const show = key === 'all' || item.dataset.groupKeys.split(' ').includes(key);
                 item.classList.toggle('d-none', !show);
                 if (show) visible++;
             });

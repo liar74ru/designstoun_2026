@@ -28,21 +28,29 @@
                 умножаются на введённое количество.
             </div>
 
-            <label for="presetGroup" class="form-label fw-semibold mt-3">Группа</label>
-            <select id="presetGroup" name="workshop_preset_group_id"
-                    class="form-select @error('workshop_preset_group_id') is-invalid @enderror"
-                    style="border-radius:.4rem">
-                <option value="">— без группы —</option>
+            @php
+                $checkedGroupIds = array_map('intval', old('group_ids',
+                    $preset?->groups->pluck('id')->all() ?? array_filter([$defaultGroupId ?? null])));
+            @endphp
+            <div class="form-label fw-semibold mt-3 mb-1">Группы</div>
+            <div class="d-flex flex-wrap gap-1">
                 @foreach($groups as $group)
-                    <option value="{{ $group->id }}"
-                        @selected((string) old('workshop_preset_group_id', $preset?->workshop_preset_group_id ?? ($defaultGroupId ?? null)) === (string) $group->id)>
-                        {{ $group->name }}
-                    </option>
+                    <input type="checkbox" class="btn-check" name="group_ids[]" value="{{ $group->id }}"
+                           id="presetGroup{{ $group->id }}" autocomplete="off"
+                           @checked(in_array($group->id, $checkedGroupIds, true))>
+                    <label class="btn btn-sm btn-outline-primary rounded-pill" for="presetGroup{{ $group->id }}">
+                        <i class="bi {{ $group->icon ?: 'bi-folder' }}"></i> {{ $group->name }}
+                    </label>
                 @endforeach
-            </select>
-            @error('workshop_preset_group_id')
-                <div class="invalid-feedback">{{ $message }}</div>
+            </div>
+            @error('group_ids.*')
+                <div class="text-danger small mt-1">{{ $message }}</div>
             @enderror
+            @if($groups->isNotEmpty())
+                <div class="form-text" style="font-size:.72rem">
+                    Можно отметить несколько групп — пресет покажется в каждой. Ни одной — «Без группы».
+                </div>
+            @endif
             @if($groups->isEmpty())
                 <div class="form-text" style="font-size:.72rem">
                     Групп у отдела пока нет — их заводят на вкладке «Пресеты» карточки отдела.

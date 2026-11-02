@@ -4,7 +4,8 @@
  * Выбор пресета цеха по группам: группы — карточками, по клику выпадает список её пресетов
  * с составом; под карточками — плашка выбранного пресета с кол-вом и «Применить».
  *
- * Данные — ответ api.department.workshop-presets: {groups: [{id, name, icon}], presets: [{id, name, color, group_id, items}]}.
+ * Данные — ответ api.department.workshop-presets: {groups: [{id, name, icon}], presets: [{id, name, color, group_ids, items}]}.
+ * Пресет из нескольких групп показывается в каждой из них.
  * Строки формы пикер не трогает: применение отдаётся колбэком onApply(preset, count).
  */
 
@@ -30,6 +31,7 @@ export class WorkshopPresetPicker {
         this.sections   = [];
         this.byId       = {};
         this.selectedId = null;
+        this.selectedSection = null; // группа, из которой выбран пресет (он может быть в нескольких)
         this.count      = '1';
 
         this.root.addEventListener('click', (e) => this.handleClick(e));
@@ -52,16 +54,17 @@ export class WorkshopPresetPicker {
         // Порядок групп — как пришёл с сервера (по имени), «Без группы» — последней.
         this.sections = groups.map(g => ({
             key: String(g.id), name: g.name, icon: g.icon || 'bi-folder',
-            presets: presets.filter(p => p.group_id === g.id),
+            presets: presets.filter(p => p.group_ids.includes(g.id)),
         }));
         this.sections.push({
             key: NO_GROUP, name: groups.length ? 'Без группы' : 'Все шаблоны',
             icon: groups.length ? 'bi-inbox' : 'bi-collection',
-            presets: presets.filter(p => !groups.some(g => g.id === p.group_id)),
+            presets: presets.filter(p => !groups.some(g => p.group_ids.includes(g.id))),
         });
         this.sections = this.sections.filter(s => s.presets.length);
 
         this.selectedId = null;
+        this.selectedSection = null;
         this.render();
 
         return presets.length;
@@ -86,6 +89,7 @@ export class WorkshopPresetPicker {
         const presetBtn = e.target.closest('[data-preset-id]');
         if (presetBtn) {
             this.selectedId = Number(presetBtn.dataset.presetId);
+            this.selectedSection = presetBtn.dataset.sectionKey;
             this.render();
         }
     }
@@ -102,7 +106,9 @@ export class WorkshopPresetPicker {
     }
 
     sectionOfSelected() {
-        return this.sections.find(s => s.presets.some(p => p.id === this.selectedId)) || null;
+        return this.sections.find(s => s.key === this.selectedSection)
+            || this.sections.find(s => s.presets.some(p => p.id === this.selectedId))
+            || null;
     }
 
     countInput() {
@@ -128,7 +134,7 @@ export class WorkshopPresetPicker {
             const items = section.presets.map(p => `
                 <li>
                     <button type="button" class="dropdown-item wpp-rich ${p.id === this.selectedId ? 'active' : ''}"
-                            data-preset-id="${p.id}" style="${this.presetStyle(p)}">
+                            data-preset-id="${p.id}" data-section-key="${esc(section.key)}" style="${this.presetStyle(p)}">
                         <div class="fw-semibold small text-wrap">${esc(p.name)}</div>
                         <div class="wpp-rich__sub text-wrap">${this.composition(p)}</div>
                     </button>

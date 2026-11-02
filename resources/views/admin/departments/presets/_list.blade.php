@@ -41,13 +41,18 @@
         <div class="row g-2">
             @foreach($presets as $preset)
                 @php $meta = $presetMeta[$preset->id]; @endphp
-                <div class="col-sm-6 col-xl-4" data-group-key="{{ $preset->workshop_preset_group_id ?? 'none' }}">
+                {{-- Ключи групп через пробел: пресет может быть в нескольких группах. --}}
+                <div class="col-sm-6 col-xl-4" data-group-keys="{{ $preset->groups->isEmpty() ? 'none' : $preset->groups->pluck('id')->implode(' ') }}">
                     <div class="card shadow-sm h-100 pl-card" style="border-top:4px solid {{ $meta['color'] ?? '#dee2e6' }}">
                         <div class="card-body py-2 px-3">
                             <div class="fw-semibold small">{{ $preset->name }}</div>
-                            @if($preset->group)
-                                <div class="text-muted" style="font-size:.72rem">
-                                    <i class="bi {{ $preset->group->icon ?: 'bi-folder' }}"></i> {{ $preset->group->name }}
+                            @if($preset->groups->isNotEmpty())
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    @foreach($preset->groups as $group)
+                                        <span class="badge text-bg-light border fw-normal">
+                                            <i class="bi {{ $group->icon ?: 'bi-folder' }}"></i> {{ $group->name }}
+                                        </span>
+                                    @endforeach
                                 </div>
                             @endif
                             <div class="mt-1" style="font-size:.76rem">{{ $meta['products'] ?: '—' }}</div>

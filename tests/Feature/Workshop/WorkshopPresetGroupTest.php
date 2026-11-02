@@ -26,6 +26,15 @@ function presetPayload(array $overrides = []): array
     ], $overrides);
 }
 
+/** Пресет отдела, привязанный к группам. */
+function presetInGroups(Department $dept, string $name, array $groups = []): WorkshopPreset
+{
+    $preset = WorkshopPreset::create(['department_id' => $dept->id, 'name' => $name]);
+    $preset->groups()->sync(collect($groups)->pluck('id'));
+
+    return $preset;
+}
+
 beforeEach(function () {
     Cache::flush();
     $this->dept  = Department::create(['name' => 'Цех', 'is_active' => true]);
@@ -90,30 +99,44 @@ describe('CRUD групп', function () {
             ->assertForbidden();
     });
 
-    test('удаление группы оставляет её пресеты без группы', function () {
+    test('удаление группы снимает её с пресетов, но сами пресеты остаются', function () {
         $group  = $this->dept->presetGroups()->create(['name' => 'Термо']);
-        $preset = WorkshopPreset::create([
-            'department_id' => $this->dept->id, 'workshop_preset_group_id' => $group->id, 'name' => 'П',
-        ]);
+        $keep   = $this->dept->presetGroups()->create(['name' => 'Мелкая']);
+        $preset = presetInGroups($this->dept, 'П', [$group, $keep]);
 
         $this->actingAs($this->admin)
             ->delete(route('admin.departments.preset-groups.destroy', [$this->dept, $group]));
 
         expect($preset->fresh())->not->toBeNull()
-            ->and($preset->fresh()->workshop_preset_group_id)->toBeNull();
+            ->and($preset->fresh()->groups->pluck('id')->all())->toBe([$keep->id]);
     });
 });
 
-describe('Пресет в группе', function () {
+describe('Пресет в группах', function () {
 
-    test('пресет сохраняется с группой своего отдела', function () {
-        $group = $this->dept->presetGroups()->create(['name' => 'Термо']);
+    test('пресет сохраняется сразу в нескольких группах своего отдела', function () {
+        $termo  = $this->dept->presetGroups()->create(['name' => 'Термо']);
+        $small  = $this->dept->presetGroups()->create(['name' => 'Мелкая']);
 
         $this->actingAs($this->admin)
-            ->post(route('admin.departments.presets.store', $this->dept), presetPayload(['workshop_preset_group_id' => $group->id]))
+            ->post(route('admin.departments.presets.store', $this->dept), presetPayload(['group_ids' => [$termo->id, $small->id]]))
             ->assertSessionHasNoErrors();
 
-        expect($this->dept->presets()->first()->workshop_preset_group_id)->toBe($group->id);
+        expect($this->dept->presets()->first()->groups->pluck('id')->sort()->values()->all())
+            ->toBe(collect([$termo->id, $small->id])->sort()->values()->all());
+    });
+
+    test('правка без отмеченных групп убирает пресет из всех групп', function () {
+        $group  = $this->dept->presetGroups()->create(['name' => 'Термо']);
+        $this->actingAs($this->admin)
+            ->post(route('admin.departments.presets.store', $this->dept), presetPayload(['group_ids' => [$group->id]]));
+        $preset = $this->dept->presets()->first();
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.departments.presets.update', [$this->dept, $preset]), presetPayload())
+            ->assertSessionHasNoErrors();
+
+        expect($preset->fresh()->groups)->toBeEmpty();
     });
 
     test('группу чужого отдела пресету не назначить', function () {
@@ -121,14 +144,14 @@ describe('Пресет в группе', function () {
         $group = $other->presetGroups()->create(['name' => 'Чужая']);
 
         $this->actingAs($this->admin)
-            ->post(route('admin.departments.presets.store', $this->dept), presetPayload(['workshop_preset_group_id' => $group->id]))
-            ->assertSessionHasErrors('workshop_preset_group_id');
+            ->post(route('admin.departments.presets.store', $this->dept), presetPayload(['group_ids' => [$group->id]]))
+            ->assertSessionHasErrors('group_ids.0');
     });
 
-    test('копия в другой отдел попадает в одноимённую группу, иначе — без группы', function () {
-        $group  = $this->dept->presetGroups()->create(['name' => 'Термо']);
-        $preset = WorkshopPreset::create([
-            'department_id' => $this->dept->id, 'workshop_preset_group_id' => $group->id, 'name' => 'П',
+    test('копия в другой отдел попадает в одноимённые группы, остальные пропускаются', function () {
+        $preset = presetInGroups($this->dept, 'П', [
+            $this->dept->presetGroups()->create(['name' => 'Термо']),
+            $this->dept->presetGroups()->create(['name' => 'Мелкая']),
         ]);
 
         $withGroup    = Department::create(['name' => 'С группой', 'is_active' => true]);
@@ -140,49 +163,53 @@ describe('Пресет в группе', function () {
                 ->post(route('admin.departments.presets.copy', [$this->dept, $preset]), ['target_department_id' => $target->id]);
         }
 
-        expect($withGroup->presets()->first()->workshop_preset_group_id)->toBe($targetGroup->id)
-            ->and($withoutGroup->presets()->first()->workshop_preset_group_id)->toBeNull();
+        expect($withGroup->presets()->first()->groups->pluck('id')->all())->toBe([$targetGroup->id])
+            ->and($withoutGroup->presets()->first()->groups)->toBeEmpty();
     });
 });
 
-test('API формы цеха отдаёт группы и group_id пресетов', function () {
-    $group   = $this->dept->presetGroups()->create(['name' => 'Термо', 'icon' => 'bi-fire']);
+test('API формы цеха отдаёт группы и group_ids пресетов', function () {
+    $termo   = $this->dept->presetGroups()->create(['name' => 'Термо', 'icon' => 'bi-fire']);
+    $small   = $this->dept->presetGroups()->create(['name' => 'Мелкая']);
     $product = H::product(['name' => 'Плитка', 'sku' => '01-01-002']);
 
-    $inGroup = WorkshopPreset::create(['department_id' => $this->dept->id, 'workshop_preset_group_id' => $group->id, 'name' => 'А']);
-    $inGroup->items()->create(['product_id' => $product->id, 'role' => WorkshopItem::ROLE_PRODUCT, 'quantity' => 2]);
-    WorkshopPreset::create(['department_id' => $this->dept->id, 'name' => 'Б']);
+    $inGroups = presetInGroups($this->dept, 'А', [$termo, $small]);
+    $inGroups->items()->create(['product_id' => $product->id, 'role' => WorkshopItem::ROLE_PRODUCT, 'quantity' => 2]);
+    presetInGroups($this->dept, 'Б');
 
-    $this->actingAs($this->admin)
+    $response = $this->actingAs($this->admin)
         ->getJson(route('api.department.workshop-presets', $this->dept))
         ->assertOk()
-        ->assertJsonPath('groups.0.name', 'Термо')
-        ->assertJsonPath('groups.0.icon', 'bi-fire')
+        ->assertJsonPath('groups.0.name', 'Мелкая')
+        ->assertJsonPath('groups.1.icon', 'bi-fire')
         ->assertJsonPath('presets.0.name', 'А')
-        ->assertJsonPath('presets.0.group_id', $group->id)
         ->assertJsonPath('presets.0.items.0.quantity', 2)
-        ->assertJsonPath('presets.1.group_id', null);
+        ->assertJsonPath('presets.1.group_ids', []);
+
+    expect($response->json('presets.0.group_ids'))->toEqualCanonicalizing([$termo->id, $small->id]);
 });
 
-test('карточка отдела: группы слева, карточки пресетов помечены своей группой', function () {
-    $group = $this->dept->presetGroups()->create(['name' => 'Термо', 'icon' => 'bi-fire']);
-    WorkshopPreset::create(['department_id' => $this->dept->id, 'workshop_preset_group_id' => $group->id, 'name' => 'Плитка термо']);
-    WorkshopPreset::create(['department_id' => $this->dept->id, 'name' => 'Бордюр']);
+test('карточка отдела: пресет из двух групп считается и помечен в каждой', function () {
+    $termo = $this->dept->presetGroups()->create(['name' => 'Термо', 'icon' => 'bi-fire']);
+    $small = $this->dept->presetGroups()->create(['name' => 'Мелкая']);
+    presetInGroups($this->dept, 'Плитка термо', [$termo, $small]);
+    presetInGroups($this->dept, 'Бордюр');
 
     $this->actingAs($this->admin)
         ->get(route('admin.departments.show', $this->dept))
         ->assertOk()
-        // Список групп: «Все», группы по имени, «Без группы» — последней.
+        // Список групп: «Все», группы по имени, «Без группы» — последней; у каждой группы по 1 пресету.
         ->assertSeeInOrder([
             'Пресеты цеха (2)',
             'data-filter-key="all"',
-            'data-filter-key="' . $group->id . '"', 'Термо',
+            'data-filter-key="' . $small->id . '"', 'Мелкая', '<span class="pl-count">1</span>',
+            'data-filter-key="' . $termo->id . '"', 'Термо', '<span class="pl-count">1</span>',
             'data-filter-key="none"', 'Без группы',
         ], false)
-        // Карточки — по имени, у каждой ключ группы для фильтра.
+        // Карточки — по имени, ключи групп через пробел (порядок групп — по имени).
         ->assertSeeInOrder([
-            'data-group-key="none"', 'Бордюр',
-            'data-group-key="' . $group->id . '"', 'Плитка термо',
+            'data-group-keys="none"', 'Бордюр',
+            'data-group-keys="' . $small->id . ' ' . $termo->id . '"', 'Плитка термо',
         ], false);
 });
 
@@ -196,12 +223,25 @@ test('без групп список групп слева содержит то
         ->assertDontSee('data-filter-key="none"', false);
 });
 
-test('форма пресета показывает выбор группы', function () {
+test('форма правки отмечает все группы пресета', function () {
+    $termo  = $this->dept->presetGroups()->create(['name' => 'Термо']);
+    $small  = $this->dept->presetGroups()->create(['name' => 'Мелкая']);
+    $free   = $this->dept->presetGroups()->create(['name' => 'Прочее']);
+    $preset = presetInGroups($this->dept, 'П', [$termo, $small]);
 
-    $this->actingAs($this->admin)
-        ->get(route('admin.departments.presets.create', $this->dept))
+    $html = $this->actingAs($this->admin)
+        ->get(route('admin.departments.presets.edit', [$this->dept, $preset]))
         ->assertOk()
-        ->assertSee('— без группы —');
+        ->assertSee('name="group_ids[]"', false)
+        ->getContent();
+
+    $checked = fn($group) => (bool) preg_match(
+        '/value="' . $group->id . '"\s+id="presetGroup' . $group->id . '"[^>]*checked/', $html
+    );
+
+    expect($checked($termo))->toBeTrue()
+        ->and($checked($small))->toBeTrue()
+        ->and($checked($free))->toBeFalse();
 });
 
 test('«+ Пресет» из группы подставляет её в форму, чужую группу — нет', function () {

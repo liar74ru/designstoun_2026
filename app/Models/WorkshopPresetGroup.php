@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class WorkshopPresetGroup extends Model
 {
@@ -38,8 +38,8 @@ class WorkshopPresetGroup extends Model
         return $this->belongsTo(Department::class);
     }
 
-    public function presets(): HasMany
+    public function presets(): BelongsToMany
     {
-        return $this->hasMany(WorkshopPreset::class)->orderBy('name');
+        return $this->belongsToMany(WorkshopPreset::class, 'workshop_preset_group_preset')->orderBy('name');
     }
 }

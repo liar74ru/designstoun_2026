@@ -3,13 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkshopPreset extends Model
 {
     protected $fillable = [
         'department_id',
-        'workshop_preset_group_id',
         'name',
     ];
 
@@ -18,9 +18,10 @@ class WorkshopPreset extends Model
         return $this->belongsTo(Department::class);
     }
 
-    public function group()
+    /** Группы отдела, в которых показан пресет (может быть несколько или ни одной). */
+    public function groups(): BelongsToMany
     {
-        return $this->belongsTo(WorkshopPresetGroup::class, 'workshop_preset_group_id');
+        return $this->belongsToMany(WorkshopPresetGroup::class, 'workshop_preset_group_preset')->orderBy('name');
     }
 
     public function items(): HasMany
