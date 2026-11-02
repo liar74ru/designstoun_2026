@@ -43,7 +43,7 @@
         <li class="nav-item" role="presentation">
             <button type="button" class="nav-link" role="tab"
                     data-bs-toggle="tab" data-bs-target="#tab-workshop" data-dept-tab="workshop">
-                <i class="bi bi-box-seam"></i> Цех <span class="badge rounded-pill text-bg-light border">{{ $presets->count() }}</span>
+                <i class="bi bi-box-seam"></i> Пресеты <span class="badge rounded-pill text-bg-light border">{{ $presets->count() }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
