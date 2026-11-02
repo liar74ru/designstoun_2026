@@ -55,6 +55,18 @@
                                     @endforeach
                                 </div>
                             @endif
+                            @if($preset->department_id !== $department->id)
+                                <div class="mt-1" style="font-size:.72rem">
+                                    <span class="badge text-bg-info fw-normal">
+                                        <i class="bi bi-link-45deg"></i> из отдела «{{ $preset->department?->name }}»
+                                    </span>
+                                </div>
+                            @elseif($preset->departments->count() > 1)
+                                <div class="mt-1 text-muted" style="font-size:.72rem">
+                                    <i class="bi bi-link-45deg"></i> также в:
+                                    {{ $preset->departments->where('id', '!=', $department->id)->pluck('name')->implode(', ') }}
+                                </div>
+                            @endif
                             <div class="mt-1" style="font-size:.76rem">{{ $meta['products'] ?: '—' }}</div>
                             <div class="text-muted" style="font-size:.72rem">
                                 сырьё {{ $meta['raw'] }}@if($meta['package']) · тара {{ $meta['package'] }}@endif

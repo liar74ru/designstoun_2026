@@ -1,5 +1,6 @@
 {{--
-    Кнопки пресета во вкладке «Пресеты» карточки отдела: изменить, копировать в отдел, удалить.
+    Кнопки пресета во вкладке «Пресеты» карточки отдела: изменить, копировать в отдел,
+    удалить (в основном отделе — из всех отделов) или убрать из отдела (в подключённом).
     Параметры: $preset, $department, $allDepartments.
 --}}
 <div class="d-flex align-items-center gap-1 flex-shrink-0">
@@ -27,12 +28,22 @@
             </form>
         </div>
     </div>
-    <form method="POST" data-submit-guard action="{{ route('admin.departments.presets.destroy', [$department, $preset]) }}"
-          data-confirm="Удалить пресет «{{ $preset->name }}»?">
-        @csrf
-        @method('DELETE')
-        <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
-            <i class="bi bi-trash"></i>
-        </button>
-    </form>
+    @if($preset->department_id === $department->id)
+        <form method="POST" data-submit-guard action="{{ route('admin.departments.presets.destroy', [$department, $preset]) }}"
+              data-confirm="Удалить пресет «{{ $preset->name }}»?{{ $preset->departments->count() > 1 ? ' Он пропадёт во всех отделах: ' . $preset->departments->pluck('name')->implode(', ') . '.' : '' }}">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
+                <i class="bi bi-trash"></i>
+            </button>
+        </form>
+    @else
+        <form method="POST" data-submit-guard action="{{ route('admin.departments.presets.detach', [$department, $preset]) }}"
+              data-confirm="Убрать пресет «{{ $preset->name }}» из этого отдела? В отделе «{{ $preset->department?->name }}» он останется.">
+            @csrf
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Убрать из отдела">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </form>
+    @endif
 </div>

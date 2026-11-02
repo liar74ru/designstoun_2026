@@ -1,6 +1,7 @@
 {{--
     Общая форма пресета цеха (create/edit).
     Параметры: $action, $method ('POST'|'PATCH'), $department, $preset (null при создании),
+    $groups — группы текущего отдела, $allDepartments — активные отделы,
     $prefillItems — [{role, product_id, product_label, quantity}] (edit или old-инпут).
 --}}
 <form method="POST" action="{{ $action }}" id="presetForm">
@@ -56,8 +57,44 @@
                     Групп у отдела пока нет — их заводят на вкладке «Пресеты» карточки отдела.
                 </div>
             @endif
+
+            {{-- Отделы пресета: текущий и основной сервер добавит сам — их не снять. --}}
+            @php
+                $lockedDeptIds  = array_values(array_filter([$department->id, $preset?->department_id]));
+                $checkedDeptIds = array_map('intval', old('department_ids',
+                    $preset?->departments->pluck('id')->all() ?? []));
+            @endphp
+            <div class="form-label fw-semibold mt-3 mb-1">Отделы</div>
+            <div class="d-flex flex-wrap gap-1">
+                @foreach($allDepartments as $dept)
+                    @php $locked = in_array($dept->id, $lockedDeptIds, true); @endphp
+                    <input type="checkbox" class="btn-check" name="department_ids[]" value="{{ $dept->id }}"
+                           id="presetDept{{ $dept->id }}" autocomplete="off"
+                           @checked($locked || in_array($dept->id, $checkedDeptIds, true)) @disabled($locked)>
+                    <label class="btn btn-sm btn-outline-secondary rounded-pill" for="presetDept{{ $dept->id }}"
+                           @if($dept->id === $preset?->department_id) title="Основной отдел" @endif>
+                        @if($dept->id === $preset?->department_id)<i class="bi bi-house-door"></i>@endif
+                        {{ $dept->name }}
+                    </label>
+                @endforeach
+            </div>
+            @error('department_ids.*')
+                <div class="text-danger small mt-1">{{ $message }}</div>
+            @enderror
+            <div class="form-text" style="font-size:.72rem">
+                Пресет — один на все отмеченные отделы: правка видна в каждом. В другом отделе его
+                раскладывают по своим группам. Нужна независимая копия — кнопка «Копировать».
+            </div>
         </div>
     </div>
+
+    @if($preset && $preset->departments->count() > 1)
+        <div class="alert alert-warning py-2 small">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Пресет используется в отделах: {{ $preset->departments->pluck('name')->implode(', ') }}.
+            Правка изменит его везде.
+        </div>
+    @endif
 
     {{-- ① Сырьё --}}
     <div class="card shadow-sm mb-3">

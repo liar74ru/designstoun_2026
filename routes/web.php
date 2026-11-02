@@ -288,6 +288,7 @@ Route::middleware(['auth'])->group(function () {
             Route::patch ('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'update'])->name('departments.presets.update');
             Route::delete('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'destroy'])->name('departments.presets.destroy');
             Route::post  ('/departments/{department}/presets/{preset}/copy', [WorkshopPresetController::class, 'copy'])->name('departments.presets.copy');
+            Route::post  ('/departments/{department}/presets/{preset}/detach', [WorkshopPresetController::class, 'detach'])->name('departments.presets.detach');
 
             Route::get   ('/departments/{department}/preset-groups/create',             [WorkshopPresetGroupController::class, 'create'])->name('departments.preset-groups.create');
             Route::post  ('/departments/{department}/preset-groups',                    [WorkshopPresetGroupController::class, 'store'])->name('departments.preset-groups.store');

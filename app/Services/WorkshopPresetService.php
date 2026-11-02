@@ -18,15 +18,28 @@ class WorkshopPresetService
         'products'      => WorkshopItem::ROLE_PRODUCT,
     ];
 
+    /**
+     * Пресеты отдела (свои и подключённые). Группы — только этого отдела: у пресета из
+     * нескольких отделов в каждом свои группы.
+     */
     public function getForDepartment(Department $department): Collection
     {
-        return $department->presets()->with(['groups', 'items.product'])->orderBy('name')->get();
+        return $department->presets()
+            ->with([
+                'groups' => fn($q) => $q->where('workshop_preset_groups.department_id', $department->id),
+                'department',
+                'departments',
+                'items.product',
+            ])
+            ->orderBy('name')
+            ->get();
     }
 
     public function create(Department $department, array $data): WorkshopPreset
     {
         return DB::transaction(function () use ($department, $data) {
-            $preset = $department->presets()->create(['name' => $data['name']]);
+            $preset = $department->ownedPresets()->create(['name' => $data['name']]);
+            $this->syncDepartments($preset, $department, $data['department_ids'] ?? []);
             $preset->groups()->sync($data['group_ids'] ?? []);
             $this->createItems($preset, $data);
 
@@ -34,11 +47,21 @@ class WorkshopPresetService
         });
     }
 
-    public function update(WorkshopPreset $preset, array $data): WorkshopPreset
+    /**
+     * Правка из карточки отдела $department: группы синхронизируются только этого отдела,
+     * группы остальных отделов пресета не трогаются.
+     */
+    public function update(Department $department, WorkshopPreset $preset, array $data): WorkshopPreset
     {
-        return DB::transaction(function () use ($preset, $data) {
+        return DB::transaction(function () use ($department, $preset, $data) {
             $preset->update(['name' => $data['name']]);
-            $preset->groups()->sync($data['group_ids'] ?? []);
+            $this->syncDepartments($preset, $department, $data['department_ids'] ?? []);
+
+            $otherGroups = $preset->groups()
+                ->where('workshop_preset_groups.department_id', '!=', $department->id)
+                ->pluck('workshop_preset_groups.id');
+            $preset->groups()->sync($otherGroups->merge($data['group_ids'] ?? [])->all());
+
             $preset->items()->delete();
             $this->createItems($preset, $data);
 
@@ -46,24 +69,52 @@ class WorkshopPresetService
         });
     }
 
+    /** Удаление целиком — из всех отделов (только из основного отдела). */
     public function delete(WorkshopPreset $preset): void
     {
         $preset->delete();
     }
 
-    public function copyToDepartment(WorkshopPreset $preset, Department $target): WorkshopPreset
+    /** Убрать подключённый пресет из отдела: отвязка от отдела и его групп. Основной не отвязывается. */
+    public function detach(WorkshopPreset $preset, Department $department): void
     {
-        return DB::transaction(function () use ($preset, $target) {
+        if ($preset->department_id === $department->id) {
+            throw new \LogicException('Пресет нельзя убрать из основного отдела — только удалить.');
+        }
+
+        DB::transaction(function () use ($preset, $department) {
+            $this->detachDepartments($preset, [$department->id]);
+        });
+    }
+
+    /**
+     * Перед удалением отдела: его пресеты, подключённые к другим отделам, получают нового
+     * основного (первый по имени), остальные удаляются вместе с отделом.
+     */
+    public function handOverOwnedPresets(Department $department): void
+    {
+        DB::transaction(function () use ($department) {
+            foreach ($department->ownedPresets()->with('departments')->get() as $preset) {
+                $heir = $preset->departments->firstWhere('id', '!=', $department->id);
+                $heir ? $preset->update(['department_id' => $heir->id]) : $preset->delete();
+            }
+        });
+    }
+
+    public function copyToDepartment(WorkshopPreset $preset, Department $source, Department $target): WorkshopPreset
+    {
+        return DB::transaction(function () use ($preset, $source, $target) {
             $name = $preset->name;
             while ($target->presets()->where('name', $name)->exists()) {
                 $name .= ' (копия)';
             }
 
-            $copy = $target->presets()->create(['name' => $name]);
+            $copy = $target->ownedPresets()->create(['name' => $name]);
 
-            // Группы принадлежат отделу: в целевом берём одноимённые, остальные пропускаем.
+            // Группы принадлежат отделу: берём группы источника и ищем одноимённые в целевом.
+            $sourceGroups = $preset->groups()->where('workshop_preset_groups.department_id', $source->id)->pluck('name');
             $copy->groups()->sync(
-                $target->presetGroups()->whereIn('name', $preset->groups->pluck('name'))->pluck('id')
+                $target->presetGroups()->whereIn('name', $sourceGroups)->pluck('id')
             );
             foreach ($preset->items as $item) {
                 $copy->items()->create([
@@ -148,6 +199,35 @@ class WorkshopPresetService
         return array_map(fn($row) => $row + [
             'product_label' => $names[$row['product_id']] ?? '',
         ], $rows);
+    }
+
+    /**
+     * Отделы пресета = отмеченные в форме + основной + отдел, из карточки которого правят
+     * (снять их в форме нельзя). Снятые отделы теряют и свои группы.
+     */
+    private function syncDepartments(WorkshopPreset $preset, Department $department, array $departmentIds): void
+    {
+        $keep = collect($departmentIds)->map(fn($id) => (int) $id)
+            ->push($department->id, $preset->department_id)
+            ->filter()->unique()->values();
+
+        $removed = $preset->departments()->pluck('departments.id')->diff($keep)->all();
+        if ($removed) {
+            $this->detachDepartments($preset, $removed);
+        }
+
+        $preset->departments()->syncWithoutDetaching($keep->all());
+        $preset->unsetRelation('departments');
+    }
+
+    private function detachDepartments(WorkshopPreset $preset, array $departmentIds): void
+    {
+        $preset->departments()->detach($departmentIds);
+        $preset->groups()->detach(
+            $preset->groups()->whereIn('workshop_preset_groups.department_id', $departmentIds)->pluck('workshop_preset_groups.id')
+        );
+        $preset->unsetRelation('departments');
+        $preset->unsetRelation('groups');
     }
 
     private function createItems(WorkshopPreset $preset, array $data): void

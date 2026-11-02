@@ -178,7 +178,7 @@ class DepartmentController extends Controller
             ->with('success', 'Отдел успешно обновлён.');
     }
 
-    public function destroy(Department $department)
+    public function destroy(Department $department, WorkshopPresetService $presetService)
     {
         if ($department->workers()->exists() || $department->allWorkers()->exists()) {
             return redirect()
@@ -186,6 +186,7 @@ class DepartmentController extends Controller
                 ->with('error', 'Нельзя удалить отдел: в нём есть работники.');
         }
 
+        $presetService->handOverOwnedPresets($department);
         $department->delete();
 
         return redirect()

@@ -13,9 +13,29 @@ class WorkshopPreset extends Model
         'name',
     ];
 
+    /**
+     * Инвариант «основной отдел всегда среди отделов пресета» — как у Worker.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (WorkshopPreset $preset) {
+            if ($preset->department_id && ($preset->wasRecentlyCreated || $preset->wasChanged('department_id'))) {
+                $preset->departments()->syncWithoutDetaching([$preset->department_id]);
+                $preset->unsetRelation('departments');
+            }
+        });
+    }
+
+    /** Основной отдел: в нём пресет создан, удаление отсюда убирает пресет из всех отделов. */
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /** Все отделы, где пресет доступен (основной — тоже). */
+    public function departments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'department_workshop_preset')->orderBy('name');
     }
 
     /** Группы отдела, в которых показан пресет (может быть несколько или ни одной). */

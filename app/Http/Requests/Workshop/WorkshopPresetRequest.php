@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Workshop;
 
+use App\Models\WorkshopPreset;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,10 +18,21 @@ class WorkshopPresetRequest extends FormRequest
         return [
             'name' => [
                 'required', 'string', 'max:100',
-                Rule::unique('workshop_presets', 'name')
-                    ->where('department_id', $this->route('department')->id)
-                    ->ignore($this->route('preset')?->id),
+                // Имя уникально в каждом отделе пресета, включая подключённые.
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    $taken = WorkshopPreset::query()
+                        ->where('name', $value)
+                        ->when($this->route('preset'), fn($q, $preset) => $q->whereKeyNot($preset->id))
+                        ->whereHas('departments', fn($q) => $q->whereIn('departments.id', $this->targetDepartmentIds()))
+                        ->exists();
+                    if ($taken) {
+                        $fail('Пресет с таким названием уже есть в одном из выбранных отделов');
+                    }
+                },
             ],
+
+            'department_ids'   => ['nullable', 'array'],
+            'department_ids.*' => ['integer', 'exists:departments,id'],
 
             'group_ids'   => ['nullable', 'array'],
             'group_ids.*' => [
@@ -47,7 +59,6 @@ class WorkshopPresetRequest extends FormRequest
     {
         return [
             'name.required' => 'Укажите название пресета',
-            'name.unique'   => 'Пресет с таким названием уже есть в этом отделе',
 
             'group_ids.*.exists' => 'Выберите группы этого отдела',
 
@@ -65,5 +76,14 @@ class WorkshopPresetRequest extends FormRequest
             'products.*.quantity.required'   => 'Укажите количество',
             'products.*.quantity.min'        => 'Количество должно быть больше 0',
         ];
+    }
+
+    /** Отделы, в которых окажется пресет: отмеченные + текущий + основной (как в сервисе). */
+    private function targetDepartmentIds(): array
+    {
+        return collect($this->input('department_ids', []))
+            ->map(fn($id) => (int) $id)
+            ->push($this->route('department')->id, $this->route('preset')?->department_id)
+            ->filter()->unique()->values()->all();
     }
 }

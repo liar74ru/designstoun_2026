@@ -127,6 +127,16 @@
 единицу готовой продукции**: в форме цеха они умножаются на введённое количество. Нужны хотя бы
 одно сырьё и один продукт; тара — по желанию. Шаблон можно **скопировать** в другой отдел.
 
+**Один шаблон — в нескольких отделах.** В форме шаблона отметьте отделы в блоке «Отделы»: шаблон
+появится в каждом — в форме цеха, в подсказках внутреннего заказа и на вкладке отдела. Это один и
+тот же шаблон, а не копия: правка видна во всех отделах (форма правки предупреждает об этом).
+Отдел, где шаблон создан, — **основной** (значок домика); его и отдел, из которого правят, снять
+нельзя. В другом отделе шаблон помечен «из отдела …» и раскладывается по своим группам.
+- **Удалить** можно только в основном отделе — шаблон пропадёт везде.
+- В подключённом отделе вместо удаления — **«Убрать из отдела»**: шаблон уходит только отсюда.
+- Удалили основной отдел — шаблон переходит к другому своему отделу; если других нет, удаляется.
+- Нужна независимая копия, чтобы править отдельно, — кнопка «Копировать».
+
 **Группы шаблонов** раскладывают шаблоны по разделам — удобно, когда их много. Группа — название
 и иконка, у каждого отдела свой набор (новый отдел стартует без групп). Один шаблон может лежать
 **в нескольких группах сразу** — в форме шаблона отметьте нужные; не отмечено ни одной — шаблон
@@ -172,7 +182,7 @@
 | 3. Накладные | `DepartmentController::updateExpenses`, `DepartmentExpenseService`, `DepartmentSettings::overheadPerUnit` | `AdminSettings/DepartmentExpensesControllerTest` |
 | 3. Правила | `Admin\DepartmentModifierController`, `DepartmentModifierRequest`, `DepartmentModifierService`, `ModifierEngine`, `ItemCost`; `config/production_modifiers.php` | `AdminSettings/DepartmentModifierControllerTest`, `AdminSettings/DepartmentModifierCreatePageTest`, `Modifier/*` |
 | 3. Склады | `AdminSettingController::updateDepartmentStores`, `Setting::dept*Store` | `AdminSettings/DepartmentStoresSettingTest` |
-| 3. Шаблоны цеха | `Admin\WorkshopPresetController`, `WorkshopPresetService`; группы — `Admin\WorkshopPresetGroupController`, `WorkshopPresetGroupService`, `WorkshopPresetGroup::ICONS` | `Workshop/WorkshopPresetGroupTest` |
+| 3. Шаблоны цеха | `Admin\WorkshopPresetController`, `WorkshopPresetService` (отделы — `syncDepartments`, `detach`, `handOverOwnedPresets`; pivot `department_workshop_preset`); группы — `Admin\WorkshopPresetGroupController`, `WorkshopPresetGroupService`, `WorkshopPresetGroup::ICONS` | `Workshop/WorkshopPresetGroupTest`, `Workshop/WorkshopPresetDepartmentsTest` |
 | 4. Статусы заявок | `Admin\OrderStateController`, `OrderState`, `Moysklad\OrderStateSyncService` | `Order/OrderStateTest`, `Order/OrderStateSyncActionTest` |
 
 Заметки:

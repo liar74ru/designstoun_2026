@@ -86,7 +86,14 @@ class Department extends Model
         return $this->hasMany(DepartmentModifier::class)->orderBy('id');
     }
 
-    public function presets(): HasMany
+    /** Пресеты цеха, доступные отделу: свои и подключённые из других отделов. */
+    public function presets(): BelongsToMany
+    {
+        return $this->belongsToMany(WorkshopPreset::class, 'department_workshop_preset');
+    }
+
+    /** Пресеты, для которых отдел основной (создаются через эту связь). */
+    public function ownedPresets(): HasMany
     {
         return $this->hasMany(WorkshopPreset::class);
     }

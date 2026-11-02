@@ -194,11 +194,12 @@ class InternalOrderService
             return [];
         }
 
+        // Пресет подходит, если он доступен отделу — свой или подключённый.
         $presets = WorkshopPreset::query()
-            ->whereIn('department_id', $departmentIds)
+            ->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $departmentIds))
             ->whereHas('items', fn ($q) => $q->where('role', WorkshopItem::ROLE_PRODUCT)
                 ->whereIn('product_id', array_keys($needByProduct)))
-            ->with('items.product')
+            ->with(['items.product', 'departments'])
             ->orderBy('name')
             ->get();
 
@@ -216,7 +217,7 @@ class InternalOrderService
 
                 $result[$productItem->product_id][] = [
                     'preset'        => $preset->name,
-                    'department_id' => $preset->department_id,
+                    'department_id' => $preset->departments->whereIn('id', $departmentIds)->first()?->id,
                     'items'         => $raws->map(fn ($raw) => [
                         'product_id' => $raw->product_id,
                         'label'      => $raw->product->name . ($raw->product->sku ? ' (' . $raw->product->sku . ')' : ''),

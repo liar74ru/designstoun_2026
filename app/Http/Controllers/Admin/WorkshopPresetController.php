@@ -24,6 +24,7 @@ class WorkshopPresetController extends Controller
             'groups'         => $department->presetGroups,
             // «+ Пресет» из карточки группы: группа подставляется, если она этого отдела.
             'defaultGroupId' => $department->presetGroups->firstWhere('id', $request->integer('group'))?->id,
+            'allDepartments' => $this->activeDepartments(),
             'prefillItems'   => $this->service->prefillItems(null, $this->oldItemsInput()),
         ]);
     }
@@ -41,16 +42,17 @@ class WorkshopPresetController extends Controller
     public function edit(Department $department, WorkshopPreset $preset): View
     {
         return view('admin.departments.presets.edit', [
-            'department'   => $department,
-            'preset'       => $preset,
-            'groups'       => $department->presetGroups,
-            'prefillItems' => $this->service->prefillItems($preset, $this->oldItemsInput()),
+            'department'     => $department,
+            'preset'         => $preset->load('department', 'departments'),
+            'groups'         => $department->presetGroups,
+            'allDepartments' => $this->activeDepartments(),
+            'prefillItems'   => $this->service->prefillItems($preset, $this->oldItemsInput()),
         ]);
     }
 
     public function update(WorkshopPresetRequest $request, Department $department, WorkshopPreset $preset): RedirectResponse
     {
-        $this->service->update($preset, $request->validated());
+        $this->service->update($department, $preset, $request->validated());
 
         return redirect()
             ->route('admin.departments.show', $department)
@@ -60,12 +62,37 @@ class WorkshopPresetController extends Controller
 
     public function destroy(Department $department, WorkshopPreset $preset): RedirectResponse
     {
+        // Удаление убирает пресет из всех отделов — только из основного, в остальных — «убрать».
+        if ($preset->department_id !== $department->id) {
+            return redirect()
+                ->route('admin.departments.show', $department)
+                ->withFragment('workshop')
+                ->with('error', 'Удалить пресет можно только в его основном отделе, здесь его можно убрать из отдела.');
+        }
+
         $this->service->delete($preset);
 
         return redirect()
             ->route('admin.departments.show', $department)
             ->withFragment('workshop')
             ->with('success', 'Пресет удалён.');
+    }
+
+    public function detach(Department $department, WorkshopPreset $preset): RedirectResponse
+    {
+        if ($preset->department_id === $department->id) {
+            return redirect()
+                ->route('admin.departments.show', $department)
+                ->withFragment('workshop')
+                ->with('error', 'Это основной отдел пресета: его можно только удалить.');
+        }
+
+        $this->service->detach($preset, $department);
+
+        return redirect()
+            ->route('admin.departments.show', $department)
+            ->withFragment('workshop')
+            ->with('success', "Пресет «{$preset->name}» убран из отдела.");
     }
 
     public function copy(Request $request, Department $department, WorkshopPreset $preset): RedirectResponse
@@ -76,12 +103,17 @@ class WorkshopPresetController extends Controller
         );
 
         $target = Department::findOrFail($validated['target_department_id']);
-        $this->service->copyToDepartment($preset, $target);
+        $this->service->copyToDepartment($preset, $department, $target);
 
         return redirect()
             ->route('admin.departments.show', $target)
             ->withFragment('workshop')
             ->with('success', "Пресет скопирован в отдел «{$target->name}».");
+    }
+
+    private function activeDepartments()
+    {
+        return Department::where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     /**
