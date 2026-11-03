@@ -103,7 +103,10 @@ class Order extends Model
     /** Отделы-исполнители. У внутреннего заказа — кому заказан полуфабрикат. */
     public function departments(): BelongsToMany
     {
-        return $this->belongsToMany(Department::class, 'order_department');
+        // final_state_id — финальный статус, поставленный отделом «для себя»
+        // (OrderDepartmentStateService).
+        return $this->belongsToMany(Department::class, 'order_department')
+            ->withPivot('final_state_id', 'finalized_at');
     }
 
     /** Отдел-заказчик внутреннего заказа */
@@ -152,17 +155,68 @@ class Order extends Model
      * Порядок списка заявок: очередь prioritized(), но заявки в статусах «в конец списка»
      * (OrderState::is_list_bottom) — после всех остальных, даже срочные. Только для показа:
      * раздача остатка между заявками идёт по prioritized().
+     *
+     * @param  array<int, int>|null  $viewerDepartmentIds  отделы смотрящего (null — админ)
      */
-    public function scopeListOrdered(Builder $query): Builder
+    public function scopeListOrdered(Builder $query, ?array $viewerDepartmentIds = null): Builder
     {
-        $bottom = OrderState::listBottomIds();
+        $bottom = self::listBottomSql($viewerDepartmentIds);
 
-        if ($bottom !== []) {
-            $placeholders = implode(', ', array_fill(0, count($bottom), '?'));
-            $query->orderByRaw("CASE WHEN state_moysklad_id IN ({$placeholders}) THEN 1 ELSE 0 END", $bottom);
+        if ($bottom !== null) {
+            $query->orderByRaw("CASE WHEN {$bottom[0]} THEN 1 ELSE 0 END", $bottom[1]);
         }
 
         return $query->prioritized();
+    }
+
+    /**
+     * Заявки «в конце списка» (true) или остальные (false) — та же граница, что у listOrdered().
+     *
+     * @param  array<int, int>|null  $viewerDepartmentIds
+     */
+    public function scopeInListBottom(Builder $query, bool $bottom, ?array $viewerDepartmentIds = null): Builder
+    {
+        $sql = self::listBottomSql($viewerDepartmentIds);
+
+        if ($sql === null) {
+            return $bottom ? $query->whereRaw('1 = 0') : $query;
+        }
+
+        // CASE, а не NOT (...): у заявки без статуса IN даёт NULL, и NOT её бы потерял.
+        return $query->whereRaw("CASE WHEN {$sql[0]} THEN 1 ELSE 0 END = " . ($bottom ? 1 : 0), $sql[1]);
+    }
+
+    /**
+     * Условие «заявка в конце списка»: общий статус с флагом «Вниз» либо все отделы смотрящего
+     * на этой заявке поставили себе такой финальный статус (OrderDepartmentStateService) —
+     * для них работа закончена, хотя другие отделы ещё делают свою часть.
+     * Сравнение только со связанными значениями: final_state_id — строка, id статуса — uuid.
+     *
+     * @param  array<int, int>|null  $viewerDepartmentIds
+     * @return array{0: string, 1: array<int, mixed>}|null  null — статусов «Вниз» нет
+     */
+    private static function listBottomSql(?array $viewerDepartmentIds): ?array
+    {
+        $bottom = OrderState::listBottomIds();
+
+        if ($bottom === []) {
+            return null;
+        }
+
+        $states = implode(', ', array_fill(0, count($bottom), '?'));
+        $sql    = "orders.state_moysklad_id IN ({$states})";
+        $params = $bottom;
+
+        if ($viewerDepartmentIds) {
+            $depts = implode(', ', array_fill(0, count($viewerDepartmentIds), '?'));
+            $sql  .= " OR (EXISTS (SELECT 1 FROM order_department od WHERE od.order_id = orders.id"
+                . " AND od.department_id IN ({$depts}) AND od.final_state_id IN ({$states}))"
+                . " AND NOT EXISTS (SELECT 1 FROM order_department od WHERE od.order_id = orders.id"
+                . " AND od.department_id IN ({$depts}) AND od.final_state_id IS NULL))";
+            $params = array_merge($params, $viewerDepartmentIds, $bottom, $viewerDepartmentIds);
+        }
+
+        return ["({$sql})", $params];
     }
 
     private const STATE_CACHE_KEY = 'order_states.colors';

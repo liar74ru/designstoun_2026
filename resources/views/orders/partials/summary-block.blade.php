@@ -2,7 +2,8 @@
     Блок «Заявка» в карточке заявки: клиент и статус; плитки «дата заказа / готовность / срочно»;
     полоса готовности; итоги «заказано / осталось / дефицит»; отделы; период производства и пересчёт.
 
-    Параметры: $order, $orderStates, $rows, $fmt1, $sumOrdered, $sumLeft, $sumShort, $hasNumbers.
+    Параметры: $order, $orderStates, $rows, $fmt1, $sumOrdered, $sumLeft, $sumShort, $hasNumbers,
+    $departmentState (финальные статусы отделов, OrderDepartmentStateService::viewFor).
     Стили — orders.partials.summary-block-assets.
 --}}
 @php
@@ -36,9 +37,10 @@
                 @include('orders.partials.internal-badge', ['order' => $order, 'class' => 'mt-1'])
             </div>
             <div class="flex-shrink-0">
-                @include('orders.partials.state-picker', ['order' => $order, 'states' => $orderStates, 'size' => 'sm'])
+                @include('orders.partials.state-picker', ['order' => $order, 'states' => $orderStates, 'size' => 'sm', 'deptView' => $departmentState ?? null])
             </div>
         </div>
+        @include('orders.partials.department-states', ['deptView' => $departmentState ?? null, 'class' => 'mt-2 justify-content-end'])
 
         <div class="osum-tiles osum-dates">
             <div>

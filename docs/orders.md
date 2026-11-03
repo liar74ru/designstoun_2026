@@ -43,10 +43,40 @@
 | **Произв.** | В этом статусе идёт производство — см. «Окно производства». |
 | **В списке** | Статус показывается в списке заявок, когда фильтр по статусу не выбран. Если не отмечен ни один — показываются все используемые. |
 | **Вниз** | Заявки в этом статусе стоят в самом конце списка, даже срочные. Их товары не отмечаются корзиной в выборе товара (см. раздел 6); сняли «Вниз» — корзина вернётся. |
+| **Финал.** | Работа по заявке закончена (например, «Собран»). У заявки нескольких отделов каждый отдел ставит такой статус только для себя — см. «Финальный статус по отделам». |
 | **Следить** | Программа замечает, что в МойСклад изменили количество в заявке (см. «Изменения состава»). |
 | **Изм.** | Статус «Изменено» — пауза внутри производства. Может быть только один. |
 
 Как настраивать колонки — в [справке по настройкам](settings.md).
+
+### Финальный статус по отделам
+
+Статус у заявки один, но отделов может быть несколько. Чтобы первый закончивший отдел не
+закрыл заявку остальным (окно производства закрылось бы, и их приёмки ушли бы другим заявкам),
+финальный статус ставится **по отделам**.
+
+- Если у заявки больше одного отдела, мастер ставит финальный статус **только своему отделу**.
+  Общий статус и МойСклад не меняются.
+- Когда финальный статус поставил **последний** отдел, заявка переходит в него целиком
+  (запись в МойСклад, окно производства закрывается). Если отделы выбрали разные финальные
+  статусы, общим становится статус последнего.
+- **Администратор** ставит финальный статус сразу всей заявке. Так же работает заявка с одним
+  отделом.
+- **Мастер нескольких отделов заявки** в меню статуса отмечает галочками, за какие из своих
+  отделов ставит статус (по умолчанию — за все). Заявка закрывается, когда отмечены все её
+  отделы: мастер всех отделов, оставивший все галочки, закрывает её сразу, а снявший галочку —
+  оставляет этот отдел работать. Не выбран ни один отдел — статус не меняется.
+- Отдел, который закончил, видит у заявки свой статус и плашку **«Ждём: …»** с отделами, которые
+  ещё работают. Остальные видят общий статус и плашки «✓ Отдел · Статус».
+- Если свой статус отмечен «Вниз», заявка в списке закончившего отдела уходит вниз. Фильтр по
+  статусу и корзина в выборе товара идут по **общему** статусу: товар ещё делают другие отделы.
+- Отдел передумал: выбор нефинального статуса снимает его отметку (у мастера нескольких
+  отделов — отметки выбранных галочками). Если выбранный статус
+  отличается от общего, меняется и общий статус.
+- Если с заявки сняли единственный отдел, который ещё работал, она закрывается статусом
+  последней отметки.
+- Как только общий статус стал финальным (из программы или прямо в МойСклад), отметки отделов
+  сбрасываются.
 
 ## 3. Очередь заявок
 
@@ -242,7 +272,8 @@
 |---|---|---|
 | 1. Синхронизация | `Moysklad\CustomerOrderSyncService::pullActive`, `fetchActive`, `upsertOrder`, `updateState`, `updateDeliveryDate`, `updateDepartments` | `OrderControllerTest`, `OrderStateTest`, `OrderDeliveryDateTest`, `OrderDepartmentsTest` |
 | 2. Статусы | `OrderState` (флаги, `changedId`, `listBottomIds`, scope `untracked`), `Moysklad\OrderStateSyncService::sync`, `Admin\OrderStateController`, `OrderService::defaultStatuses` | `OrderStateTest`, `OrderStateSyncActionTest`, `OrderServiceTest` |
-| 3. Очередь | `Support\OrderPriority::autoKey`, `Order::scopePrioritized`, `Order::scopeListOrdered`, `OrderPriorityService` | `OrderPriorityTest` |
+| 2. Финальный статус по отделам | `OrderDepartmentStateService::apply`, `finalizeIfComplete`, `viewFor`; pivot `order_department.final_state_id`/`finalized_at`; сброс — `CustomerOrderSyncService::applyState` и `upsertOrder`; `OrderController::updateState`/`updateDepartments`; партиал `orders/partials/department-states`, параметр `deptView` у `state-picker` | `OrderDepartmentStateTest` |
+| 3. Очередь | `Support\OrderPriority::autoKey`, `Order::scopePrioritized`, `Order::scopeListOrdered`, `scopeInListBottom` (с учётом отметок отделов смотрящего), `OrderPriorityService` | `OrderPriorityTest`, `OrderDepartmentStateTest` |
 | 4. Окно производства | `OrderProductionService::syncPeriod`, `start`, `recalculate`, `freezeStocks`, `freezeAdded`, `productionRows` | `OrderProductionTest` |
 | 5. Раздача | `OrderProductionService::allocate`, `pool`; `OrderService::allocate` | `OrderProductionTest` |
 | 6. Позиция | `OrderPositionService::rows`, `save`, `reset`, `setReady`, `storeIds`, `visibleStores`, `isHiddenFor`; `OrderService::effectiveStoreId`, `hideableDepartments`, `viewDepartmentIds`; `OrderPositionSetting` | `OrderPositionTest`, `OrderHiddenPositionTest` |

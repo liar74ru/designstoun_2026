@@ -330,6 +330,11 @@ class CustomerOrderSyncService extends MoySkladBaseService
         $this->changes->rememberStateBeforeChange($order, $previousStateId, $stateMoyskladId);
 
         if ($previousStateId !== $stateMoyskladId) {
+            // Заявку закрыли прямо в МойСклад — отметки отделов сбрасываем, как при смене из программы.
+            if ($stateMoyskladId && OrderState::whereKey($stateMoyskladId)->where('is_final', true)->exists()) {
+                $this->clearDepartmentFinals($order);
+            }
+
             // Позиции только что пересозданы — снимок остатка ляжет по актуальному составу.
             $this->production->syncPeriod($order->load('items.product'), $stateMoyskladId);
         }
@@ -604,6 +609,22 @@ class CustomerOrderSyncService extends MoySkladBaseService
         $order->update([
             'state_moysklad_id' => $state->id,
             'state_name'        => $state->name,
+        ]);
+
+        if ($state->is_final) {
+            $this->clearDepartmentFinals($order);
+        }
+    }
+
+    /**
+     * Заявка закрыта целиком — отметки «отдел закончил» (OrderDepartmentStateService)
+     * больше не нужны. Иначе при возврате заявки в работу отдел остался бы «закончившим».
+     */
+    private function clearDepartmentFinals(Order $order): void
+    {
+        $order->departments()->newPivotQuery()->update([
+            'final_state_id' => null,
+            'finalized_at'   => null,
         ]);
     }
 

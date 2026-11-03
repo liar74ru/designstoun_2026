@@ -29,6 +29,7 @@ class OrderState extends Model
         'is_production',
         'is_default_filter',
         'is_list_bottom',
+        'is_final',
         'track_changes',
         'is_changed',
         'archived',
@@ -41,6 +42,7 @@ class OrderState extends Model
         'is_production'     => 'boolean',
         'is_default_filter' => 'boolean',
         'is_list_bottom'    => 'boolean',
+        'is_final'          => 'boolean',
         'track_changes'     => 'boolean',
         'is_changed'        => 'boolean',
         'archived'          => 'boolean',
@@ -79,6 +81,15 @@ class OrderState extends Model
     public static function listBottomIds(): array
     {
         return static::where('is_list_bottom', true)->pluck('id')->all();
+    }
+
+    /**
+     * Финальные статусы: работа отдела по заявке закончена. У заявки нескольких отделов
+     * каждый ставит его для себя (OrderDepartmentStateService).
+     */
+    public function scopeFinal(Builder $query): Builder
+    {
+        return $query->where('is_final', true);
     }
 
     /** Статусы, в которых за составом заявки не следят (проект, отгружен, завершён). */

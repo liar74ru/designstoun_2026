@@ -26,6 +26,7 @@ class OrderService
         private OrderProductionService $production,
         private OrderChangeService $changes,
         private InternalOrderService $internal,
+        private OrderDepartmentStateService $departmentStates,
     ) {
     }
 
@@ -37,7 +38,7 @@ class OrderService
 
         $orders = $this->indexQuery($request)
             ->with(['items.product.stocks', 'departments', 'counterparty', 'customerDepartment', 'parent', 'internalChildren:id,uuid,parent_uuid,name', 'positionSettings'])
-            ->listOrdered()
+            ->listOrdered($accessible)
             ->paginate(20)
             ->withQueryString();
 
@@ -100,6 +101,10 @@ class OrderService
             'showHidden'         => $showHidden,
             'orderStates'        => $this->enabledStates(),
             'changedStateId'     => OrderState::changedId(),
+            // Финальные статусы отделов: что видит смотрящий и кто ещё работает.
+            'departmentStates'   => $orders->getCollection()
+                ->mapWithKeys(fn (Order $order) => [$order->id => $this->departmentStates->viewFor($order, $request->user())])
+                ->all(),
         ];
     }
 
@@ -338,6 +343,7 @@ class OrderService
             'departments'    => $this->assignableDepartments($request->user()),
             'hideDepartments' => $this->hideableDepartments($order, $request->user()),
             'changedStateId' => OrderState::changedId(),
+            'departmentState' => $this->departmentStates->viewFor($order, $user),
             // Куда «Принято» вернёт заявку из статуса «Изменено»
             'returnState'    => $this->changes->isInChangedState($order) ? $this->changes->returnState($order) : null,
         ];

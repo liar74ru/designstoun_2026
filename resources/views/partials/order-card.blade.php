@@ -11,7 +11,7 @@
     шеврон у статуса разворачивает её до полного вида (скрипт — в orders/index). В развёрнутой
     формула — крупная строка со значками, нехватка — в её конце.
 
-    Параметры: $order, $rows, $hiddenCount, $orderStates.
+    Параметры: $order, $rows, $hiddenCount, $orderStates, $deptView (финальные статусы отделов).
     Стили — partials.order-card-assets; строка позиции — partials.order-card-row.
 --}}
 @php
@@ -42,7 +42,7 @@
             @include('orders.partials.departments-button', ['order' => $order, 'font' => '.68rem'])
             @include('orders.partials.changed-badge', ['order' => $order])
             <span class="ms-auto">
-                @include('orders.partials.state-picker', ['order' => $order, 'states' => $orderStates ?? collect(), 'size' => 'sm'])
+                @include('orders.partials.state-picker', ['order' => $order, 'states' => $orderStates ?? collect(), 'size' => 'sm', 'deptView' => $deptView ?? null])
             </span>
             <button type="button" class="ocard-toggle" data-ocard-toggle title="Подробнее">
                 <i class="bi bi-chevron-down"></i>
@@ -50,6 +50,7 @@
         </div>
         <div class="ocard-client">{{ $order->client_label ?? '—' }}</div>
         @include('orders.partials.internal-badge', ['order' => $order])
+        @include('orders.partials.department-states', ['deptView' => $deptView ?? null, 'class' => 'mt-1'])
         <div class="ocard-meta">
             <span title="Дата заказа">{{ $order->moment?->format('d.m.Y') ?? '—' }}</span>
             <i class="bi bi-arrow-right"></i>

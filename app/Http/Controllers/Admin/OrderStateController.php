@@ -48,6 +48,8 @@ class OrderStateController extends Controller
             'default_filter.*' => ['string', 'exists:order_states,id'],
             'list_bottom'      => ['nullable', 'array'],
             'list_bottom.*'    => ['string', 'exists:order_states,id'],
+            'final'            => ['nullable', 'array'],
+            'final.*'          => ['string', 'exists:order_states,id'],
             'track_changes'    => ['nullable', 'array'],
             'track_changes.*'  => ['string', 'exists:order_states,id'],
             'changed_state'    => ['nullable', 'string', 'exists:order_states,id'],
@@ -57,6 +59,7 @@ class OrderStateController extends Controller
         $production    = $data['production'] ?? [];
         $defaultFilter = $data['default_filter'] ?? [];
         $listBottom    = $data['list_bottom'] ?? [];
+        $final         = $data['final'] ?? [];
         $trackChanges  = $data['track_changes'] ?? [];
         $changedState  = $data['changed_state'] ?? null;
 
@@ -67,11 +70,12 @@ class OrderStateController extends Controller
         }
 
         // Одной транзакцией: упавший запрос не должен оставить галочки сохранёнными наполовину.
-        DB::transaction(function () use ($enabled, $production, $defaultFilter, $listBottom, $trackChanges, $changedState) {
+        DB::transaction(function () use ($enabled, $production, $defaultFilter, $listBottom, $final, $trackChanges, $changedState) {
             $this->syncFlag('is_enabled', $enabled);
             $this->syncFlag('is_production', $production);
             $this->syncFlag('is_default_filter', $defaultFilter);
             $this->syncFlag('is_list_bottom', $listBottom);
+            $this->syncFlag('is_final', $final);
             $this->syncFlag('track_changes', $trackChanges);
             $this->syncFlag('is_changed', $changedState ? [$changedState] : []);
         });

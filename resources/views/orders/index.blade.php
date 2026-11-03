@@ -114,9 +114,14 @@
                             </td>
                             <td class="align-top">
                                 @include('orders.partials.state-picker', [
-                                    'order'  => $order,
-                                    'states' => $orderStates,
-                                    'size'   => 'sm',
+                                    'order'    => $order,
+                                    'states'   => $orderStates,
+                                    'size'     => 'sm',
+                                    'deptView' => $departmentStates[$order->id] ?? null,
+                                ])
+                                @include('orders.partials.department-states', [
+                                    'deptView' => $departmentStates[$order->id] ?? null,
+                                    'class'    => 'mt-1',
                                 ])
                             </td>
                         </tr>
@@ -134,6 +139,7 @@
                     'rows'        => $rowsByOrder[$order->id] ?? collect(),
                     'hiddenCount' => $hiddenCountByOrder[$order->id] ?? 0,
                     'orderStates' => $orderStates,
+                    'deptView'    => $departmentStates[$order->id] ?? null,
                 ])
             @endforeach
         </div>

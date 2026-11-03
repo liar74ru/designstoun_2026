@@ -10,6 +10,7 @@ use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\InternalOrderService;
 use App\Services\Moysklad\StockSyncService;
 use App\Services\OrderChangeService;
+use App\Services\OrderDepartmentStateService;
 use App\Services\OrderPositionService;
 use App\Services\OrderPriorityService;
 use App\Services\OrderProductionService;
@@ -43,14 +44,18 @@ class OrderController extends Controller
     }
 
     /**
-     * Перевести заявку в другой статус — с записью в МойСклад.
+     * Перевести заявку в другой статус — с записью в МойСклад. Финальный статус у заявки
+     * нескольких отделов отдел ставит только для себя (OrderDepartmentStateService).
      */
-    public function updateState(Request $request, OrderChangeService $changes, string $moyskladId): RedirectResponse
+    public function updateState(Request $request, OrderDepartmentStateService $departmentStates, string $moyskladId): RedirectResponse
     {
         $order = $this->service->findForUser($request, $moyskladId);
 
         $data = $request->validate([
-            'state_id' => 'required|string|exists:order_states,id',
+            'state_id'      => 'required|string|exists:order_states,id',
+            // Мастер нескольких отделов заявки: за какие ставит статус. Чужие отбросит сервис.
+            'departments'   => 'nullable|array',
+            'departments.*' => 'integer',
         ]);
 
         // Выставить можно только используемый статус: иначе заявка выпадет
@@ -60,18 +65,10 @@ class OrderController extends Controller
             return back()->withErrors(['state_id' => 'Этот статус не используется в программе.']);
         }
 
-        if ($order->state_moysklad_id === $state->id) {
-            return back()->with('warning', 'Заявка уже в статусе «' . $state->name . '».');
-        }
+        $result = $departmentStates->apply($order, $state, $request->user(), $data['departments'] ?? null);
 
-        $previousStateId = $order->state_moysklad_id;
-        $result = $this->sync->updateState($order, $state);
-
-        // Окно производства открывается/закрывается только после успешной записи
-        // в МойСклад — иначе снимок остатка лёг бы под статус, которого там нет.
-        if ($result['success']) {
-            $changes->rememberStateBeforeChange($order, $previousStateId, $state->id);
-            $this->production->syncPeriod($order, $state->id);
+        if ($result['code'] === 'unchanged') {
+            return back()->with('warning', $result['message']);
         }
 
         return back()->with($result['success'] ? 'success' : 'error', $result['message']);
@@ -81,7 +78,7 @@ class OrderController extends Controller
      * Назначить заявке отделы — с записью в МойСклад. Пустой выбор снимает все отделы.
      * Не-админ ставит и снимает только свои отделы; чужие на заявке остаются.
      */
-    public function updateDepartments(Request $request, string $moyskladId): RedirectResponse
+    public function updateDepartments(Request $request, OrderDepartmentStateService $departmentStates, string $moyskladId): RedirectResponse
     {
         $order = $this->service->findForUser($request, $moyskladId);
 
@@ -100,6 +97,11 @@ class OrderController extends Controller
             $order,
             $this->service->resolveDepartments($order, $data['departments'] ?? [], $request->user()),
         );
+
+        // Сняли единственный отдел, который ещё работал, — остальные уже закончили.
+        if ($result['success'] && ($closed = $departmentStates->finalizeIfComplete($order))) {
+            $result['message'] .= ' ' . $closed['message'];
+        }
 
         return back()->with($result['success'] ? 'success' : 'error', $result['message']);
     }

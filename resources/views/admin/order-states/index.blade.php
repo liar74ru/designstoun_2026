@@ -10,6 +10,7 @@
         ['name' => 'production[]',     'flag' => 'is_production',     'short' => 'Произв.',  'label' => 'Производство',        'title' => 'В этом статусе идёт производство'],
         ['name' => 'default_filter[]', 'flag' => 'is_default_filter', 'short' => 'В списке', 'label' => 'В списке',            'title' => 'Показывать в списке заявок по умолчанию'],
         ['name' => 'list_bottom[]',    'flag' => 'is_list_bottom',    'short' => 'Вниз',     'label' => 'В конец списка',      'title' => 'Показывать заявки в этом статусе в конце списка'],
+        ['name' => 'final[]',          'flag' => 'is_final',          'short' => 'Финал.',   'label' => 'Финальный',           'title' => 'Работа по заявке закончена. У заявки нескольких отделов каждый ставит его для себя, общим он становится, когда закончат все'],
         ['name' => 'track_changes[]',  'flag' => 'track_changes',     'short' => 'Следить',  'label' => 'Следить за составом', 'title' => 'Замечать изменение позиций заявок в этом статусе'],
     ];
 @endphp
@@ -58,7 +59,7 @@
     @media (min-width: 768px) {
         .os-row,
         .os-head {
-            grid-template-columns: minmax(0, 1fr) repeat(6, 76px);
+            grid-template-columns: minmax(0, 1fr) repeat(7, 76px);
             align-items: center;
             gap: 0 .25rem;
         }
