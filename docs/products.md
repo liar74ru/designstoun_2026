@@ -132,8 +132,15 @@
 
 В приёмке, цехе, партиях сырья, приходе и фильтрах товар выбирается одним и тем же полем.
 
-- Набирайте начала слов названия в любом порядке: `плит квар 50` найдёт
-  «Плитка из Кварцит 50хL». Показываются первые 15 совпадений.
+- Набирайте части слов названия в любом порядке: `плит квар 50` найдёт
+  «Плитка из Кварцит 50хL», `арци` — тоже (часть может быть и из середины слова). Каждое
+  набранное слово должно найтись в каком-то слове названия. Регистр, «ё/е» и одинаковые на вид
+  русские и латинские буквы (х/x, с/c, о/o, а/a, е/e, р/p, к/k…) не различаются: `50xl` найдёт
+  «50хL». Показываются первые 15 совпадений.
+- **В фильтрах списков** (приёмки, цех, партии сырья, итоги предприятия, выработка) первой
+  строкой списка идёт **«Все, где есть «…»» (N)**: фильтр сработает по всем N подходящим товарам
+  сразу, а не по одному. Введённый текст остаётся в поле, сбрасывается крестиком. Если просто
+  набрать текст и ничего не выбрать, фильтр по товару не применяется.
 - Кнопка **«Выбрать из каталога»** открывает дерево групп с поиском по каталогу.
 - В некоторых формах рядом с товаром видны остатки: общий и на складе-источнике. Зелёный —
   остаток есть, красный — нет.
@@ -173,7 +180,7 @@
 | 3. Коэффициенты | `ProductController::updateCoeffs`, `Requests\Product\ProductCoeffRequest`, `ProductService::updateCostCoeffs`, `MoySkladService::updateProductCostCoeffs` (общая запись реквизитов — `updateProductAttributes`); вывод — `RateFormula::formatCoeff` | `Unit/RateFormulaTest` (формат), `ProductController/ProductAttributesWriteTest` (запись в МойСклад) |
 | 4. Остатки | `Moysklad\StockSyncService::applyRows`, `syncAllProductsStocksByStores`, `updateProductStocksByMoyskladId`, `refreshProducts`; команда `moysklad:sync-stocks` в `routes/console.php`; `Product::getTotalQuantityAttribute`, `getInStockAttribute` | `Stock/ProductStockTest`, `Moysklad/StockSyncServiceTest`, `Moysklad/StockSyncByStoreTest` |
 | 5. Список | `ProductController::index`, `ProductGroupService::getGroupAndChildrenIds`; мобильное дерево — `products/partials/mobile-list.blade.php` поверх `api.products.tree` (поле `ms_id`) и `api.products.stocks`, цвет — карта `SkuColor::map()` | `ProductController/ProductControllerTest` |
-| 6. Выбор товара | `resources/js/product-picker.js`, `partials/product-picker*.blade.php`; `ProductController::groupsJson` (кэш `products_tree_json_v4`, 600 с); скрытые — `products.is_hidden` из атрибута `hiddenByDefault` (`processProduct`, `refreshFromMoysklad`), запись из карточки — `ProductController::updateHidden` (`products.hidden.update`, `can:see-products`), `ProductHiddenRequest`, `ProductService::updateHidden`, `MoySkladService::updateProductHidden`, поле `hidden` в `ProductGroupService::attachProductsToTree`, фильтрует клиент (`catalogShowsHidden`, `.tree-show-hidden`); товары из заявок — `ProductGroupService::productIdsInActiveOrders` (статус `is_enabled` и не `is_list_bottom`, позиция `shipped < quantity` либо внутренний заказ), `markOrderedProducts` (поле `in_order`, поверх кэша), в JS `orderedFirst`; `stocksJson`, `getCoeff` | `ProductController/ProductControllerTest`, `ProductController/ProductAttributesWriteTest` (скрытие из карточки) |
+| 6. Выбор товара | `resources/js/product-picker.js`, `partials/product-picker*.blade.php`; `ProductController::groupsJson` (кэш `products_tree_json_v4`, 600 с); скрытые — `products.is_hidden` из атрибута `hiddenByDefault` (`processProduct`, `refreshFromMoysklad`), запись из карточки — `ProductController::updateHidden` (`products.hidden.update`, `can:see-products`), `ProductHiddenRequest`, `ProductService::updateHidden`, `MoySkladService::updateProductHidden`, поле `hidden` в `ProductGroupService::attachProductsToTree`, фильтрует клиент (`catalogShowsHidden`, `.tree-show-hidden`); товары из заявок — `ProductGroupService::productIdsInActiveOrders` (статус `is_enabled` и не `is_list_bottom`, позиция `shipped < quantity` либо внутренний заказ), `markOrderedProducts` (поле `in_order`, поверх кэша), в JS `orderedFirst`; `stocksJson`, `getCoeff`; совпадение — JS `tokenize`/`fuzzyMatch` и его зеркало `Support\ProductSearch` (`tokenize`, `matches`; `LOOKALIKES` — одинаковые в обоих); «Все, где есть» — параметр `searchName` пикера (второй hidden `.product-picker-search-value`, событие `product-picker:search`), на сервере фильтры `*_search` → `ProductSearch::matchIds` / `idsFromRequest`; список товаров в разметке вместо `/api/products/tree` — параметр `products` (`data-products`), для страниц без `use-product-api` (выработка работника) | `ProductController/ProductControllerTest`, `ProductController/ProductAttributesWriteTest` (скрытие из карточки), `tests/Unit/ProductSearchTest`, `ProductSearch/ProductSearchTest` |
 
 Заметки:
 
