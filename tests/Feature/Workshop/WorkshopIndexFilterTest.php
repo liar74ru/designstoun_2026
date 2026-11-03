@@ -108,3 +108,30 @@ test('в списках фильтра только товары своей ро
         ->assertViewHas('filterProducts', fn ($list) => $list->pluck('id')->all() === [$this->tile->id])
         ->assertViewHas('filterPackageProducts', fn ($list) => $list->pluck('id')->all() === [$this->package->id]);
 });
+
+test('поиск по части названия: сырьё — по строкам сырья, продукт — по продукту на выходе', function () {
+    $this->stone->update(['name' => 'Кварцит блок']);
+    $this->tile->update(['name' => 'Плитка Гранит']);
+
+    // Один и тот же товар: в первой операции — сырьё, во второй — продукт на выходе
+    $asRaw     = filteredWorkshop($this, [WorkshopItem::ROLE_RAW => $this->stone, WorkshopItem::ROLE_PRODUCT => $this->tile]);
+    $asProduct = filteredWorkshop($this, [WorkshopItem::ROLE_RAW => $this->tile, WorkshopItem::ROLE_PRODUCT => $this->stone]);
+
+    expect(filteredWorkshopIds($this, ['raw_product_search' => 'КВАРЦ']))->toBe([$asRaw->id])
+        ->and(filteredWorkshopIds($this, ['product_search' => 'кварц']))->toBe([$asProduct->id])
+        ->and(filteredWorkshopIds($this, ['product_search' => 'плит']))->toBe([$asRaw->id]);
+});
+
+test('поиск по части названия находит несколько товаров, без совпадений — пусто', function () {
+    $this->stone->update(['name' => 'Плитка Кварцит 50хL']);
+    $this->tile->update(['name' => 'Брусчатка кварцит']);
+    $other = Product::factory()->create(['name' => 'Плитка Гранит']);
+
+    $first  = filteredWorkshop($this, [WorkshopItem::ROLE_PRODUCT => $this->stone]);
+    $second = filteredWorkshop($this, [WorkshopItem::ROLE_PRODUCT => $this->tile]);
+    filteredWorkshop($this, [WorkshopItem::ROLE_PRODUCT => $other]);
+
+    expect(filteredWorkshopIds($this, ['product_search' => 'кварц']))
+        ->toBe(collect([$first->id, $second->id])->sort()->values()->all())
+        ->and(filteredWorkshopIds($this, ['product_search' => 'мрамор']))->toBe([]);
+});

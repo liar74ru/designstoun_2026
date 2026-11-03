@@ -17,6 +17,7 @@ use App\Models\Worker;
 use App\Support\DocumentNaming;
 use App\Support\ItemCost;
 use App\Support\ModifierEngine;
+use App\Support\ProductSearch;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -121,6 +122,20 @@ class WorkshopService
                     $query->whereHas('items', fn($q) => $q
                         ->where('role', WorkshopItem::ROLE_PRODUCT)
                         ->where('product_id', $value));
+                }),
+                AllowedFilter::callback('raw_product_search', function ($query, $value) {
+                    if ($ids = ProductSearch::matchIds($value)) {
+                        $query->whereHas('items', fn($q) => $q
+                            ->where('role', WorkshopItem::ROLE_RAW)
+                            ->whereIn('product_id', $ids));
+                    }
+                }),
+                AllowedFilter::callback('product_search', function ($query, $value) {
+                    if ($ids = ProductSearch::matchIds($value)) {
+                        $query->whereHas('items', fn($q) => $q
+                            ->where('role', WorkshopItem::ROLE_PRODUCT)
+                            ->whereIn('product_id', $ids));
+                    }
                 }),
                 AllowedFilter::callback('package_product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q

@@ -15,6 +15,7 @@ use App\Models\StoneReception;
 use App\Models\Worker;
 use App\Support\BatchStock;
 use App\Support\DocumentNaming;
+use App\Support\ProductSearch;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -44,6 +45,11 @@ class RawMaterialBatchService
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('current_worker_id'),
                 AllowedFilter::exact('product_id'),
+                AllowedFilter::callback('product_search', function ($q, $v) {
+                    if ($ids = ProductSearch::matchIds($v)) {
+                        $q->whereIn('product_id', $ids);
+                    }
+                }),
                 AllowedFilter::partial('batch_number'),
                 AllowedFilter::callback('department_id', fn($q, $v) =>
                     $q->whereIn('raw_material_batches.department_id', (array) $v)),

@@ -56,8 +56,10 @@ class WorkerDashboardService
      * Выработка человека за период в обеих ролях сразу: работник (пильщик приёмки,
      * работник цеха) и мастер (приёмщик). Мастер может и принимать, и пилить сам,
      * а работать — в нескольких отделах за неделю.
+     *
+     * @param  array<int, int>|null  $productIds  фильтр сводки по продуктам (null — без фильтра)
      */
-    public function getDashboardData(int $workerId, Carbon $dateFrom, Carbon $dateTo): array
+    public function getDashboardData(int $workerId, Carbon $dateFrom, Carbon $dateTo, ?array $productIds = null): array
     {
         $this->itemMaps = [];
 
@@ -122,20 +124,43 @@ class WorkerDashboardService
             ->get();
 
         // Лог, где человек и пильщик, и приёмщик, попадает в обе роли — и оплачивается в обеих.
-        $departments = $this->buildDepartmentRoles(
+        $masterLogs  = $this->masterReceptionLogs($logs, $workerId);
+        $buildRoles  = fn (?callable $filterSummary) => $this->buildDepartmentRoles(
             $this->buildSummaryByDepartment(
                 $logs->where('cutter_id', $workerId),
                 $workshopLogs->where('packer_id', $workerId),
+                $filterSummary,
             ),
             $this->buildSummaryByDepartment(
-                $this->masterReceptionLogs($logs, $workerId),
+                $masterLogs,
                 $workshopLogs->where('receiver_id', $workerId),
+                $filterSummary,
             ),
         );
 
+        $departments = $buildRoles(null);
+
+        // Итоги — всегда без фильтра продукта: от них считаются копилка и ожидаемая выплата.
         $totalWorkerPay = $departments->sum(fn($dept) => $dept['worker']['totalPay'] ?? 0);
         $totalMasterPay = $departments->sum(fn($dept) => $dept['master']['totalMasterPay'] ?? 0);
         $totalPay       = $totalWorkerPay + $totalMasterPay;
+
+        // Варианты фильтра «Продукт» — товары, по которым у человека есть выработка за период
+        $filterProducts = $departments
+            ->flatMap(fn($dept) => collect([$dept['worker'], $dept['master']])
+                ->filter()
+                ->flatMap(fn($role) => $role['summary']->pluck('product')))
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+
+        // Фильтр продукта режет только сводку по отделам; списки приёмок и сырья — полные
+        $filteredTotalPay = null;
+        if ($productIds !== null) {
+            $departments      = $buildRoles(fn($row) => in_array($row['product']?->id, $productIds));
+            $filteredTotalPay = $departments->sum('totalPay');
+        }
 
         return compact(
             'logs',
@@ -145,6 +170,8 @@ class WorkerDashboardService
             'totalWorkerPay',
             'totalMasterPay',
             'totalPay',
+            'filteredTotalPay',
+            'filterProducts',
         );
     }
 
@@ -267,8 +294,8 @@ class WorkerDashboardService
         ?Carbon $dateFrom,
         ?Carbon $dateTo,
         array $departmentIds = [],
-        $rawProductId = null,
-        $productId = null,
+        ?array $rawProductIds = null,
+        ?array $productIds = null,
         ?array $restrictDepartmentIds = null,
         $workerId = null
     ): array {
@@ -299,8 +326,8 @@ class WorkerDashboardService
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->when($scopeIds !== null, fn ($q) => $q->whereHas('stoneReception',
                 fn ($q2) => $q2->inEffectiveDepartments($scopeIds, $includeUndetermined)))
-            ->when($rawProductId, fn ($q) => $q->whereHas('rawMaterialBatch',
-                fn ($q2) => $q2->where('product_id', $rawProductId)))
+            ->when($rawProductIds !== null, fn ($q) => $q->whereHas('rawMaterialBatch',
+                fn ($q2) => $q2->whereIn('product_id', $rawProductIds)))
             ->when($workerId, fn ($q) => $q->where('cutter_id', $workerId))
             ->orderBy('created_at', 'desc')
             ->get();
@@ -319,8 +346,8 @@ class WorkerDashboardService
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->when($scopeIds !== null, fn ($q) => $q->whereHas('workshop',
                 fn ($q2) => $q2->inEffectiveDepartments($scopeIds, $includeUndetermined)))
-            ->when($rawProductId, fn ($q) => $q->whereHas('workshop.items',
-                fn ($q2) => $q2->where('role', WorkshopItem::ROLE_RAW)->where('product_id', $rawProductId)))
+            ->when($rawProductIds !== null, fn ($q) => $q->whereHas('workshop.items',
+                fn ($q2) => $q2->where('role', WorkshopItem::ROLE_RAW)->whereIn('product_id', $rawProductIds)))
             ->when($workerId, fn ($q) => $q->where('packer_id', $workerId))
             ->get();
 
@@ -330,13 +357,13 @@ class WorkerDashboardService
         $departments = $this->buildSummaryByDepartment(
             $logs,
             $workshopLogs,
-            $productId ? fn($row) => $row['product']?->id == $productId : null,
+            $productIds !== null ? fn($row) => in_array($row['product']?->id, $productIds) : null,
         );
 
         // Вкладка «Сырьё»: движения сырья не связаны с плиткой и работником —
-        // фильтры $productId и $workerId не применяются.
+        // фильтры $productIds и $workerId не применяются.
         $incomingRaw = $this->buildIncomingRawSummary(
-            $dateFrom, $dateTo, $scopeIds, $rawProductId, $includeUndetermined
+            $dateFrom, $dateTo, $scopeIds, $rawProductIds, $includeUndetermined
         );
 
         $filterWorkerIds = ReceptionLog::whereNotNull('cutter_id')->distinct()->pluck('cutter_id')
@@ -380,7 +407,7 @@ class WorkerDashboardService
         ?Carbon $dateFrom,
         ?Carbon $dateTo,
         ?array $departmentIds = null,
-        $rawProductId = null,
+        ?array $rawProductIds = null,
         bool $includeUndetermined = false
     ): Collection {
         return RawMaterialMovement::query()
@@ -396,8 +423,8 @@ class WorkerDashboardService
                     }
                 }
             ))
-            ->when($rawProductId, fn ($q) => $q->whereHas('batch',
-                fn ($q2) => $q2->where('product_id', $rawProductId)))
+            ->when($rawProductIds !== null, fn ($q) => $q->whereHas('batch',
+                fn ($q2) => $q2->whereIn('product_id', $rawProductIds)))
             ->with('batch.product')
             ->get()
             ->groupBy(fn ($m) => $m->batch?->product_id)

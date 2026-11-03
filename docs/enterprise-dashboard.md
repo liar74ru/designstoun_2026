@@ -37,6 +37,10 @@
   «ФОТ мастеров» в этом случае — зарплата мастеров за его выпуск. Приёмщик фильтром не
   учитывается. В списке сначала работники своих отделов без уволенных, остальные — по чекбоксу
   **«Показать всех работников»**. На вкладку «Сырьё» не влияет.
+- В полях «Сырьё» и «Продукт» можно искать **по части названия**: начните вводить и
+  выберите первую строку списка **«Все, где есть «…»»** — фильтр сработает сразу по всем
+  подходящим видам камня / плиткам. Регистр, «ё/е» и одинаковые на вид русские и латинские
+  буквы (х/x, с/c…) не различаются.
 - Фильтры по умолчанию свёрнуты; выбранная вкладка запоминается в браузере.
 
 ## 3. Откуда берутся цифры
@@ -127,7 +131,7 @@
 | Раздел | Код | Тесты (`tests/Feature/MasterDashboard/`) |
 |---|---|---|
 | 1. Доступ | операция `enterprise-dashboard` в `config/department_operations.php`, `can:see-enterprise-dashboard`; `User::accessibleDepartmentIds` | `EnterpriseDashboardTest` |
-| 2. Период и фильтры | `EnterpriseDashboardController::index`, `WorkerDashboardService::getDefaultWeekRange`, `getEnterpriseDashboardData` (`$scopeIds`, `$includeUndetermined`, `$workerId` — `cutter_id` / `packer_id` журнала); `partials/filters.blade.php` | `EnterpriseDashboardTest` |
+| 2. Период и фильтры | `EnterpriseDashboardController::index`, `WorkerDashboardService::getDefaultWeekRange`, `getEnterpriseDashboardData` (`$scopeIds`, `$includeUndetermined`, `$workerId` — `cutter_id` / `packer_id` журнала; сырьё и продукт — множества id из `Support\ProductSearch::idsFromRequest`); `partials/filters.blade.php` | `EnterpriseDashboardTest` |
 | 3. Журналы | `ReceptionLog` / `ReceptionLogItem`, `WorkshopLog` / `WorkshopLogItem` (`role = product`); `StoneReceptionService::writeReceptionLog`, `WorkshopService::writeWorkshopLog` | `EnterpriseDashboardTest` |
 | 4. Отдел документа | `Concerns\HasEffectiveDepartment` (`effectiveDepartmentId`, `scopeInEffectiveDepartments`), `effectiveDepartmentChain` в `StoneReception`, `Workshop`, `RawMaterialBatch`; `WorkerDashboardService::buildSummaryByDepartment` | `EnterpriseDashboardTest` |
 | 5. «Плитка» | `WorkerDashboardService::buildProductSummary`, `buildWorkshopProductSummary`, `mergeProductSummaries`, `modifierSignature`, `receptionItemFor`, `workshopItemFor`; `StoneReceptionItem::effectiveProdCost`, `WorkshopItem::effectiveProdCost` | `EnterpriseDashboardTest` |

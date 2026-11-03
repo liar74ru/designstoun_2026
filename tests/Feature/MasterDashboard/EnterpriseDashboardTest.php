@@ -561,6 +561,54 @@ test('строки одного товара из приёмки и цеха о�
 
 // ─── Фильтр «Работник» ───────────────────────────────────────────────────────
 
+test('поиск по части названия продукта оставляет строки всех подходящих плиток', function () {
+    $dept = Department::create(['name' => 'Отдел поиска', 'is_active' => true]);
+
+    $quartzTile = Product::factory()->create(['name' => 'Плитка Кварцит 50хL', 'prod_cost_coeff' => 1.0]);
+    $quartzCube = Product::factory()->create(['name' => 'Брусчатка кварцит', 'prod_cost_coeff' => 1.0]);
+    $granite    = Product::factory()->create(['name' => 'Плитка Гранит', 'prod_cost_coeff' => 1.0]);
+
+    makeEnterpriseReception($dept, 'Приёмщик поиск 1', 10.0, $quartzTile);
+    makeEnterpriseWorkshop($dept, 'Поиск', 5.0, null, $quartzCube);
+    makeEnterpriseReception($dept, 'Приёмщик поиск 2', 4.0, $granite);
+
+    $response = $this->actingAs(H::adminUser())
+        ->get(route('admin.enterprise-dashboard', ['filter' => ['product_search' => 'КВАРЦ']]))
+        ->assertOk();
+
+    expect($response->viewData('departments')->first()['summary']->pluck('product.id')->all())
+        ->toEqualCanonicalizing([$quartzTile->id, $quartzCube->id])
+        ->and((float) $response->viewData('grandQuantity'))->toEqual(15.0);
+});
+
+test('поиск по части названия сырья отбирает цеха по сырьевым позициям', function () {
+    $deptA = Department::create(['name' => 'Отдел кварцита', 'is_active' => true]);
+    $deptB = Department::create(['name' => 'Отдел гранита', 'is_active' => true]);
+
+    makeEnterpriseWorkshop($deptA, 'Кв', 3.0, Product::factory()->create(['name' => 'Кварцит блок']));
+    makeEnterpriseWorkshop($deptB, 'Гр', 4.0, Product::factory()->create(['name' => 'Гранит блок']));
+
+    $departments = $this->actingAs(H::adminUser())
+        ->get(route('admin.enterprise-dashboard', ['filter' => ['raw_product_search' => 'кварц']]))
+        ->assertOk()
+        ->viewData('departments');
+
+    expect($departments)->toHaveCount(1)
+        ->and($departments->first()['department']->name)->toBe('Отдел кварцита');
+});
+
+test('поиск по части названия без совпадений — пустой дашборд, а не всё производство', function () {
+    $dept = Department::create(['name' => 'Отдел без совпадений', 'is_active' => true]);
+    makeEnterpriseReception($dept, 'Приёмщик пусто', 10.0, Product::factory()->create(['name' => 'Плитка Гранит']));
+
+    $response = $this->actingAs(H::adminUser())
+        ->get(route('admin.enterprise-dashboard', ['filter' => ['product_search' => 'мрамор', 'raw_product_search' => 'мрамор']]))
+        ->assertOk();
+
+    expect($response->viewData('departments'))->toBeEmpty()
+        ->and($response->viewData('incomingRaw'))->toBeEmpty();
+});
+
 test('фильтр по работнику оставляет только приёмки выбранного пильщика', function () {
     $dept = Department::create(['name' => 'Отдел пильщиков', 'is_active' => true]);
 
@@ -674,6 +722,7 @@ test('неверные параметры адреса не роняют даш�
     'работник-текст'   => [['filter' => ['worker_id' => 'abc']]],
     'работник-массив'  => [['filter' => ['worker_id' => ['abc']]]],
     'товар-массив'     => [['filter' => ['product_id' => ['abc'], 'raw_product_id' => ['abc']]]],
+    'поиск-массив'     => [['filter' => ['product_search' => ['abc'], 'raw_product_search' => ['abc']]]],
     'отдел-текст'      => [['filter' => ['department_id' => ['abc']]]],
 ]);
 

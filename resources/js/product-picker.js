@@ -28,13 +28,22 @@ function flattenProducts(groups, result = []) {
 }
 
 // ─── Нечёткий поиск ───────────────────────────────────────────────────────────
+// Зеркало App\Support\ProductSearch: фильтр «Все, где есть …» на сервере находит
+// те же товары, что здесь выпадашка. Меняешь правило — меняй в обоих местах.
 
-// Разбивает строку на слова, спецсимволы → пробелы
+// Латинские буквы, похожие на кириллические: в названиях встречаются обе («50xL» и «50хL»)
+const LOOKALIKES = {
+    a: 'а', b: 'в', c: 'с', e: 'е', h: 'н', k: 'к', m: 'м',
+    o: 'о', p: 'р', t: 'т', x: 'х', y: 'у', 'ё': 'е',
+};
+
+// Разбивает строку на слова, спецсимволы → пробелы, двойники → кириллица
 // "Плитка из Кварцит 50хL" → ["плитка", "из", "кварцит", "50хl"]
 function tokenize(str) {
     return str
         .toLowerCase()
-        .replace(/[^a-zа-яё\d]/gi, ' ')
+        .replace(/[abcehkmoptxyё]/g, ch => LOOKALIKES[ch])
+        .replace(/[^a-zа-я\d]/g, ' ')
         .split(/\s+/)
         .filter(Boolean);
 }
@@ -101,11 +110,17 @@ function initSearch(row) {
     const searchInput = row.querySelector('.product-picker-search');
     const hiddenInput = row.querySelector('input[type="hidden"]');
     const dropEl      = row.querySelector('.product-picker-dropdown');
+    const searchValue = row.querySelector('.product-picker-search-value');
 
     if (!searchInput) return;
 
     let allProducts = [];
-    fetchTree().then(tree => { allProducts = flattenProducts(tree); });
+    // Список прямо в разметке — страница без доступа к /api/products/tree (дашборд работника)
+    if (row.dataset.products) {
+        try { allProducts = JSON.parse(row.dataset.products); } catch (e) {}
+    } else {
+        fetchTree().then(tree => { allProducts = flattenProducts(tree); });
+    }
 
     function getActiveProducts() {
         let products = allProducts;
@@ -142,10 +157,13 @@ function initSearch(row) {
         return el;
     }
 
-    function showDrop(items) {
+    function showDrop(items, query) {
         dropEl.innerHTML = '';
         if (!items.length) {
             dropEl.innerHTML = '<div class="list-group-item text-muted small">Ничего не найдено</div>';
+        }
+        if (searchValue && items.length && tokenize(query).length) {
+            dropEl.appendChild(searchAllItem(query, items.length));
         }
         items.slice(0, 15).forEach(p => {
             const btn = document.createElement('button');
@@ -183,13 +201,35 @@ function initSearch(row) {
         dropEl.style.display = 'block';
     }
 
+    // Пункт «Все, где есть «…»»: фильтр по части названия вместо одного товара
+    function searchAllItem(query, count) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'list-group-item list-group-item-action py-1 small fw-semibold text-primary';
+        const icon = document.createElement('i');
+        icon.className = 'bi bi-search me-1';
+        btn.append(icon, `Все, где есть «${query}» (${count})`);
+        btn.addEventListener('mousedown', e => {
+            e.preventDefault();
+            searchInput.value = query;
+            hiddenInput.value = '';
+            searchValue.value = query;
+            hideDrop();
+            document.dispatchEvent(new CustomEvent('product-picker:search', { detail: { row, query } }));
+        });
+        return btn;
+    }
+
     function hideDrop() { dropEl.style.display = 'none'; }
 
     searchInput.addEventListener('input', () => {
         const q = searchInput.value.trim();
+        // Текст изменился — прежний поиск больше не совпадает с полем, его надо выбрать заново
+        // (focus тоже шлёт input — тогда текст тот же, и поиск остаётся)
+        if (searchValue && searchValue.value !== q) searchValue.value = '';
         if (q.length < 1) { hideDrop(); hiddenInput.value = ''; return; }
         const matched = orderedFirst(getActiveProducts().filter(p => fuzzyMatch(p.label, q)));
-        showDrop(matched);
+        showDrop(matched, q);
     });
 
     searchInput.addEventListener('blur', () => setTimeout(hideDrop, 150));
@@ -201,6 +241,10 @@ function initSearch(row) {
 function selectProduct(searchInput, hiddenInput, product, row) {
     searchInput.value = product.label;
     hiddenInput.value = product.id;
+
+    // Выбран конкретный товар — поиск по части названия снимается
+    const searchValue = row?.querySelector('.product-picker-search-value');
+    if (searchValue) searchValue.value = '';
 
     // Подмена единицы измерения на uom товара (только для opt-in строк).
     // Если у товара нет единицы — оставляем значение из шаблона.
@@ -392,6 +436,8 @@ function initRow(row) {
             const hi = row.querySelector('input[type="hidden"]');
             if (si) si.value = '';
             if (hi) hi.value = '';
+            const sv = row.querySelector('.product-picker-search-value');
+            if (sv) sv.value = '';
             document.dispatchEvent(new CustomEvent('product-picker:removed'));
         });
     }

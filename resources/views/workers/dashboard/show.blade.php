@@ -37,6 +37,13 @@
             }
             $currentFrom = $dateFrom->format('Y-m-d');
             $currentTo   = $dateTo->format('Y-m-d');
+
+            // Фильтр сводки по продукту: выбранный товар или «Все, где есть …» (App\Support\ProductSearch)
+            $scalarParam      = fn (string $key) => is_scalar($value = request()->input($key)) ? (string) $value : '';
+            $productValue     = $scalarParam('filter.product_id');
+            $productSearch    = $scalarParam('filter.product_search');
+            $productLabel     = $filterProducts->firstWhere('id', $productValue)?->name ?? '';
+            $productFilterOn  = $filteredTotalPay !== null;
         @endphp
 
         <form method="GET" id="period-form" class="card shadow-sm mb-3">
@@ -47,6 +54,10 @@
                     <strong class="text-body ms-1">
                         {{ $dateFrom->translatedFormat('d M Y') }} — {{ $dateTo->translatedFormat('d M Y') }}
                     </strong>
+                    @if($productFilterOn)
+                        <span class="ms-1">· <i class="bi bi-funnel"></i>
+                            {{ $productLabel ?: ($productSearch !== '' ? '«' . $productSearch . '»' : 'продукт') }}</span>
+                    @endif
                 </span>
                 <i class="bi bi-chevron-down" id="period-chevron"></i>
             </div>
@@ -73,6 +84,23 @@
                             <input type="date" name="date_to" id="date_to"
                                    class="form-control form-control-sm" value="{{ $dateTo->format('Y-m-d') }}">
                         </div>
+                        @if($filterProducts->isNotEmpty() || $productFilterOn)
+                            <div class="flex-grow-1" style="min-width:220px;max-width:420px">
+                                <label class="form-label small text-muted mb-1">Продукт</label>
+                                @include('partials.product-picker', [
+                                    'id'          => 'filter_product',
+                                    'name'        => 'filter[product_id]',
+                                    'value'       => $productValue,
+                                    'label'       => $productLabel,
+                                    'placeholder' => 'Введите название...',
+                                    'products'    => $filterProducts,
+                                    'showTree'    => false,
+                                    'showClear'   => true,
+                                    'searchName'  => 'filter[product_search]',
+                                    'searchValue' => $productSearch,
+                                ])
+                            </div>
+                        @endif
                         <button type="submit" class="btn btn-primary btn-sm">Показать</button>
                     </div>
                 </div>
@@ -81,7 +109,7 @@
 
         @if($departments->isEmpty())
             <div class="alert alert-info">
-                За выбранный период приёмок не найдено.
+                {{ $productFilterOn ? 'По выбранному продукту за период выработки нет.' : 'За выбранный период приёмок не найдено.' }}
             </div>
         @else
 
@@ -101,6 +129,12 @@
                             <div class="small text-muted">
                                 работник {{ number_format($totalWorkerPay, 0, ',', ' ') }} ₽
                                 · мастер {{ number_format($totalMasterPay, 0, ',', ' ') }} ₽
+                            </div>
+                        @endif
+                        {{-- Итог — всегда за весь период: от него считаются копилка и выплата --}}
+                        @if($productFilterOn)
+                            <div class="small text-primary">
+                                <i class="bi bi-funnel"></i> по фильтру {{ number_format($filteredTotalPay, 0, ',', ' ') }} ₽
                             </div>
                         @endif
                     </div>
@@ -278,7 +312,8 @@
                     chevron.className = open ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
                 }
 
-                applyState(localStorage.getItem(STORAGE_KEY) === 'open');
+                // Активный фильтр продукта — блок открыт, иначе поле не видно
+                applyState(@json($productFilterOn) || localStorage.getItem(STORAGE_KEY) === 'open');
                 toggle.addEventListener('click', function () {
                     const isHidden = collapse.style.display === 'none';
                     applyState(isHidden);
@@ -344,6 +379,10 @@
             const dateToInput   = document.getElementById('date_to');
             const form          = document.getElementById('period-form');
 
+            // «Все, где есть …» и сброс продукта применяются сразу
+            document.addEventListener('product-picker:search', () => form.submit());
+            document.addEventListener('product-picker:removed', () => form.submit());
+
             document.querySelectorAll('.week-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     const weeksAgo = parseInt(this.dataset.week, 10);
@@ -356,4 +395,8 @@
 
         });
     </script>
+@endpush
+
+@push('scripts')
+    @vite(['resources/js/product-picker.js'])
 @endpush

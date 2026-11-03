@@ -20,6 +20,7 @@ use App\Support\DepartmentSettings;
 use App\Support\DocumentNaming;
 use App\Support\ItemCost;
 use App\Support\ModifierEngine;
+use App\Support\ProductSearch;
 use App\Traits\HandlesBatchStock;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
@@ -143,8 +144,18 @@ class StoneReceptionService
                     $batchIds = RawMaterialBatch::where('product_id', $value)->pluck('id');
                     $query->whereIn('raw_material_batch_id', $batchIds);
                 }),
+                AllowedFilter::callback('raw_product_search', function ($query, $value) {
+                    if ($ids = ProductSearch::matchIds($value)) {
+                        $query->whereHas('rawMaterialBatch', fn($q) => $q->whereIn('product_id', $ids));
+                    }
+                }),
                 AllowedFilter::callback('product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q->where('product_id', $value));
+                }),
+                AllowedFilter::callback('product_search', function ($query, $value) {
+                    if ($ids = ProductSearch::matchIds($value)) {
+                        $query->whereHas('items', fn($q) => $q->whereIn('product_id', $ids));
+                    }
                 }),
                 AllowedFilter::callback('department_id', function ($query, $value) {
                     $query->whereIn('stone_receptions.department_id', (array) $value);
@@ -188,6 +199,8 @@ class StoneReceptionService
             ])
             ->when(!empty($filter['raw_product_id']), fn($q) =>
                 $q->where('product_id', $filter['raw_product_id']))
+            ->when(ProductSearch::matchIds($filter['raw_product_search'] ?? null), fn($q, $ids) =>
+                $q->whereIn('product_id', $ids))
             ->when(array_key_exists('department_id', $filter), fn($q) =>
                 $q->whereIn('raw_material_batches.department_id', (array) $filter['department_id']))
             ->when(
@@ -209,8 +222,18 @@ class StoneReceptionService
                 AllowedFilter::callback('raw_product_id', function ($query, $value) {
                     $query->whereHas('rawMaterialBatch', fn($q) => $q->where('product_id', $value));
                 }),
+                AllowedFilter::callback('raw_product_search', function ($query, $value) {
+                    if ($ids = ProductSearch::matchIds($value)) {
+                        $query->whereHas('rawMaterialBatch', fn($q) => $q->whereIn('product_id', $ids));
+                    }
+                }),
                 AllowedFilter::callback('product_id', function ($query, $value) {
                     $query->whereHas('items', fn($q) => $q->where('product_id', $value));
+                }),
+                AllowedFilter::callback('product_search', function ($query, $value) {
+                    if ($ids = ProductSearch::matchIds($value)) {
+                        $query->whereHas('items', fn($q) => $q->whereIn('product_id', $ids));
+                    }
                 }),
                 AllowedFilter::callback('department_id', function ($query, $value) {
                     $ids = (array) $value;

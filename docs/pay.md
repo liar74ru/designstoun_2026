@@ -32,6 +32,10 @@
 - Период по умолчанию — **текущая неделя с пятницы по четверг**; в пятницу (день выдачи) —
   только что закончившаяся неделя. Кнопки «Тек. неделя»,
   «Пред. неделя», «2 нед. назад» переключают такие же недели; поля «С» / «По» задают любой период.
+- Поле **«Продукт»** рядом с датами оставляет в сводке по отделам только выбранную плитку. Можно
+  искать по части названия: начните вводить и выберите **«Все, где есть «…»»**. «Итого начислено»
+  и выплата фильтр не учитывают — они всегда за весь период; сумма по фильтру показана под
+  итогом отдельной строкой «по фильтру». Списки приёмок и сырья ниже не фильтруются.
 - Кто что видит:
 
 | Кто | Чью выработку может открыть |
@@ -219,7 +223,7 @@
 
 | Раздел | Код | Тесты |
 |---|---|---|
-| 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange` (`fridayShowsPrevious`), `SalaryService::expectedPay`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
+| 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`; фильтр продукта — `Support\ProductSearch::idsFromRequest`, в `getDashboardData` — `$productIds`, `filteredTotalPay`, `filterProducts`; пикер со списком в разметке — `products` у `partials/product-picker`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange` (`fridayShowsPrevious`), `SalaryService::expectedPay`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `WorkerDashboardProductFilterTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
 | 2. За что начисляется | `WorkerDashboardService::getDashboardData`, `masterReceptionLogs`, `buildProductSummary`, `buildWorkshopProductSummary`; минус за правку — `StoneReceptionService::minusShares`, `reception_log_items.charged_worker_id` | `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `tests/Feature/StoneReception/ReceptionLogTest`, `tests/Feature/StoneReception/ReceptionLogReceiverTest` |
 | 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `pieceRoundStep`, `masterRoundStep`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |

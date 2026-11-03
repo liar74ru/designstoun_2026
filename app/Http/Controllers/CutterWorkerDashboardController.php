@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Worker;
 use App\Services\SalaryService;
 use App\Services\WorkerDashboardService;
+use App\Support\ProductSearch;
 use App\Support\QueryParam;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,7 +38,9 @@ class CutterWorkerDashboardController extends Controller
         $dateFrom = QueryParam::date($request, 'date_from')?->startOfDay() ?? $defaultFrom;
         $dateTo   = QueryParam::date($request, 'date_to')?->endOfDay() ?? $defaultTo;
 
-        $data = $this->service->getDashboardData($worker->id, $dateFrom, $dateTo);
+        $productIds = ProductSearch::idsFromRequest($request, 'filter.product_id', 'filter.product_search');
+
+        $data = $this->service->getDashboardData($worker->id, $dateFrom, $dateTo, $productIds);
 
         $receptions = $data['logs'];
 

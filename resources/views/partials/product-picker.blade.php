@@ -11,6 +11,12 @@
       $showTree    — bool: показывать кнопку дерева каталога (default: true)
       $showClear   — bool: показывать кнопку сброса (default: false)
       $required    — bool: required на hidden input (default: false)
+      $searchName  — string|null: name второго hidden для поиска по части названия, напр.
+                     'filter[product_search]'. Задан — в выпадашке первым идёт пункт
+                     «Все, где есть «…»» (только для фильтров списков; default: null)
+      $searchValue — string|null: текущий текст поиска (default: '')
+      $products    — Collection|null: готовый список товаров вместо /api/products/tree — для
+                     страниц, где у пользователя нет use-product-api (дашборд работника)
 --}}
 @php
     $value       = $value ?? '';
@@ -21,11 +27,15 @@
     $showTree    = $showTree ?? true;
     $showClear   = $showClear ?? false;
     $required    = $required ?? false;
+    $searchName  = $searchName ?? null;
+    $searchValue = $searchName ? ($searchValue ?? '') : '';
+    $products    = $products ?? null;
 @endphp
 
 <div class="product-picker-row"
      @if($skuPrefix) data-sku-prefix="{{ $skuPrefix }}" @endif
-     @if($allowedIds !== null) data-allowed-ids="{{ json_encode(array_values($allowedIds)) }}" @endif>
+     @if($allowedIds !== null) data-allowed-ids="{{ json_encode(array_values($allowedIds)) }}" @endif
+     @if($products !== null) data-products="{{ $products->map(fn ($p) => ['id' => $p->id, 'label' => $p->name])->values()->toJson() }}" @endif>
     <div class="flex-grow-1 position-relative">
         <div class="input-group input-group-sm">
             <input type="text"
@@ -34,7 +44,7 @@
                    placeholder="{{ $placeholder }}"
                    autocomplete="off"
                    data-hidden-id="{{ $id }}_hidden"
-                   value="{{ $label }}">
+                   value="{{ $searchValue !== '' ? $searchValue : $label }}">
             @if($showTree)
             <button type="button"
                     class="btn btn-outline-secondary product-picker-tree-btn"
@@ -45,7 +55,7 @@
                 <i class="bi bi-diagram-3"></i>
             </button>
             @endif
-            @if($showClear && $value)
+            @if($showClear && ($value || $searchValue !== ''))
             <button type="button"
                     class="btn btn-outline-secondary product-picker-clear"
                     title="Сбросить">
@@ -62,6 +72,12 @@
            name="{{ $name }}"
            value="{{ $value }}"
            @if($required) required @endif>
+    @if($searchName)
+    <input type="hidden"
+           class="product-picker-search-value"
+           name="{{ $searchName }}"
+           value="{{ $searchValue }}">
+    @endif
 </div>
 
 @if($showTree)

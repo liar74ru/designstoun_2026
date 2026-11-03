@@ -158,6 +158,10 @@
 - По умолчанию видны все операции ваших отделов. Фильтр: период (кнопки «Тек. нед.»,
   «1 нед. назад», «2 нед. назад», «Всё время» или даты вручную), работник, сырьё, продукт на
   выходе, тип упаковки, статус, состояние синхронизации и отдел.
+  В полях «Сырьё» и «Продукт» можно искать **по части названия**: начните вводить
+  (например «кварц 50») и выберите первую строку списка **«Все, где есть «…»»** — останутся
+  операции с любым подходящим товаром. Каждое слово запроса ищется внутри слов названия;
+  регистр, «ё/е» и одинаковые на вид русские и латинские буквы (х/x, с/c, о/o…) не различаются.
 - В списке работников фильтра по умолчанию сотрудники ваших отделов без уволенных. Чекбокс
   **«Показать всех работников»** добавляет сотрудников других отделов и уволенных. В обоих случаях
   в списке только те, у кого есть операции цеха.
@@ -184,7 +188,7 @@
 | 7. Зарплата | `WorkshopService::createProductItem`, `updateItemCoeff`, `refreshItemCoeffs`; `WorkshopItem::effectiveProdCost`; снятые sku-правила — `workshop_items.disabled_modifier_keys` | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `Modifier/DisabledSkuModifierTest` |
 | 8. МойСклад | `WorkshopService::queueSync`; `Jobs\SyncWorkshopToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\WorkshopSyncService::pushWorkshop`, `syncWorkshop`, `createProcessingForWorkshop`, `updateProcessingProducts`, `computeProcessingSum`, `buildWorkshopDescription` | `tests/Feature/Moysklad/ProcessingSyncJobTest`, `WorkshopSyncServiceTest`, `WorkshopProcessingUpdateTest` |
 | 9. Статусы, удаление | `WorkshopService::markCompleted`, `resetStatus`, `delete` | `WorkshopServiceTest`, `WorkshopResetStatusTest` |
-| 10. Список и доступ | `WorkshopService::getFilteredWorkshops` (порядок групп — `orderByRaw`), `getFilterData`, `WorkshopPolicy::modify` | `WorkshopIndexOrderTest`, `WorkshopIndexFilterTest`, `WorkshopIndexWorkerFilterTest`, `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
+| 10. Список и доступ | `WorkshopService::getFilteredWorkshops` (порядок групп — `orderByRaw`; поиск по части названия — `raw_product_search`, `product_search` через `Support\ProductSearch`), `getFilterData`, `WorkshopPolicy::modify` | `WorkshopIndexOrderTest`, `WorkshopIndexFilterTest` (в т.ч. поиск по части названия), `WorkshopIndexWorkerFilterTest`, `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
 
 Заметки:
 

@@ -6,6 +6,8 @@
       $cutterDefaultIds   — array|null: id работников короткого списка, остальные — по чекбоксу «Показать всех работников» (null = чекбокса нет)
       $filterRawProducts  — Collection|null  (null = скрыть поле)
       $rawProductParam    — string: 'raw_product_id' | 'raw_material_product_id' | 'product_id'
+                            (текст «Все, где есть …» уходит в тот же ключ с _search вместо _id;
+                            у «Продукта» — filter[product_search], см. App\Support\ProductSearch)
       $filterProducts     — Collection|null  (null = скрыть product-picker)
       $filterPackageProducts — Collection|null  (null = скрыть select «Тип упаковки», filter[package_product_id], цех)
       $showStatus         — false | 'multi' | 'single'
@@ -53,9 +55,12 @@
     $colClass      = $filterCount >= 4 ? 'col-lg-3' : ($filterCount === 3 ? 'col-lg-4' : 'col-lg-6');
     // Значения из адреса могут быть массивом (ссылку правят руками), а в разметку идут строкой.
     $scalarParam   = fn (string $key) => is_scalar($value = request()->input($key)) ? $value : '';
+    $rawSearchParam = preg_replace('/_id$/', '_search', $rawProductParam);
     $rawValue      = $scalarParam("filter.$rawProductParam");
+    $rawSearch     = $scalarParam("filter.$rawSearchParam");
     $rawLabel      = $filterRawProducts ? ($filterRawProducts->firstWhere('id', $rawValue)?->name ?? '') : '';
     $pickerValue   = $scalarParam('filter.product_id');
+    $pickerSearch  = $scalarParam('filter.product_search');
     $pickerLabel   = $filterProducts ? ($filterProducts->firstWhere('id', $pickerValue)?->name ?? '') : '';
 @endphp
 
@@ -174,7 +179,9 @@
                         'placeholder' => 'Введите вид сырья...',
                         'allowedIds'  => $filterRawProducts->pluck('id')->all(),
                         'showTree'    => false,
-                        'showClear'   => (bool) $rawValue,
+                        'showClear'   => true,
+                        'searchName'  => 'filter[' . $rawSearchParam . ']',
+                        'searchValue' => $rawSearch,
                     ])
                 </div>
                 @endif
@@ -191,7 +198,9 @@
                         'placeholder' => 'Введите название...',
                         'allowedIds'  => $filterProducts->pluck('id')->all(),
                         'showTree'    => true,
-                        'showClear'   => (bool) $pickerValue,
+                        'showClear'   => true,
+                        'searchName'  => 'filter[product_search]',
+                        'searchValue' => $pickerSearch,
                     ])
                 </div>
                 @endif
@@ -328,7 +337,8 @@
     const filterKeys = [
         'filter[{{ $cutterParam }}]',
         'filter[{{ $rawProductParam }}]',
-        @if($filterProducts) 'filter[product_id]', @endif
+        @if($filterRawProducts) 'filter[{{ $rawSearchParam }}]', @endif
+        @if($filterProducts) 'filter[product_id]', 'filter[product_search]', @endif
         @if($filterPackageProducts) 'filter[package_product_id]', @endif
         @if($filterCounterparties) 'filter[counterparty_id]', @endif
         @if($kindOptions) 'filter[kind]', @endif
@@ -382,6 +392,7 @@
     });
 
     document.addEventListener('product-picker:removed', () => { form.submit(); });
+    document.addEventListener('product-picker:search', () => { form.submit(); });
 
     // Опции пересобираются, а не прячутся: iOS Safari игнорирует hidden у <option>
     const allWorkers = document.getElementById('filter_all_workers');

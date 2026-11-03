@@ -163,6 +163,9 @@
 
 - Список партий по умолчанию показывает партии ваших отделов; другие отделы можно выбрать в
   фильтре. Партии без отдела видит только администратор.
+- В фильтре «Сырьё» можно искать **по части названия**: начните вводить и выберите первую
+  строку списка **«Все, где есть «…»»** — останутся партии любого подходящего сырья. Регистр,
+  «ё/е» и одинаковые на вид русские и латинские буквы (х/x, с/c…) не различаются.
 - Карточку партии чужого отдела открыть можно, а менять её (количество, передача, статусы,
   удаление, синхронизация) — нельзя.
 - Приёмка ведёт за собой отдел партии: при оформлении приёмки или смене её отдела партия
@@ -186,7 +189,7 @@
 | 6. Разделение | `RawMaterialBatchService::split`, `StoneReceptionService::create` | `RawBatch/RawBatchSplitTest`, `StoneReception/ReceptionCreateSplitTest` |
 | 7. МойСклад | `RawMaterialBatchService::queueSync`, `retrySync`, `returnToStore`; `RawMaterialBatch::primaryMovement`, `moveQuantity`, `moveBlockReason`; `Jobs\SyncBatchToMoysklad`, `Jobs\DeleteMoveInMoysklad`; `Moysklad\RawMaterialBatchSyncService::pushBatch`, `deleteDocument`; `Moysklad\MoySkladMoveService` | `tests/Feature/Moysklad/BatchSyncJobTest`, `MoveServiceHttpTest`, `MoyskladMoveServiceTest`, `RawBatchSyncActionTest` |
 | Одновременная работа | `App\Support\BatchStock` (`lock`, `ensureAvailable`, `syncStatus`), `App\Exceptions\InsufficientRawMaterialException`, `ManagesStock::adjustStock` | `RawBatch/BatchStockConcurrencyTest` |
-| 8. Видимость | `RawMaterialBatchService::getIndexData`, `updateDepartment`; `DepartmentAccess` | `RawBatch/RawBatchDepartmentAccessTest`, `RawBatch/RawBatchDepartmentChangeTest`, `Access/RecordDepartmentAccessTest` |
+| 8. Видимость | `RawMaterialBatchService::getIndexData` (поиск по части названия — фильтр `product_search`, `Support\ProductSearch`), `updateDepartment`; `DepartmentAccess` | `RawBatch/RawBatchIndexProductSearchTest`, `RawBatch/RawBatchDepartmentAccessTest`, `RawBatch/RawBatchDepartmentChangeTest`, `Access/RecordDepartmentAccessTest` |
 
 Заметки:
 

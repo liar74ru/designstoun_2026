@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\WorkerDashboardService;
+use App\Support\ProductSearch;
 use App\Support\QueryParam;
 use Illuminate\Http\Request;
 
@@ -27,15 +28,15 @@ class EnterpriseDashboardController extends Controller
         $dateTo   = QueryParam::date($request, 'date_to')?->endOfDay();
 
         $departmentIds = QueryParam::ids($request, 'filter.department_id');
-        $rawProductId  = QueryParam::id($request, 'filter.raw_product_id');
-        $productId     = QueryParam::id($request, 'filter.product_id');
+        $rawProductIds = ProductSearch::idsFromRequest($request, 'filter.raw_product_id', 'filter.raw_product_search');
+        $productIds    = ProductSearch::idsFromRequest($request, 'filter.product_id', 'filter.product_search');
         $workerId      = QueryParam::id($request, 'filter.worker_id');
 
         // Не-админ (мастер/помощник) видит итоги только по своим отделам; админ — все (null).
         $restrictDepartmentIds = $request->user()->accessibleDepartmentIds();
 
         $data = $this->service->getEnterpriseDashboardData(
-            $dateFrom, $dateTo, $departmentIds, $rawProductId, $productId, $restrictDepartmentIds, $workerId
+            $dateFrom, $dateTo, $departmentIds, $rawProductIds, $productIds, $restrictDepartmentIds, $workerId
         );
 
         return view('admin.enterprise-dashboard', $data);
