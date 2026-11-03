@@ -23,19 +23,19 @@ function makeProduct(array $attrs = []): Product
 }
 
 /** Заявка в статусе $stateId с одной позицией — товаром $product. */
-function makeOrderWith(Product $product, string $stateId, array $attrs = []): Order
+function makeOrderWith(Product $product, string $stateId, array $attrs = [], array $itemAttrs = []): Order
 {
     $order = Order::create(array_merge([
         'moysklad_id'       => (string) Str::uuid(),
         'name'              => 'Заявка',
         'state_moysklad_id' => $stateId,
     ], $attrs));
-    $order->items()->create([
+    $order->items()->create(array_merge([
         'product_id'   => $product->id,
         'product_name' => $product->name,
         'quantity'     => 10,
         'shipped'      => 0,
-    ]);
+    ], $itemAttrs));
 
     return $order;
 }
@@ -828,6 +828,58 @@ describe('ProductController groupsJson()', function () {
 
         $product = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
         makeOrderWith($product, $state->id, ['kind' => Order::KIND_INTERNAL, 'moysklad_id' => null]);
+
+        expect(treeProducts($this)[$product->id]['in_order'])->toBeTrue();
+    });
+
+    test('заявка в статусе «Вниз» товар не отмечает — и покупателя, и внутренний заказ', function () {
+        Cache::flush();
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+        $state = OrderState::create([
+            'id' => (string) Str::uuid(), 'name' => 'Собран', 'is_enabled' => true, 'is_list_bottom' => true,
+        ]);
+
+        $customer = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
+        $internal = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
+        makeOrderWith($customer, $state->id);
+        makeOrderWith($internal, $state->id, ['kind' => Order::KIND_INTERNAL, 'moysklad_id' => null]);
+
+        $products = treeProducts($this);
+
+        expect($products[$customer->id]['in_order'])->toBeFalse()
+            ->and($products[$customer->id]['hidden'])->toBeTrue()
+            ->and($products[$internal->id]['in_order'])->toBeFalse()
+            ->and($products[$internal->id]['hidden'])->toBeTrue();
+    });
+
+    test('отгруженная целиком позиция товар не отмечает, частично отгруженная — отмечает', function () {
+        Cache::flush();
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+        $state = OrderState::create(['id' => (string) Str::uuid(), 'name' => 'В процессе', 'is_enabled' => true]);
+
+        $shipped = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
+        $partial = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
+        makeOrderWith($shipped, $state->id, [], ['shipped' => 10]);
+        makeOrderWith($partial, $state->id, [], ['shipped' => 4]);
+
+        $products = treeProducts($this);
+
+        expect($products[$shipped->id]['in_order'])->toBeFalse()
+            ->and($products[$shipped->id]['hidden'])->toBeTrue()
+            ->and($products[$partial->id]['in_order'])->toBeTrue();
+    });
+
+    test('товар отмечен, если хоть одна его позиция отгружена не целиком', function () {
+        Cache::flush();
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+        $state = OrderState::create(['id' => (string) Str::uuid(), 'name' => 'В процессе', 'is_enabled' => true]);
+
+        $product = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
+        makeOrderWith($product, $state->id, [], ['shipped' => 10]);
+        makeOrderWith($product, $state->id);
 
         expect(treeProducts($this)[$product->id]['in_order'])->toBeTrue();
     });

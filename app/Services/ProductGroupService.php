@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderState;
 use App\Models\Product;
@@ -124,18 +125,22 @@ class ProductGroupService
     }
 
     /**
-     * Товары из активных заявок — любых загруженных (статус «Исп.»), всех отделов.
-     * Заявки покупателей в других статусах синк удаляет сам; условие по статусу — для
-     * внутренних заказов, которых синк не трогает.
+     * Товары из активных заявок всех отделов: статус «Исп.» и не «Вниз» (собран, отгружен —
+     * работы по заявке уже нет). Заявки покупателей в неиспользуемых статусах синк удаляет сам;
+     * условие по статусу — и для внутренних заказов, которых синк не трогает.
+     * Позиция заявки покупателя, отгруженная целиком, товар не отмечает; у внутренних заказов
+     * отгрузок нет — их позиции отмечают товар по статусу.
      */
     public function productIdsInActiveOrders(): array
     {
         // Список id, а не подзапрос: orders.state_moysklad_id — varchar, order_states.id — uuid,
         // и PostgreSQL не сравнивает их без приведения
-        $stateIds = OrderState::enabled()->pluck('id')->all();
+        $stateIds = OrderState::enabled()->where('is_list_bottom', false)->pluck('id')->all();
 
         return OrderItem::whereNotNull('product_id')
             ->whereHas('order', fn ($q) => $q->whereIn('state_moysklad_id', $stateIds))
+            ->where(fn ($q) => $q->whereColumn('shipped', '<', 'quantity')
+                ->orWhereHas('order', fn ($o) => $o->where('kind', Order::KIND_INTERNAL)))
             ->distinct()
             ->pluck('product_id')
             ->all();

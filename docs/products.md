@@ -149,10 +149,11 @@
   есть, открываются и правятся как обычно, а в фильтрах списков он виден всегда. В списке
   товаров у скрытого стоит метка «скрыт», а фильтр **«Видимость»** отбирает скрытые.
 - **Товары из заявок.** Товар, который есть в загруженной заявке или внутреннем заказе любого
-  отдела, отмечен зелёной иконкой корзины. В быстром поиске такие
-  товары стоят первыми среди совпадений, чтобы их не перепутать с похожими по названию. Скрытый
-  товар из заявки виден без «весь каталог». Когда заявка уходит из программы, товар снова
-  скрывается. Отметки обновляются сразу, но уже открытую форму нужно перезагрузить.
+  отдела, отмечен зелёной иконкой корзины. Не отмечаются заявки в статусах «Вниз» (собран,
+  отгружен — см. [Заявки](orders.md), раздел 2) и позиции, отгруженные целиком. В быстром
+  поиске такие товары стоят первыми среди совпадений, чтобы их не перепутать с похожими по
+  названию. Скрытый товар из заявки виден без «весь каталог». Когда заявка уходит из программы,
+  переходит в статус «Вниз» или позицию отгрузили целиком, товар снова скрывается. Отметки обновляются сразу, но уже открытую форму нужно перезагрузить.
 - Каталог для выбора обновляется не чаще раза в 10 минут. После синхронизации, обновления
   товара или смены коэффициентов он сбрасывается сразу; уже открытую форму нужно
   перезагрузить.
@@ -172,7 +173,7 @@
 | 3. Коэффициенты | `ProductController::updateCoeffs`, `Requests\Product\ProductCoeffRequest`, `ProductService::updateCostCoeffs`, `MoySkladService::updateProductCostCoeffs` (общая запись реквизитов — `updateProductAttributes`); вывод — `RateFormula::formatCoeff` | `Unit/RateFormulaTest` (формат), `ProductController/ProductAttributesWriteTest` (запись в МойСклад) |
 | 4. Остатки | `Moysklad\StockSyncService::applyRows`, `syncAllProductsStocksByStores`, `updateProductStocksByMoyskladId`, `refreshProducts`; команда `moysklad:sync-stocks` в `routes/console.php`; `Product::getTotalQuantityAttribute`, `getInStockAttribute` | `Stock/ProductStockTest`, `Moysklad/StockSyncServiceTest`, `Moysklad/StockSyncByStoreTest` |
 | 5. Список | `ProductController::index`, `ProductGroupService::getGroupAndChildrenIds`; мобильное дерево — `products/partials/mobile-list.blade.php` поверх `api.products.tree` (поле `ms_id`) и `api.products.stocks`, цвет — карта `SkuColor::map()` | `ProductController/ProductControllerTest` |
-| 6. Выбор товара | `resources/js/product-picker.js`, `partials/product-picker*.blade.php`; `ProductController::groupsJson` (кэш `products_tree_json_v4`, 600 с); скрытые — `products.is_hidden` из атрибута `hiddenByDefault` (`processProduct`, `refreshFromMoysklad`), запись из карточки — `ProductController::updateHidden` (`products.hidden.update`, `can:see-products`), `ProductHiddenRequest`, `ProductService::updateHidden`, `MoySkladService::updateProductHidden`, поле `hidden` в `ProductGroupService::attachProductsToTree`, фильтрует клиент (`catalogShowsHidden`, `.tree-show-hidden`); товары из заявок — `ProductGroupService::productIdsInActiveOrders`, `markOrderedProducts` (поле `in_order`, поверх кэша), в JS `orderedFirst`; `stocksJson`, `getCoeff` | `ProductController/ProductControllerTest`, `ProductController/ProductAttributesWriteTest` (скрытие из карточки) |
+| 6. Выбор товара | `resources/js/product-picker.js`, `partials/product-picker*.blade.php`; `ProductController::groupsJson` (кэш `products_tree_json_v4`, 600 с); скрытые — `products.is_hidden` из атрибута `hiddenByDefault` (`processProduct`, `refreshFromMoysklad`), запись из карточки — `ProductController::updateHidden` (`products.hidden.update`, `can:see-products`), `ProductHiddenRequest`, `ProductService::updateHidden`, `MoySkladService::updateProductHidden`, поле `hidden` в `ProductGroupService::attachProductsToTree`, фильтрует клиент (`catalogShowsHidden`, `.tree-show-hidden`); товары из заявок — `ProductGroupService::productIdsInActiveOrders` (статус `is_enabled` и не `is_list_bottom`, позиция `shipped < quantity` либо внутренний заказ), `markOrderedProducts` (поле `in_order`, поверх кэша), в JS `orderedFirst`; `stocksJson`, `getCoeff` | `ProductController/ProductControllerTest`, `ProductController/ProductAttributesWriteTest` (скрытие из карточки) |
 
 Заметки:
 
