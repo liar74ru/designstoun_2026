@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Models\Workshop;
 use App\Models\WorkshopLog;
+use App\Support\QueryParam;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -58,8 +59,8 @@ class WorkerService
             $query->where('position', $filters['position']);
         }
 
-        if (!empty($filters['department_id'])) {
-            $query->whereHas('departments', fn ($q) => $q->where('departments.id', $filters['department_id']));
+        if ($departmentIds = QueryParam::idValues($filters['department_id'] ?? null)) {
+            $query->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $departmentIds));
         }
 
         if (isset($filters['has_account'])) {

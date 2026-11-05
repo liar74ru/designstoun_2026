@@ -42,15 +42,15 @@ class WorkshopPresetRequest extends FormRequest
             ],
 
             'raw_materials'              => 'required|array|min:1',
-            'raw_materials.*.product_id' => 'required|exists:products,id',
+            'raw_materials.*.product_id' => 'required|integer|exists:products,id',
             'raw_materials.*.quantity'   => 'required|numeric|min:0.001',
 
             'packages'                   => 'nullable|array',
-            'packages.*.product_id'      => 'required_with:packages|exists:products,id',
+            'packages.*.product_id'      => 'required_with:packages|integer|exists:products,id',
             'packages.*.quantity'        => 'required_with:packages|numeric|min:0.001',
 
             'products'                   => 'required|array|min:1',
-            'products.*.product_id'      => 'required|exists:products,id',
+            'products.*.product_id'      => 'required|integer|exists:products,id',
             'products.*.quantity'        => 'required|numeric|min:0.001',
         ];
     }

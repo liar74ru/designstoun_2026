@@ -52,9 +52,9 @@ class WorkerRequest extends FormRequest
 
         return $rules + [
             'position'         => ['required', 'string', Rule::in($service->assignablePositions($user, $worker))],
-            'department_id'    => ['nullable', 'exists:departments,id', ...$departmentRule],
+            'department_id'    => ['nullable', 'integer', 'exists:departments,id', ...$departmentRule],
             'department_ids'   => 'nullable|array',
-            'department_ids.*' => ['exists:departments,id', ...$departmentRule],
+            'department_ids.*' => ['integer', 'exists:departments,id', ...$departmentRule],
         ];
     }
 

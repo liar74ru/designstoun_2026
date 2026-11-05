@@ -211,7 +211,7 @@ class StoneReceptionController extends Controller
     public function updateLogReceiver(Request $request, ReceptionLog $receptionLog): JsonResponse
     {
         $validated = $request->validate([
-            'receiver_id' => 'required|exists:workers,id',
+            'receiver_id' => 'required|integer|exists:workers,id',
         ]);
 
         $this->service->updateLogReceiver($receptionLog, (int) $validated['receiver_id']);
@@ -293,7 +293,7 @@ class StoneReceptionController extends Controller
         abort_unless($stoneReception->status === StoneReception::STATUS_ACTIVE, 403, 'Сменить склад можно только у активной приёмки');
 
         $validated = $request->validate([
-            'store_id' => ['required', 'string', 'exists:stores,id'],
+            'store_id' => ['required', 'uuid', 'exists:stores,id'],
         ]);
 
         $this->service->updateStore($stoneReception, $validated['store_id']);

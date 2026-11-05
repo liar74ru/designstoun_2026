@@ -257,8 +257,8 @@ class WorkshopController extends Controller
         abort_unless($workshop->status === Workshop::STATUS_ACTIVE, 403, 'Сменить склады можно только у активной операции');
 
         $validated = $request->validate([
-            'store_id'         => ['required', 'string', 'exists:stores,id'],
-            'product_store_id' => ['required', 'string', 'exists:stores,id'],
+            'store_id'         => ['required', 'uuid', 'exists:stores,id'],
+            'product_store_id' => ['required', 'uuid', 'exists:stores,id'],
         ]);
 
         $this->service->updateStores($workshop, $validated['store_id'], $validated['product_store_id']);

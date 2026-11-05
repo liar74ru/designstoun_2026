@@ -9,6 +9,7 @@ use App\Models\OrderState;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
+use App\Support\QueryParam;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -133,7 +134,7 @@ class OrderService
                         }
                     });
                 }),
-                AllowedFilter::exact('counterparty_id'),
+                QueryParam::uuidFilter('counterparty_id'),
                 AllowedFilter::callback('kind', fn ($q, $v) => $q->where('kind', $v === Order::KIND_INTERNAL ? Order::KIND_INTERNAL : Order::KIND_CUSTOMER)),
                 // Не фильтр выборки, а режим отображения позиций — см. getIndexData().
                 AllowedFilter::callback('show_hidden', fn ($q) => $q),

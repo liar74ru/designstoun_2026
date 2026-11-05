@@ -98,7 +98,7 @@ class WorkshopPresetController extends Controller
     public function copy(Request $request, Department $department, WorkshopPreset $preset): RedirectResponse
     {
         $validated = $request->validate(
-            ['target_department_id' => ['required', 'exists:departments,id']],
+            ['target_department_id' => ['required', 'integer', 'exists:departments,id']],
             ['target_department_id.required' => 'Выберите отдел для копирования'],
         );
 

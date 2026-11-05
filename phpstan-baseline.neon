@@ -1,0 +1,1711 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/WorkshopPresetController.php
+
+		-
+			message: '#^Relation ''department'' is not found in App\\Models\\WorkshopPreset model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Admin/WorkshopPresetController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/CutterWorkerDashboardController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, int\<0, max\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/CutterWorkerDashboardController.php
+
+		-
+			message: '#^Relation ''allWorkers'' is not found in App\\Models\\Department model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/DepartmentController.php
+
+		-
+			message: '#^Relation ''stocks'' is not found in App\\Models\\Product model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/ProductController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\RawMaterialBatch\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/RawMaterialBatchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/RawMaterialBatchController.php
+
+		-
+			message: '#^Offset ''previousProductMoyskladId'' does not exist on array\{batch\: App\\Models\\RawMaterialBatch, newQuantity\: float, newCreatedAt\: Carbon\\Carbon\|null\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Http/Controllers/RawMaterialBatchController.php
+
+		-
+			message: '#^Relation ''currentStore'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/RawMaterialBatchController.php
+
+		-
+			message: '#^Relation ''currentWorker'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/RawMaterialBatchController.php
+
+		-
+			message: '#^Relation ''departments'' is not found in App\\Models\\Worker model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/RawMaterialBatchController.php
+
+		-
+			message: '#^Relation ''movements'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/RawMaterialBatchController.php
+
+		-
+			message: '#^Relation ''product'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/RawMaterialBatchController.php
+
+		-
+			message: '#^Relation ''receptions'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/RawMaterialBatchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ReceptionLog\:\:\$receiver\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StoneReception\:\:\$rawMaterialBatch\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Access to protected property Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\StoneReception\>\:\:\$items\.$#'
+			identifier: property.protected
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Cannot call method map\(\) on array\<int, App\\Models\\StoneReception\>\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Relation ''cutter'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Relation ''department'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Relation ''rawMaterialBatch'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Relation ''receiver'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Relation ''receptionLogs'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Relation ''store'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SupplierOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Worker\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Http/Controllers/WorkerController.php
+
+		-
+			message: '#^Relation ''departments'' is not found in App\\Models\\Worker model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/WorkerController.php
+
+		-
+			message: '#^Access to protected property Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Workshop\>\:\:\$items\.$#'
+			identifier: property.protected
+			count: 1
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Cannot call method map\(\) on array\<int, App\\Models\\Workshop\>\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Relation ''department'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Relation ''packer'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Relation ''productStore'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Relation ''receiver'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Relation ''store'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Relation ''workshopLogs'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/WorkshopController.php
+
+		-
+			message: '#^Cannot access property \$id on object\|string\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Http/Requests/Workshop/WorkshopPresetRequest.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:markSyncError\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Jobs/SyncDocumentJob.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:markSyncPending\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Jobs/SyncDocumentJob.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$operation_key\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Department.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/Order.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\:\:prioritized\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Models/Order.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/Order.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Product\:\:\$stocks\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Product.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 1
+			path: app/Models/Product.php
+
+		-
+			message: '#^Method App\\Models\\Product\:\:getDiscountPercentAttribute\(\) should return int\|null but returns float\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Product.php
+
+		-
+			message: '#^Parameter \#1 \$num of function number_format expects float, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Models/Product.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ProductGroup\:\:\$children\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/ProductGroup.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ProductGroup\:\:\$parent\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/ProductGroup.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DepartmentModifier\:\:\$icon\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/ProductionItemModifier.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$trigger\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/ProductionItemModifier.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\RawMaterialBatch\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/RawMaterialBatch.php
+
+		-
+			message: '#^Match arm comparison between ''active''\|''archived''\|''returned''\|''used'' and ''confirmed'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 2
+			path: app/Models/RawMaterialBatch.php
+
+		-
+			message: '#^Match arm comparison between ''active''\|''archived''\|''returned''\|''used'' and ''in_work'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 2
+			path: app/Models/RawMaterialBatch.php
+
+		-
+			message: '#^Match arm comparison between ''active''\|''archived''\|''returned''\|''used'' and ''new'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 2
+			path: app/Models/RawMaterialBatch.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between ''active''\|''archived''\|''returned''\|''used'' and ''new'' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 2
+			path: app/Models/RawMaterialBatch.php
+
+		-
+			message: '#^Unsafe call to private method App\\Models\\RawMaterialBatch\:\:whereTierIn\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: app/Models/RawMaterialBatch.php
+
+		-
+			message: '#^Unsafe call to private method App\\Models\\RawMaterialBatch\:\:whereTiersEmpty\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 2
+			path: app/Models/RawMaterialBatch.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ReceptionLogItem\:\:\$receptionLog\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/ReceptionLogItem.php
+
+		-
+			message: '#^Method App\\Models\\Setting\:\:deptProductStore\(\) should return App\\Models\\Store\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Setting.php
+
+		-
+			message: '#^Method App\\Models\\Setting\:\:deptProductionStore\(\) should return App\\Models\\Store\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Setting.php
+
+		-
+			message: '#^Method App\\Models\\Setting\:\:deptRawStore\(\) should return App\\Models\\Store\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Setting.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StoneReception\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/StoneReception.php
+
+		-
+			message: '#^Unsafe call to private method App\\Models\\StoneReception\:\:whereTierIn\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: app/Models/StoneReception.php
+
+		-
+			message: '#^Unsafe call to private method App\\Models\\StoneReception\:\:whereTiersEmpty\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 2
+			path: app/Models/StoneReception.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StoneReceptionItem\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/StoneReceptionItem.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StoneReceptionItem\:\:\$reception\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/StoneReceptionItem.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>prod_cost_coeff" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/StoneReceptionItem.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 5
+			path: app/Models/User.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\User\>\:\:active\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Relation ''worker'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Worker\:\:\$departments\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Worker.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Workshop\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/Workshop.php
+
+		-
+			message: '#^Unsafe call to private method App\\Models\\Workshop\:\:whereTierIn\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: app/Models/Workshop.php
+
+		-
+			message: '#^Unsafe call to private method App\\Models\\Workshop\:\:whereTiersEmpty\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 2
+			path: app/Models/Workshop.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\WorkshopItem\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/WorkshopItem.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\WorkshopItem\:\:\$workshop\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/WorkshopItem.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>prod_cost_coeff" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/WorkshopItem.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Policies/WorkerPolicy.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$key\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/DepartmentModifierService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:forgetSettingsCache\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Services/DepartmentModifierService.php
+
+		-
+			message: '#^Method App\\Services\\DepartmentModifierService\:\:create\(\) should return App\\Models\\DepartmentModifier but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/DepartmentModifierService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/InternalOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/InternalOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$product_id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/InternalOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$quantity\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/InternalOrderService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/InternalOrderService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>hour" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Moysklad/CustomerOrderSyncService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>minute" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Moysklad/CustomerOrderSyncService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>second" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Moysklad/CustomerOrderSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Moysklad/MoySkladBaseService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$quantity\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Moysklad/MoySkladBaseService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$moysklad_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Moysklad/MoySkladPurchaseOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Moysklad/MoySkladPurchaseOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Moysklad/MoySkladPurchaseOrderService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Moysklad/MoySkladPurchaseOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$moysklad_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Moysklad/MoySkladSupplyService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$moysklad_processing_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Moysklad/ProcessingDeleteService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$moysklad_processing_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Moysklad/ProcessingDeleteService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Moysklad/ProcessingDeleteService.php
+
+		-
+			message: '#^Access to undefined constant Illuminate\\Database\\Eloquent\\Model\:\:STATUS_ACTIVE\.$#'
+			identifier: classConstant.notFound
+			count: 1
+			path: app/Services/Moysklad/ProcessingDeleteService.php
+
+		-
+			message: '#^Access to undefined constant Illuminate\\Database\\Eloquent\\Model\:\:STATUS_COMPLETED\.$#'
+			identifier: classConstant.notFound
+			count: 1
+			path: app/Services/Moysklad/ProcessingDeleteService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:markSyncError\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/Moysklad/ProcessingDeleteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\RawMaterialBatch\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/Moysklad/RawMaterialBatchSyncService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ReceptionLog\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StoneReception\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 7
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StoneReception\:\:\$rawMaterialBatch\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$moysklad_processing_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$moysklad_processing_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Access to undefined constant Illuminate\\Database\\Eloquent\\Model\:\:STATUS_ACTIVE\.$#'
+			identifier: classConstant.notFound
+			count: 1
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Access to undefined constant Illuminate\\Database\\Eloquent\\Model\:\:STATUS_COMPLETED\.$#'
+			identifier: classConstant.notFound
+			count: 1
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:markSyncError\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\ReceptionLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 5
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Relation ''rawMaterialBatch'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Moysklad/StoneReceptionSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Moysklad/SupplierOrderSyncService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Workshop\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 8
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\WorkshopLog\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$moysklad_processing_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$moysklad_processing_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Access to undefined constant Illuminate\\Database\\Eloquent\\Model\:\:STATUS_ACTIVE\.$#'
+			identifier: classConstant.notFound
+			count: 1
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Access to undefined constant Illuminate\\Database\\Eloquent\\Model\:\:STATUS_COMPLETED\.$#'
+			identifier: classConstant.notFound
+			count: 1
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:markSyncError\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\WorkshopLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Relation ''packer'' is not found in App\\Models\\WorkshopLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Relation ''receiver'' is not found in App\\Models\\WorkshopLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Moysklad/WorkshopSyncService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Department\:\:\$pivot\.$#'
+			identifier: property.notFound
+			count: 5
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$pivot\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Parameter \#1 \$array of function array_values contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:mapWithKeys\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\<int\<0, max\>, mixed\>, Closure\(App\\Models\\Department\)\: non\-empty\-array\<int\<0, max\>, mixed\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:filter\(\) expects \(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|null, Closure\(App\\Models\\Department\)\: bool given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:reject\(\) expects bool\|\(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|Illuminate\\Database\\Eloquent\\Model, Closure\(App\\Models\\Department\)\: bool given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:sortBy\(\) expects array\<array\{string, string\}\|\(callable\(Illuminate\\Database\\Eloquent\\Model, Illuminate\\Database\\Eloquent\\Model\)\: mixed\)\|\(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: mixed\)\|string\>\|\(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: mixed\)\|string, Closure\(App\\Models\\Department\)\: string given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Parameter \#1 \$key of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:contains\(\) expects \(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|Illuminate\\Database\\Eloquent\\Model\|int\|string, Closure\(App\\Models\\Department\)\: bool given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderDepartmentStateService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Product\:\:\$stocks\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$frozen_stocks\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$sku\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$stocks\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:hiddenDepartmentIds\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:isFrozen\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:isReady\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Method App\\Services\\OrderPositionService\:\:rows\(\) should return Illuminate\\Support\\Collection\<int, array\<string, mixed\>\> but returns Illuminate\\Support\\Collection\<int, array\{item\: App\\Models\\OrderItem, product\: Illuminate\\Database\\Eloquent\\Model\|null, name\: mixed, ordered\: float, shipped\: float, left\: float\|int, done\: bool, partial\: bool, \.\.\.\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Parameter \#1 \$array \(non\-empty\-list\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{item\: App\\Models\\OrderItem, product\: Illuminate\\Database\\Eloquent\\Model\|null, name\: mixed, ordered\: float, shipped\: float, left\: 0\|float, done\: bool, partial\: bool, stores\: array\<int, string\>, storeQty\: mixed, producedByStore\: mixed, visibleStores\: array\<int, string\>, warehouseQty\: float\|null, producedAuto\: float\|null, producedQty\: float\|null, totalQty\: float\|null, setting\: Illuminate\\Database\\Eloquent\\Model\|null, frozen\: bool, isReady\: bool, hiddenFor\: mixed, sharedWith\: mixed, short\: float\|null, ready\: 1\|float\|null, color\: string, icon\: string\}, Closure\(App\\Models\\OrderItem\)\: array\{item\: App\\Models\\OrderItem, product\: Illuminate\\Database\\Eloquent\\Model\|null, name\: mixed, ordered\: float, shipped\: float, left\: 0\|float, done\: bool, partial\: bool, stores\: array\<int, string\>, storeQty\: mixed, producedByStore\: mixed, visibleStores\: array\<int, string\>, warehouseQty\: float\|null, producedAuto\: float\|null, producedQty\: float\|null, totalQty\: float\|null, setting\: Illuminate\\Database\\Eloquent\\Model\|null, frozen\: bool, isReady\: bool, hiddenFor\: mixed, sharedWith\: mixed, short\: float\|null, ready\: 1\|float\|null, color\: string, icon\: string\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Parameter \#1 \$setting of method App\\Services\\OrderPositionService\:\:storeIds\(\) expects App\\Models\\OrderPositionSetting\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/OrderPositionService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:inListBottom\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/OrderPriorityService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$frozen_stocks\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderProductionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$quantity\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderProductionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$shipped\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderProductionService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:isFrozen\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/OrderProductionService.php
+
+		-
+			message: '#^Parameter \#1 \$keys of method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:except\(\) expects array\<\(int\|string\)\>\|Illuminate\\Support\\Enumerable\<\(int\|string\), \(int\|string\)\>\|string, int\<0, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderProductionService.php
+
+		-
+			message: '#^Parameter \#1 \$setting of method App\\Services\\OrderPositionService\:\:storeIds\(\) expects App\\Models\\OrderPositionSetting\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderProductionService.php
+
+		-
+			message: '#^Relation ''store'' is not found in App\\Models\\ProductStock model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/OrderProductionService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$default_production_store_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$departments\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$product_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$quantity\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:listOrdered\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Relations\\HasMany\:\:prioritized\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Method App\\Services\\OrderService\:\:hideableDepartments\(\) should return Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Department\> but returns Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Method App\\Services\\OrderService\:\:indexQuery\(\) should return Spatie\\QueryBuilder\\QueryBuilder but returns Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\Order\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Parameter \#1 \$order of method App\\Services\\OrderService\:\:orderRows\(\) expects App\\Models\\Order, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Parameter \#1 \$parent of method App\\Services\\InternalOrderService\:\:defaultState\(\) expects App\\Models\\Order, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>default_production_store_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/OrderService.php
+
+		-
+			message: '#^Relation ''children'' is not found in App\\Models\\ProductGroup model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/ProductGroupService.php
+
+		-
+			message: '#^Relation ''products'' is not found in App\\Models\\ProductGroup model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/ProductGroupService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\RawMaterialBatch\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Anonymous function has an unused use \$newRemaining\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Anonymous function has an unused use \$oldRemaining\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Relation ''currentStore'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Relation ''currentWorker'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Relation ''department'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Relation ''departments'' is not found in App\\Models\\Worker model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Relation ''latestMovement'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Relation ''movements'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Relation ''product'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>from_store_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>moysklad_move_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>to_store_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>worker_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 6
+			path: app/Services/RawMaterialBatchService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StoneReception\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StoneReception\:\:\$rawMaterialBatch\.$#'
+			identifier: property.notFound
+			count: 9
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''currentStore'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''currentWorker'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''cutter'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''defaultProductionStore'' is not found in App\\Models\\Department model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''department'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''departments'' is not found in App\\Models\\Worker model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 7
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''product'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''rawMaterialBatch'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''receiver'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''receptionLog'' is not found in App\\Models\\ReceptionLogItem model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''receptions'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''stoneReception'' is not found in App\\Models\\ReceptionLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Relation ''store'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>department_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/StoneReceptionService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\RawMaterialMovement\:\:\$batch\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ReceptionLog\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\WorkshopLog\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$effective_cost_coeff\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$master_cost_per_m2\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$modifiers\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$worker_cost_per_m2\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\RawMaterialMovement\>\:\:inEffectiveDepartments\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\ReceptionLog\>\:\:inEffectiveDepartments\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\WorkshopLog\>\:\:inEffectiveDepartments\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:effectiveProdCost\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<\(int\|string\),Illuminate\\Support\\Collection\<int, mixed\>\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<\(int\|string\),array\<string, mixed\>\>\:\:filter\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<\(int\|string\),array\<string, mixed\>\>\:\:sortBy\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''batch'' is not found in App\\Models\\RawMaterialMovement model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''currentStore'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''cutter'' is not found in App\\Models\\ReceptionLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''cutter'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\ReceptionLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\WorkshopLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''product'' is not found in App\\Models\\RawMaterialBatch model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''rawMaterialBatch'' is not found in App\\Models\\ReceptionLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''rawMaterialBatch'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''receiver'' is not found in App\\Models\\ReceptionLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''receiver'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''stoneReception'' is not found in App\\Models\\ReceptionLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''store'' is not found in App\\Models\\StoneReception model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Relation ''workshop'' is not found in App\\Models\\WorkshopLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>modifiers" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>prod_cost_coeff" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>sku" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/WorkerDashboardService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Worker\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkerService.php
+
+		-
+			message: '#^Relation ''department'' is not found in App\\Models\\Worker model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkerService.php
+
+		-
+			message: '#^Relation ''departments'' is not found in App\\Models\\Worker model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Services/WorkerService.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\Worker model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/WorkerService.php
+
+		-
+			message: '#^Method App\\Services\\WorkshopPresetGroupService\:\:create\(\) should return App\\Models\\WorkshopPresetGroup but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/WorkshopPresetGroupService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$departments\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$product_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$quantity\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$role\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:groups\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:items\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Called ''diff'' on Laravel collection, but could have been retrieved as a query\.$#'
+			identifier: larastan.noUnnecessaryCollectionCall
+			count: 1
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Method App\\Services\\WorkshopPresetService\:\:copyToDepartment\(\) should return App\\Models\\WorkshopPreset but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Method App\\Services\\WorkshopPresetService\:\:create\(\) should return App\\Models\\WorkshopPreset but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Parameter \#1 \$preset of method App\\Services\\WorkshopPresetService\:\:createItems\(\) expects App\\Models\\WorkshopPreset, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Parameter \#1 \$preset of method App\\Services\\WorkshopPresetService\:\:syncDepartments\(\) expects App\\Models\\WorkshopPreset, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/WorkshopPresetService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Workshop\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Relation ''defaultProductStore'' is not found in App\\Models\\Department model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Relation ''defaultRawStore'' is not found in App\\Models\\Department model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Relation ''department'' is not found in App\\Models\\Worker model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Relation ''departments'' is not found in App\\Models\\Worker model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 6
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Relation ''packer'' is not found in App\\Models\\Workshop model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>defaultProductStore" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>defaultProductionStore" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>defaultRawStore" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/WorkshopService.php
+
+		-
+			message: '#^Call to function in_array\(\) with arguments ''active''\|''archived''\|''returned''\|''used'', array\{''new'', ''in_work'', ''confirmed''\} and true will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: app/Support/BatchStock.php
+
+		-
+			message: '#^Property App\\Models\\RawMaterialBatch\:\:\$status \(''active''\|''archived''\|''returned''\|''used''\) does not accept ''confirmed''\|''in_work''\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Support/BatchStock.php
+
+		-
+			message: '#^Parameter \#1 \$string of function str_pad expects string, int given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Support/DocumentNaming.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>master_cost_coeff" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Support/ItemCost.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>prod_cost_coeff" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Support/ItemCost.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Support/OperationAccessor.php

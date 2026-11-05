@@ -16,6 +16,7 @@ use App\Models\Worker;
 use App\Support\BatchStock;
 use App\Support\DocumentNaming;
 use App\Support\ProductSearch;
+use App\Support\QueryParam;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -44,24 +45,24 @@ class RawMaterialBatchService
         $query = QueryBuilder::for($baseQuery)
             ->allowedFilters([
                 AllowedFilter::exact('status'),
-                AllowedFilter::exact('current_worker_id'),
-                AllowedFilter::exact('product_id'),
+                QueryParam::idFilter('current_worker_id'),
+                QueryParam::idFilter('product_id'),
                 AllowedFilter::callback('product_search', function ($q, $v) {
                     if ($ids = ProductSearch::matchIds($v)) {
                         $q->whereIn('product_id', $ids);
                     }
                 }),
                 AllowedFilter::partial('batch_number'),
-                AllowedFilter::callback('department_id', fn ($q, $v) => $q->whereIn('raw_material_batches.department_id', (array) $v)),
+                AllowedFilter::callback('department_id', fn ($q, $v) => $q->whereIn('raw_material_batches.department_id', QueryParam::idValues($v))),
             ])
             ->defaultSort('-updated_at')
             ->allowedSorts(['batch_number', 'created_at', 'updated_at', 'quantity']);
 
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+        if ($from = QueryParam::date($request, 'date_from')) {
+            $query->whereDate('created_at', '>=', $from);
         }
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+        if ($to = QueryParam::date($request, 'date_to')) {
+            $query->whereDate('created_at', '<=', $to);
         }
 
         if ($accessible !== null && !array_key_exists('department_id', $request->input('filter', []))) {

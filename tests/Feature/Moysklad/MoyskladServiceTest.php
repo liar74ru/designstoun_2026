@@ -29,13 +29,13 @@ describe('MoySkladService::syncStores()', function () {
             '*' => Http::response([
                 'rows' => [
                     [
-                        'id' => 'store-001',
+                        'id' => '00000000-0000-4000-8000-000000000001',
                         'name' => 'Склад Основной',
                         'code' => 'OS',
                         'archived' => false,
                     ],
                     [
-                        'id' => 'store-002',
+                        'id' => '00000000-0000-4000-8000-000000000002',
                         'name' => 'Склад Второй',
                         'code' => 'V2',
                         'archived' => true,
@@ -50,7 +50,7 @@ describe('MoySkladService::syncStores()', function () {
         expect($result['success'])->toBeTrue();
         expect($result['synced'])->toBe(2);
 
-        $store1 = Store::find('store-001');
+        $store1 = Store::find('00000000-0000-4000-8000-000000000001');
         expect($store1)->not->toBeNull();
         expect($store1->name)->toBe('Склад Основной');
     });
@@ -59,7 +59,7 @@ describe('MoySkladService::syncStores()', function () {
         config()->set('services.moysklad.token', 'test-token');
 
         Store::create([
-            'id' => 'store-001',
+            'id' => '00000000-0000-4000-8000-000000000001',
             'name' => 'Старое имя',
             'code' => 'OLD',
         ]);
@@ -68,7 +68,7 @@ describe('MoySkladService::syncStores()', function () {
             '*' => Http::response([
                 'rows' => [
                     [
-                        'id' => 'store-001',
+                        'id' => '00000000-0000-4000-8000-000000000001',
                         'name' => 'Новое имя',
                         'code' => 'NEW',
                     ],
@@ -90,7 +90,7 @@ describe('MoySkladService::syncStores()', function () {
             '*' => Http::response([
                 'rows' => [
                     [
-                        'id' => 'store-001',
+                        'id' => '00000000-0000-4000-8000-000000000001',
                         'name' => 'Дочерний склад',
                         'parent' => [
                             'meta' => [
@@ -106,7 +106,7 @@ describe('MoySkladService::syncStores()', function () {
         $result = $service->syncStores();
 
         expect($result['success'])->toBeTrue();
-        $store = Store::find('store-001');
+        $store = Store::find('00000000-0000-4000-8000-000000000001');
         expect($store->parent_id)->toBe('550e8400-e29b-41d4-a716-446655440000');
     });
 
@@ -117,7 +117,7 @@ describe('MoySkladService::syncStores()', function () {
             '*' => Http::response([
                 'rows' => [
                     [
-                        'id' => 'store-001',
+                        'id' => '00000000-0000-4000-8000-000000000001',
                         'name' => 'Тест',
                         'parent' => [
                             'meta' => [
@@ -132,7 +132,7 @@ describe('MoySkladService::syncStores()', function () {
         $service = new MoySkladService();
         $result = $service->syncStores();
 
-        $store = Store::find('store-001');
+        $store = Store::find('00000000-0000-4000-8000-000000000001');
         expect($store->parent_id)->toBeNull();
     });
 });

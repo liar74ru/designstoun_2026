@@ -34,8 +34,8 @@ function mvHttpFake(array $routes = [], array $missing = []): void
 function mvMoveData(array $overrides = []): array
 {
     return array_merge([
-        'from_store_id' => 'store-from',
-        'to_store_id'   => 'store-to',
+        'from_store_id' => '00000000-0000-4000-8000-000000000014',
+        'to_store_id'   => '00000000-0000-4000-8000-000000000015',
         'products'      => [['product_id' => 'prod-1', 'quantity' => 2.5]],
     ], $overrides);
 }
@@ -78,8 +78,8 @@ describe('MoySkladMoveService::createMove() — HTTP', function () {
 
             return $r->hasHeader('Authorization', 'Bearer test-token')
                 && $b['organization']['meta']['href'] === 'https://ms.test/api/entity/organization/org-1'
-                && $b['sourceStore']['meta']['href'] === 'https://ms.test/api/entity/store/store-from'
-                && $b['targetStore']['meta']['href'] === 'https://ms.test/api/entity/store/store-to'
+                && $b['sourceStore']['meta']['href'] === 'https://ms.test/api/entity/store/00000000-0000-4000-8000-000000000014'
+                && $b['targetStore']['meta']['href'] === 'https://ms.test/api/entity/store/00000000-0000-4000-8000-000000000015'
                 && count($b['positions']) === 2
                 && $b['positions'][0]['quantity'] == 2.5
                 && $b['positions'][0]['assortment']['meta']['href'] === 'https://ms.test/api/entity/product/prod-1'
@@ -164,7 +164,7 @@ describe('MoySkladMoveService::createMove() — HTTP', function () {
     });
 
     test('склад не найден — понятная ошибка', function () {
-        mvHttpFake([], ['/entity/store/store-to']);
+        mvHttpFake([], ['/entity/store/00000000-0000-4000-8000-000000000015']);
 
         $result = (new MoySkladMoveService())->createMove(mvMoveData());
 
@@ -211,7 +211,7 @@ describe('MoySkladMoveService::updateMove() — HTTP', function () {
         Http::assertSent(fn (Request $r) => $r->method() === 'PUT'
             && str_ends_with($r->url(), '/entity/move/move-1')
             && $r->data()['positions'][0]['quantity'] == 7.125
-            && $r->data()['sourceStore']['meta']['href'] === 'https://ms.test/api/entity/store/store-from'
+            && $r->data()['sourceStore']['meta']['href'] === 'https://ms.test/api/entity/store/00000000-0000-4000-8000-000000000014'
             && $r->data()['name'] === 'Партия: 5');
     });
 
@@ -225,7 +225,7 @@ describe('MoySkladMoveService::updateMove() — HTTP', function () {
     });
 
     test('склад не найден — PUT не отправляется', function () {
-        mvHttpFake([], ['/entity/store/store-from']);
+        mvHttpFake([], ['/entity/store/00000000-0000-4000-8000-000000000014']);
 
         $result = (new MoySkladMoveService())->updateMove('move-1', mvMoveData());
 

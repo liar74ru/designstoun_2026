@@ -168,7 +168,7 @@ class DepartmentController extends Controller
             'name'        => ['required', 'string', 'max:100', 'unique:departments,name,' . $department->id],
             'code'        => ['nullable', 'string', 'max:50', 'unique:departments,code,' . $department->id],
             'description' => ['nullable', 'string', 'max:1000'],
-            'manager_id'  => ['nullable', 'exists:workers,id'],
+            'manager_id'  => ['nullable', 'integer', 'exists:workers,id'],
         ]);
 
         $department->update(array_merge($validated, ['is_active' => $request->boolean('is_active')]));

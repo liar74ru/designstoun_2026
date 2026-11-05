@@ -12,6 +12,7 @@ use App\Models\Workshop;
 use App\Models\WorkshopLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Tests\Helpers\AccessTestHelper as Access;
 use Tests\Helpers\ReceptionTestHelper as H;
 
@@ -335,7 +336,9 @@ describe('WorkerController destroy()', function () {
         $worker = makeWorker();
         $record = makeWorkerHistory($kind, $worker);
 
-        expect(fn () => $worker->delete())->toThrow(QueryException::class)
+        // Транзакция внутри теста — точка сохранения: после ошибки FK PostgreSQL
+        // откатывает только её, и проверка ниже выполняется
+        expect(fn () => DB::transaction(fn () => $worker->delete()))->toThrow(QueryException::class)
             ->and($record->fresh())->not->toBeNull();
     })->with(['выдача зарплаты', 'проводка копилки']);
 

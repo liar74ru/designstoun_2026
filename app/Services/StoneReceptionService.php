@@ -21,6 +21,7 @@ use App\Support\DocumentNaming;
 use App\Support\ItemCost;
 use App\Support\ModifierEngine;
 use App\Support\ProductSearch;
+use App\Support\QueryParam;
 use App\Traits\HandlesBatchStock;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
@@ -141,7 +142,10 @@ class StoneReceptionService
                     $query->whereIn('moysklad_sync_status', is_array($value) ? $value : [$value]);
                 }),
                 AllowedFilter::callback('raw_product_id', function ($query, $value) {
-                    $batchIds = RawMaterialBatch::where('product_id', $value)->pluck('id');
+                    if (! $ids = QueryParam::idValues($value)) {
+                        return;
+                    }
+                    $batchIds = RawMaterialBatch::whereIn('product_id', $ids)->pluck('id');
                     $query->whereIn('raw_material_batch_id', $batchIds);
                 }),
                 AllowedFilter::callback('raw_product_search', function ($query, $value) {
@@ -150,7 +154,9 @@ class StoneReceptionService
                     }
                 }),
                 AllowedFilter::callback('product_id', function ($query, $value) {
-                    $query->whereHas('items', fn ($q) => $q->where('product_id', $value));
+                    if ($ids = QueryParam::idValues($value)) {
+                        $query->whereHas('items', fn ($q) => $q->whereIn('product_id', $ids));
+                    }
                 }),
                 AllowedFilter::callback('product_search', function ($query, $value) {
                     if ($ids = ProductSearch::matchIds($value)) {
@@ -158,13 +164,13 @@ class StoneReceptionService
                     }
                 }),
                 AllowedFilter::callback('department_id', function ($query, $value) {
-                    $query->whereIn('stone_receptions.department_id', (array) $value);
+                    $query->whereIn('stone_receptions.department_id', QueryParam::idValues($value));
                 }),
-                AllowedFilter::exact('cutter_id'),
+                QueryParam::idFilter('cutter_id'),
             ])
             ->with(['receiver', 'cutter', 'store', 'items.product', 'items.modifiers.modifier', 'rawMaterialBatch.product', 'department'])
-            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('created_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('created_at', '<=', $request->date_to))
+            ->when(QueryParam::date($request, 'date_from'), fn ($q, $from) => $q->whereDate('created_at', '>=', $from))
+            ->when(QueryParam::date($request, 'date_to'), fn ($q, $to) => $q->whereDate('created_at', '<=', $to))
             ->when(
                 !array_key_exists('status', $request->input('filter', [])),
                 fn ($q) => $q->whereIn('status', ['active', 'error'])
@@ -195,9 +201,9 @@ class StoneReceptionService
                 RawMaterialBatch::STATUS_IN_WORK,
                 RawMaterialBatch::STATUS_CONFIRMED,
             ])
-            ->when(!empty($filter['raw_product_id']), fn ($q) => $q->where('product_id', $filter['raw_product_id']))
+            ->when(QueryParam::idValues($filter['raw_product_id'] ?? null), fn ($q, $ids) => $q->whereIn('product_id', $ids))
             ->when(ProductSearch::matchIds($filter['raw_product_search'] ?? null), fn ($q, $ids) => $q->whereIn('product_id', $ids))
-            ->when(array_key_exists('department_id', $filter), fn ($q) => $q->whereIn('raw_material_batches.department_id', (array) $filter['department_id']))
+            ->when(array_key_exists('department_id', $filter), fn ($q) => $q->whereIn('raw_material_batches.department_id', QueryParam::idValues($filter['department_id'])))
             ->when(
                 $accessible !== null && !array_key_exists('department_id', $filter),
                 fn ($q) => $q->whereIn('raw_material_batches.department_id', $accessible ?: [-1])
@@ -213,9 +219,11 @@ class StoneReceptionService
 
         return QueryBuilder::for(ReceptionLog::class)
             ->allowedFilters([
-                AllowedFilter::exact('cutter_id'),
+                QueryParam::idFilter('cutter_id'),
                 AllowedFilter::callback('raw_product_id', function ($query, $value) {
-                    $query->whereHas('rawMaterialBatch', fn ($q) => $q->where('product_id', $value));
+                    if ($ids = QueryParam::idValues($value)) {
+                        $query->whereHas('rawMaterialBatch', fn ($q) => $q->whereIn('product_id', $ids));
+                    }
                 }),
                 AllowedFilter::callback('raw_product_search', function ($query, $value) {
                     if ($ids = ProductSearch::matchIds($value)) {
@@ -223,7 +231,9 @@ class StoneReceptionService
                     }
                 }),
                 AllowedFilter::callback('product_id', function ($query, $value) {
-                    $query->whereHas('items', fn ($q) => $q->where('product_id', $value));
+                    if ($ids = QueryParam::idValues($value)) {
+                        $query->whereHas('items', fn ($q) => $q->whereIn('product_id', $ids));
+                    }
                 }),
                 AllowedFilter::callback('product_search', function ($query, $value) {
                     if ($ids = ProductSearch::matchIds($value)) {
@@ -231,7 +241,7 @@ class StoneReceptionService
                     }
                 }),
                 AllowedFilter::callback('department_id', function ($query, $value) {
-                    $ids = (array) $value;
+                    $ids = QueryParam::idValues($value);
                     $query->whereHas('stoneReception', fn ($q) => $q->whereIn('department_id', $ids));
                 }),
                 AllowedFilter::callback('status', fn () => null),
@@ -243,8 +253,8 @@ class StoneReceptionService
             ->with(['cutter', 'receiver', 'items.product', 'items.chargedWorker',
                 'stoneReception.items.modifiers.modifier',
                 'stoneReception.store', 'stoneReception.department', 'rawMaterialBatch.product'])
-            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('created_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('created_at', '<=', $request->date_to))
+            ->when(QueryParam::date($request, 'date_from'), fn ($q, $from) => $q->whereDate('created_at', '>=', $from))
+            ->when(QueryParam::date($request, 'date_to'), fn ($q, $to) => $q->whereDate('created_at', '<=', $to))
             ->when(
                 $accessible !== null && !array_key_exists('department_id', $request->input('filter', [])),
                 fn ($q) => $q->whereHas('stoneReception', fn ($sq) => $sq->whereIn('department_id', $accessible ?: [-1])

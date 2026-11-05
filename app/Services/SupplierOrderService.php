@@ -9,6 +9,7 @@ use App\Models\SupplierOrder;
 use App\Models\SupplierOrderItem;
 use App\Models\Worker;
 use App\Support\DocumentNaming;
+use App\Support\QueryParam;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -24,13 +25,13 @@ class SupplierOrderService
 
         $orders = QueryBuilder::for(SupplierOrder::class)
             ->allowedFilters([
-                AllowedFilter::callback('department_id', fn ($q, $v) => $q->whereIn('supplier_orders.department_id', (array) $v)),
+                AllowedFilter::callback('department_id', fn ($q, $v) => $q->whereIn('supplier_orders.department_id', QueryParam::idValues($v))),
                 AllowedFilter::exact('status'),
-                AllowedFilter::exact('counterparty_id', 'supplier_orders.counterparty_id'),
+                QueryParam::uuidFilter('counterparty_id', 'supplier_orders.counterparty_id'),
             ])
             ->with(['counterparty', 'store', 'receiver', 'items.product', 'department', 'createdBy.worker'])
-            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('created_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('created_at', '<=', $request->date_to))
+            ->when(QueryParam::date($request, 'date_from'), fn ($q, $from) => $q->whereDate('created_at', '>=', $from))
+            ->when(QueryParam::date($request, 'date_to'), fn ($q, $to) => $q->whereDate('created_at', '<=', $to))
             ->when(
                 $accessible !== null && !array_key_exists('department_id', $request->input('filter', [])),
                 fn ($q) => $q->whereIn('supplier_orders.department_id', $accessible ?: [-1])
@@ -46,7 +47,7 @@ class SupplierOrderService
         // в тех же отделах, что видны в списке: выбранных в фильтре, иначе доступных пользователю
         $filter    = $request->input('filter', []);
         $deptScope = array_key_exists('department_id', $filter)
-            ? (array) $filter['department_id']
+            ? QueryParam::idValues($filter['department_id'])
             : $accessible;
 
         $filterCounterparties = Counterparty::whereIn('id', SupplierOrder::select('counterparty_id')

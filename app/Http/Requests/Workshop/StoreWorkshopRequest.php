@@ -14,26 +14,26 @@ class StoreWorkshopRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'packer_id'                  => 'required|exists:workers,id',
-            'receiver_id'                => 'required|exists:workers,id',
-            'store_id'                   => 'required|exists:stores,id',
-            'product_store_id'           => 'required|exists:stores,id',
-            'department_id'              => 'nullable|exists:departments,id',
+            'packer_id'                  => 'required|integer|exists:workers,id',
+            'receiver_id'                => 'required|integer|exists:workers,id',
+            'store_id'                   => 'required|uuid|exists:stores,id',
+            'product_store_id'           => 'required|uuid|exists:stores,id',
+            'department_id'              => 'nullable|integer|exists:departments,id',
             'notes'                      => 'nullable|string',
             'processing_name'            => 'nullable|string|max:255',
             'manual_created_at'          => 'nullable|date',
             'manual_processing_sum'      => 'nullable|numeric|min:0',
 
             'raw_materials'              => 'required|array|min:1',
-            'raw_materials.*.product_id' => 'required|exists:products,id',
+            'raw_materials.*.product_id' => 'required|integer|exists:products,id',
             'raw_materials.*.quantity'   => 'required|numeric|min:0.001',
 
             'packages'                   => 'nullable|array',
-            'packages.*.product_id'      => 'required_with:packages|exists:products,id',
+            'packages.*.product_id'      => 'required_with:packages|integer|exists:products,id',
             'packages.*.quantity'        => 'required_with:packages|numeric|min:0.001',
 
             'products'                   => 'required|array|min:1',
-            'products.*.product_id'      => 'required|exists:products,id',
+            'products.*.product_id'      => 'required|integer|exists:products,id',
             'products.*.quantity'        => 'required|numeric|min:0.001',
         ];
     }

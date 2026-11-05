@@ -90,9 +90,9 @@ class AdminSettingController extends Controller
     {
         $validated = $request->validate([
             'departments'                          => ['required', 'array'],
-            'departments.*.raw_store_id'           => ['nullable', 'string', 'exists:stores,id'],
-            'departments.*.product_store_id'       => ['nullable', 'string', 'exists:stores,id'],
-            'departments.*.production_store_id'    => ['nullable', 'string', 'exists:stores,id'],
+            'departments.*.raw_store_id'           => ['nullable', 'uuid', 'exists:stores,id'],
+            'departments.*.product_store_id'       => ['nullable', 'uuid', 'exists:stores,id'],
+            'departments.*.production_store_id'    => ['nullable', 'uuid', 'exists:stores,id'],
         ]);
 
         $departmentIds = array_keys($validated['departments']);

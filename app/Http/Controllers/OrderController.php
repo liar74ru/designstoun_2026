@@ -51,7 +51,7 @@ class OrderController extends Controller
         $order = $this->service->findForUser($request, $moyskladId);
 
         $data = $request->validate([
-            'state_id'      => 'required|string|exists:order_states,id',
+            'state_id'      => 'required|uuid|exists:order_states,id',
             // Мастер нескольких отделов заявки: за какие ставит статус. Чужие отбросит сервис.
             'departments'   => 'nullable|array',
             'departments.*' => 'integer',
@@ -134,7 +134,7 @@ class OrderController extends Controller
         $data = $request->validate([
             'product_id' => 'required|integer|exists:products,id',
             'stores'     => 'required|array|min:1',
-            'stores.*'   => 'string|exists:stores,id',
+            'stores.*'   => 'uuid|exists:stores,id',
             'fact'       => 'nullable|numeric|min:0',
             'produced'   => 'nullable|numeric|min:0',
             'note'       => 'nullable|string|max:500',

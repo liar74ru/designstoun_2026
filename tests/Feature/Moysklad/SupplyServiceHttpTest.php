@@ -38,7 +38,7 @@ function supHttpFake(array $routes = [], array $missing = []): void
 
 function supMakeOrder(array $attrs = []): SupplierOrder
 {
-    $store        = Store::create(['id' => 'store-sup', 'name' => 'Склад сырья']);
+    $store        = Store::create(['id' => '00000000-0000-4000-8000-000000000017', 'name' => 'Склад сырья']);
     $counterparty = Counterparty::create(['name' => 'Карьер', 'moysklad_id' => 'cp-sup']);
 
     $order = SupplierOrder::create(array_merge([
@@ -87,7 +87,7 @@ describe('MoySkladSupplyService::createSupply() — HTTP', function () {
             return $b['name'] === 'ЗП-20'
                 && $b['organization']['meta']['href'] === 'https://ms.test/api/entity/organization/org-1'
                 && $b['agent']['meta']['href'] === 'https://ms.test/api/entity/counterparty/cp-sup'
-                && $b['store']['meta']['href'] === 'https://ms.test/api/entity/store/store-sup'
+                && $b['store']['meta']['href'] === 'https://ms.test/api/entity/store/00000000-0000-4000-8000-000000000017'
                 && $b['purchaseOrder']['meta']['href'] === 'https://ms.test/api/entity/purchaseorder/po-20'
                 && $b['purchaseOrder']['meta']['type'] === 'purchaseorder'
                 && $b['moment'] === '2026-05-10 10:00:00.000'
@@ -166,7 +166,7 @@ describe('MoySkladSupplyService::createSupply() — HTTP', function () {
 
     test('склад не найден в МойСклад — ошибка', function () {
         $order = supMakeOrder();
-        supHttpFake([], ['/entity/store/store-sup']);
+        supHttpFake([], ['/entity/store/00000000-0000-4000-8000-000000000017']);
 
         $result = (new MoySkladSupplyService())->createSupply($order);
 

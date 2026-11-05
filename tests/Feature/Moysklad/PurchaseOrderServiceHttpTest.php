@@ -38,11 +38,11 @@ function poHttpFake(array $routes = [], array $missing = []): void
     });
 }
 
-// Заказ поставщику: склад store-po, контрагент cp-po, две позиции
+// Заказ поставщику: склад 00000000-0000-4000-8000-000000000016, контрагент cp-po, две позиции
 // (min_price имеет приоритет над buy_price), автор — пользователь с работником.
 function poMakeOrder(array $attrs = []): SupplierOrder
 {
-    $store        = Store::create(['id' => 'store-po', 'name' => 'Склад сырья']);
+    $store        = Store::create(['id' => '00000000-0000-4000-8000-000000000016', 'name' => 'Склад сырья']);
     $counterparty = Counterparty::create(['name' => 'Карьер', 'moysklad_id' => 'cp-po']);
     $worker       = Worker::create(['name' => 'Иванов Иван', 'position' => 'Мастер']);
     $user         = User::factory()->create(['name' => 'ivanov']);
@@ -95,7 +95,7 @@ describe('MoySkladPurchaseOrderService::createPurchaseOrder() — HTTP', functio
             return $b['name'] === 'ЗП-15'
                 && $b['organization']['meta']['href'] === 'https://ms.test/api/entity/organization/org-1'
                 && $b['agent']['meta']['href'] === 'https://ms.test/api/entity/counterparty/cp-po'
-                && $b['store']['meta']['href'] === 'https://ms.test/api/entity/store/store-po'
+                && $b['store']['meta']['href'] === 'https://ms.test/api/entity/store/00000000-0000-4000-8000-000000000016'
                 && $b['moment'] === '2026-05-10 10:00:00.000'
                 && $b['description'] === 'Иванов Иван'
                 && count($b['positions']) === 2
@@ -165,7 +165,7 @@ describe('MoySkladPurchaseOrderService::createPurchaseOrder() — HTTP', functio
 
     test('склад не найден в МойСклад — ошибка', function () {
         $order = poMakeOrder();
-        poHttpFake([], ['/entity/store/store-po']);
+        poHttpFake([], ['/entity/store/00000000-0000-4000-8000-000000000016']);
 
         $result = (new MoySkladPurchaseOrderService())->createPurchaseOrder($order);
 

@@ -17,6 +17,7 @@ use App\Support\DocumentNaming;
 use App\Support\ItemCost;
 use App\Support\ModifierEngine;
 use App\Support\ProductSearch;
+use App\Support\QueryParam;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -114,14 +115,20 @@ class WorkshopService
                     $query->whereIn('moysklad_sync_status', is_array($value) ? $value : [$value]);
                 }),
                 AllowedFilter::callback('raw_product_id', function ($query, $value) {
+                    if (! $ids = QueryParam::idValues($value)) {
+                        return;
+                    }
                     $query->whereHas('items', fn ($q) => $q
                         ->where('role', WorkshopItem::ROLE_RAW)
-                        ->where('product_id', $value));
+                        ->whereIn('product_id', $ids));
                 }),
                 AllowedFilter::callback('product_id', function ($query, $value) {
+                    if (! $ids = QueryParam::idValues($value)) {
+                        return;
+                    }
                     $query->whereHas('items', fn ($q) => $q
                         ->where('role', WorkshopItem::ROLE_PRODUCT)
-                        ->where('product_id', $value));
+                        ->whereIn('product_id', $ids));
                 }),
                 AllowedFilter::callback('raw_product_search', function ($query, $value) {
                     if ($ids = ProductSearch::matchIds($value)) {
@@ -138,18 +145,21 @@ class WorkshopService
                     }
                 }),
                 AllowedFilter::callback('package_product_id', function ($query, $value) {
+                    if (! $ids = QueryParam::idValues($value)) {
+                        return;
+                    }
                     $query->whereHas('items', fn ($q) => $q
                         ->where('role', WorkshopItem::ROLE_PACKAGE)
-                        ->where('product_id', $value));
+                        ->whereIn('product_id', $ids));
                 }),
                 AllowedFilter::callback('department_id', function ($query, $value) {
-                    $query->whereIn('workshops.department_id', (array) $value);
+                    $query->whereIn('workshops.department_id', QueryParam::idValues($value));
                 }),
-                AllowedFilter::exact('packer_id'),
+                QueryParam::idFilter('packer_id'),
             ])
             ->with(['packer', 'receiver', 'store', 'items.product', 'department'])
-            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('created_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('created_at', '<=', $request->date_to))
+            ->when(QueryParam::date($request, 'date_from'), fn ($q, $from) => $q->whereDate('created_at', '>=', $from))
+            ->when(QueryParam::date($request, 'date_to'), fn ($q, $to) => $q->whereDate('created_at', '<=', $to))
             ->when(
                 $accessible !== null && !array_key_exists('department_id', $request->input('filter', [])),
                 fn ($q) => $q->whereIn('workshops.department_id', $accessible ?: [-1])

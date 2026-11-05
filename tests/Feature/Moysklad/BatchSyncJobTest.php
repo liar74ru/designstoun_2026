@@ -26,9 +26,9 @@ beforeEach(function () {
     config()->set('services.moysklad.token', 'test-token');
     config()->set('services.moysklad.base_url', 'https://ms.test');
 
-    $this->source = Store::create(['id' => 'store-source', 'name' => 'Склад сырья']);
-    $this->shop   = Store::create(['id' => 'store-shop', 'name' => 'Цех']);
-    $this->other  = Store::create(['id' => 'store-other', 'name' => 'Другой склад']);
+    $this->source = Store::create(['id' => '00000000-0000-4000-8000-000000000013', 'name' => 'Склад сырья']);
+    $this->shop   = Store::create(['id' => '00000000-0000-4000-8000-000000000012', 'name' => 'Цех']);
+    $this->other  = Store::create(['id' => '00000000-0000-4000-8000-000000000011', 'name' => 'Другой склад']);
     $this->worker = H::cutter();
     $this->raw    = Product::factory()->create(['moysklad_id' => 'ms-raw']);
 

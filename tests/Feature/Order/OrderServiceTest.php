@@ -154,8 +154,8 @@ describe('OrderService::getIndexData()', function () {
     });
 
     test('склад заявки берётся от её отдела, а не от смотрящего', function () {
-        Store::factory()->create(['id' => 'store-uuid-123']);
-        $dept = Department::create(['name' => 'Отдел', 'is_active' => true, 'default_production_store_id' => 'store-uuid-123']);
+        Store::factory()->create(['id' => '00000000-0000-4000-8000-000000000019']);
+        $dept = Department::create(['name' => 'Отдел', 'is_active' => true, 'default_production_store_id' => '00000000-0000-4000-8000-000000000019']);
 
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1', 'state_name' => 'Новая']);
         $order->departments()->attach($dept->id);
@@ -170,7 +170,7 @@ describe('OrderService::getIndexData()', function () {
         $service = app(OrderService::class);
         $data = $service->getIndexData($request);
 
-        expect($data['rowsByOrder'][$order->id]->first()['stores'])->toBe(['store-uuid-123']);
+        expect($data['rowsByOrder'][$order->id]->first()['stores'])->toBe(['00000000-0000-4000-8000-000000000019']);
     });
 
     test('фильтрует по статусу через querystring', function () {

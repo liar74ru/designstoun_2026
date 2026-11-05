@@ -34,7 +34,7 @@ class StoreInternalOrderRequest extends InternalOrderRequest
             ]),
             // Исполнитель — любой другой отдел: заказ чужому отделу здесь норма.
             'executor_department_id' => 'required|integer|exists:departments,id|different:customer_department_id',
-            'state_id'               => ['required', 'string', Rule::exists('order_states', 'id')->where('is_enabled', true)],
+            'state_id'               => ['required', 'uuid', Rule::exists('order_states', 'id')->where('is_enabled', true)],
         ] + $this->itemRules();
     }
 

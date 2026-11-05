@@ -139,12 +139,12 @@ class RawMaterialBatchController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'product_id'         => 'required|exists:products,id',
+            'product_id'         => 'required|integer|exists:products,id',
             'quantity'           => 'required|numeric|min:0.001',
-            'worker_id'          => 'required|exists:workers,id',
-            'from_store_id'      => 'required|exists:stores,id',
-            'to_store_id'        => 'required|exists:stores,id',
-            'department_id'      => 'nullable|exists:departments,id',
+            'worker_id'          => 'required|integer|exists:workers,id',
+            'from_store_id'      => 'required|uuid|exists:stores,id',
+            'to_store_id'        => 'required|uuid|exists:stores,id',
+            'department_id'      => 'nullable|integer|exists:departments,id',
             'batch_number'       => 'nullable|string|max:255',
             'manual_created_at'  => 'nullable|date',
             'ignore_stock_check' => 'nullable|boolean',
@@ -222,11 +222,11 @@ class RawMaterialBatchController extends Controller
         }
 
         $data = $request->validate([
-            'product_id'        => 'required|exists:products,id',
+            'product_id'        => 'required|integer|exists:products,id',
             'quantity'          => 'required|numeric|min:0.001',
             'manual_created_at' => 'nullable|date',
-            'from_store_id'     => 'nullable|exists:stores,id',
-            'to_store_id'       => 'nullable|exists:stores,id',
+            'from_store_id'     => 'nullable|uuid|exists:stores,id',
+            'to_store_id'       => 'nullable|uuid|exists:stores,id',
         ]);
 
         // Не переданный склад остаётся прежним (см. RawMaterialBatchService::update()).
@@ -435,7 +435,7 @@ class RawMaterialBatchController extends Controller
         }
 
         $data = $request->validate([
-            'to_worker_id' => 'required|exists:workers,id',
+            'to_worker_id' => 'required|integer|exists:workers,id',
             'quantity'     => 'required|numeric|min:0.001|max:' . $batch->remaining_quantity,
         ]);
 
@@ -475,7 +475,7 @@ class RawMaterialBatchController extends Controller
         }
 
         $data = $request->validate([
-            'to_store_id' => 'required|exists:stores,id',
+            'to_store_id' => 'required|uuid|exists:stores,id',
             'quantity'    => 'required|numeric|min:0.001|max:' . $batch->remaining_quantity,
         ]);
 

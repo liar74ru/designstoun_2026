@@ -24,11 +24,11 @@ describe('MoySkladSupplyService::createSupply()', function () {
     test('возвращает ошибку когда заказ не синхронизирован', function () {
         config()->set('services.moysklad.token', 'test-token');
 
-        $store = Store::create(['id' => 'store-001', 'name' => 'Склад']);
+        $store = Store::create(['id' => '00000000-0000-4000-8000-000000000001', 'name' => 'Склад']);
         $counterparty = Counterparty::create(['moysklad_id' => 'counter-001', 'name' => 'Поставщик']);
         $order = SupplierOrder::create([
             'number' => 'ЗАКАЗ-001',
-            'store_id' => 'store-001',
+            'store_id' => '00000000-0000-4000-8000-000000000001',
             'counterparty_id' => $counterparty->id,
             'moysklad_id' => null,
         ]);

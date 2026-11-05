@@ -31,11 +31,13 @@ class UpdateStoneReceptionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'receiver_id'            => 'required|exists:workers,id',
-            'cutter_id'              => 'nullable|exists:workers,id',
-            'store_id'               => 'required|exists:stores,id',
+            'receiver_id'            => 'required|integer|exists:workers,id',
+            'cutter_id'              => 'nullable|integer|exists:workers,id',
+            'store_id'               => 'required|uuid|exists:stores,id',
             'raw_material_batch_id'  => [
+                'bail',
                 'required',
+                'integer',
                 'exists:raw_material_batches,id',
                 new ModifiableBatch($this->user(), (int) $this->route('stone_reception')->raw_material_batch_id ?: null),
             ],
@@ -43,7 +45,7 @@ class UpdateStoneReceptionRequest extends FormRequest
             'notes'                  => 'nullable|string',
             'manual_created_at'      => 'nullable|date',
             'products'               => 'required|array|min:1',
-            'products.*.product_id'  => 'required|exists:products,id',
+            'products.*.product_id'  => 'required|integer|exists:products,id',
             'products.*.quantity'    => 'required|numeric|min:0',
             'products.*.modifiers'   => 'nullable|array',
             'products.*.modifiers.*' => 'string|max:64',

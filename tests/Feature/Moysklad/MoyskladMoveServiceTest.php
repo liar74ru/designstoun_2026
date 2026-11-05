@@ -13,8 +13,8 @@ describe('MoySkladMoveService::createMove()', function () {
 
         $service = new MoySkladMoveService();
         $result = $service->createMove([
-            'from_store_id' => 'store-001',
-            'to_store_id' => 'store-002',
+            'from_store_id' => '00000000-0000-4000-8000-000000000001',
+            'to_store_id' => '00000000-0000-4000-8000-000000000002',
             'products' => [],
         ]);
 
@@ -27,8 +27,8 @@ describe('MoySkladMoveService::createMove()', function () {
 
         $service = new MoySkladMoveService();
         $result = $service->createMove([
-            'from_store_id' => 'store-001',
-            'to_store_id' => 'store-002',
+            'from_store_id' => '00000000-0000-4000-8000-000000000001',
+            'to_store_id' => '00000000-0000-4000-8000-000000000002',
             'products' => [],
         ]);
 
@@ -47,8 +47,8 @@ describe('MoySkladMoveService::updateMove()', function () {
 
         $service = new MoySkladMoveService();
         $result = $service->updateMove('move-001', [
-            'from_store_id' => 'store-001',
-            'to_store_id' => 'store-002',
+            'from_store_id' => '00000000-0000-4000-8000-000000000001',
+            'to_store_id' => '00000000-0000-4000-8000-000000000002',
             'products' => [],
         ]);
 
@@ -60,8 +60,8 @@ describe('MoySkladMoveService::updateMove()', function () {
 
         $service = new MoySkladMoveService();
         $result = $service->updateMove('move-001', [
-            'from_store_id' => 'store-001',
-            'to_store_id' => 'store-002',
+            'from_store_id' => '00000000-0000-4000-8000-000000000001',
+            'to_store_id' => '00000000-0000-4000-8000-000000000002',
             'products' => [],
         ]);
 

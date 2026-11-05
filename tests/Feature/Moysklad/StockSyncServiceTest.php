@@ -25,7 +25,7 @@ describe('StockSyncService::syncAllProductsStocksByStores()', function () {
     test('пропускает товар без local match', function () {
         config()->set('services.moysklad.token', 'test-token');
 
-        Store::create(['id' => 'store-001', 'name' => 'Склад 1']);
+        Store::create(['id' => '00000000-0000-4000-8000-000000000001', 'name' => 'Склад 1']);
 
         Http::fake([
             '*' => Http::response([
@@ -37,7 +37,7 @@ describe('StockSyncService::syncAllProductsStocksByStores()', function () {
                         'stockByStore' => [
                             [
                                 'meta' => [
-                                    'href' => 'https://api.moysklad.ru/entity/store/store-001',
+                                    'href' => 'https://api.moysklad.ru/entity/store/00000000-0000-4000-8000-000000000001',
                                 ],
                                 'stock' => 100,
                             ],
@@ -57,7 +57,7 @@ describe('StockSyncService::syncAllProductsStocksByStores()', function () {
     test('пропускает склады без local match', function () {
         config()->set('services.moysklad.token', 'test-token');
 
-        Store::create(['id' => 'store-001', 'name' => 'Склад 1']);
+        Store::create(['id' => '00000000-0000-4000-8000-000000000001', 'name' => 'Склад 1']);
         $product = Product::create([
             'moysklad_id' => 'aaaa0000-0000-0000-0000-000000000001',
             'name' => 'Товар',
@@ -134,7 +134,7 @@ describe('StockSyncService — нулевые остатки', function () {
     beforeEach(function () {
         config()->set('services.moysklad.token', 'test-token');
 
-        Store::create(['id' => 'store-001', 'name' => 'Склад 1']);
+        Store::create(['id' => '00000000-0000-4000-8000-000000000001', 'name' => 'Склад 1']);
         $this->product = Product::create([
             'moysklad_id' => 'aaaa0000-0000-0000-0000-000000000001',
             'name'        => 'Сырьё',
@@ -143,7 +143,7 @@ describe('StockSyncService — нулевые остатки', function () {
     });
 
     test('остатки товара запрашиваются со stockMode=all', function () {
-        Http::fake(['*' => Http::response(['rows' => [stockRow('aaaa0000-0000-0000-0000-000000000001', ['store-001' => 5])]], 200)]);
+        Http::fake(['*' => Http::response(['rows' => [stockRow('aaaa0000-0000-0000-0000-000000000001', ['00000000-0000-4000-8000-000000000001' => 5])]], 200)]);
 
         (new StockSyncService())->updateProductStocksByMoyskladId('aaaa0000-0000-0000-0000-000000000001');
 
@@ -161,11 +161,11 @@ describe('StockSyncService — нулевые остатки', function () {
     test('нулевой склад обнуляет существующую строку', function () {
         ProductStock::create([
             'product_id' => $this->product->id,
-            'store_id'   => 'store-001',
+            'store_id'   => '00000000-0000-4000-8000-000000000001',
             'quantity'   => 7,
             'reserved'   => 2,
         ]);
-        Http::fake(['*' => Http::response(['rows' => [stockRow('aaaa0000-0000-0000-0000-000000000001', ['store-001' => 0])]], 200)]);
+        Http::fake(['*' => Http::response(['rows' => [stockRow('aaaa0000-0000-0000-0000-000000000001', ['00000000-0000-4000-8000-000000000001' => 0])]], 200)]);
 
         (new StockSyncService())->updateProductStocksByMoyskladId('aaaa0000-0000-0000-0000-000000000001');
 
@@ -176,7 +176,7 @@ describe('StockSyncService — нулевые остатки', function () {
     });
 
     test('нулевой склад не создаёт новую строку', function () {
-        Http::fake(['*' => Http::response(['rows' => [stockRow('aaaa0000-0000-0000-0000-000000000001', ['store-001' => 0])]], 200)]);
+        Http::fake(['*' => Http::response(['rows' => [stockRow('aaaa0000-0000-0000-0000-000000000001', ['00000000-0000-4000-8000-000000000001' => 0])]], 200)]);
 
         (new StockSyncService())->updateProductStocksByMoyskladId('aaaa0000-0000-0000-0000-000000000001');
 
@@ -184,7 +184,7 @@ describe('StockSyncService — нулевые остатки', function () {
     });
 
     test('пустой ответ не стирает остатки', function () {
-        ProductStock::create(['product_id' => $this->product->id, 'store_id' => 'store-001', 'quantity' => 3]);
+        ProductStock::create(['product_id' => $this->product->id, 'store_id' => '00000000-0000-4000-8000-000000000001', 'quantity' => 3]);
         Http::fake(['*' => Http::response(['rows' => []], 200)]);
 
         $result = (new StockSyncService())->updateProductStocksByMoyskladId('aaaa0000-0000-0000-0000-000000000001');
@@ -194,7 +194,7 @@ describe('StockSyncService — нулевые остатки', function () {
     });
 
     test('ошибка API не трогает остатки', function () {
-        ProductStock::create(['product_id' => $this->product->id, 'store_id' => 'store-001', 'quantity' => 7]);
+        ProductStock::create(['product_id' => $this->product->id, 'store_id' => '00000000-0000-4000-8000-000000000001', 'quantity' => 7]);
         Http::fake(['*' => Http::response(['errors' => [['error' => 'Сбой']]], 500)]);
 
         $result = (new StockSyncService())->updateProductStocksByMoyskladId('aaaa0000-0000-0000-0000-000000000001');

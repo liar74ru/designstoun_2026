@@ -19,15 +19,15 @@ class UpdateSupplierOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'store_id'              => 'required|exists:stores,id',
-            'counterparty_id'       => 'required|exists:counterparties,id',
-            'receiver_id'           => 'nullable|exists:workers,id',
-            'department_id'         => 'nullable|exists:departments,id',
+            'store_id'              => 'required|uuid|exists:stores,id',
+            'counterparty_id'       => 'required|uuid|exists:counterparties,id',
+            'receiver_id'           => 'nullable|integer|exists:workers,id',
+            'department_id'         => 'nullable|integer|exists:departments,id',
             'number'                => 'required|string|max:100',
             'note'                  => 'nullable|string|max:1000',
             'manual_created_at'     => 'nullable|date',
             'products'              => 'required|array|min:1',
-            'products.*.product_id' => 'required|exists:products,id',
+            'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity'   => 'required|numeric|min:0.001',
         ];
     }

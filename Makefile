@@ -3,7 +3,7 @@
 # ================================================================
 
 .PHONY: setup install start start-frontend start-queue db migrate seed \
-        watch console log test test-coverage lint lint-fix \
+        watch console log test test-pg test-coverage lint lint-fix stan \
         ide-helper dump deploy help
 
 # ----------------------------------------------------------------
@@ -152,6 +152,11 @@ cache-warm:
 test:
 	php artisan test
 
+# Те же тесты на PostgreSQL: отдельная БД, хост и пользователь — из .env
+TEST_PG_DATABASE ?= designstoun_test
+test-pg:
+	DB_CONNECTION=pgsql DB_DATABASE=$(TEST_PG_DATABASE) php artisan test
+
 test-coverage:
 	XDEBUG_MODE=coverage php artisan test --coverage-html coverage-report
 
@@ -159,10 +164,13 @@ test-coverage:
 # Качество кода
 # ----------------------------------------------------------------
 lint:
-	composer exec -v phpcs
+	vendor/bin/pint --test
 
 lint-fix:
-	composer exec phpcbf
+	vendor/bin/pint
+
+stan:
+	vendor/bin/phpstan analyse --memory-limit=1G
 
 dump:
 	composer dump-autoload
@@ -199,7 +207,10 @@ help:
 	@echo "  make cache-warm     — прогреть кэш для продакшена"
 	@echo "  make log            — следить за логами"
 	@echo "  make console        — открыть tinker"
-	@echo "  make test           — запустить тесты"
-	@echo "  make lint           — проверка кода"
+	@echo "  make test           — запустить тесты (SQLite)"
+	@echo "  make test-pg        — тесты на PostgreSQL (БД designstoun_test)"
+	@echo "  make lint           — проверка стиля (Pint)"
+	@echo "  make lint-fix       — исправить стиль (Pint)"
+	@echo "  make stan           — статический анализ (larastan)"
 	@echo "  make dump           — composer dump-autoload"
 	@echo ""

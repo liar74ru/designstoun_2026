@@ -39,18 +39,18 @@ class OrderStateController extends Controller
     {
         $data = $request->validate([
             'enabled'          => ['nullable', 'array'],
-            'enabled.*'        => ['string', 'exists:order_states,id'],
+            'enabled.*'        => ['uuid', 'exists:order_states,id'],
             'production'       => ['nullable', 'array'],
-            'production.*'     => ['string', 'exists:order_states,id'],
+            'production.*'     => ['uuid', 'exists:order_states,id'],
             'default_filter'   => ['nullable', 'array'],
-            'default_filter.*' => ['string', 'exists:order_states,id'],
+            'default_filter.*' => ['uuid', 'exists:order_states,id'],
             'list_bottom'      => ['nullable', 'array'],
-            'list_bottom.*'    => ['string', 'exists:order_states,id'],
+            'list_bottom.*'    => ['uuid', 'exists:order_states,id'],
             'final'            => ['nullable', 'array'],
-            'final.*'          => ['string', 'exists:order_states,id'],
+            'final.*'          => ['uuid', 'exists:order_states,id'],
             'track_changes'    => ['nullable', 'array'],
-            'track_changes.*'  => ['string', 'exists:order_states,id'],
-            'changed_state'    => ['nullable', 'string', 'exists:order_states,id'],
+            'track_changes.*'  => ['uuid', 'exists:order_states,id'],
+            'changed_state'    => ['nullable', 'uuid', 'exists:order_states,id'],
         ]);
 
         $enabled       = $data['enabled'] ?? [];
