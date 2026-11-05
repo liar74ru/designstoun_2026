@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** Проводка копилки работника: остаток — сумма amount. */
 class PiggyBankEntry extends Model
@@ -27,17 +28,20 @@ class PiggyBankEntry extends Model
         ];
     }
 
-    public function worker()
+    /** @return BelongsTo<Worker, $this> */
+    public function worker(): BelongsTo
     {
         return $this->belongsTo(Worker::class);
     }
 
-    public function salaryPayout()
+    /** @return BelongsTo<SalaryPayout, $this> */
+    public function salaryPayout(): BelongsTo
     {
         return $this->belongsTo(SalaryPayout::class);
     }
 
-    public function createdBy()
+    /** @return BelongsTo<User, $this> */
+    public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
     }

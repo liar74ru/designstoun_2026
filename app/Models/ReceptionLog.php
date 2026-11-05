@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReceptionLog extends Model
 {
@@ -27,27 +29,32 @@ class ReceptionLog extends Model
         'created_at'            => 'datetime',
     ];
 
-    public function stoneReception()
+    /** @return BelongsTo<StoneReception, $this> */
+    public function stoneReception(): BelongsTo
     {
         return $this->belongsTo(StoneReception::class);
     }
 
-    public function rawMaterialBatch()
+    /** @return BelongsTo<RawMaterialBatch, $this> */
+    public function rawMaterialBatch(): BelongsTo
     {
         return $this->belongsTo(RawMaterialBatch::class);
     }
 
-    public function cutter()
+    /** @return BelongsTo<Worker, $this> */
+    public function cutter(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'cutter_id');
     }
 
-    public function receiver()
+    /** @return BelongsTo<Worker, $this> */
+    public function receiver(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'receiver_id');
     }
 
-    public function items()
+    /** @return HasMany<ReceptionLogItem, $this> */
+    public function items(): HasMany
     {
         return $this->hasMany(ReceptionLogItem::class);
     }

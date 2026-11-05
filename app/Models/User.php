@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Support\OperationAccessor;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -36,8 +37,10 @@ class User extends Authenticatable
     /**
      * Связанный работник.
      * Через эту связь получаем должность, данные о выработке и т.д.
+     *
+     * @return BelongsTo<Worker, $this>
      */
-    public function worker()
+    public function worker(): BelongsTo
     {
         return $this->belongsTo(Worker::class);
     }

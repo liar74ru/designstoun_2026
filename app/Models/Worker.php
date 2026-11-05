@@ -4,6 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Worker extends Model
 {
@@ -93,19 +97,28 @@ class Worker extends Model
         $this->update(['archived_at' => null]);
     }
 
-    public function user()
+    /** @return HasOne<User, $this> */
+    public function user(): HasOne
     {
         return $this->hasOne(User::class);
     }
 
-    /** Основной отдел (дефолты форм, наследование department_id в документах) */
-    public function department()
+    /**
+     * Основной отдел (дефолты форм, наследование department_id в документах)
+     *
+     * @return BelongsTo<Department, $this>
+     */
+    public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
 
-    /** Все отделы, в которых задействован работник (включая основной) */
-    public function departments()
+    /**
+     * Все отделы, в которых задействован работник (включая основной)
+     *
+     * @return BelongsToMany<Department, $this>
+     */
+    public function departments(): BelongsToMany
     {
         return $this->belongsToMany(Department::class, 'department_worker')->withTimestamps();
     }
@@ -132,24 +145,34 @@ class Worker extends Model
         return in_array($departmentId, $this->departmentIds(), true);
     }
 
-    public function receptionsAsCutter()
+    /** @return HasMany<StoneReception, $this> */
+    public function receptionsAsCutter(): HasMany
     {
         return $this->hasMany(StoneReception::class, 'cutter_id');
     }
 
-    public function receptionsAsReceiver()
+    /** @return HasMany<StoneReception, $this> */
+    public function receptionsAsReceiver(): HasMany
     {
         return $this->hasMany(StoneReception::class, 'receiver_id');
     }
 
-    /** Выдачи зарплаты (App\Services\SalaryService) */
-    public function salaryPayouts()
+    /**
+     * Выдачи зарплаты (App\Services\SalaryService)
+     *
+     * @return HasMany<SalaryPayout, $this>
+     */
+    public function salaryPayouts(): HasMany
     {
         return $this->hasMany(SalaryPayout::class);
     }
 
-    /** Журнал копилки: остаток — сумма amount */
-    public function piggyBankEntries()
+    /**
+     * Журнал копилки: остаток — сумма amount
+     *
+     * @return HasMany<PiggyBankEntry, $this>
+     */
+    public function piggyBankEntries(): HasMany
     {
         return $this->hasMany(PiggyBankEntry::class);
     }

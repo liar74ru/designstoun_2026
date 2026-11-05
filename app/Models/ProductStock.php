@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProductStock extends Model
@@ -30,16 +31,20 @@ class ProductStock extends Model
 
     /**
      * Связь с товаром
+     *
+     * @return BelongsTo<Product, $this>
      */
-    public function product()
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id');
     }
 
     /**
      * Связь со складом
+     *
+     * @return BelongsTo<Store, $this>
      */
-    public function store()
+    public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'store_id');
     }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -26,24 +27,37 @@ class WorkshopPreset extends Model
         });
     }
 
-    /** Основной отдел: в нём пресет создан, удаление отсюда убирает пресет из всех отделов. */
-    public function department()
+    /**
+     * Основной отдел: в нём пресет создан, удаление отсюда убирает пресет из всех отделов.
+     *
+     * @return BelongsTo<Department, $this>
+     */
+    public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
 
-    /** Все отделы, где пресет доступен (основной — тоже). */
+    /**
+     * Все отделы, где пресет доступен (основной — тоже).
+     *
+     * @return BelongsToMany<Department, $this>
+     */
     public function departments(): BelongsToMany
     {
         return $this->belongsToMany(Department::class, 'department_workshop_preset')->orderBy('name');
     }
 
-    /** Группы отдела, в которых показан пресет (может быть несколько или ни одной). */
+    /**
+     * Группы отдела, в которых показан пресет (может быть несколько или ни одной).
+     *
+     * @return BelongsToMany<WorkshopPresetGroup, $this>
+     */
     public function groups(): BelongsToMany
     {
         return $this->belongsToMany(WorkshopPresetGroup::class, 'workshop_preset_group_preset')->orderBy('name');
     }
 
+    /** @return HasMany<WorkshopPresetItem, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(WorkshopPresetItem::class)->orderBy('id');

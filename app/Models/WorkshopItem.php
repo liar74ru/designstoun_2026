@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkshopItem extends Model
 {
@@ -41,12 +43,14 @@ class WorkshopItem extends Model
         'disabled_modifier_keys'      => 'array',
     ];
 
-    public function workshop()
+    /** @return BelongsTo<Workshop, $this> */
+    public function workshop(): BelongsTo
     {
         return $this->belongsTo(Workshop::class);
     }
 
-    public function product()
+    /** @return BelongsTo<Product, $this> */
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
@@ -66,8 +70,12 @@ class WorkshopItem extends Model
         return $query->where('role', self::ROLE_PRODUCT);
     }
 
-    /** Правила, применённые к позиции (снапшот на момент создания). */
-    public function modifiers()
+    /**
+     * Правила, применённые к позиции (снапшот на момент создания).
+     *
+     * @return HasMany<ProductionItemModifier, $this>
+     */
+    public function modifiers(): HasMany
     {
         return $this->hasMany(ProductionItemModifier::class, 'workshop_item_id')
             ->orderBy('id');

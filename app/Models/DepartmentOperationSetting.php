@@ -19,6 +19,7 @@ class DepartmentOperationSetting extends Model
         'config'  => 'array',
     ];
 
+    /** @return BelongsTo<Department, $this> */
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);

@@ -93,6 +93,7 @@ class DepartmentModifier extends Model
         'is_active'          => 'boolean',
     ];
 
+    /** @return BelongsTo<Department, $this> */
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);

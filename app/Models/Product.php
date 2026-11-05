@@ -6,6 +6,8 @@ use App\Support\DepartmentSettings;
 use App\Support\RateFormula;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
@@ -111,15 +113,18 @@ class Product extends Model
 
     // ─── Связи ───────────────────────────────────────────────────────────────
 
-    public function group()
+    /** @return BelongsTo<ProductGroup, $this> */
+    public function group(): BelongsTo
     {
         return $this->belongsTo(ProductGroup::class, 'group_id', 'moysklad_id');
     }
 
     /**
      * Остатки по складам. Единственный источник истины для количества.
+     *
+     * @return HasMany<ProductStock, $this>
      */
-    public function stocks()
+    public function stocks(): HasMany
     {
         return $this->hasMany(ProductStock::class, 'product_id');
     }

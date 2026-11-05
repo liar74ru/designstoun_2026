@@ -5,6 +5,9 @@ namespace App\Models;
 use App\Models\Concerns\HasEffectiveDepartment;
 use App\Models\Concerns\HasMoyskladSync;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RawMaterialBatch extends Model
 {
@@ -51,22 +54,26 @@ class RawMaterialBatch extends Model
         'synced_at'          => 'datetime',
     ];
 
-    public function product()
+    /** @return BelongsTo<Product, $this> */
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
-    public function currentStore()
+    /** @return BelongsTo<Store, $this> */
+    public function currentStore(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'current_store_id');
     }
 
-    public function currentWorker()
+    /** @return BelongsTo<Worker, $this> */
+    public function currentWorker(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'current_worker_id');
     }
 
-    public function department()
+    /** @return BelongsTo<Department, $this> */
+    public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
@@ -80,7 +87,8 @@ class RawMaterialBatch extends Model
         return ['department_id'];
     }
 
-    public function movements()
+    /** @return HasMany<RawMaterialMovement, $this> */
+    public function movements(): HasMany
     {
         return $this->hasMany(RawMaterialMovement::class, 'batch_id');
     }
@@ -144,12 +152,14 @@ class RawMaterialBatch extends Model
             : null;
     }
 
-    public function latestMovement()
+    /** @return HasOne<RawMaterialMovement, $this> */
+    public function latestMovement(): HasOne
     {
         return $this->hasOne(RawMaterialMovement::class, 'batch_id')->latestOfMany();
     }
 
-    public function receptions()
+    /** @return HasMany<StoneReception, $this> */
+    public function receptions(): HasMany
     {
         return $this->hasMany(StoneReception::class, 'raw_material_batch_id');
     }

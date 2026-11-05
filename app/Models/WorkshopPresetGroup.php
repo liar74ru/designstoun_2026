@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class WorkshopPresetGroup extends Model
@@ -33,11 +34,13 @@ class WorkshopPresetGroup extends Model
         'icon',
     ];
 
-    public function department()
+    /** @return BelongsTo<Department, $this> */
+    public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
 
+    /** @return BelongsToMany<WorkshopPreset, $this> */
     public function presets(): BelongsToMany
     {
         return $this->belongsToMany(WorkshopPreset::class, 'workshop_preset_group_preset')->orderBy('name');

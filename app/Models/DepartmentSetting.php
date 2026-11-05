@@ -14,6 +14,7 @@ class DepartmentSetting extends Model
 {
     protected $fillable = ['department_id', 'key', 'value'];
 
+    /** @return BelongsTo<Department, $this> */
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);

@@ -33,17 +33,23 @@ class ProductionItemModifier extends Model
         'master_coeff_delta' => 'decimal:4',
     ];
 
+    /** @return BelongsTo<StoneReceptionItem, $this> */
     public function receptionItem(): BelongsTo
     {
         return $this->belongsTo(StoneReceptionItem::class, 'stone_reception_item_id');
     }
 
+    /** @return BelongsTo<WorkshopItem, $this> */
     public function workshopItem(): BelongsTo
     {
         return $this->belongsTo(WorkshopItem::class, 'workshop_item_id');
     }
 
-    /** Исходное правило; null, если его удалили в настройках отдела. */
+    /**
+     * Исходное правило; null, если его удалили в настройках отдела.
+     *
+     * @return BelongsTo<DepartmentModifier, $this>
+     */
     public function modifier(): BelongsTo
     {
         return $this->belongsTo(DepartmentModifier::class, 'department_modifier_id');

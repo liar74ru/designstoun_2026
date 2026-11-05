@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WorkshopLogItem extends Model
 {
@@ -17,12 +18,14 @@ class WorkshopLogItem extends Model
         'quantity_delta' => 'decimal:3',
     ];
 
-    public function workshopLog()
+    /** @return BelongsTo<WorkshopLog, $this> */
+    public function workshopLog(): BelongsTo
     {
         return $this->belongsTo(WorkshopLog::class);
     }
 
-    public function product()
+    /** @return BelongsTo<Product, $this> */
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }

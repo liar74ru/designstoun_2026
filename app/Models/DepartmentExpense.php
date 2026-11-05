@@ -18,6 +18,7 @@ class DepartmentExpense extends Model
         'amount' => 'decimal:2',
     ];
 
+    /** @return BelongsTo<Department, $this> */
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);

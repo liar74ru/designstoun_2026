@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReceptionLogItem extends Model
 {
@@ -19,16 +20,20 @@ class ReceptionLogItem extends Model
 
     /**
      * Запись лога
+     *
+     * @return BelongsTo<ReceptionLog, $this>
      */
-    public function receptionLog()
+    public function receptionLog(): BelongsTo
     {
         return $this->belongsTo(ReceptionLog::class);
     }
 
     /**
      * Мастер, с которого списан минус, если это не приёмщик записи
+     *
+     * @return BelongsTo<Worker, $this>
      */
-    public function chargedWorker()
+    public function chargedWorker(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'charged_worker_id');
     }
@@ -43,8 +48,10 @@ class ReceptionLogItem extends Model
 
     /**
      * Продукт
+     *
+     * @return BelongsTo<Product, $this>
      */
-    public function product()
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }

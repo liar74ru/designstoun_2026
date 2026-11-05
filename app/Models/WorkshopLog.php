@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkshopLog extends Model
 {
@@ -26,22 +28,26 @@ class WorkshopLog extends Model
         'created_at'                => 'datetime',
     ];
 
-    public function workshop()
+    /** @return BelongsTo<Workshop, $this> */
+    public function workshop(): BelongsTo
     {
         return $this->belongsTo(Workshop::class);
     }
 
-    public function packer()
+    /** @return BelongsTo<Worker, $this> */
+    public function packer(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'packer_id');
     }
 
-    public function receiver()
+    /** @return BelongsTo<Worker, $this> */
+    public function receiver(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'receiver_id');
     }
 
-    public function items()
+    /** @return HasMany<WorkshopLogItem, $this> */
+    public function items(): HasMany
     {
         return $this->hasMany(WorkshopLogItem::class);
     }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RawMaterialMovement extends Model
 {
@@ -27,32 +28,38 @@ class RawMaterialMovement extends Model
         'merged_into_move' => 'boolean',
     ];
 
-    public function batch()
+    /** @return BelongsTo<RawMaterialBatch, $this> */
+    public function batch(): BelongsTo
     {
         return $this->belongsTo(RawMaterialBatch::class, 'batch_id');
     }
 
-    public function fromStore()
+    /** @return BelongsTo<Store, $this> */
+    public function fromStore(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'from_store_id');
     }
 
-    public function toStore()
+    /** @return BelongsTo<Store, $this> */
+    public function toStore(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'to_store_id');
     }
 
-    public function fromWorker()
+    /** @return BelongsTo<Worker, $this> */
+    public function fromWorker(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'from_worker_id');
     }
 
-    public function toWorker()
+    /** @return BelongsTo<Worker, $this> */
+    public function toWorker(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'to_worker_id');
     }
 
-    public function movedBy()
+    /** @return BelongsTo<Worker, $this> */
+    public function movedBy(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'moved_by');
     }

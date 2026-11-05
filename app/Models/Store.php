@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Store extends Model
@@ -47,22 +48,28 @@ class Store extends Model
 
     /**
      * Получить родительский склад (группу)
+     *
+     * @return BelongsTo<Store, $this>
      */
-    public function parent()
+    public function parent(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'parent_id', 'id');
     }
 
     /**
      * Получить дочерние склады
+     *
+     * @return HasMany<Store, $this>
      */
-    public function children()
+    public function children(): HasMany
     {
         return $this->hasMany(Store::class, 'parent_id', 'id');
     }
 
     /**
      * Получить все остатки на этом складе
+     *
+     * @return HasMany<ProductStock, $this>
      */
     public function stocks(): HasMany
     {

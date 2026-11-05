@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Выданная зарплата за неделю (Пт 00:00 – Чт 23:59). Начисленное — снимок на момент выдачи;
@@ -49,12 +50,14 @@ class SalaryPayout extends Model
         ];
     }
 
-    public function worker()
+    /** @return BelongsTo<Worker, $this> */
+    public function worker(): BelongsTo
     {
         return $this->belongsTo(Worker::class);
     }
 
-    public function paidBy()
+    /** @return BelongsTo<User, $this> */
+    public function paidBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'paid_by_user_id');
     }

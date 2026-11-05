@@ -6,6 +6,8 @@ use App\Models\Concerns\HasEffectiveDepartment;
 use App\Models\Concerns\HasMoyskladSync;
 use App\Traits\ManagesStock;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
 class Workshop extends Model
@@ -47,27 +49,32 @@ class Workshop extends Model
         'synced_at'             => 'datetime',
     ];
 
-    public function packer()
+    /** @return BelongsTo<Worker, $this> */
+    public function packer(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'packer_id');
     }
 
-    public function receiver()
+    /** @return BelongsTo<Worker, $this> */
+    public function receiver(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'receiver_id');
     }
 
-    public function store()
+    /** @return BelongsTo<Store, $this> */
+    public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
     }
 
-    public function productStore()
+    /** @return BelongsTo<Store, $this> */
+    public function productStore(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'product_store_id');
     }
 
-    public function department()
+    /** @return BelongsTo<Department, $this> */
+    public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
@@ -81,30 +88,44 @@ class Workshop extends Model
         return ['department_id', 'packer.department_id'];
     }
 
-    public function items()
+    /** @return HasMany<WorkshopItem, $this> */
+    public function items(): HasMany
     {
         return $this->hasMany(WorkshopItem::class);
     }
 
-    /** Строки сырья (вход). */
-    public function rawItems()
+    /**
+     * Строки сырья (вход).
+     *
+     * @return HasMany<WorkshopItem, $this>
+     */
+    public function rawItems(): HasMany
     {
         return $this->hasMany(WorkshopItem::class)->where('role', WorkshopItem::ROLE_RAW);
     }
 
-    /** Строки упаковки/тары. */
-    public function packageItems()
+    /**
+     * Строки упаковки/тары.
+     *
+     * @return HasMany<WorkshopItem, $this>
+     */
+    public function packageItems(): HasMany
     {
         return $this->hasMany(WorkshopItem::class)->where('role', WorkshopItem::ROLE_PACKAGE);
     }
 
-    /** Строки продукта (выход). */
-    public function productItems()
+    /**
+     * Строки продукта (выход).
+     *
+     * @return HasMany<WorkshopItem, $this>
+     */
+    public function productItems(): HasMany
     {
         return $this->hasMany(WorkshopItem::class)->where('role', WorkshopItem::ROLE_PRODUCT);
     }
 
-    public function workshopLogs()
+    /** @return HasMany<WorkshopLog, $this> */
+    public function workshopLogs(): HasMany
     {
         return $this->hasMany(WorkshopLog::class);
     }

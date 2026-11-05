@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StoneReceptionItem extends Model
 {
@@ -38,24 +40,32 @@ class StoneReceptionItem extends Model
 
     /**
      * Приёмка
+     *
+     * @return BelongsTo<StoneReception, $this>
      */
-    public function reception()
+    public function reception(): BelongsTo
     {
         return $this->belongsTo(StoneReception::class, 'stone_reception_id');
     }
 
     /**
      * Продукт
+     *
+     * @return BelongsTo<Product, $this>
      */
-    public function product()
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
     // ─── Бизнес-логика ───────────────────────────────────────────────────────
 
-    /** Правила, применённые к позиции (снапшот на момент создания). */
-    public function modifiers()
+    /**
+     * Правила, применённые к позиции (снапшот на момент создания).
+     *
+     * @return HasMany<ProductionItemModifier, $this>
+     */
+    public function modifiers(): HasMany
     {
         return $this->hasMany(ProductionItemModifier::class, 'stone_reception_item_id')
             ->orderBy('id');

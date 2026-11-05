@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductGroup extends Model
 {
@@ -25,32 +27,40 @@ class ProductGroup extends Model
 
     /**
      * Получить товары в этой группе
+     *
+     * @return HasMany<Product, $this>
      */
-    public function products()
+    public function products(): HasMany
     {
         return $this->hasMany(Product::class, 'group_id', 'moysklad_id');
     }
 
     /**
      * Получить родительскую группу
+     *
+     * @return BelongsTo<ProductGroup, $this>
      */
-    public function parent()
+    public function parent(): BelongsTo
     {
         return $this->belongsTo(ProductGroup::class, 'parent_id', 'moysklad_id');
     }
 
     /**
      * Получить дочерние группы
+     *
+     * @return HasMany<ProductGroup, $this>
      */
-    public function children()
+    public function children(): HasMany
     {
         return $this->hasMany(ProductGroup::class, 'parent_id', 'moysklad_id');
     }
 
     /**
      * Получить все дочерние группы рекурсивно
+     *
+     * @return HasMany<ProductGroup, $this>
      */
-    public function childrenRecursive()
+    public function childrenRecursive(): HasMany
     {
         return $this->children()->with('childrenRecursive');
     }

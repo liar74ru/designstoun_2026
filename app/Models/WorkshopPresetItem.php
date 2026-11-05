@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WorkshopPresetItem extends Model
 {
@@ -17,12 +18,14 @@ class WorkshopPresetItem extends Model
         'quantity' => 'decimal:3',
     ];
 
-    public function preset()
+    /** @return BelongsTo<WorkshopPreset, $this> */
+    public function preset(): BelongsTo
     {
         return $this->belongsTo(WorkshopPreset::class, 'workshop_preset_id');
     }
 
-    public function product()
+    /** @return BelongsTo<Product, $this> */
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }

@@ -22,11 +22,13 @@ class SupplierOrderItem extends Model
         'quantity' => 'decimal:3',
     ];
 
+    /** @return BelongsTo<SupplierOrder, $this> */
     public function supplierOrder(): BelongsTo
     {
         return $this->belongsTo(SupplierOrder::class);
     }
 
+    /** @return BelongsTo<Product, $this> */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);

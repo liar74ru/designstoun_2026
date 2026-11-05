@@ -292,7 +292,7 @@ class RawMaterialBatchService
      * Обновить партию (товар / количество / дата).
      * Возвращает null если изменений не обнаружено.
      *
-     * @return array{batch: RawMaterialBatch, newQuantity: float, newCreatedAt: Carbon|null}|null
+     * @return array{batch: RawMaterialBatch, newQuantity: float, newCreatedAt: Carbon|null, previousProductMoyskladId: string|null}|null
      */
     public function update(RawMaterialBatch $batch, array $data, bool $isAdmin): ?array
     {

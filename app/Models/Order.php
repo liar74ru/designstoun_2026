@@ -85,23 +85,33 @@ class Order extends Model
         return $query->where('kind', self::KIND_INTERNAL);
     }
 
+    /** @return HasMany<OrderItem, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
     }
 
+    /** @return BelongsTo<Counterparty, $this> */
     public function counterparty(): BelongsTo
     {
         return $this->belongsTo(Counterparty::class);
     }
 
-    /** Настройки позиций: склады комплектации, снимок остатка, поправки мастера */
+    /**
+     * Настройки позиций: склады комплектации, снимок остатка, поправки мастера
+     *
+     * @return HasMany<OrderPositionSetting, $this>
+     */
     public function positionSettings(): HasMany
     {
         return $this->hasMany(OrderPositionSetting::class);
     }
 
-    /** Отделы-исполнители. У внутреннего заказа — кому заказан полуфабрикат. */
+    /**
+     * Отделы-исполнители. У внутреннего заказа — кому заказан полуфабрикат.
+     *
+     * @return BelongsToMany<Department, $this>
+     */
     public function departments(): BelongsToMany
     {
         // final_state_id — финальный статус, поставленный отделом «для себя»
@@ -110,24 +120,37 @@ class Order extends Model
             ->withPivot('final_state_id', 'finalized_at');
     }
 
-    /** Отдел-заказчик внутреннего заказа */
+    /**
+     * Отдел-заказчик внутреннего заказа
+     *
+     * @return BelongsTo<Department, $this>
+     */
     public function customerDepartment(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'customer_department_id');
     }
 
-    /** Заявка-основание внутреннего заказа; null — её уже нет среди активных. */
+    /**
+     * Заявка-основание внутреннего заказа; null — её уже нет среди активных.
+     *
+     * @return BelongsTo<Order, $this>
+     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Order::class, 'parent_uuid', 'uuid');
     }
 
-    /** Внутренние заказы, размещённые под эту заявку */
+    /**
+     * Внутренние заказы, размещённые под эту заявку
+     *
+     * @return HasMany<Order, $this>
+     */
     public function internalChildren(): HasMany
     {
         return $this->hasMany(Order::class, 'parent_uuid', 'uuid');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');

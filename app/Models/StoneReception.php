@@ -6,6 +6,9 @@ use App\Models\Concerns\HasEffectiveDepartment;
 use App\Models\Concerns\HasMoyskladSync;
 use App\Support\BatchStock;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
 class StoneReception extends Model
@@ -53,37 +56,46 @@ class StoneReception extends Model
 
     /**
      * Приемщик
+     *
+     * @return BelongsTo<Worker, $this>
      */
-    public function receiver()
+    public function receiver(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'receiver_id');
     }
 
     /**
      * Работник
+     *
+     * @return BelongsTo<Worker, $this>
      */
-    public function cutter()
+    public function cutter(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'cutter_id');
     }
 
     /**
      * Склад
+     *
+     * @return BelongsTo<Store, $this>
      */
-    public function store()
+    public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
     }
 
-    public function department()
+    /** @return BelongsTo<Department, $this> */
+    public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
 
     /**
      * Партия сырья
+     *
+     * @return BelongsTo<RawMaterialBatch, $this>
      */
-    public function rawMaterialBatch()
+    public function rawMaterialBatch(): BelongsTo
     {
         return $this->belongsTo(RawMaterialBatch::class);
     }
@@ -104,16 +116,20 @@ class StoneReception extends Model
 
     /**
      * Журнал изменений приёмки
+     *
+     * @return HasMany<ReceptionLog, $this>
      */
-    public function receptionLogs()
+    public function receptionLogs(): HasMany
     {
         return $this->hasMany(ReceptionLog::class);
     }
 
     /**
      * Позиции приемки (продукты)
+     *
+     * @return HasMany<StoneReceptionItem, $this>
      */
-    public function items()
+    public function items(): HasMany
     {
         return $this->hasMany(StoneReceptionItem::class);
     }
@@ -128,8 +144,10 @@ class StoneReception extends Model
 
     /**
      * Получить список продуктов через позиции
+     *
+     * @return BelongsToMany<Product, $this>
      */
-    public function products()
+    public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'stone_reception_items')
             ->withPivot('quantity')

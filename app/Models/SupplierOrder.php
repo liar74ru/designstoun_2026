@@ -43,31 +43,37 @@ class SupplierOrder extends Model
         'updated_at',
     ];
 
+    /** @return BelongsTo<Store, $this> */
     public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
     }
 
+    /** @return BelongsTo<Counterparty, $this> */
     public function counterparty(): BelongsTo
     {
         return $this->belongsTo(Counterparty::class);
     }
 
+    /** @return BelongsTo<Worker, $this> */
     public function receiver(): BelongsTo
     {
         return $this->belongsTo(Worker::class, 'receiver_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
     }
 
+    /** @return BelongsTo<Department, $this> */
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
 
+    /** @return HasMany<SupplierOrderItem, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(SupplierOrderItem::class);
