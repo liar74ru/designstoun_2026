@@ -7,7 +7,7 @@ use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
  * Фильтр «Работник» в списке цеха: короткий список — работники отделов
- * пользователя без уволенных, остальные — по чекбоксу «Показать всех работников».
+ * пользователя без уволенных, остальные — по чекбоксу «все работники».
  */
 
 beforeEach(function () {
@@ -65,7 +65,7 @@ test('чекбокс выключен, если работник выбран и
     $response = $this->actingAs($this->master)
         ->get(route('workshops.index', ['filter' => ['packer_id' => $this->own->id]]))
         ->assertOk()
-        ->assertSee('Показать всех работников');
+        ->assertSee('id="filter_all_workers"', false);
 
     expect($response->getContent())->not->toMatch('/id="filter_all_workers"\s+checked/');
 });

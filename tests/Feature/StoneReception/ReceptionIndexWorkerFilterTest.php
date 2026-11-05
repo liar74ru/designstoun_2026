@@ -6,7 +6,7 @@ use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
  * Фильтр «Работник» в списке приёмок: короткий список — работники отделов
- * пользователя без уволенных, остальные — по чекбоксу «Показать всех работников».
+ * пользователя без уволенных, остальные — по чекбоксу «все работники».
  */
 
 beforeEach(function () {
@@ -61,7 +61,7 @@ test('чекбокс выключен, если работник не выбра
 
     $response = $this->actingAs($this->master)->get(route('stone-receptions.index', $params))
         ->assertOk()
-        ->assertSee('Показать всех работников');
+        ->assertSee('id="filter_all_workers"', false);
 
     expect($response->getContent())->not->toMatch('/id="filter_all_workers"\s+checked/');
 })->with([null, 'own']);
@@ -83,5 +83,5 @@ test('без отдела короткий список пуст', function () {
 test('на странице без короткого списка чекбокса нет', function () {
     $this->actingAs(H::adminUser())->get(route('raw-batches.index'))
         ->assertOk()
-        ->assertDontSee('Показать всех работников');
+        ->assertDontSee('id="filter_all_workers"', false);
 });
