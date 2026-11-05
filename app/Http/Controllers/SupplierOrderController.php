@@ -9,6 +9,7 @@ use App\Models\SupplierOrder;
 use App\Services\Moysklad\SupplierOrderSyncService;
 use App\Services\SupplierOrderService;
 use App\Support\DepartmentAccess;
+use App\Support\QueryParam;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,9 +49,8 @@ class SupplierOrderController extends Controller
         $defaultReceiver = $receivers->firstWhere('id', $currentWorker?->id);
         $recentOrders    = $this->service->getRecentOrders(20, $request);
 
-        $copyFrom = $request->filled('copy_from')
-            ? $this->service->getCopySource($request->copy_from)
-            : null;
+        $copyFromId = QueryParam::uuid($request, 'copy_from');
+        $copyFrom   = $copyFromId ? $this->service->getCopySource($copyFromId) : null;
 
         return view('supplier-orders.create', compact(
             'stores',

@@ -3,7 +3,7 @@
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /*
- * Фильтры списков из адресной строки: ссылку правят руками, и строка в числовой или uuid-колонке
+ * Параметры страниц из адресной строки (фильтры списков, id в формах создания): ссылку правят руками, и строка в числовой или uuid-колонке
  * на PostgreSQL роняет запрос (500). Неверное значение считается незаданным — QueryParam.
  * На SQLite тест проходит и без защиты; ловит регрессию прогон на PostgreSQL в CI.
  */
@@ -40,3 +40,16 @@ test('неверный id или дата в фильтре списка не р
         ->get(route($route, $query))
         ->assertOk();
 })->with('списки с неверным фильтром');
+
+test('неверный id в адресе формы создания не роняет страницу', function (string $route, array $query) {
+    $this->actingAs(H::adminUser())
+        ->get(route($route, $query))
+        ->assertOk();
+})->with([
+    'приёмка copy_from'          => ['stone-receptions.create', ['copy_from' => 'abc']],
+    'приёмка cutter_id'          => ['stone-receptions.create', ['cutter_id' => 'abc']],
+    'приёмка raw_material_batch' => ['stone-receptions.create', ['raw_material_batch_id' => 'abc']],
+    'цех copy_from'              => ['workshops.create', ['copy_from' => 'abc']],
+    'цех packer_id'              => ['workshops.create', ['packer_id' => 'abc']],
+    'заказ поставщику copy_from' => ['supplier-orders.create', ['copy_from' => 'abc']],
+]);

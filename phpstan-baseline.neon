@@ -97,6 +97,12 @@ parameters:
 			path: app/Http/Controllers/StoneReceptionController.php
 
 		-
+			message: '#^Access to an undefined property App\\Models\\StoneReception\:\:\$items\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/StoneReceptionController.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\StoneReception\:\:\$rawMaterialBatch\.$#'
 			identifier: property.notFound
 			count: 3
@@ -106,18 +112,6 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\User\:\:\$worker\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/StoneReceptionController.php
-
-		-
-			message: '#^Access to protected property Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\StoneReception\>\:\:\$items\.$#'
-			identifier: property.protected
-			count: 1
-			path: app/Http/Controllers/StoneReceptionController.php
-
-		-
-			message: '#^Cannot call method map\(\) on array\<int, App\\Models\\StoneReception\>\.$#'
-			identifier: method.nonObject
-			count: 1
 			path: app/Http/Controllers/StoneReceptionController.php
 
 		-
@@ -187,14 +181,8 @@ parameters:
 			path: app/Http/Controllers/WorkerController.php
 
 		-
-			message: '#^Access to protected property Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Workshop\>\:\:\$items\.$#'
-			identifier: property.protected
-			count: 1
-			path: app/Http/Controllers/WorkshopController.php
-
-		-
-			message: '#^Cannot call method map\(\) on array\<int, App\\Models\\Workshop\>\.$#'
-			identifier: method.nonObject
+			message: '#^Access to an undefined property App\\Models\\Workshop\:\:\$items\.$#'
+			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/WorkshopController.php
 

@@ -14,6 +14,7 @@ use App\Models\Store;
 use App\Models\Worker;
 use App\Services\StoneReceptionService;
 use App\Support\DepartmentAccess;
+use App\Support\QueryParam;
 use App\Support\Uom;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -61,12 +62,13 @@ class StoneReceptionController extends Controller
 
     public function create(Request $request): View
     {
-        $cutterId = $request->input('cutter_id');
-        $batchId  = $request->input('raw_material_batch_id');
+        $cutterId = QueryParam::id($request, 'cutter_id');
+        $batchId  = QueryParam::id($request, 'raw_material_batch_id');
+        $cutter   = $cutterId ? Worker::find($cutterId) : null;
 
-        $data                    = $this->service->getFormOptions(null, $cutterId ? (int) $cutterId : null);
+        $data                    = $this->service->getFormOptions(null, $cutter?->id);
         $data['lastReceptions']  = $this->service->getLastReceptions(15, null, $request);
-        $data['filteredBatches'] = $cutterId ? $this->service->getActiveBatchesForWorker(Worker::find($cutterId)) : collect();
+        $data['filteredBatches'] = $cutter ? $this->service->getActiveBatchesForWorker($cutter) : collect();
         $data['selectedCutterId'] = $cutterId;
         $data['selectedBatchId']  = $batchId;
 
@@ -76,7 +78,7 @@ class StoneReceptionController extends Controller
         }
 
         $copyItems = [];
-        if ($copyFromId = $request->input('copy_from')) {
+        if ($copyFromId = QueryParam::id($request, 'copy_from')) {
             $copyFrom = StoneReception::with(['items.product', 'items.modifiers'])->find($copyFromId);
             if ($copyFrom) {
                 $copyItems = $copyFrom->items->map(fn ($item) => [

@@ -10,6 +10,7 @@ use App\Models\Workshop;
 use App\Services\WorkshopPresetService;
 use App\Services\WorkshopService;
 use App\Support\DepartmentAccess;
+use App\Support\QueryParam;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,7 +56,7 @@ class WorkshopController extends Controller
         $data['lastWorkshops']    = $this->service->getLastWorkshops($request);
 
         $copyItems = [];
-        if ($copyFromId = $request->input('copy_from')) {
+        if ($copyFromId = QueryParam::id($request, 'copy_from')) {
             $copyFrom = Workshop::with('items.product')->find($copyFromId);
             if ($copyFrom) {
                 $copyItems = $copyFrom->items->map(fn ($item) => [

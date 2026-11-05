@@ -39,6 +39,11 @@ class QueryParam
         return self::parseId($request->input($key));
     }
 
+    public static function uuid(Request $request, string $key): ?string
+    {
+        return self::uuidValues($request->input($key))[0] ?? null;
+    }
+
     /** @return array<int, int> */
     public static function ids(Request $request, string $key): array
     {
