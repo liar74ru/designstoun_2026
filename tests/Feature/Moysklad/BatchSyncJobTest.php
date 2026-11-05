@@ -150,7 +150,8 @@ describe('Количество: перемещение равно партии',
 
         expect(bsjSent('POST'))->toBe([]);
         expect(bsjQuantity(bsjSent('PUT')[0]))->toBe(9.0);
-        expect((float) $batch->primaryMovement()->quantity)->toBe(9.0);
+        // Строка создания хранит количество при создании, корректировка — отдельным движением
+        expect((float) $batch->primaryMovement()->quantity)->toBe(10.0);
     });
 
     test('повтор корректировки не применяет её дважды', function () {

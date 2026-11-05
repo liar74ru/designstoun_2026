@@ -399,9 +399,9 @@ class WorkerDashboardService
     }
 
     /**
-     * Входящее сырьё за период: первичные поступления (движения 'create'),
-     * сгруппированные по продукту (камню). Только 'create', чтобы не задваивать
-     * объём дочерними партиями от передач/разделения.
+     * Входящее сырьё за период: создание партий ('create') плюс корректировки
+     * ('adjust_increase' − 'adjust_decrease'), каждая на свою дату, по продукту (камню).
+     * Передачи и возвраты не считаются, чтобы не задваивать объём.
      */
     private function buildIncomingRawSummary(
         ?Carbon $dateFrom,
@@ -411,7 +411,8 @@ class WorkerDashboardService
         bool $includeUndetermined = false
     ): Collection {
         return RawMaterialMovement::query()
-            ->where('movement_type', 'create')
+            // Создание + корректировки партии, каждая на свою дату
+            ->whereIn('movement_type', ['create', 'adjust_increase', 'adjust_decrease'])
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->when($departmentIds !== null, fn ($q) => $q->where(
                 function ($q2) use ($departmentIds, $includeUndetermined) {
@@ -434,7 +435,9 @@ class WorkerDashboardService
                 return [
                     'product'  => $product,
                     'uom'      => $product?->uom ?: 'м³',
-                    'quantity' => $movements->sum(fn ($m) => (float) $m->quantity),
+                    'quantity' => $movements->sum(fn ($m) => $m->movement_type === 'adjust_decrease'
+                        ? -(float) $m->quantity
+                        : (float) $m->quantity),
                 ];
             })
             ->filter(fn ($row) => $row['quantity'] > 0)

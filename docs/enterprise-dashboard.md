@@ -106,8 +106,9 @@
 ## 6. Вкладка «Сырьё»
 
 - Показывает, сколько сырья **поступило** за период, по видам камня, с итогом.
-- Поступление — это создание партии сырья: её начальный объём на дату создания. Передачи
-  работнику и разделение партий не считаются, чтобы один объём не задвоился. О партиях —
+- Поступление — это создание партии сырья (объём при создании, на дату создания) и
+  корректировки её количества: добавка `+` прибавляется, `−` вычитается, каждая на свою дату.
+  Передачи работнику и разделение партий не считаются, чтобы один объём не задвоился. О партиях —
   в [Сырьё](raw-batches.md).
 - Отдел поступления — отдел партии. Партии без отдела видны так же, как документы «Без
   отдела» на вкладке «Плитка».
@@ -135,7 +136,7 @@
 | 3. Журналы | `ReceptionLog` / `ReceptionLogItem`, `WorkshopLog` / `WorkshopLogItem` (`role = product`); `StoneReceptionService::writeReceptionLog`, `WorkshopService::writeWorkshopLog` | `EnterpriseDashboardTest` |
 | 4. Отдел документа | `Concerns\HasEffectiveDepartment` (`effectiveDepartmentId`, `scopeInEffectiveDepartments`), `effectiveDepartmentChain` в `StoneReception`, `Workshop`, `RawMaterialBatch`; `WorkerDashboardService::buildSummaryByDepartment` | `EnterpriseDashboardTest` |
 | 5. «Плитка» | `WorkerDashboardService::buildProductSummary`, `buildWorkshopProductSummary`, `mergeProductSummaries`, `modifierSignature`, `receptionItemFor`, `workshopItemFor`; `StoneReceptionItem::effectiveProdCost`, `WorkshopItem::effectiveProdCost` | `EnterpriseDashboardTest` |
-| 6. «Сырьё» | `WorkerDashboardService::buildIncomingRawSummary` (`movement_type = create`) | `EnterpriseDashboardTest` |
+| 6. «Сырьё» | `WorkerDashboardService::buildIncomingRawSummary` (`movement_type` in `create`, `adjust_increase`, `adjust_decrease`) | `EnterpriseDashboardTest` |
 
 Заметки:
 

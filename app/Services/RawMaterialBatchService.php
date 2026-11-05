@@ -368,8 +368,12 @@ class RawMaterialBatchService
             ];
 
             $movementData = [];
-            if ($quantityChanged) {
-                $movementData['quantity'] = $newQuantity;
+            if ($quantityChanged && $createMovement) {
+                // Количество партии включает корректировки — строка создания сдвигается на разницу
+                $movementData['quantity'] = max(
+                    (float) $createMovement->quantity + $newQuantity - (float) $batch->initial_quantity,
+                    0
+                );
             }
             if ($fromStoreChanged || $toStoreChanged) {
                 $movementData['from_store_id'] = $newFromStoreId;
@@ -455,7 +459,8 @@ class RawMaterialBatchService
                 'initial_quantity'   => (float) $batch->initial_quantity + $delta,
             ]);
 
-            $batch->primaryMovement()?->update(['quantity' => (float) $batch->initial_quantity]);
+            // Строку создания не трогаем: в ней количество при создании, добавка — своим движением.
+            // В МойСклад уходит количество партии (moveQuantity()), а не движения.
 
             $this->adjustStock($batch->product_id, $batchStoreId, $delta);
 
