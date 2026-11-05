@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Workshop\StoreWorkshopRequest;
 use App\Http\Requests\Workshop\UpdateWorkshopRequest;
 use App\Models\Department;
-use App\Models\Workshop;
 use App\Models\Worker;
+use App\Models\Workshop;
 use App\Services\WorkshopPresetService;
 use App\Services\WorkshopService;
 use App\Support\DepartmentAccess;
@@ -58,7 +58,7 @@ class WorkshopController extends Controller
         if ($copyFromId = $request->input('copy_from')) {
             $copyFrom = Workshop::with('items.product')->find($copyFromId);
             if ($copyFrom) {
-                $copyItems = $copyFrom->items->map(fn($item) => [
+                $copyItems = $copyFrom->items->map(fn ($item) => [
                     'role'          => $item->role,
                     'product_id'    => $item->product_id,
                     'product_label' => $item->product?->name ?? '',
@@ -76,8 +76,7 @@ class WorkshopController extends Controller
 
         $data['department_id'] = $this->service->resolveDepartmentId($data);
         if (! $data['department_id']) {
-            return back()->withErrors(['error' =>
-                'Не удалось определить отдел операции. Выберите отдел или упаковщика с отделом.'])
+            return back()->withErrors(['error' => 'Не удалось определить отдел операции. Выберите отдел или упаковщика с отделом.'])
                 ->withInput();
         }
         if (! DepartmentAccess::canAssign($request->user(), $data['department_id'])) {
@@ -93,6 +92,7 @@ class WorkshopController extends Controller
 
             if ($request->boolean('close_workshop')) {
                 $this->service->markCompleted($workshop);
+
                 return redirect()->route('workshops.index')->with('success', 'Операция создана и закрыта.');
             }
 
@@ -101,6 +101,7 @@ class WorkshopController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Ошибка создания операции цеха:', ['error' => $e->getMessage(), 'data' => $data]);
+
             return back()->withErrors(['error' => 'Не удалось сохранить операцию цеха. Попробуйте ещё раз, если повторится — сообщите администратору.'])->withInput();
         }
     }
@@ -115,7 +116,7 @@ class WorkshopController extends Controller
             'department',
             'items.product',
             'items.modifiers',
-            'workshopLogs' => fn($q) => $q->orderBy('created_at', 'asc'),
+            'workshopLogs' => fn ($q) => $q->orderBy('created_at', 'asc'),
             'workshopLogs.items.product',
             'workshopLogs.packer',
             'workshopLogs.receiver',
@@ -152,6 +153,7 @@ class WorkshopController extends Controller
 
             if ($request->boolean('close_workshop')) {
                 $this->service->markCompleted($workshop);
+
                 return redirect()->route('workshops.index')->with('success', 'Операция закрыта.');
             }
 
@@ -159,6 +161,7 @@ class WorkshopController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Ошибка обновления операции цеха:', ['error' => $e->getMessage()]);
+
             return back()->withErrors(['error' => 'Не удалось сохранить операцию цеха. Попробуйте ещё раз, если повторится — сообщите администратору.'])->withInput();
         }
     }
@@ -169,9 +172,11 @@ class WorkshopController extends Controller
 
         try {
             $this->service->delete($workshop);
+
             return redirect()->route('workshops.index')->with('success', 'Операция удалена');
         } catch (\Exception $e) {
             Log::error('Ошибка удаления операции цеха:', ['error' => $e->getMessage()]);
+
             return back()->withErrors(['error' => 'Ошибка удаления']);
         }
     }
@@ -192,7 +197,7 @@ class WorkshopController extends Controller
 
         return $result['success']
             ? back()->with('success', $result['message'])
-            : back()->with('error',   $result['message']);
+            : back()->with('error', $result['message']);
     }
 
     public function resetStatus(Workshop $workshop): RedirectResponse

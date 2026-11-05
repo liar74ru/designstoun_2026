@@ -22,14 +22,18 @@ class DepartmentModifier extends Model
 {
     /** Срабатывает вручную — чекбоксом в форме. */
     public const TRIGGER_MANUAL = 'manual';
+
     /** Срабатывает автоматически по маске SKU продукта. */
     public const TRIGGER_SKU = 'sku';
 
     public const SCOPE_RECEPTION = 'reception';
+
     public const SCOPE_WORKSHOP  = 'workshop';
+
     public const SCOPE_BOTH      = 'both';
 
     public const ROLE_WORKER = 'worker';
+
     public const ROLE_MASTER = 'master';
 
     /**
@@ -128,6 +132,7 @@ class DepartmentModifier extends Model
                 if (!isset($valueParts[$i])) {
                     return false;
                 }
+
                 continue;
             }
 

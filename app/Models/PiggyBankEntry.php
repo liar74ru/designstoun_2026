@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class PiggyBankEntry extends Model
 {
     public const TYPE_PAYOUT     = 'payout';
+
     public const TYPE_ADJUSTMENT = 'adjustment';
 
     protected $fillable = [

@@ -27,6 +27,7 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
 
         if (!$this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
+
             return $result;
         }
 
@@ -34,29 +35,34 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
             $orgMeta = $this->getOrganizationMeta();
             if (!$orgMeta) {
                 $result['message'] = 'Не удалось получить данные организации из МойСклад';
+
                 return $result;
             }
 
             $storeMeta = $this->getEntityMeta('store', $order->store_id);
             if (!$storeMeta) {
                 $result['message'] = 'Не удалось получить метаданные склада из МойСклад';
+
                 return $result;
             }
 
             $counterparty = $order->counterparty;
             if (!$counterparty?->moysklad_id) {
                 $result['message'] = 'Контрагент не синхронизирован с МойСклад';
+
                 return $result;
             }
             $agentMeta = $this->getEntityMeta('counterparty', $counterparty->moysklad_id);
             if (!$agentMeta) {
                 $result['message'] = 'Не удалось получить метаданные контрагента из МойСклад';
+
                 return $result;
             }
 
             $positions = $this->buildOrderPositions($order);
             if (empty($positions)) {
                 $result['message'] = 'Нет позиций для отправки в МойСклад';
+
                 return $result;
             }
 
@@ -87,6 +93,7 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
                 ]);
                 $result['code']    = DocumentNaming::isDuplicateName($errors) ? 'duplicate_name' : 'api_error';
                 $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
+
                 return $result;
             }
 
@@ -120,6 +127,7 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
 
         if (!$this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
+
             return $result;
         }
 
@@ -158,11 +166,13 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
 
         if (!$this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
+
             return $result;
         }
 
         if (!$order->moysklad_id) {
             $result['message'] = 'Нет moysklad_id — создаём заново';
+
             return $this->createPurchaseOrder($order);
         }
 
@@ -170,17 +180,20 @@ class MoySkladPurchaseOrderService extends MoySkladBaseService
             $counterparty = $order->counterparty;
             if (!$counterparty?->moysklad_id) {
                 $result['message'] = 'Контрагент не синхронизирован с МойСклад';
+
                 return $result;
             }
             $agentMeta = $this->getEntityMeta('counterparty', $counterparty->moysklad_id);
             if (!$agentMeta) {
                 $result['message'] = 'Не удалось получить метаданные контрагента из МойСклад';
+
                 return $result;
             }
 
             $positions = $this->buildOrderPositions($order);
             if (empty($positions)) {
                 $result['message'] = 'Нет позиций для отправки';
+
                 return $result;
             }
 

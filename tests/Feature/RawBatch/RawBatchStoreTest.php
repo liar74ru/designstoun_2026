@@ -1,13 +1,10 @@
 <?php
 
 use App\Models\Department;
-use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Models\Store;
-use App\Models\User;
-use App\Models\Worker;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════

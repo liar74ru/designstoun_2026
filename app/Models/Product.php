@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\DepartmentSettings;
+use App\Support\RateFormula;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -50,7 +52,7 @@ class Product extends Model
      */
     public static function pieceRate(?int $departmentId = null): float
     {
-        return \App\Support\DepartmentSettings::pieceRate($departmentId);
+        return DepartmentSettings::pieceRate($departmentId);
     }
 
     /** Карта «префикс → цвет» на время запроса: getColorBySku() зовётся в каждой строке списков. */
@@ -63,12 +65,15 @@ class Product extends Model
      */
     public static function getColorBySku(?string $sku): string
     {
-        if (!$sku) return '#FFFFFF';
+        if (!$sku) {
+            return '#FFFFFF';
+        }
         $parts = explode('-', $sku);
         self::$skuColorMemo ??= SkuColor::map();
         if (count($parts) >= 2 && isset(self::$skuColorMemo[$parts[0] . '-' . $parts[1]])) {
             return self::$skuColorMemo[$parts[0] . '-' . $parts[1]];
         }
+
         return self::$skuColorMemo[$parts[0]] ?? '#FFFFFF';
     }
 
@@ -96,8 +101,11 @@ class Product extends Model
      */
     public static function getIconBySku(?string $sku): string
     {
-        if (!$sku) return 'cube-outline';
+        if (!$sku) {
+            return 'cube-outline';
+        }
         $prefix = explode('-', $sku, 2)[0];
+
         return self::SKU_ICONS[$prefix] ?? 'cube-outline';
     }
 
@@ -128,6 +136,7 @@ class Product extends Model
         if (array_key_exists('stocks_sum_quantity', $this->attributes)) {
             return (float) $this->attributes['stocks_sum_quantity'];
         }
+
         // Иначе считаем из загруженной коллекции или делаем запрос
         return (float) $this->stocks->sum('quantity');
     }
@@ -149,7 +158,10 @@ class Product extends Model
 
     public function getDiscountPercentAttribute(): ?int
     {
-        if (!$this->has_discount) return null;
+        if (!$this->has_discount) {
+            return null;
+        }
+
         return round((($this->old_price - $this->price) / $this->old_price) * 100);
     }
 
@@ -162,6 +174,7 @@ class Product extends Model
     {
         $min = (float) ($this->min_price ?? 0);
         $buy = (float) ($this->buy_price ?? 0);
+
         return $min > 0 ? $min : $buy;
     }
 
@@ -175,12 +188,12 @@ class Product extends Model
     public function prodCost($coeffCustom = null, ?int $departmentId = null): float|int
     {
         // ОКРУГЛВНИЗ((PIECE_RATE + PIECE_RATE*17% * coeff) / шаг; 0) * шаг
-        $coeff = $coeffCustom ?? (float)$this->prod_cost_coeff ?? 0;
+        $coeff = $coeffCustom ?? (float) $this->prod_cost_coeff ?? 0;
 
-        return \App\Support\RateFormula::stepped(
+        return RateFormula::stepped(
             self::pieceRate($departmentId),
             (float) $coeff,
-            \App\Support\DepartmentSettings::pieceRoundStep($departmentId),
+            DepartmentSettings::pieceRoundStep($departmentId),
         );
     }
 

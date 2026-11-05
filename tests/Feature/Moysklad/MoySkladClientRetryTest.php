@@ -3,6 +3,7 @@
 use App\Services\Moysklad\MoySkladBaseService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 
@@ -21,11 +22,27 @@ beforeEach(function () {
 /** Открывает защищённые методы базового клиента. */
 function msClient(): MoySkladBaseService
 {
-    return new class extends MoySkladBaseService {
-        public function callGet(string $endpoint): ?array { return $this->get($endpoint); }
-        public function callPost(string $endpoint): \Illuminate\Http\Client\Response { return $this->post($endpoint, ['a' => 1]); }
-        public function callPut(string $endpoint): \Illuminate\Http\Client\Response { return $this->put($endpoint, ['a' => 1]); }
-        public function callGetMany(array $requests): array { return $this->getMany($requests); }
+    return new class extends MoySkladBaseService
+    {
+        public function callGet(string $endpoint): ?array
+        {
+            return $this->get($endpoint);
+        }
+
+        public function callPost(string $endpoint): Response
+        {
+            return $this->post($endpoint, ['a' => 1]);
+        }
+
+        public function callPut(string $endpoint): Response
+        {
+            return $this->put($endpoint, ['a' => 1]);
+        }
+
+        public function callGetMany(array $requests): array
+        {
+            return $this->getMany($requests);
+        }
     };
 }
 

@@ -167,7 +167,7 @@ test('приёмка без отдела берёт накладные по це
         'amount'        => 35,
     ]);
 
-    [$reception, ] = receptionDescriptionFor([
+    [$reception] = receptionDescriptionFor([
         ['quantity' => 10, 'worker' => 400, 'master' => 100],
     ]);
 

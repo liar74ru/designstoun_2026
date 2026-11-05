@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Product;
-use Illuminate\Support\Facades\Queue;
 use App\Models\ProductionItemModifier;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
@@ -10,16 +9,16 @@ use App\Models\Worker;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
  * Снапшот правил на позиции: правка настроек отдела задним числом не должна
  * переписывать уже посчитанные зарплаты.
  */
-
 beforeEach(function () {
     Cache::flush();
-    Setting::updateOrCreate(['key' => 'PIECE_RATE'],       ['value' => '100']);
+    Setting::updateOrCreate(['key' => 'PIECE_RATE'], ['value' => '100']);
 });
 
 function snapshotService(): StoneReceptionService

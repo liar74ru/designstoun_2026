@@ -23,6 +23,6 @@ return new class extends Migration
     public function down(): void
     {
         // При откате: убедиться что нет строк со status='completed', затем удалить их.
-        \DB::table('stone_receptions')->where('status', 'completed')->update(['status' => 'active']);
+        DB::table('stone_receptions')->where('status', 'completed')->update(['status' => 'active']);
     }
 };

@@ -5,7 +5,9 @@ namespace App\Models\Concerns;
 trait HasMoyskladSync
 {
     const SYNC_STATUS_SYNCED     = 'synced';
+
     const SYNC_STATUS_NOT_SYNCED = 'not_synced';
+
     const SYNC_STATUS_PENDING    = 'pending';
 
     public function hasMoySkladProcessing(): bool

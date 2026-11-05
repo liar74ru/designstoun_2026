@@ -65,48 +65,48 @@ class WorkerDashboardService
         $this->itemMaps = [];
 
         $logs = ReceptionLog::with([
-                'items.product',
-                'items.chargedWorker',
-                'stoneReception.store',
-                'stoneReception.items.modifiers.modifier',
-                'stoneReception.department',
-                'stoneReception.rawMaterialBatch',
-                'stoneReception.cutter',
-                'rawMaterialBatch.product',
-                'cutter',
-                'receiver',
-            ])
-            ->where(fn($q) => $q->where('cutter_id', $workerId)
+            'items.product',
+            'items.chargedWorker',
+            'stoneReception.store',
+            'stoneReception.items.modifiers.modifier',
+            'stoneReception.department',
+            'stoneReception.rawMaterialBatch',
+            'stoneReception.cutter',
+            'rawMaterialBatch.product',
+            'cutter',
+            'receiver',
+        ])
+            ->where(fn ($q) => $q->where('cutter_id', $workerId)
                 ->orWhere('receiver_id', $workerId)
-                ->orWhereHas('items', fn($q2) => $q2->where('charged_worker_id', $workerId)))
+                ->orWhereHas('items', fn ($q2) => $q2->where('charged_worker_id', $workerId)))
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $logs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('receptionLog', $log)));
+        $logs->each(fn ($log) => $log->items->each(fn ($item) => $item->setRelation('receptionLog', $log)));
 
         // Производство цеха: работник — packer_id, мастер-приёмщик — receiver_id.
         $workshopLogs = WorkshopLog::with([
-                'items.product',
-                'workshop.items.modifiers',
-                'workshop.department',
-                'workshop.packer',
-            ])
-            ->where(fn($q) => $q->where('packer_id', $workerId)->orWhere('receiver_id', $workerId))
+            'items.product',
+            'workshop.items.modifiers',
+            'workshop.department',
+            'workshop.packer',
+        ])
+            ->where(fn ($q) => $q->where('packer_id', $workerId)->orWhere('receiver_id', $workerId))
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->get();
 
-        $workshopLogs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('workshopLog', $log)));
+        $workshopLogs->each(fn ($log) => $log->items->each(fn ($item) => $item->setRelation('workshopLog', $log)));
 
         $stoneReceptionIds = $logs->pluck('stone_reception_id')->filter()->unique();
         $stoneReceptions = StoneReception::with([
-                'items.product',
-                'items.modifiers.modifier',
-                'rawMaterialBatch.product',
-                'cutter',
-                'receiver',
-                'store',
-            ])
+            'items.product',
+            'items.modifiers.modifier',
+            'rawMaterialBatch.product',
+            'cutter',
+            'receiver',
+            'store',
+        ])
             ->whereIn('id', $stoneReceptionIds)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -142,15 +142,15 @@ class WorkerDashboardService
         $departments = $buildRoles(null);
 
         // Итоги — всегда без фильтра продукта: от них считаются копилка и ожидаемая выплата.
-        $totalWorkerPay = $departments->sum(fn($dept) => $dept['worker']['totalPay'] ?? 0);
-        $totalMasterPay = $departments->sum(fn($dept) => $dept['master']['totalMasterPay'] ?? 0);
+        $totalWorkerPay = $departments->sum(fn ($dept) => $dept['worker']['totalPay'] ?? 0);
+        $totalMasterPay = $departments->sum(fn ($dept) => $dept['master']['totalMasterPay'] ?? 0);
         $totalPay       = $totalWorkerPay + $totalMasterPay;
 
         // Варианты фильтра «Продукт» — товары, по которым у человека есть выработка за период
         $filterProducts = $departments
-            ->flatMap(fn($dept) => collect([$dept['worker'], $dept['master']])
+            ->flatMap(fn ($dept) => collect([$dept['worker'], $dept['master']])
                 ->filter()
-                ->flatMap(fn($role) => $role['summary']->pluck('product')))
+                ->flatMap(fn ($role) => $role['summary']->pluck('product')))
             ->filter()
             ->unique('id')
             ->sortBy('name')
@@ -159,7 +159,7 @@ class WorkerDashboardService
         // Фильтр продукта режет только сводку по отделам; списки приёмок и сырья — полные
         $filteredTotalPay = null;
         if ($productIds !== null) {
-            $departments      = $buildRoles(fn($row) => in_array($row['product']?->id, $productIds));
+            $departments      = $buildRoles(fn ($row) => in_array($row['product']?->id, $productIds));
             $filteredTotalPay = $departments->sum('totalPay');
         }
 
@@ -184,7 +184,7 @@ class WorkerDashboardService
     {
         return $logs
             ->map(function ($log) use ($workerId) {
-                $items = $log->items->filter(fn($item) => $item->masterWorkerId() === $workerId)->values();
+                $items = $log->items->filter(fn ($item) => $item->masterWorkerId() === $workerId)->values();
 
                 return $items->isEmpty() ? null : (clone $log)->setRelation('items', $items);
             })
@@ -198,7 +198,7 @@ class WorkerDashboardService
      */
     private function buildDepartmentRoles(Collection $workerDepts, Collection $masterDepts): Collection
     {
-        $key = fn($dept) => $dept['department']?->id ?? 0;
+        $key = fn ($dept) => $dept['department']?->id ?? 0;
 
         $workerDepts = $workerDepts->keyBy($key);
         $masterDepts = $masterDepts->keyBy($key);
@@ -218,7 +218,7 @@ class WorkerDashboardService
                     'totalPay'   => ($worker['totalPay'] ?? 0) + ($master['totalMasterPay'] ?? 0),
                 ];
             })
-            ->sortBy(fn($row) => $row['department']?->name ?? "\u{FFFF}")
+            ->sortBy(fn ($row) => $row['department']?->name ?? "\u{FFFF}")
             ->values();
     }
 
@@ -236,8 +236,8 @@ class WorkerDashboardService
     ): Collection {
         // Ключ «отдел не определён» — 0: groupBy превращает null в пустую строку,
         // а она не пройдёт в DepartmentSettings::*(?int).
-        $stoneByDept    = $logs->groupBy(fn($log) => $log->stoneReception?->effectiveDepartmentId() ?? 0);
-        $workshopByDept = $workshopLogs->groupBy(fn($log) => $log->workshop?->effectiveDepartmentId() ?? 0);
+        $stoneByDept    = $logs->groupBy(fn ($log) => $log->stoneReception?->effectiveDepartmentId() ?? 0);
+        $workshopByDept = $workshopLogs->groupBy(fn ($log) => $log->workshop?->effectiveDepartmentId() ?? 0);
 
         // Отдел может прийти от партии или работника, поэтому связь department
         // самого документа не годится — берём отделы одним запросом.
@@ -280,8 +280,8 @@ class WorkerDashboardService
                     ],
                 ];
             })
-            ->filter(fn($row) => $row['summary']->isNotEmpty())
-            ->sortBy(fn($row) => $row['department']?->name ?? "\u{FFFF}")
+            ->filter(fn ($row) => $row['summary']->isNotEmpty())
+            ->sortBy(fn ($row) => $row['department']?->name ?? "\u{FFFF}")
             ->values();
     }
 
@@ -320,12 +320,12 @@ class WorkerDashboardService
         }
 
         $logs = ReceptionLog::with([
-                'items.product',
-                'stoneReception.items.modifiers',
-                'stoneReception.department',
-                'stoneReception.rawMaterialBatch',
-                'stoneReception.cutter',
-            ])
+            'items.product',
+            'stoneReception.items.modifiers',
+            'stoneReception.department',
+            'stoneReception.rawMaterialBatch',
+            'stoneReception.cutter',
+        ])
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->when($scopeIds !== null, fn ($q) => $q->whereHas('stoneReception',
                 fn ($q2) => $q2->inEffectiveDepartments($scopeIds, $includeUndetermined)))
@@ -336,16 +336,16 @@ class WorkerDashboardService
             ->get();
 
         // Привязать inverse-отношение log↔items, чтобы buildProductSummary не делал N+1.
-        $logs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('receptionLog', $log)));
+        $logs->each(fn ($log) => $log->items->each(fn ($item) => $item->setRelation('receptionLog', $log)));
 
         // Производство цеха: логи по тому же паттерну, что и ReceptionLog.
         // Статус цеха не фильтруем — паритет с приёмками камня.
         $workshopLogs = WorkshopLog::with([
-                'items.product',
-                'workshop.items.modifiers',
-                'workshop.department',
-                'workshop.packer',
-            ])
+            'items.product',
+            'workshop.items.modifiers',
+            'workshop.department',
+            'workshop.packer',
+        ])
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->when($scopeIds !== null, fn ($q) => $q->whereHas('workshop',
                 fn ($q2) => $q2->inEffectiveDepartments($scopeIds, $includeUndetermined)))
@@ -354,13 +354,13 @@ class WorkerDashboardService
             ->when($workerId, fn ($q) => $q->where('packer_id', $workerId))
             ->get();
 
-        $workshopLogs->each(fn($log) => $log->items->each(fn($item) => $item->setRelation('workshopLog', $log)));
+        $workshopLogs->each(fn ($log) => $log->items->each(fn ($item) => $item->setRelation('workshopLog', $log)));
 
         // Фильтр по продукту (плитке): оставляем только строки выбранного товара.
         $departments = $this->buildSummaryByDepartment(
             $logs,
             $workshopLogs,
-            $productIds !== null ? fn($row) => in_array($row['product']?->id, $productIds) : null,
+            $productIds !== null ? fn ($row) => in_array($row['product']?->id, $productIds) : null,
         );
 
         // Вкладка «Сырьё»: движения сырья не связаны с плиткой и работником —
@@ -386,12 +386,12 @@ class WorkerDashboardService
                 ? Department::whereIn('id', $restrictDepartmentIds)->orderBy('name')->get()
                 : Department::orderBy('name')->get(),
             'filterRawProducts' => Product::whereIn('id',
-                    RawMaterialBatch::query()->distinct()->pluck('product_id'))
+                RawMaterialBatch::query()->distinct()->pluck('product_id'))
                 ->orderBy('name')->get(),
             'filterProducts'    => Product::whereIn('id',
-                    ReceptionLogItem::query()->distinct()->pluck('product_id')
-                        ->merge(WorkshopLogItem::where('role', WorkshopItem::ROLE_PRODUCT)
-                            ->distinct()->pluck('product_id')))
+                ReceptionLogItem::query()->distinct()->pluck('product_id')
+                    ->merge(WorkshopLogItem::where('role', WorkshopItem::ROLE_PRODUCT)
+                        ->distinct()->pluck('product_id')))
                 ->orderBy('name')->get(),
             'filterWorkers'     => Worker::whereIn('id', $filterWorkerIds)->orderBy('name')->get(),
             // Короткий список по умолчанию: работники отделов пользователя без уволенных
@@ -520,21 +520,23 @@ class WorkerDashboardService
 
     private function buildProductSummary(Collection $logs): Collection
     {
-        $allItems = $logs->flatMap(fn($log) => $log->items);
+        $allItems = $logs->flatMap(fn ($log) => $log->items);
 
         return $allItems
-            ->groupBy(fn($logItem) => $logItem->product_id
+            ->groupBy(fn ($logItem) => $logItem->product_id
                 . '#' . $this->modifierSignature($this->receptionItemFor($logItem)))
             ->map(function ($items) {
                 $firstLogItem       = $items->first();
                 $product            = $firstLogItem->product;
                 $firstReceptionItem = $this->receptionItemFor($firstLogItem);
 
-                $quantity = $items->sum(fn($item) => (float) $item->quantity_delta);
+                $quantity = $items->sum(fn ($item) => (float) $item->quantity_delta);
 
                 $pay = $items->sum(function ($logItem) use ($product) {
                     $delta = (float) $logItem->quantity_delta;
-                    if (abs($delta) < 0.0001) return 0.0;
+                    if (abs($delta) < 0.0001) {
+                        return 0.0;
+                    }
 
                     $receptionItem = $this->receptionItemFor($logItem);
 
@@ -551,14 +553,17 @@ class WorkerDashboardService
                 });
 
                 $effCoeffDisplay = $items
-                    ->map(fn($li) => $this->receptionItemFor($li)?->effective_cost_coeff)
+                    ->map(fn ($li) => $this->receptionItemFor($li)?->effective_cost_coeff)
                     ->filter()
                     ->avg() ?? $product?->prod_cost_coeff ?? 0;
 
                 $masterPay = $items->sum(function ($logItem) {
                     $delta = (float) $logItem->quantity_delta;
-                    if (abs($delta) < 0.0001) return 0.0;
+                    if (abs($delta) < 0.0001) {
+                        return 0.0;
+                    }
                     $receptionItem = $this->receptionItemFor($logItem);
+
                     return $receptionItem ? $delta * (float) ($receptionItem->master_cost_per_m2 ?? 0) : 0.0;
                 });
 
@@ -569,22 +574,22 @@ class WorkerDashboardService
                     'modifiers'     => $firstReceptionItem?->modifiers ?? collect(),
                     'signature'     => $this->modifierSignature($firstReceptionItem),
                     'prodCost'      => $items
-                        ->map(fn($li) => $this->receptionItemFor($li)?->worker_cost_per_m2)
+                        ->map(fn ($li) => $this->receptionItemFor($li)?->worker_cost_per_m2)
                         ->filter()
                         ->avg() ?? $product?->prodCost(
                             $effCoeffDisplay,
                             $firstLogItem->receptionLog?->stoneReception?->effectiveDepartmentId()
                         ) ?? 0,
                     'masterCost'    => $items
-                        ->map(fn($li) => $this->receptionItemFor($li)?->master_cost_per_m2)
+                        ->map(fn ($li) => $this->receptionItemFor($li)?->master_cost_per_m2)
                         ->filter()
                         ->avg() ?? 0,
                     'pay'           => $pay,
                     'masterPay'     => $masterPay,
                 ];
             })
-            ->filter(fn($row) => $this->hasOutput($row))
-            ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '#' . $row['signature'])
+            ->filter(fn ($row) => $this->hasOutput($row))
+            ->sortBy(fn ($row) => ($row['product']?->sku ?? '') . '#' . $row['signature'])
             ->values();
     }
 
@@ -595,21 +600,23 @@ class WorkerDashboardService
      */
     private function buildWorkshopProductSummary(Collection $logs): Collection
     {
-        $allItems = $logs->flatMap(fn($log) => $log->items->where('role', WorkshopItem::ROLE_PRODUCT));
+        $allItems = $logs->flatMap(fn ($log) => $log->items->where('role', WorkshopItem::ROLE_PRODUCT));
 
         return $allItems
-            ->groupBy(fn($logItem) => $logItem->product_id
+            ->groupBy(fn ($logItem) => $logItem->product_id
                 . '#' . $this->modifierSignature($this->workshopItemFor($logItem)))
             ->map(function ($items) {
                 $firstLogItem = $items->first();
                 $product      = $firstLogItem->product;
                 $firstWsItem  = $this->workshopItemFor($firstLogItem);
 
-                $quantity = $items->sum(fn($item) => (float) $item->quantity_delta);
+                $quantity = $items->sum(fn ($item) => (float) $item->quantity_delta);
 
                 $pay = $items->sum(function ($logItem) use ($product) {
                     $delta = (float) $logItem->quantity_delta;
-                    if (abs($delta) < 0.0001) return 0.0;
+                    if (abs($delta) < 0.0001) {
+                        return 0.0;
+                    }
 
                     $wsItem = $this->workshopItemFor($logItem);
                     if ($wsItem) {
@@ -625,14 +632,17 @@ class WorkerDashboardService
                 });
 
                 $effCoeffDisplay = $items
-                    ->map(fn($li) => $this->workshopItemFor($li)?->effective_cost_coeff)
+                    ->map(fn ($li) => $this->workshopItemFor($li)?->effective_cost_coeff)
                     ->filter()
                     ->avg() ?? $product?->prod_cost_coeff ?? 0;
 
                 $masterPay = $items->sum(function ($logItem) {
                     $delta = (float) $logItem->quantity_delta;
-                    if (abs($delta) < 0.0001) return 0.0;
+                    if (abs($delta) < 0.0001) {
+                        return 0.0;
+                    }
                     $wsItem = $this->workshopItemFor($logItem);
+
                     return $wsItem ? $delta * (float) ($wsItem->master_cost_per_m2 ?? 0) : 0.0;
                 });
 
@@ -643,21 +653,21 @@ class WorkerDashboardService
                     'modifiers'     => $firstWsItem?->modifiers ?? collect(),
                     'signature'     => $this->modifierSignature($firstWsItem),
                     'prodCost'      => $items
-                        ->map(fn($li) => $this->workshopItemFor($li)?->worker_cost_per_m2)
+                        ->map(fn ($li) => $this->workshopItemFor($li)?->worker_cost_per_m2)
                         ->filter()
                         ->avg() ?? $product?->prodCost(
                             $effCoeffDisplay,
                             $firstLogItem->workshopLog?->workshop?->effectiveDepartmentId()
                         ) ?? 0,
                     'masterCost'    => $items
-                        ->map(fn($li) => $this->workshopItemFor($li)?->master_cost_per_m2)
+                        ->map(fn ($li) => $this->workshopItemFor($li)?->master_cost_per_m2)
                         ->filter()
                         ->avg() ?? 0,
                     'pay'           => $pay,
                     'masterPay'     => $masterPay,
                 ];
             })
-            ->filter(fn($row) => $this->hasOutput($row))
+            ->filter(fn ($row) => $this->hasOutput($row))
             ->values();
     }
 
@@ -680,15 +690,15 @@ class WorkerDashboardService
     private function mergeProductSummaries(Collection $a, Collection $b): Collection
     {
         return $a->concat($b)
-            ->groupBy(fn($row) => ($row['product']?->id ?? 0) . '#' . $row['signature'])
+            ->groupBy(fn ($row) => ($row['product']?->id ?? 0) . '#' . $row['signature'])
             ->map(function ($rows) {
                 if ($rows->count() === 1) {
                     return $rows->first();
                 }
 
                 $quantity = $rows->sum('quantity');
-                $wavg = fn(string $key) => abs($quantity) > 0.0001
-                    ? $rows->sum(fn($r) => $r[$key] * $r['quantity']) / $quantity
+                $wavg = fn (string $key) => abs($quantity) > 0.0001
+                    ? $rows->sum(fn ($r) => $r[$key] * $r['quantity']) / $quantity
                     : $rows->avg($key);
 
                 return [
@@ -704,8 +714,8 @@ class WorkerDashboardService
                     'masterPay'     => $rows->sum('masterPay'),
                 ];
             })
-            ->filter(fn($row) => $this->hasOutput($row))
-            ->sortBy(fn($row) => ($row['product']?->sku ?? '') . '#' . $row['signature'])
+            ->filter(fn ($row) => $this->hasOutput($row))
+            ->sortBy(fn ($row) => ($row['product']?->sku ?? '') . '#' . $row['signature'])
             ->values();
     }
 }

@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\RawMaterialBatch;
 use App\Models\Product;
+use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
 use App\Models\ReceptionLogItem;
 use App\Models\StoneReception;
@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Services\StoneReceptionService;
 use App\Services\WorkerDashboardService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Queue;
 use Tests\Helpers\AccessTestHelper as Access;
 use Tests\Helpers\ReceptionTestHelper as H;
@@ -18,7 +19,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * Часть B: админ может точечно исправить приёмщика (receiver_id) в существующей записи
  * журнала ReceptionLog. Это переносит выработку этого лога другому мастеру.
  */
-
 function makeReceptionLogForReceiverTest(int $receiverId): ReceptionLog
 {
     $rawProduct = Product::factory()->create(['name' => 'Гранит']);
@@ -151,7 +151,7 @@ describe('Кому идёт зарплата мастера за правку', 
             ->getDashboardData($workerId, now()->subDay(), now()->addDay())[$key];
     }
 
-    function rlrLastLines(): Illuminate\Support\Collection
+    function rlrLastLines(): Collection
     {
         return ReceptionLog::latest('id')->first()->items()->orderBy('id')->get();
     }

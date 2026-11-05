@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\Workshop;
 use App\Models\Worker;
+use App\Models\Workshop;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
@@ -9,7 +9,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * незавершённые → закрытые с ошибкой синхронизации → закрытые.
  * Внутри группы новые сверху.
  */
-
 beforeEach(function () {
     $this->store  = H::store();
     $this->packer = Worker::create(['name' => 'Работник', 'position' => 'Мастер']);

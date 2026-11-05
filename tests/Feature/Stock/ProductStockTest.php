@@ -3,6 +3,7 @@
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\Store;
+use Illuminate\Database\QueryException;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // total_quantity — суммирование остатков (тесты с БД, поэтому здесь в Feature)
@@ -81,11 +82,11 @@ test('нельзя создать два остатка для одного то
 
     ProductStock::create(['product_id' => $product->id, 'store_id' => $store->id, 'quantity' => 10]);
 
-    expect(fn() => ProductStock::create([
+    expect(fn () => ProductStock::create([
         'product_id' => $product->id,
         'store_id'   => $store->id,
         'quantity'   => 5,
-    ]))->toThrow(\Illuminate\Database\QueryException::class);
+    ]))->toThrow(QueryException::class);
 });
 
 test('total_quantity через withSum работает без N+1', function () {

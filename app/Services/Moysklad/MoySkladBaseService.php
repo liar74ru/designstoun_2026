@@ -20,7 +20,9 @@ abstract class MoySkladBaseService
     private const MAX_RETRY_DELAY_MS = 5000;
 
     protected string $token;
+
     protected string $baseUrl;
+
     protected ?array $organizationMeta = null;
 
     /**
@@ -66,6 +68,7 @@ abstract class MoySkladBaseService
             return $response->successful() ? $response->json() : null;
         } catch (\Exception $e) {
             Log::error('МойСклад GET ошибка', ['endpoint' => $endpoint, 'error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -89,7 +92,7 @@ abstract class MoySkladBaseService
                 ->map(fn (array $request, $key) => $this->configure($pool->as((string) $key))
                     ->get($this->baseUrl . $request[0], $request[1]))
                 ->all());
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('МойСклад GET (пул) ошибка', ['error' => $e->getMessage()]);
 
             return array_fill_keys(array_keys($requests), null);
@@ -212,6 +215,7 @@ abstract class MoySkladBaseService
 
         if (empty($rows)) {
             Log::error('Организации не найдены в МойСклад');
+
             return null;
         }
 
@@ -221,6 +225,7 @@ abstract class MoySkladBaseService
     protected function getEntityMeta(string $type, string $id): ?array
     {
         $data = $this->get('/entity/' . $type . '/' . $id);
+
         return $data['meta'] ?? null;
     }
 

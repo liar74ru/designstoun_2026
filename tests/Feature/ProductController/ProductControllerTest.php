@@ -9,8 +9,9 @@ use App\Models\Store;
 use App\Models\User;
 use App\Services\Moysklad\MoySkladService;
 use App\Services\Moysklad\StockSyncService;
-use Illuminate\Support\Str;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -41,7 +42,7 @@ function makeOrderWith(Product $product, string $stateId, array $attrs = [], arr
 }
 
 /** Товары дерева api.products.tree по id (одна корневая группа). */
-function treeProducts($test): \Illuminate\Support\Collection
+function treeProducts($test): Collection
 {
     return collect(
         $test->actingAs(H::adminUser())
@@ -217,7 +218,7 @@ describe('Удалённые CRUD-маршруты недоступны', functi
         $product = makeProduct();
 
         $this->actingAs(H::adminUser())
-            ->put('/products/'.$product->moysklad_id, ['name' => 'Test', 'price' => 100])
+            ->put('/products/' . $product->moysklad_id, ['name' => 'Test', 'price' => 100])
             ->assertStatus(405);
     });
 
@@ -225,7 +226,7 @@ describe('Удалённые CRUD-маршруты недоступны', functi
         $product = makeProduct();
 
         $this->actingAs(H::adminUser())
-            ->delete('/products/'.$product->moysklad_id)
+            ->delete('/products/' . $product->moysklad_id)
             ->assertStatus(405);
     });
 });
@@ -289,7 +290,7 @@ describe('ProductController syncFromMoySklad()', function () {
             ->once()
             ->andReturn([
                 'success' => false,
-                'message' => 'Ошибка API МойСклад: превышен лимит запросов'
+                'message' => 'Ошибка API МойСклад: превышен лимит запросов',
             ]);
 
         app()->instance(MoySkladService::class, $mock);
@@ -314,7 +315,7 @@ describe('ProductController syncFromMoySklad()', function () {
             ->once()
             ->andReturn([
                 'success' => true,
-                'message' => 'Синхронизировано товаров: 15'
+                'message' => 'Синхронизировано товаров: 15',
             ]);
 
         app()->instance(MoySkladService::class, $mock);
@@ -336,14 +337,14 @@ describe('ProductController syncFromMoySklad()', function () {
             ->andReturn([
                 'success' => true,
                 'synced' => 8,
-                'message' => 'Синхронизировано групп: 8'
+                'message' => 'Синхронизировано групп: 8',
             ]);
 
         $mock->shouldReceive('syncProducts')
             ->once()
             ->andReturn([
                 'success' => true,
-                'message' => 'Синхронизировано товаров: 25'
+                'message' => 'Синхронизировано товаров: 25',
             ]);
 
         app()->instance(MoySkladService::class, $mock);
@@ -370,7 +371,7 @@ describe('ProductController syncFromMoySklad()', function () {
             ->once()
             ->andReturn([
                 'success' => true,
-                'message' => 'Синхронизировано товаров: 10'
+                'message' => 'Синхронизировано товаров: 10',
             ]);
 
         app()->instance(MoySkladService::class, $mock);
@@ -395,14 +396,14 @@ describe('ProductController syncFromMoySklad()', function () {
             ->andReturn([
                 'success' => false,
                 'synced' => 0,
-                'message' => 'Ошибка синхронизации групп'
+                'message' => 'Ошибка синхронизации групп',
             ]);
 
         $mock->shouldReceive('syncProducts')
             ->once()
             ->andReturn([
                 'success' => true,
-                'message' => 'Синхронизировано товаров: 20'
+                'message' => 'Синхронизировано товаров: 20',
             ]);
 
         app()->instance(MoySkladService::class, $mock);
@@ -602,7 +603,7 @@ describe('ProductController syncStocks()', function () {
             ->with($product->moysklad_id)
             ->andReturn([
                 'success' => true,
-                'message' => 'Остатки обновлены успешно'
+                'message' => 'Остатки обновлены успешно',
             ]);
 
         app()->instance(StockSyncService::class, $mock);
@@ -622,7 +623,7 @@ describe('ProductController syncStocks()', function () {
             ->with($product->moysklad_id)
             ->andReturn([
                 'success' => false,
-                'message' => 'Ошибка API МойСклад'
+                'message' => 'Ошибка API МойСклад',
             ]);
 
         app()->instance(StockSyncService::class, $mock);
@@ -647,7 +648,7 @@ describe('ProductController syncAllProductsStocks()', function () {
             ->once()
             ->andReturn([
                 'success' => true,
-                'message' => 'Все остатки синхронизированы'
+                'message' => 'Все остатки синхронизированы',
             ]);
 
         app()->instance(StockSyncService::class, $mock);
@@ -664,7 +665,7 @@ describe('ProductController syncAllProductsStocks()', function () {
             ->once()
             ->andReturn([
                 'success' => false,
-                'message' => 'Ошибка при синхронизации'
+                'message' => 'Ошибка при синхронизации',
             ]);
 
         app()->instance(StockSyncService::class, $mock);
@@ -706,7 +707,7 @@ describe('ProductController syncGroups()', function () {
             ->once()
             ->andReturn([
                 'success' => true,
-                'message' => 'Синхронизировано 10 групп'
+                'message' => 'Синхронизировано 10 групп',
             ]);
 
         app()->instance(MoySkladService::class, $mock);
@@ -726,7 +727,7 @@ describe('ProductController syncGroups()', function () {
             ->once()
             ->andReturn([
                 'success' => false,
-                'message' => 'Ошибка синхронизации групп'
+                'message' => 'Ошибка синхронизации групп',
             ]);
 
         app()->instance(MoySkladService::class, $mock);
@@ -751,7 +752,7 @@ describe('ProductController groupsJson()', function () {
         ProductGroup::create([
             'moysklad_id' => $groupId,
             'name' => 'Тестовая группа',
-            'parent_id' => null
+            'parent_id' => null,
         ]);
 
         // Создаем товар в группе
@@ -762,7 +763,7 @@ describe('ProductController groupsJson()', function () {
             ->assertStatus(200)
             ->assertHeader('Content-Type', 'application/json')
             ->assertJsonStructure([
-                '*' => ['id', 'name', 'children', 'products']
+                '*' => ['id', 'name', 'children', 'products'],
             ]);
     });
 
@@ -910,7 +911,7 @@ describe('ProductController groupsJson()', function () {
         ProductGroup::create([
             'moysklad_id' => $groupId,
             'name' => 'Тестовая группа',
-            'parent_id' => null
+            'parent_id' => null,
         ]);
 
         // Первый запрос - должен закэшироваться
@@ -944,7 +945,7 @@ describe('ProductController stocksJson()', function () {
         ProductStock::create([
             'product_id' => $product->id,
             'store_id' => $store->id,
-            'quantity' => 15.5
+            'quantity' => 15.5,
         ]);
 
         $this->actingAs(H::adminUser())
@@ -952,7 +953,7 @@ describe('ProductController stocksJson()', function () {
             ->assertStatus(200)
             ->assertHeader('Content-Type', 'application/json')
             ->assertJsonStructure([
-                $product->id => ['total', 'stores']
+                $product->id => ['total', 'stores'],
             ]);
     });
 
@@ -1015,7 +1016,6 @@ describe('ProductController getCoeff()', function () {
     });
 
 });
-
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Синхронизации — только POST: ссылка или картинка с чужой страницы их не запустит

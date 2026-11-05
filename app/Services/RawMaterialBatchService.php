@@ -2,16 +2,16 @@
 
 namespace App\Services;
 
+use App\Exceptions\InsufficientRawMaterialException;
 use App\Jobs\DeleteMoveInMoysklad;
 use App\Jobs\SyncBatchToMoysklad;
-use App\Exceptions\InsufficientRawMaterialException;
 use App\Models\Department;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
-use App\Models\Store;
 use App\Models\StoneReception;
+use App\Models\Store;
 use App\Models\Worker;
 use App\Support\BatchStock;
 use App\Support\DocumentNaming;
@@ -20,6 +20,7 @@ use App\Traits\ManagesStock;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -51,8 +52,7 @@ class RawMaterialBatchService
                     }
                 }),
                 AllowedFilter::partial('batch_number'),
-                AllowedFilter::callback('department_id', fn($q, $v) =>
-                    $q->whereIn('raw_material_batches.department_id', (array) $v)),
+                AllowedFilter::callback('department_id', fn ($q, $v) => $q->whereIn('raw_material_batches.department_id', (array) $v)),
             ])
             ->defaultSort('-updated_at')
             ->allowedSorts(['batch_number', 'created_at', 'updated_at', 'quantity']);
@@ -102,10 +102,10 @@ class RawMaterialBatchService
         $recentBatches = RawMaterialBatch::with([
             'product',
             'currentWorker',
-            'movements' => fn($q) => $q->where('movement_type', 'create')->oldest(),
+            'movements' => fn ($q) => $q->where('movement_type', 'create')->oldest(),
         ])
             ->when($accessible !== null,
-                fn($q) => $q->whereIn('department_id', $accessible ?: [-1]))
+                fn ($q) => $q->whereIn('department_id', $accessible ?: [-1]))
             ->orderBy('created_at', 'desc')
             ->limit(20)
             ->get();
@@ -116,7 +116,7 @@ class RawMaterialBatchService
     /**
      * Данные формы редактирования: склады + текущие склады первичного движения.
      *
-     * @return array{stores: \Illuminate\Support\Collection, fromStoreId: ?string, toStoreId: ?string}
+     * @return array{stores: Collection, fromStoreId: ?string, toStoreId: ?string}
      */
     public function getEditFormOptions(RawMaterialBatch $batch): array
     {
@@ -201,7 +201,7 @@ class RawMaterialBatchService
                     ]);
 
                     $this->adjustStock($data['product_id'], $data['from_store_id'], -$data['quantity']);
-                    $this->adjustStock($data['product_id'], $data['to_store_id'],   +$data['quantity']);
+                    $this->adjustStock($data['product_id'], $data['to_store_id'], +$data['quantity']);
                 });
 
                 break;
@@ -271,6 +271,7 @@ class RawMaterialBatchService
 
         if (!$reason) {
             $this->queueSync($batch);
+
             return null;
         }
 
@@ -329,7 +330,7 @@ class RawMaterialBatchService
             $batch, $createMovement, $oldProductId, $oldRemaining,
             $newProductId, $newQuantity, $newRemaining,
             $productChanged, $quantityChanged, $newCreatedAt,
-            $oldFromStoreId, $oldToStoreId, $newFromStoreId, $newToStoreId,
+            $oldFromStoreId, $newFromStoreId, $newToStoreId,
             $fromStoreChanged, $toStoreChanged
         ) {
             // Пока шла форма, приёмка могла списать сырьё — считаем от свежего остатка
@@ -446,7 +447,7 @@ class RawMaterialBatchService
         $movement     = null;
         $newRemaining = null;
 
-        DB::transaction(function () use ($batch, $delta, $notes, $createdAt, &$movement, &$newRemaining) {
+        DB::transaction(function () use ($batch, $delta, $createdAt, &$movement, &$newRemaining) {
             BatchStock::lock($batch);
             $batchStoreId = $batch->current_store_id;
             $newRemaining = (float) $batch->remaining_quantity + $delta;
@@ -472,8 +473,8 @@ class RawMaterialBatchService
 
             $movement = RawMaterialMovement::create([
                 'batch_id'       => $batch->id,
-                'from_store_id'  => $delta < 0 ? $batchStoreId    : $defaultStoreId,
-                'to_store_id'    => $delta > 0 ? $batchStoreId    : $defaultStoreId,
+                'from_store_id'  => $delta < 0 ? $batchStoreId : $defaultStoreId,
+                'to_store_id'    => $delta > 0 ? $batchStoreId : $defaultStoreId,
                 'from_worker_id' => null,
                 'to_worker_id'   => null,
                 'moved_by'       => auth()->user()?->worker_id ?? null,
@@ -497,7 +498,7 @@ class RawMaterialBatchService
 
             $batch->receptions()
                 ->where('status', StoneReception::STATUS_ACTIVE)
-                ->each(fn($r) => $r->update(['status' => StoneReception::STATUS_COMPLETED]));
+                ->each(fn ($r) => $r->update(['status' => StoneReception::STATUS_COMPLETED]));
         });
     }
 
@@ -511,7 +512,7 @@ class RawMaterialBatchService
 
             $batch->receptions()
                 ->where('status', StoneReception::STATUS_COMPLETED)
-                ->each(fn($r) => $r->update(['status' => StoneReception::STATUS_ACTIVE]));
+                ->each(fn ($r) => $r->update(['status' => StoneReception::STATUS_ACTIVE]));
         });
     }
 
@@ -775,10 +776,10 @@ class RawMaterialBatchService
     public function findWorkerBatchByProduct(Worker $worker, int $productId): ?RawMaterialBatch
     {
         return RawMaterialBatch::whereIn('status', [
-                RawMaterialBatch::STATUS_NEW,
-                RawMaterialBatch::STATUS_IN_WORK,
-                RawMaterialBatch::STATUS_CONFIRMED,
-            ])
+            RawMaterialBatch::STATUS_NEW,
+            RawMaterialBatch::STATUS_IN_WORK,
+            RawMaterialBatch::STATUS_CONFIRMED,
+        ])
             ->where('current_worker_id', $worker->id)
             ->where('product_id', $productId)
             ->latest('id')

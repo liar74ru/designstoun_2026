@@ -14,7 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-// рефакторинг v2 от 26.04.2026  controller -> service -> service/moysklad 
+// рефакторинг v2 от 26.04.2026  controller -> service -> service/moysklad
 
 class SupplierOrderController extends Controller
 {
@@ -31,6 +31,7 @@ class SupplierOrderController extends Controller
     public function show(SupplierOrder $supplierOrder): View
     {
         $supplierOrder->load(['counterparty', 'store', 'receiver', 'items.product', 'createdBy.worker']);
+
         return view('supplier-orders.show', compact('supplierOrder'));
     }
 
@@ -43,7 +44,7 @@ class SupplierOrderController extends Controller
         $department    = $currentWorker?->department;
         $defaultStore  = ($department && $department->default_raw_store_id)
             ? Setting::deptRawStore($department, $stores)
-            : $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false);
+            : $stores->first(fn ($s) => mb_stripos($s->name, 'сырь') !== false);
         $defaultReceiver = $receivers->firstWhere('id', $currentWorker?->id);
         $recentOrders    = $this->service->getRecentOrders(20, $request);
 
@@ -95,7 +96,7 @@ class SupplierOrderController extends Controller
         ['stores' => $stores, 'counterparties' => $counterparties, 'receivers' => $receivers]
             = $this->service->getFormOptions();
 
-        $defaultStore = $stores->first(fn($s) => mb_stripos($s->name, 'сырь') !== false);
+        $defaultStore = $stores->first(fn ($s) => mb_stripos($s->name, 'сырь') !== false);
         $supplierOrder->load(['counterparty', 'store', 'items.product']);
 
         return view('supplier-orders.edit', compact(
@@ -175,6 +176,7 @@ class SupplierOrderController extends Controller
                 'issue'          => $result['issue'],
                 'suggested_name' => $result['suggested_name'],
             ]);
+
             return redirect()->route('supplier-orders.sync-confirm', $supplierOrder);
         }
 
@@ -225,6 +227,7 @@ class SupplierOrderController extends Controller
 
         if ($result['status'] === 'error') {
             $route = $mode === 'create_order_only' ? 'supplier-orders.show' : 'supplier-orders.index';
+
             return $mode === 'create_order_only'
                 ? redirect()->route($route, $supplierOrder)->with('error', $result['message'])
                 : redirect()->route($route)->with('error', $result['message']);

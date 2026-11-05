@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Models\Workshop;
 use App\Models\User;
+use App\Models\Workshop;
 use App\Support\DepartmentAccess;
 
 class WorkshopPolicy

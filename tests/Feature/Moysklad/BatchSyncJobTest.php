@@ -8,6 +8,7 @@ use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Models\Store;
 use App\Services\Moysklad\RawMaterialBatchSyncService;
+use App\Services\Moysklad\StockSyncService;
 use App\Services\RawMaterialBatchService;
 use App\Support\DocumentNaming;
 use Illuminate\Http\Client\ConnectionException;
@@ -215,9 +216,9 @@ describe('Количество: перемещение равно партии',
         $batch = bsjBatch($this, [], ['moysklad_move_id' => 'move-1']);
         bsjFake();
 
-        $stock = Mockery::mock(\App\Services\Moysklad\StockSyncService::class);
+        $stock = Mockery::mock(StockSyncService::class);
         $stock->shouldReceive('refreshProducts')->once()->with(['ms-raw', 'ms-old']);
-        app()->instance(\App\Services\Moysklad\StockSyncService::class, $stock);
+        app()->instance(StockSyncService::class, $stock);
 
         bsjRun($batch, 1, ['ms-old']);
     });

@@ -1,7 +1,6 @@
 <?php
 
 use App\Jobs\DeleteMoveInMoysklad;
-use Illuminate\Support\Facades\Queue;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
@@ -9,6 +8,7 @@ use App\Models\RawMaterialMovement;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Services\RawMaterialBatchService;
+use Illuminate\Support\Facades\Queue;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // RawMaterialBatchService — create()
@@ -401,5 +401,5 @@ describe('RawMaterialBatchService::returnToStore()', function () {
 
         $batch->refresh();
         expect((float) $batch->remaining_quantity)->toBe(35.0);
-});
+    });
 });

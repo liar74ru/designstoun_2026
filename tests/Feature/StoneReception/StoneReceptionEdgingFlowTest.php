@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Department;
-use Illuminate\Support\Facades\Queue;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
@@ -11,10 +10,11 @@ use App\Services\DepartmentModifierService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     Cache::flush();
-    Setting::updateOrCreate(['key' => 'PIECE_RATE'],       ['value' => '100']);
+    Setting::updateOrCreate(['key' => 'PIECE_RATE'], ['value' => '100']);
 });
 
 function makeReceptionServiceForEdging(): StoneReceptionService

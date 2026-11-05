@@ -115,8 +115,11 @@ class StoneReceptionItem extends Model
      */
     public static function skuIsSmallTile(?string $sku): bool
     {
-        if (!$sku) return false;
+        if (!$sku) {
+            return false;
+        }
         $parts = explode('-', $sku);
+
         return count($parts) >= 3 && $parts[2] === '30';
     }
 

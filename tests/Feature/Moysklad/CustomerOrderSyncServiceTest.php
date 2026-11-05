@@ -13,6 +13,8 @@ use App\Services\Moysklad\OrderStateSyncService;
 use App\Services\OrderChangeService;
 use App\Services\OrderProductionService;
 use App\Support\OrderPriority;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 const SYNC_PROD_STATE = '55555555-5555-5555-5555-555555555555';
@@ -333,7 +335,7 @@ describe('Выгрузка заявок страницами', function () {
      */
     function fakePagedOrders(?int $failOffset = null): void
     {
-        Http::fake(function (\Illuminate\Http\Client\Request $request) use ($failOffset) {
+        Http::fake(function (Request $request) use ($failOffset) {
             if (str_contains($request->url(), '/entity/customerorder/metadata')) {
                 return Http::response(syncStatesFake(), 200);
             }
@@ -421,7 +423,7 @@ describe('Неизменённые заявки не переписываютс�
 
     beforeEach(function () {
         config()->set('services.moysklad.token', 'test-token');
-        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+        Http::fake(function (Request $request) {
             if (str_contains($request->url(), '/entity/customerorder/metadata')) {
                 return Http::response(syncStatesFake(), 200);
             }
@@ -493,12 +495,12 @@ describe('Неизменённые заявки не переписываютс�
             fakeOrdersSync(['rows' => array_map('pagedOrderRow', range(1, $n)), 'meta' => ['size' => $n]]);
             customerOrderSync()->pullActive();
 
-            \Illuminate\Support\Facades\DB::flushQueryLog();
-            \Illuminate\Support\Facades\DB::enableQueryLog();
+            DB::flushQueryLog();
+            DB::enableQueryLog();
             customerOrderSync()->pullActive();
-            \Illuminate\Support\Facades\DB::disableQueryLog();
+            DB::disableQueryLog();
 
-            return count(\Illuminate\Support\Facades\DB::getQueryLog());
+            return count(DB::getQueryLog());
         };
 
         expect($queriesOnRepeat(60))->toBe($queriesOnRepeat(5));
@@ -563,7 +565,7 @@ describe('Изменение состава заявки', function () {
     beforeEach(function () {
         config()->set('services.moysklad.token', 'test-token');
         OrderState::create(['id' => SYNC_IDLE_STATE, 'name' => 'Новый', 'is_enabled' => true]);
-        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+        Http::fake(function (Request $request) {
             if (str_contains($request->url(), '/entity/customerorder/metadata')) {
                 return Http::response(syncStatesFake(), 200);
             }

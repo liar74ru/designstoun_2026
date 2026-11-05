@@ -2,19 +2,18 @@
 
 namespace App\Services\Moysklad;
 
+use App\Models\RawMaterialBatch;
+use App\Models\ReceptionLog;
 use App\Models\Setting;
+use App\Models\StoneReception;
+use App\Models\Worker;
 use App\Services\Moysklad\Concerns\HandlesProcessingSync;
 use App\Support\DepartmentSettings;
 use App\Support\DocumentNaming;
 use App\Support\MoyskladMoment;
 use App\Support\Uom;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use App\Models\RawMaterialBatch;
-use App\Models\ReceptionLog;
-use App\Models\Store;
-use App\Models\Product;
-use App\Models\StoneReception;
-use App\Models\Worker;
 
 class StoneReceptionSyncService extends MoySkladBaseService
 {
@@ -40,7 +39,6 @@ class StoneReceptionSyncService extends MoySkladBaseService
     /**
      * Создать техоперацию для приёмки (1 приёмка = 1 техоперация).
      *
-     * @param  StoneReception  $reception
      * @return array ['success', 'processing_id', 'processing_name', 'code', 'message']
      */
     public function createProcessingForReception(StoneReception $reception, ?string $customName = null, ?string $description = null): array
@@ -98,7 +96,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 $totalQuantity += (float) $item->quantity;
             }
 
-            $productsGrouped = array_filter($productsGrouped, fn($p) => $p['quantity'] > 0);
+            $productsGrouped = array_filter($productsGrouped, fn ($p) => $p['quantity'] > 0);
 
             if (empty($productsGrouped)) {
                 throw new \Exception('Нет продуктов с moysklad_id для создания техоперации');
@@ -180,6 +178,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                     'response'     => $response->json(),
                     'reception_id' => $reception->id,
                 ]);
+
                 return $result;
             }
 
@@ -204,6 +203,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 'reception_id' => $reception->id,
                 'error'        => $e->getMessage(),
             ]);
+
             return $result;
         }
     }
@@ -212,7 +212,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
      * Обновить продукты (и опционально количество материала) в существующей техоперации.
      *
      * @param  string             $processingId       UUID техоперации в МойСклад
-     * @param  \Illuminate\Support\Collection  $allItems  StoneReceptionItem со всех приёмок партии
+     * @param  Collection  $allItems  StoneReceptionItem со всех приёмок партии
      * @param  string             $storeId            UUID склада
      * @param  float|null         $materialQuantity   Новое кол-во сырья (null = не менять материал)
      * @param  string|null        $materialMoyskladId moysklad_id товара-сырья
@@ -221,7 +221,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
      */
     public function updateProcessingProducts(
         string $processingId,
-        \Illuminate\Support\Collection $allItems,
+        Collection $allItems,
         string $storeId,
         ?float $materialQuantity = null,
         ?string $materialMoyskladId = null,
@@ -256,7 +256,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 $totalQuantity += (float) $item->quantity;
             }
 
-            $productsGrouped = array_filter($productsGrouped, fn($p) => $p['quantity'] > 0);
+            $productsGrouped = array_filter($productsGrouped, fn ($p) => $p['quantity'] > 0);
             $totalQuantity   = array_sum(array_column($productsGrouped, 'quantity'));
 
             if (empty($productsGrouped)) {
@@ -321,12 +321,14 @@ class StoneReceptionSyncService extends MoySkladBaseService
                     'status'        => $response->status(),
                     'response'      => $response->json(),
                 ]);
+
                 return $result;
             }
 
             $result['success'] = true;
             $result['message'] = 'Техоперация обновлена';
             Log::info('updateProcessingProducts: успешно', ['processing_id' => $processingId]);
+
             return $result;
 
         } catch (\Exception $e) {
@@ -336,6 +338,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 'processing_id' => $processingId,
                 'error'         => $e->getMessage(),
             ]);
+
             return $result;
         }
     }
@@ -358,6 +361,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 'reception_id' => $reception->id,
             ]);
             $reception->markSyncError('Партия сырья не привязана к приёмке');
+
             return $this->syncOutcome(false, 'Партия сырья не привязана к приёмке');
         }
 
@@ -369,6 +373,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 && !$this->adoptExistingProcessing($reception, DocumentNaming::externalCode('reception', $reception->id))) {
                 $message = 'МойСклад не ответил: не удалось проверить, создана ли техоперация';
                 $reception->markSyncError($message);
+
                 return $this->syncOutcome(false, $message);
             }
 
@@ -418,6 +423,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 'error'        => $e->getMessage(),
             ]);
             $reception->markSyncError('Ошибка: ' . $e->getMessage());
+
             return $this->syncOutcome(false, 'Ошибка: ' . $e->getMessage());
         }
     }
@@ -469,7 +475,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
         // отдела свой, и «подкол/торцовка» перестали быть исчерпывающими.
         $reception->loadMissing('items.modifiers');
         $tagMap = $reception->items->keyBy('product_id')
-            ->map(fn($i) => $i->modifiers->pluck('name')->all());
+            ->map(fn ($i) => $i->modifiers->pluck('name')->all());
 
         $receiverIds = $logs->pluck('receiver_id')->filter()->unique();
         $receivers   = Worker::whereIn('id', $receiverIds)->pluck('name', 'id');
@@ -477,7 +483,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
         $blocks = $logs->map(function (ReceptionLog $log) use ($receivers, $tagMap) {
             $date         = $log->created_at->format('d.m.Y');
             $receiverName = $receivers[$log->receiver_id] ?? '—';
-            $lines        = ["___", "{$date} #{$log->id} {$receiverName}"];
+            $lines        = ['___', "{$date} #{$log->id} {$receiverName}"];
 
             foreach ($log->items as $item) {
                 $productName = $item->product?->name ?? "Товар #{$item->product_id}";

@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Carbon\Carbon;
+
 class DocumentNaming
 {
     /**
@@ -23,9 +25,10 @@ class DocumentNaming
      * @param string $prefix   Уникальный код типа документа (ПРОГ, ТО, ПРИЕМ и т.п.)
      * @param int    $sequence Порядковый номер в рамках недели
      */
-    public static function weeklyName(string $prefix, int $sequence, ?\Carbon\Carbon $date = null): string
+    public static function weeklyName(string $prefix, int $sequence, ?Carbon $date = null): string
     {
         $d = $date ?? now();
+
         return $d->format('y') . '-' . $d->format('W')
             . '-' . $prefix
             . '-' . str_pad($sequence, 2, '0', STR_PAD_LEFT);
@@ -35,9 +38,10 @@ class DocumentNaming
      * Недельный префикс имени документа: «ГГ-НН-ПРЕФИКС-».
      * Использует ту же ISO-неделю, что и weeklyName().
      */
-    public static function weekPrefix(string $prefix, ?\Carbon\Carbon $date = null): string
+    public static function weekPrefix(string $prefix, ?Carbon $date = null): string
     {
         $d = $date ?? now();
+
         return $d->format('y') . '-' . $d->format('W') . '-' . $prefix . '-';
     }
 
@@ -70,6 +74,7 @@ class DocumentNaming
         if (preg_match('/^(.+)_(\d+)$/', $name, $m)) {
             return $m[1] . '_' . str_pad((int) $m[2] + 1, 2, '0', STR_PAD_LEFT);
         }
+
         return $name . '_01';
     }
 

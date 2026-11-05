@@ -23,9 +23,9 @@ class ProductGroupService
             ->get();
 
         $rootGroups = $allGroups->whereNull('parent_id');
+
         return $this->buildTree($rootGroups, $allGroups);
     }
-
 
     /**
      * Построить дерево групп рекурсивно
@@ -51,7 +51,7 @@ class ProductGroupService
                 'total_products' => $totalProducts,
             ];
         }
-        usort($tree, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
+        usort($tree, fn ($a, $b) => strnatcasecmp($a['name'], $b['name']));
 
         return $tree;
     }
@@ -72,7 +72,6 @@ class ProductGroupService
      * Получает ID группы и всех её дочерних групп
      *
      * @param string|null $groupId moysklad_id группы
-     * @return array
      */
     public function getGroupAndChildrenIds($groupId): array
     {
@@ -81,7 +80,7 @@ class ProductGroupService
         }
 
         // Используем рекурсивный CTE для PostgreSQL
-        $results = DB::select("
+        $results = DB::select('
             WITH RECURSIVE group_tree AS (
                 SELECT moysklad_id, parent_id
                 FROM product_groups
@@ -94,7 +93,7 @@ class ProductGroupService
                 INNER JOIN group_tree gt ON gt.moysklad_id = pg.parent_id
             )
             SELECT moysklad_id FROM group_tree
-        ", [$groupId]);
+        ', [$groupId]);
 
         return collect($results)->pluck('moysklad_id')->toArray();
     }

@@ -1,17 +1,17 @@
 <?php
 
 use App\Models\DepartmentModifier;
-use Illuminate\Support\Facades\Queue;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
-use App\Models\Store;
 use App\Models\StoneReceptionItem;
+use App\Models\Store;
 use App\Models\Worker;
 use App\Services\DepartmentModifierService;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
@@ -19,7 +19,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * доходит до формы приёмки и до расчёта зарплаты. До этапа 4 формы знали
  * ровно два захардкоженных правила, и своё правило админа не работало.
  */
-
 beforeEach(function () {
     Cache::flush();
     Setting::updateOrCreate(['key' => 'PIECE_RATE'], ['value' => '100']);

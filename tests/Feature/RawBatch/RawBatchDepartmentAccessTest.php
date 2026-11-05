@@ -2,8 +2,8 @@
 
 use App\Models\Department;
 use App\Models\RawMaterialBatch;
-use Tests\Helpers\ReceptionTestHelper as H;
 use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 function makeBatchInDept(?Department $dept, string $batchNumber): RawMaterialBatch
 {
@@ -62,7 +62,7 @@ test('админ видит все партии включая без отдел
 
     makeBatchInDept($deptA, 'BATCH-A');
     makeBatchInDept($deptB, 'BATCH-B');
-    makeBatchInDept(null,   'BATCH-NULL');
+    makeBatchInDept(null, 'BATCH-NULL');
 
     $this->actingAs(H::adminUser())
         ->get(route('raw-batches.index'))

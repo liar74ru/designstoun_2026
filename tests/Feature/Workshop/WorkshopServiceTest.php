@@ -1,15 +1,15 @@
 <?php
 
-use App\Models\Department;
-use Illuminate\Support\Facades\Queue;
 use App\Jobs\DeleteProcessingInMoysklad;
-use App\Models\Workshop;
-use App\Models\WorkshopItem;
+use App\Models\Department;
 use App\Models\Product;
+use App\Models\ProductStock;
 use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
+use App\Models\Workshop;
 use App\Services\WorkshopService;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     Setting::set('PIECE_RATE', 390);
@@ -202,7 +202,7 @@ describe('WorkshopService: склады', function () {
             'packages'         => [['product_id' => $this->packageProduct->id, 'quantity' => 3.0]],
         ]), false);
 
-        $stock = \App\Models\ProductStock::where('product_id', $this->packageProduct->id)
+        $stock = ProductStock::where('product_id', $this->packageProduct->id)
             ->where('store_id', $this->store->id)->first();
         expect((float) $stock->quantity)->toBe(-3.0);
     });
@@ -215,7 +215,7 @@ describe('WorkshopService: склады', function () {
             'packages'         => [['product_id' => $this->packageProduct->id, 'quantity' => 3.0]],
         ]), false);
 
-        $oldStock = \App\Models\ProductStock::where('product_id', $this->packageProduct->id)
+        $oldStock = ProductStock::where('product_id', $this->packageProduct->id)
             ->where('store_id', $this->store->id)->first();
         expect((float) $oldStock->quantity)->toBe(-3.0);
 
@@ -228,7 +228,7 @@ describe('WorkshopService: склады', function () {
 
         expect((float) $oldStock->fresh()->quantity)->toBe(0.0);
 
-        $newStock = \App\Models\ProductStock::where('product_id', $this->packageProduct->id)
+        $newStock = ProductStock::where('product_id', $this->packageProduct->id)
             ->where('store_id', $newStore->id)->first();
         expect((float) $newStock->quantity)->toBe(-3.0)
             ->and($workshop->fresh()->store_id)->toBe($newStore->id);
@@ -248,7 +248,7 @@ describe('WorkshopService: склады', function () {
             'packages'         => [['product_id' => $this->packageProduct->id, 'quantity' => 5.0]],
         ]), false);
 
-        $stock = \App\Models\ProductStock::where('product_id', $this->packageProduct->id)
+        $stock = ProductStock::where('product_id', $this->packageProduct->id)
             ->where('store_id', $this->store->id)->first();
         expect((float) $stock->quantity)->toBe(-5.0);
     });
@@ -262,7 +262,7 @@ describe('WorkshopService: склады', function () {
 
         $workshop->delete();
 
-        $stock = \App\Models\ProductStock::where('product_id', $this->packageProduct->id)
+        $stock = ProductStock::where('product_id', $this->packageProduct->id)
             ->where('store_id', $this->store->id)->first();
         expect((float) $stock->quantity)->toBe(0.0);
     });

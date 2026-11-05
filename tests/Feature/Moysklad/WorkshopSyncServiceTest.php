@@ -2,12 +2,13 @@
 
 use App\Models\Department;
 use App\Models\DepartmentExpense;
-use App\Models\Workshop;
-use App\Models\WorkshopItem;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\Worker;
+use App\Models\Workshop;
+use App\Models\WorkshopItem;
 use App\Services\Moysklad\WorkshopSyncService;
+use App\Support\DocumentNaming;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -42,7 +43,8 @@ beforeEach(function () {
     ]);
 });
 
-function wsItem(Workshop $w, Product $p, string $role, float $qty, float $workerCost = 0): void {
+function wsItem(Workshop $w, Product $p, string $role, float $qty, float $workerCost = 0): void
+{
     WorkshopItem::create([
         'workshop_id'        => $w->id,
         'product_id'         => $p->id,
@@ -52,7 +54,8 @@ function wsItem(Workshop $w, Product $p, string $role, float $qty, float $worker
     ]);
 }
 
-function fakeMoyskladForWorkshop(): void {
+function fakeMoyskladForWorkshop(): void
+{
     Http::fake([
         '*report/stock/bystore*'         => Http::response(['rows' => []], 200),
         '*entity/processing/metadata*'   => Http::response(['states' => []], 200),
@@ -91,6 +94,7 @@ describe('WorkshopSyncService::createProcessingForWorkshop()', function () {
                 return false;
             }
             $data = $request->data();
+
             return count($data['products']) === 1
                 && (float) $data['products'][0]['quantity'] === 5.0
                 && (float) $data['quantity'] === 5.0
@@ -107,7 +111,7 @@ describe('WorkshopSyncService::createProcessingForWorkshop()', function () {
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop);
 
         // зарплата = 210 × 5 = 1050; копейки/ед = round(1050 × 100 / 5) = 21000
-        Http::assertSent(fn($r) => $r->method() === 'POST'
+        Http::assertSent(fn ($r) => $r->method() === 'POST'
             && str_ends_with($r->url(), '/entity/processing')
             && ($r->data()['processingSum'] ?? null) === 21000);
     });
@@ -120,7 +124,7 @@ describe('WorkshopSyncService::createProcessingForWorkshop()', function () {
         fakeMoyskladForWorkshop();
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop);
 
-        Http::assertSent(fn($r) => $r->method() === 'POST'
+        Http::assertSent(fn ($r) => $r->method() === 'POST'
             && str_ends_with($r->url(), '/entity/processing')
             && ($r->data()['processingSum'] ?? null) === 0);
     });
@@ -134,7 +138,7 @@ describe('WorkshopSyncService::createProcessingForWorkshop()', function () {
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
 
         // ручные затраты игнорируют делитель: round(12.5 × 100) = 1250
-        Http::assertSent(fn($r) => $r->method() === 'POST'
+        Http::assertSent(fn ($r) => $r->method() === 'POST'
             && str_ends_with($r->url(), '/entity/processing')
             && ($r->data()['processingSum'] ?? null) === 1250);
     });
@@ -149,8 +153,11 @@ describe('WorkshopSyncService::createProcessingForWorkshop()', function () {
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop);
 
         Http::assertSent(function ($r) {
-            if ($r->method() !== 'POST' || !str_ends_with($r->url(), '/entity/processing')) return false;
+            if ($r->method() !== 'POST' || !str_ends_with($r->url(), '/entity/processing')) {
+                return false;
+            }
             $data = $r->data();
+
             return count($data['products']) === 2 && (float) $data['quantity'] === 7.0;
         });
     });
@@ -204,6 +211,7 @@ describe('WorkshopSyncService: склады техоперации', function ()
                 return false;
             }
             $data = $request->data();
+
             return ($data['materialsStore']['meta']['href'] ?? null) === 'materials-store-href'
                 && ($data['productsStore']['meta']['href'] ?? null) === 'products-store-href';
         });
@@ -224,6 +232,7 @@ describe('WorkshopSyncService: склады техоперации', function ()
                 return false;
             }
             $data = $request->data();
+
             return ($data['materialsStore']['meta']['href'] ?? null) === 'store-href'
                 && ($data['productsStore']['meta']['href'] ?? null) === 'store-href';
         });
@@ -236,7 +245,8 @@ describe('WorkshopSyncService: склады техоперации', function ()
 
 describe('WorkshopSyncService: нумерация ЦЕХ', function () {
 
-    function makeNamedWorkshop($ctx, string $name): Workshop {
+    function makeNamedWorkshop($ctx, string $name): Workshop
+    {
         return Workshop::create([
             'packer_id'                => $ctx->packer->id,
             'receiver_id'              => $ctx->receiver->id,
@@ -246,7 +256,8 @@ describe('WorkshopSyncService: нумерация ЦЕХ', function () {
         ]);
     }
 
-    function assertSentProcessingName(string $expected): void {
+    function assertSentProcessingName(string $expected): void
+    {
         Http::assertSent(function ($request) use ($expected) {
             return $request->method() === 'POST'
                 && str_ends_with($request->url(), '/entity/processing')
@@ -262,28 +273,28 @@ describe('WorkshopSyncService: нумерация ЦЕХ', function () {
     test('первая операция недели получает номер 01', function () {
         fakeMoyskladForWorkshop();
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
-        assertSentProcessingName(\App\Support\DocumentNaming::weeklyName('ЦЕХ', 1));
+        assertSentProcessingName(DocumentNaming::weeklyName('ЦЕХ', 1));
     });
 
     test('следующая операция недели получает max NN + 1', function () {
-        makeNamedWorkshop($this, \App\Support\DocumentNaming::weeklyName('ЦЕХ', 1));
+        makeNamedWorkshop($this, DocumentNaming::weeklyName('ЦЕХ', 1));
         fakeMoyskladForWorkshop();
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
-        assertSentProcessingName(\App\Support\DocumentNaming::weeklyName('ЦЕХ', 2));
+        assertSentProcessingName(DocumentNaming::weeklyName('ЦЕХ', 2));
     });
 
     test('имена чужих недель не влияют на счётчик', function () {
-        makeNamedWorkshop($this, \App\Support\DocumentNaming::weeklyName('ЦЕХ', 7, now()->subWeeks(2)));
+        makeNamedWorkshop($this, DocumentNaming::weeklyName('ЦЕХ', 7, now()->subWeeks(2)));
         fakeMoyskladForWorkshop();
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
-        assertSentProcessingName(\App\Support\DocumentNaming::weeklyName('ЦЕХ', 1));
+        assertSentProcessingName(DocumentNaming::weeklyName('ЦЕХ', 1));
     });
 
     test('имя с суффиксом коллизии учитывается по базовому NN', function () {
-        makeNamedWorkshop($this, \App\Support\DocumentNaming::weeklyName('ЦЕХ', 2) . '_01');
+        makeNamedWorkshop($this, DocumentNaming::weeklyName('ЦЕХ', 2) . '_01');
         fakeMoyskladForWorkshop();
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
-        assertSentProcessingName(\App\Support\DocumentNaming::weeklyName('ЦЕХ', 3));
+        assertSentProcessingName(DocumentNaming::weeklyName('ЦЕХ', 3));
     });
 });
 
@@ -305,7 +316,7 @@ describe('WorkshopSyncService::syncWorkshop() — остатки', function () {
         expect($this->workshop->fresh()->isSynced())->toBeTrue();
 
         $stockRequests = Http::recorded(
-            fn($request) => str_contains($request->url(), 'report/stock/bystore')
+            fn ($request) => str_contains($request->url(), 'report/stock/bystore')
         );
         // сырьё + тара + продукт = 3 уникальных moysklad_id
         expect($stockRequests)->toHaveCount(3);
@@ -320,7 +331,7 @@ describe('WorkshopSyncService::syncWorkshop() — остатки', function () {
         app(WorkshopSyncService::class)->syncWorkshop($this->workshop->fresh());
 
         $stockRequests = Http::recorded(
-            fn($request) => str_contains($request->url(), 'report/stock/bystore')
+            fn ($request) => str_contains($request->url(), 'report/stock/bystore')
         );
         expect($stockRequests)->toHaveCount(2);
     });
@@ -350,7 +361,7 @@ describe('WorkshopSyncService::syncWorkshop() — остатки', function () {
         expect($this->workshop->fresh()->hasSyncError())->toBeTrue();
 
         $stockRequests = Http::recorded(
-            fn($request) => str_contains($request->url(), 'report/stock/bystore')
+            fn ($request) => str_contains($request->url(), 'report/stock/bystore')
         );
         expect($stockRequests)->toHaveCount(0);
     });
@@ -368,7 +379,8 @@ describe('WorkshopSyncService: processingSum с мастером и наклад
         DepartmentExpense::create(['department_id' => $this->dept->id, 'name' => 'Свет',   'amount' => 5]);
     });
 
-    function wsProductItem(Workshop $w, Product $p, float $qty, float $workerCost, float $masterCost): void {
+    function wsProductItem(Workshop $w, Product $p, float $qty, float $workerCost, float $masterCost): void
+    {
         WorkshopItem::create([
             'workshop_id'        => $w->id,
             'product_id'         => $p->id,
@@ -379,8 +391,9 @@ describe('WorkshopSyncService: processingSum с мастером и наклад
         ]);
     }
 
-    function assertSentProcessingSum(int $expected): void {
-        Http::assertSent(fn($r) => $r->method() === 'POST'
+    function assertSentProcessingSum(int $expected): void
+    {
+        Http::assertSent(fn ($r) => $r->method() === 'POST'
             && str_ends_with($r->url(), '/entity/processing')
             && ($r->data()['processingSum'] ?? null) === $expected);
     }

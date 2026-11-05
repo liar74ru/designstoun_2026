@@ -30,8 +30,7 @@ class InternalOrderService
         private OrderProductionService $production,
         private OrderChangeService $changes,
         private CustomerOrderSyncService $sync,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array{customer_department_id: int, executor_department_id: int, state_id: string,

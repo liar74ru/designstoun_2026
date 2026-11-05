@@ -1,8 +1,5 @@
 <?php
 
-use App\Models\Product;
-use App\Models\StoneReception;
-use App\Models\StoneReceptionItem;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -18,7 +15,7 @@ describe('AJAX партии для пильщика [getBatchesJson()]', functio
         $cutter  = H::cutter();
 
         $batch1 = H::batch($product, $store, $cutter, 10.0, ['batch_number' => 'TEST-01']);
-        $batch2 = H::batch($product, $store, $cutter, 5.0,  ['batch_number' => 'TEST-02']);
+        $batch2 = H::batch($product, $store, $cutter, 5.0, ['batch_number' => 'TEST-02']);
 
         // Другой пильщик — его партии не должны попасть в ответ
         $otherCutter = H::cutter('Другой Пильщик');

@@ -5,15 +5,16 @@ use App\Models\Department;
 use App\Models\SupplierOrder;
 use App\Models\SupplierOrderItem;
 use App\Models\Worker;
-use Tests\Helpers\ReceptionTestHelper as H;
+use Illuminate\Support\Str;
 use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 function makeOrderInDept(?Department $dept, string $number, ?Worker $receiver = null): SupplierOrder
 {
     $store = H::store();
     $cp    = Counterparty::create([
         'name'        => 'CP ' . $number,
-        'moysklad_id' => (string) \Illuminate\Support\Str::uuid(),
+        'moysklad_id' => (string) Str::uuid(),
     ]);
 
     $order = SupplierOrder::create([
@@ -79,7 +80,7 @@ test('админ видит все поступления независимо �
 
     makeOrderInDept($deptA, 'A-01');
     makeOrderInDept($deptB, 'B-01');
-    makeOrderInDept(null,   'NULL-01');
+    makeOrderInDept(null, 'NULL-01');
 
     $this->actingAs(H::adminUser())
         ->get(route('supplier-orders.index'))

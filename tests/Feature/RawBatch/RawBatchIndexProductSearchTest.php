@@ -5,7 +5,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
 /**
  * Список партий: «Все, где есть …» в фильтре «Сырьё» (filter[product_search]).
  */
-
 beforeEach(function () {
     $store  = H::store();
     $cutter = H::cutter();

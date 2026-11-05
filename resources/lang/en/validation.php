@@ -20,7 +20,7 @@ return [
         'description' => 'описание',
         'password' => 'Пароль',
         'password_confirmation' => 'Подтверждение пароля',
-        'status_id' => 'cтатус'
+        'status_id' => 'cтатус',
     ],
     'custom' => [
         'name' => [

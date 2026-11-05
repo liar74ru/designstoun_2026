@@ -17,7 +17,7 @@ return new class extends Migration
 
         // Добавляем 'confirmed' в CHECK-constraint статуса
         if (DB::getDriverName() === 'pgsql') {
-            DB::statement("ALTER TABLE raw_material_batches DROP CONSTRAINT IF EXISTS raw_material_batches_status_check");
+            DB::statement('ALTER TABLE raw_material_batches DROP CONSTRAINT IF EXISTS raw_material_batches_status_check');
             DB::statement("ALTER TABLE raw_material_batches ADD CONSTRAINT raw_material_batches_status_check CHECK (status IN ('new', 'in_work', 'confirmed', 'used', 'returned', 'archived'))");
         } elseif (DB::getDriverName() === 'sqlite') {
             // SQLite не поддерживает ALTER CONSTRAINT — пересоздаём таблицу
@@ -40,14 +40,14 @@ return new class extends Migration
                     updated_at               DATETIME
                 )
             ");
-            DB::statement("
+            DB::statement('
                 INSERT INTO raw_material_batches_confirmed
                 SELECT id, product_id, initial_quantity, remaining_quantity, status,
                        current_store_id, current_worker_id, batch_number,
                        moysklad_processing_id, moysklad_processing_name, moysklad_sync_error,
                        created_at, updated_at
                 FROM raw_material_batches
-            ");
+            ');
             DB::statement('DROP TABLE raw_material_batches');
             DB::statement('ALTER TABLE raw_material_batches_confirmed RENAME TO raw_material_batches');
             DB::statement('CREATE INDEX raw_material_batches_status_index ON raw_material_batches (status)');
@@ -62,7 +62,7 @@ return new class extends Migration
             // Убираем 'confirmed': сначала сбросить строки с этим статусом
             DB::statement("UPDATE raw_material_batches SET status = 'in_work' WHERE status = 'confirmed'");
 
-            DB::statement("ALTER TABLE raw_material_batches DROP CONSTRAINT IF EXISTS raw_material_batches_status_check");
+            DB::statement('ALTER TABLE raw_material_batches DROP CONSTRAINT IF EXISTS raw_material_batches_status_check');
             DB::statement("ALTER TABLE raw_material_batches ADD CONSTRAINT raw_material_batches_status_check CHECK (status IN ('new', 'in_work', 'used', 'returned', 'archived'))");
         }
 

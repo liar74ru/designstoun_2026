@@ -53,6 +53,7 @@ class SkuColorRequest extends FormRequest
                     foreach ((array) ($row['prefixes'] ?? []) as $prefix) {
                         if (isset($seen[$prefix])) {
                             $validator->errors()->add('rows', "Префикс {$prefix} указан у двух цветов");
+
                             return;
                         }
                         $seen[$prefix] = true;

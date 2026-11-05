@@ -11,7 +11,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * Список приёмок: «Все, где есть …» — фильтр по части названия сырья и продукции
  * (filter[raw_product_search], filter[product_search]) на обеих вкладках.
  */
-
 beforeEach(function () {
     $this->store  = H::store();
     $this->cutter = H::cutter();

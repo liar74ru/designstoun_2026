@@ -33,12 +33,14 @@ class RawMaterialBatchSyncService
             $reason = $batch->moveBlockReason();
             if ($reason) {
                 $batch->markSyncError($reason);
+
                 return $this->outcome(false, $reason);
             }
 
             $movement = $batch->primaryMovement();
             if (!$movement->from_store_id || !$movement->to_store_id) {
                 $batch->markSyncError('Нет складов перемещения');
+
                 return $this->outcome(false, 'Нет складов перемещения');
             }
 
@@ -54,6 +56,7 @@ class RawMaterialBatchSyncService
                 if ($found === false) {
                     $message = 'МойСклад не ответил: не удалось проверить, создано ли перемещение';
                     $batch->markSyncError($message);
+
                     return $this->outcome(false, $message);
                 }
 
@@ -82,6 +85,7 @@ class RawMaterialBatchSyncService
                     'batch_id' => $batch->id,
                     'message'  => $result['message'],
                 ]);
+
                 return $this->outcome(false, $result['message']);
             }
 
@@ -93,6 +97,7 @@ class RawMaterialBatchSyncService
         } catch (\Throwable $e) {
             $batch->markSyncError($e->getMessage());
             Log::error('pushBatch: исключение', ['batch_id' => $batch->id, 'error' => $e->getMessage()]);
+
             return $this->outcome(false, $e->getMessage());
         }
     }

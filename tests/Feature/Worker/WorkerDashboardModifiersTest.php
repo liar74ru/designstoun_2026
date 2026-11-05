@@ -14,6 +14,7 @@ use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
 use App\Services\WorkerDashboardService;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
@@ -22,7 +23,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * Раньше ключом были два булевых флага, поэтому своё правило отдела не
  * отделяло позицию от обычной, а мелкая плитка в ключ не входила вовсе.
  */
-
 beforeEach(function () {
     $this->dept   = H::departmentWithModifiers();
     $this->cutter = Worker::create([
@@ -162,7 +162,7 @@ function dashboardData(?Carbon $from = null, ?Carbon $to = null, ?int $workerId 
     );
 }
 
-function dashboardSummary(): Illuminate\Support\Collection
+function dashboardSummary(): Collection
 {
     return app(WorkerDashboardService::class)->getDashboardData(
         test()->cutter->id,

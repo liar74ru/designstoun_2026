@@ -52,8 +52,8 @@ describe('RawMaterialBatchService::split()', function () {
 
         $service = app(RawMaterialBatchService::class);
 
-        expect(fn() => $service->split($parent))
-            ->toThrow(\RuntimeException::class, 'не имеет остатка');
+        expect(fn () => $service->split($parent))
+            ->toThrow(RuntimeException::class, 'не имеет остатка');
     });
 
     test('бросает исключение, если у партии нет работника', function () {
@@ -67,7 +67,7 @@ describe('RawMaterialBatchService::split()', function () {
 
         $service = app(RawMaterialBatchService::class);
 
-        expect(fn() => $service->split($parent))
-            ->toThrow(\RuntimeException::class, 'не назначен работник');
+        expect(fn () => $service->split($parent))
+            ->toThrow(RuntimeException::class, 'не назначен работник');
     });
 });

@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\Workshop;
 use App\Models\Worker;
+use App\Models\Workshop;
 use Tests\Helpers\AccessTestHelper as Access;
 use Tests\Helpers\ReceptionTestHelper as H;
 
@@ -9,7 +9,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * Фильтр «Работник» в списке цеха: короткий список — работники отделов
  * пользователя без уволенных, остальные — по чекбоксу «все работники».
  */
-
 beforeEach(function () {
     $this->dept      = Access::department();
     $this->extraDept = Access::department();

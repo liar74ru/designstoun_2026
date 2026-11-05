@@ -2,8 +2,8 @@
 
 use App\Models\Department;
 use App\Models\StoneReception;
-use Tests\Helpers\ReceptionTestHelper as H;
 use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 function makeReceptionInDept(?Department $dept, string $tag): StoneReception
 {
@@ -63,7 +63,7 @@ test('админ видит все приёмки', function () {
 
     makeReceptionInDept($deptA, 'A-SR');
     makeReceptionInDept($deptB, 'B-SR');
-    makeReceptionInDept(null,   'NULL-SR');
+    makeReceptionInDept(null, 'NULL-SR');
 
     $this->actingAs(H::adminUser())
         ->get(route('stone-receptions.index'))

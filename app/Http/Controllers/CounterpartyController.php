@@ -9,9 +9,7 @@ use Illuminate\View\View;
 
 class CounterpartyController extends Controller
 {
-    public function __construct(private MoySkladService $moySkladService)
-    {
-    }
+    public function __construct(private MoySkladService $moySkladService) {}
 
     public function index(): View
     {

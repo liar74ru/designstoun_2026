@@ -10,41 +10,41 @@ return new class extends Migration
         $driver = DB::getDriverName();
 
         if ($driver === 'pgsql') {
-            DB::statement("
+            DB::statement('
                 UPDATE supplier_orders so
                 SET department_id = w.department_id
                 FROM workers w
                 WHERE so.receiver_id = w.id
                   AND w.department_id IS NOT NULL
                   AND so.department_id IS NULL
-            ");
+            ');
 
-            DB::statement("
+            DB::statement('
                 UPDATE stone_receptions sr
                 SET department_id = w.department_id
                 FROM workers w
                 WHERE sr.cutter_id = w.id
                   AND w.department_id IS NOT NULL
                   AND sr.department_id IS NULL
-            ");
+            ');
 
-            DB::statement("
+            DB::statement('
                 UPDATE stone_receptions sr
                 SET department_id = w.department_id
                 FROM workers w
                 WHERE sr.receiver_id = w.id
                   AND w.department_id IS NOT NULL
                   AND sr.department_id IS NULL
-            ");
+            ');
 
-            DB::statement("
+            DB::statement('
                 UPDATE raw_material_batches rmb
                 SET department_id = w.department_id
                 FROM workers w
                 WHERE rmb.current_worker_id = w.id
                   AND w.department_id IS NOT NULL
                   AND rmb.department_id IS NULL
-            ");
+            ');
 
             return;
         }

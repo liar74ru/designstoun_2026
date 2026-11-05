@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Product;
-use Illuminate\Support\Facades\Queue;
 use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
@@ -11,6 +10,7 @@ use App\Models\Workshop;
 use App\Services\StoneReceptionService;
 use App\Services\WorkshopService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
@@ -21,7 +21,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * снятое, оно хранится в disabled_modifier_keys и переживает обновление
  * из справочника.
  */
-
 beforeEach(function () {
     Cache::flush();
     Setting::updateOrCreate(['key' => 'PIECE_RATE'], ['value' => '100']);

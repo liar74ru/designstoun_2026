@@ -1,11 +1,12 @@
 <?php
 
-use App\Models\User;
-use App\Models\Worker;
 use App\Models\Product;
-use App\Models\Store;
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
+use App\Models\Store;
+use App\Models\User;
+use App\Models\Worker;
+use Illuminate\Support\Facades\DB;
 
 // ─── Вспомогательные ─────────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ function makeReception(RawMaterialBatch $batch, string $status = 'active'): int
     $cutter = Worker::create(['name' => 'Пильщик ' . uniqid(), 'position' => 'Работник']);
     $master = Worker::create(['name' => 'Мастер ' . uniqid(), 'position' => 'Мастер']);
 
-    return (int) \Illuminate\Support\Facades\DB::table('stone_receptions')->insertGetId([
+    return (int) DB::table('stone_receptions')->insertGetId([
         'raw_material_batch_id' => $batch->id,
         'store_id'              => $store->id,
         'cutter_id'             => $cutter->id,
@@ -51,6 +52,7 @@ function findReception(int $id): StoneReception
 function makeCascadeAdmin(): User
 {
     $worker = Worker::create(['name' => 'Админ Каскад', 'position' => 'Администратор']);
+
     return User::factory()->create(['worker_id' => $worker->id, 'is_admin' => true]);
 }
 
@@ -131,7 +133,7 @@ test('редактирование приёмки не переводит пар
     ]);
 
     // Создаём приёмку напрямую в БД (минуя booted(), чтобы не списывать сырьё)
-    $receptionId = \Illuminate\Support\Facades\DB::table('stone_receptions')->insertGetId([
+    $receptionId = DB::table('stone_receptions')->insertGetId([
         'raw_material_batch_id' => $batch->id,
         'store_id'              => $store->id,
         'cutter_id'             => $cutter->id,
@@ -217,7 +219,7 @@ test('создание приёмки не переводит партию в us
 
     $fresh = $batch->fresh();
     expect($fresh->status)->toBe('in_work');      // НЕ 'used' — авто-смена отключена
-    expect((float)$fresh->remaining_quantity)->toBe(0.0);
+    expect((float) $fresh->remaining_quantity)->toBe(0.0);
 });
 
 // ─── getActiveBatches включает нулевые партии ─────────────────────────────────

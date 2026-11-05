@@ -121,6 +121,7 @@ class User extends Authenticatable
     public function primaryDepartmentId(): ?int
     {
         $deptId = $this->worker?->department_id;
+
         return $deptId ? (int) $deptId : null;
     }
 }

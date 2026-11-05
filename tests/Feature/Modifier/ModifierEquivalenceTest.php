@@ -5,7 +5,6 @@ use App\Models\Product;
 use App\Models\Setting;
 use App\Support\DepartmentSettings;
 use App\Support\ItemCost;
-use App\Support\ModifierEngine;
 use App\Support\RateFormula;
 use Illuminate\Support\Facades\Cache;
 use Tests\Helpers\ReceptionTestHelper as H;
@@ -14,11 +13,10 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * Расчёт по правилам обязан совпадать с прежней захардкоженной формулой.
  * Это главная защита этапа: модель данных сменилась, суммы — нет.
  */
-
 beforeEach(function () {
     Cache::flush();
-    Setting::updateOrCreate(['key' => 'PIECE_RATE'],            ['value' => '390']);
-    Setting::updateOrCreate(['key' => 'MASTER_BASE_RATE'],      ['value' => '100']);
+    Setting::updateOrCreate(['key' => 'PIECE_RATE'], ['value' => '390']);
+    Setting::updateOrCreate(['key' => 'MASTER_BASE_RATE'], ['value' => '100']);
 
     $this->dept = H::departmentWithModifiers();
 });

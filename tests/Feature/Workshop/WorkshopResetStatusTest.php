@@ -1,14 +1,14 @@
 <?php
 
-use App\Models\Setting;
-use Illuminate\Support\Facades\Queue;
 use App\Jobs\SyncWorkshopToMoysklad;
+use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Models\Workshop;
 use App\Services\Moysklad\StockSyncService;
 use App\Services\Moysklad\WorkshopSyncService;
 use App\Services\WorkshopService;
+use Illuminate\Support\Facades\Queue;
 
 /*
  * Сброс статуса закрытой операции цеха: техоперация в МойСклад переводится обратно

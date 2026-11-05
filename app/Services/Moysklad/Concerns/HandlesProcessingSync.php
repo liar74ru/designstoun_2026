@@ -20,6 +20,7 @@ trait HandlesProcessingSync
         if ($totalQty <= 0) {
             return 0;
         }
+
         return (int) round($totalRubles * 100 / $totalQty);
     }
 
@@ -50,6 +51,7 @@ trait HandlesProcessingSync
     protected function extractApiError(?array $body): string
     {
         $errors = $body['errors'] ?? [];
+
         return $errors[0]['error'] ?? $errors[0]['title'] ?? 'Неизвестная ошибка';
     }
 
@@ -108,6 +110,7 @@ trait HandlesProcessingSync
                 $map[$productId] = $pos['id'];
             }
         }
+
         return $map;
     }
 
@@ -155,12 +158,14 @@ trait HandlesProcessingSync
                     'status'        => $response->status(),
                     'response'      => $response->json(),
                 ]);
+
                 return $result;
             }
 
             $result['success'] = true;
             $result['message'] = 'Статус техоперации обновлён';
             Log::info("{$logPrefix}: успешно", ['processing_id' => $processingId]);
+
             return $result;
 
         } catch (\Exception $e) {
@@ -170,6 +175,7 @@ trait HandlesProcessingSync
                 'processing_id' => $processingId,
                 'error'         => $e->getMessage(),
             ]);
+
             return $result;
         }
     }
@@ -188,6 +194,7 @@ trait HandlesProcessingSync
 
         if ($data === null) {
             $this->transientFailure = true;
+
             return false;
         }
 
@@ -312,6 +319,7 @@ trait HandlesProcessingSync
 
         if (!$this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
+
             return $result;
         }
 

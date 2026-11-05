@@ -260,5 +260,4 @@ class ProductController extends Controller
             'sku'               => $product->sku,
         ]);
     }
-
 }

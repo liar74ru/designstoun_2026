@@ -1,13 +1,8 @@
 <?php
 
-use App\Models\Product;
 use App\Models\ProductStock;
-use App\Models\RawMaterialBatch;
-use App\Models\RawMaterialMovement;
-use App\Models\Store;
 use App\Models\StoneReception;
-use App\Models\StoneReceptionItem;
-use App\Models\Worker;
+use App\Traits\ManagesStock;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -18,10 +13,14 @@ describe('ManagesStock::adjustStock()', function () {
 
     // Используем анонимный класс с трейтом напрямую — без HTTP overhead
     // и без зависимости от внешних сервисов (MoySklad и т.д.)
-    function makeStockManager() {
-        return new class {
-            use \App\Traits\ManagesStock;
-            public function run($productId, $storeId, $change) {
+    function makeStockManager()
+    {
+        return new class
+        {
+            use ManagesStock;
+
+            public function run($productId, $storeId, $change)
+            {
                 $this->adjustStock($productId, $storeId, $change);
             }
         };

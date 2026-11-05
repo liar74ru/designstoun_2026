@@ -13,12 +13,17 @@ class SupplierOrder extends Model
     use HasFactory, HasUuids;
 
     protected $table = 'supplier_orders';
+
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     const STATUS_NEW   = 'new';
+
     const STATUS_SENT  = 'sent';
+
     const STATUS_ERROR = 'error';
 
     protected $fillable = [

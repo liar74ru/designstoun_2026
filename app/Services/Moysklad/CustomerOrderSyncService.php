@@ -11,6 +11,7 @@ use App\Services\OrderChangeService;
 use App\Services\OrderProductionService;
 use App\Support\OrderPriority;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -53,6 +54,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
             $rows = $this->fetchOrders($stateIds);
         } catch (\Throwable $e) {
             Log::error('Ошибка получения customerorder из МойСклад', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'count' => 0, 'message' => 'Ошибка API: ' . $e->getMessage()];
         }
 
@@ -229,7 +231,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
         array $row,
         array $counterpartyMap,
         array $productMap,
-        \Illuminate\Support\Collection $departmentNameMap,
+        Collection $departmentNameMap,
         array $existingOrders,
         array $untrackedStateIds,
     ): bool {
@@ -649,6 +651,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
         if (preg_match('/([a-f0-9\-]{36})/i', $href, $m)) {
             return $m[1];
         }
+
         return null;
     }
 }

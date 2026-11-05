@@ -6,8 +6,8 @@ use App\Http\Requests\Order\StoreInternalOrderRequest;
 use App\Http\Requests\Order\UpdateInternalOrderRequest;
 use App\Models\OrderState;
 use App\Models\Product;
-use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\InternalOrderService;
+use App\Services\Moysklad\CustomerOrderSyncService;
 use App\Services\Moysklad\StockSyncService;
 use App\Services\OrderChangeService;
 use App\Services\OrderDepartmentStateService;
@@ -30,8 +30,7 @@ class OrderController extends Controller
         private CustomerOrderSyncService $sync,
         private StockSyncService $stockSync,
         private OrderProductionService $production,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {

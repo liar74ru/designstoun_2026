@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Moysklad\MoySkladMoveService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -173,7 +174,7 @@ describe('MoySkladMoveService::createMove() — HTTP', function () {
     });
 
     test('сетевое исключение не выбрасывается наружу', function () {
-        mvHttpFake(['POST /entity/move' => fn () => throw new \Illuminate\Http\Client\ConnectionException('timeout')]);
+        mvHttpFake(['POST /entity/move' => fn () => throw new ConnectionException('timeout')]);
 
         $result = (new MoySkladMoveService())->createMove(mvMoveData());
 

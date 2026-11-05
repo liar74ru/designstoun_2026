@@ -1,14 +1,15 @@
 <?php
 
 use App\Exceptions\InsufficientRawMaterialException;
-use Illuminate\Support\Facades\Queue;
 use App\Jobs\SyncBatchToMoysklad;
 use App\Jobs\SyncReceptionToMoysklad;
 use App\Models\Department;
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
+use App\Models\Worker;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
+use Illuminate\Support\Facades\Queue;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /*
@@ -20,7 +21,7 @@ use Tests\Helpers\ReceptionTestHelper as H;
 /**
  * Партия 10 м³: завершённая приёмка на 3 и активная на 1 → остаток 6.
  *
- * @return array{batch: RawMaterialBatch, active: StoneReception, receiver: \App\Models\Worker}
+ * @return array{batch: RawMaterialBatch, active: StoneReception, receiver: Worker}
  */
 function rcsBatchWithHistory(): array
 {
@@ -108,7 +109,7 @@ test('сбой при создании приёмки: подробности т
         + ['department_id' => Department::create(['name' => 'Распил'])->id];
 
     $this->partialMock(StoneReceptionService::class, fn ($mock) => $mock
-        ->shouldReceive('create')->andThrow(new \RuntimeException('SQLSTATE секретная деталь')));
+        ->shouldReceive('create')->andThrow(new RuntimeException('SQLSTATE секретная деталь')));
 
     $response = $this->actingAs(H::adminUser())->post(route('stone-receptions.store'), $data);
 
@@ -122,7 +123,7 @@ test('сбой при правке приёмки: подробности тол
         + ['department_id' => Department::create(['name' => 'Распил'])->id];
 
     $this->partialMock(StoneReceptionService::class, fn ($mock) => $mock
-        ->shouldReceive('update')->andThrow(new \RuntimeException('SQLSTATE секретная деталь')));
+        ->shouldReceive('update')->andThrow(new RuntimeException('SQLSTATE секретная деталь')));
 
     $this->actingAs(H::adminUser())->put(route('stone-receptions.update', $active), $data)
         ->assertSessionHasErrors(['error' => 'Не удалось сохранить приёмку. Попробуйте ещё раз, если повторится — сообщите администратору.']);

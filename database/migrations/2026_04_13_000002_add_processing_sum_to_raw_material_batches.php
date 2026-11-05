@@ -1,10 +1,10 @@
 <?php
 
+use App\Models\RawMaterialBatch;
+use App\Models\Setting;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Models\RawMaterialBatch;
-use App\Models\Setting;
 
 return new class extends Migration
 {

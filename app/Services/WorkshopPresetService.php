@@ -26,7 +26,7 @@ class WorkshopPresetService
     {
         return $department->presets()
             ->with([
-                'groups' => fn($q) => $q->where('workshop_preset_groups.department_id', $department->id),
+                'groups' => fn ($q) => $q->where('workshop_preset_groups.department_id', $department->id),
                 'department',
                 'departments',
                 'items.product',
@@ -137,16 +137,16 @@ class WorkshopPresetService
     {
         return [
             'groups'  => $department->presetGroups()->get(['id', 'name', 'icon'])
-                ->map(fn($group) => $group->only(['id', 'name', 'icon']))
+                ->map(fn ($group) => $group->only(['id', 'name', 'icon']))
                 ->all(),
-            'presets' => $this->getForDepartment($department)->map(fn($preset) => [
+            'presets' => $this->getForDepartment($department)->map(fn ($preset) => [
                 'id'        => $preset->id,
                 'name'      => $preset->name,
                 'group_ids' => $preset->groups->pluck('id')->all(),
                 'color'     => Product::getColorBySku(
                     $preset->items->firstWhere('role', WorkshopItem::ROLE_PRODUCT)?->product?->sku
                 ),
-                'items'     => $preset->items->map(fn($item) => [
+                'items'     => $preset->items->map(fn ($item) => [
                     'role'          => $item->role,
                     'product_id'    => $item->product_id,
                     'product_label' => $item->product?->name ?? '',
@@ -172,7 +172,7 @@ class WorkshopPresetService
 
         $preset->loadMissing('items.product');
 
-        return $preset->items->map(fn($item) => [
+        return $preset->items->map(fn ($item) => [
             'role'          => $item->role,
             'product_id'    => $item->product_id,
             'product_label' => $item->product?->name ?? '',
@@ -196,7 +196,7 @@ class WorkshopPresetService
         $names = Product::whereIn('id', array_filter(array_column($rows, 'product_id')))
             ->pluck('name', 'id');
 
-        return array_map(fn($row) => $row + [
+        return array_map(fn ($row) => $row + [
             'product_label' => $names[$row['product_id']] ?? '',
         ], $rows);
     }
@@ -207,7 +207,7 @@ class WorkshopPresetService
      */
     private function syncDepartments(WorkshopPreset $preset, Department $department, array $departmentIds): void
     {
-        $keep = collect($departmentIds)->map(fn($id) => (int) $id)
+        $keep = collect($departmentIds)->map(fn ($id) => (int) $id)
             ->push($department->id, $preset->department_id)
             ->filter()->unique()->values();
 

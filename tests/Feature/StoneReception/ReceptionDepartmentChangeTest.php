@@ -2,8 +2,8 @@
 
 use App\Models\Department;
 use App\Models\StoneReception;
-use Tests\Helpers\ReceptionTestHelper as H;
 use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 function makeReceptionForDeptChange(?Department $dept = null): StoneReception
 {
@@ -227,8 +227,7 @@ describe('Форма создания [create()] — селект отдела',
         $this->actingAs(H::adminUser())
             ->get(route('stone-receptions.create'))
             ->assertStatus(200)
-            ->assertViewHas('departments', fn($departments) =>
-                $departments->pluck('id')->contains($deptA->id)
+            ->assertViewHas('departments', fn ($departments) => $departments->pluck('id')->contains($deptA->id)
                 && $departments->pluck('id')->contains($deptB->id));
     });
 
@@ -239,8 +238,7 @@ describe('Форма создания [create()] — селект отдела',
         $this->actingAs(Access::master($deptA, 'stone-receptions'))
             ->get(route('stone-receptions.create'))
             ->assertStatus(200)
-            ->assertViewHas('departments', fn($departments) =>
-                $departments->pluck('id')->all() === [$deptA->id]);
+            ->assertViewHas('departments', fn ($departments) => $departments->pluck('id')->all() === [$deptA->id]);
     });
 });
 

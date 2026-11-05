@@ -26,8 +26,7 @@ class OrderProductionService
     public function __construct(
         private StockSyncService $stockSync,
         private OrderPositionService $positions,
-    ) {
-    }
+    ) {}
 
     /**
      * Привести окно производства в соответствие со статусом заявки.
@@ -316,6 +315,7 @@ class OrderProductionService
                         if (! in_array($storeId, $storeIds, true)) {
                             // Не выбранный склад: показываем остаток, но не расходуем.
                             $taken[$part][$storeId] = $available;
+
                             continue;
                         }
 

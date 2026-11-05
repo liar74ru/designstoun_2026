@@ -31,7 +31,7 @@ describe('Передача партии пильщику [transfer()]', function
         expect((float) $batch->remaining_quantity)->toBe(12.0);
 
         // Новая партия создана для получателя
-        $newBatch = \App\Models\RawMaterialBatch::where('current_worker_id', $cutter2->id)->first();
+        $newBatch = RawMaterialBatch::where('current_worker_id', $cutter2->id)->first();
         expect($newBatch)->not->toBeNull();
         expect((float) $newBatch->initial_quantity)->toBe(8.0);
         expect((float) $newBatch->remaining_quantity)->toBe(8.0);
@@ -145,7 +145,7 @@ describe('Возврат партии на склад [return()]', function () {
         expect($batch->status)->toBe('in_work');
 
         // Новая партия создана: статус returned, на складе-назначении
-        $returnedBatch = \App\Models\RawMaterialBatch::where('status', 'returned')
+        $returnedBatch = RawMaterialBatch::where('status', 'returned')
             ->where('current_store_id', $toStore->id)
             ->first();
         expect($returnedBatch)->not->toBeNull();

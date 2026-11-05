@@ -14,7 +14,7 @@ use Tests\Helpers\ReceptionTestHelper as H;
 function batchesIndexRequest(User $user, array $filter = []): Request
 {
     $request = Request::create('/stone-receptions', 'GET', $filter ? ['filter' => $filter] : []);
-    $request->setUserResolver(fn() => $user);
+    $request->setUserResolver(fn () => $user);
 
     return $request;
 }
@@ -104,7 +104,7 @@ describe('StoneReceptionService::getBatchesWithoutReceptions()', function () {
         $cutter  = H::cutter();
 
         $graniteBatch = H::batch($granite, $store, $cutter, 50.0, ['batch_number' => 'GRAN']);
-        $marbleBatch  = H::batch($marble,  $store, $cutter, 50.0, ['batch_number' => 'MARB']);
+        $marbleBatch  = H::batch($marble, $store, $cutter, 50.0, ['batch_number' => 'MARB']);
 
         $result = batchesService()->getBatchesWithoutReceptions(
             batchesIndexRequest(H::adminUser(), ['raw_product_id' => $granite->id])

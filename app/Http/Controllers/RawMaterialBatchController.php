@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\Setting;
 use App\Models\Store;
@@ -32,8 +33,8 @@ class RawMaterialBatchController extends Controller
     {
         $batch = RawMaterialBatch::with([
             'product', 'currentStore', 'currentWorker',
-            'movements' => fn($q) => $q->with(['fromStore', 'toStore', 'fromWorker', 'toWorker', 'movedBy'])->orderBy('created_at', 'desc'),
-            'receptions' => fn($q) => $q->with(['items.product', 'items.modifiers.modifier', 'receiver', 'cutter'])->orderBy('created_at', 'desc'),
+            'movements' => fn ($q) => $q->with(['fromStore', 'toStore', 'fromWorker', 'toWorker', 'movedBy'])->orderBy('created_at', 'desc'),
+            'receptions' => fn ($q) => $q->with(['items.product', 'items.modifiers.modifier', 'receiver', 'cutter'])->orderBy('created_at', 'desc'),
         ])->findOrFail($id);
 
         $departments = Department::orderBy('name')->get();
@@ -60,7 +61,7 @@ class RawMaterialBatchController extends Controller
         // Имя продукта для подписи пикера: из copy_product или из old('product_id')
         // (последнее — чтобы название не терялось при повторном рендере после ошибки).
         if ($copyProductId = ($request->input('copy_product') ?: old('product_id'))) {
-            $copyProductName = \App\Models\Product::find($copyProductId)?->name;
+            $copyProductName = Product::find($copyProductId)?->name;
         }
 
         $department       = auth()->user()?->worker?->department;
@@ -76,9 +77,9 @@ class RawMaterialBatchController extends Controller
         $accessibleDepartmentIds = auth()->user()?->accessibleDepartmentIds();
         $departments = Department::where('is_active', true)
             ->when($accessibleDepartmentIds !== null,
-                fn($q) => $q->whereIn('id', $accessibleDepartmentIds ?: [-1]))
+                fn ($q) => $q->whereIn('id', $accessibleDepartmentIds ?: [-1]))
             ->orderBy('name')->get();
-        $departmentStoreDefaults = $departments->mapWithKeys(fn($d) => [
+        $departmentStoreDefaults = $departments->mapWithKeys(fn ($d) => [
             $d->id => [
                 'from' => $d->default_raw_store_id,
                 'to'   => $d->default_production_store_id,
@@ -203,7 +204,7 @@ class RawMaterialBatchController extends Controller
                 ->with('error', 'Редактировать можно только партии в статусе «Новая», «Не уточнена» или «Уточнена».');
         }
 
-        $products = \App\Models\Product::orderBy('name')->get();
+        $products = Product::orderBy('name')->get();
 
         return view('raw-batches.edit', array_merge(
             $this->service->getEditFormOptions($batch),
@@ -341,6 +342,7 @@ class RawMaterialBatchController extends Controller
             if (request()->expectsJson()) {
                 return response()->json(['error' => $msg], 422);
             }
+
             return back()->with('error', $msg);
         }
 
@@ -349,6 +351,7 @@ class RawMaterialBatchController extends Controller
             if (request()->expectsJson()) {
                 return response()->json(['error' => $msg], 422);
             }
+
             return back()->with('error', $msg);
         }
 

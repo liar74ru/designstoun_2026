@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Store extends Model
@@ -12,8 +12,11 @@ class Store extends Model
     use HasFactory, HasUuids;
 
     protected $table = 'stores';
+
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [
@@ -38,6 +41,7 @@ class Store extends Model
     public static function getDefault(): ?self
     {
         $code = config('app.default_store_code') ?: self::DEFAULT_STORE_CODE;
+
         return self::where('external_code', $code)->first() ?? self::first();
     }
 

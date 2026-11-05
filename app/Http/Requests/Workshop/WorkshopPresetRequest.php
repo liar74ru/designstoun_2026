@@ -22,8 +22,8 @@ class WorkshopPresetRequest extends FormRequest
                 function (string $attribute, mixed $value, \Closure $fail) {
                     $taken = WorkshopPreset::query()
                         ->where('name', $value)
-                        ->when($this->route('preset'), fn($q, $preset) => $q->whereKeyNot($preset->id))
-                        ->whereHas('departments', fn($q) => $q->whereIn('departments.id', $this->targetDepartmentIds()))
+                        ->when($this->route('preset'), fn ($q, $preset) => $q->whereKeyNot($preset->id))
+                        ->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $this->targetDepartmentIds()))
                         ->exists();
                     if ($taken) {
                         $fail('Пресет с таким названием уже есть в одном из выбранных отделов');
@@ -82,7 +82,7 @@ class WorkshopPresetRequest extends FormRequest
     private function targetDepartmentIds(): array
     {
         return collect($this->input('department_ids', []))
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->push($this->route('department')->id, $this->route('preset')?->department_id)
             ->filter()->unique()->values()->all();
     }

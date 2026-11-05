@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Department;
 use App\Models\Product;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
@@ -28,8 +29,8 @@ test('администратор может открыть страницу лю
 });
 
 test('не-администратор на /workers/{id}/dashboard чужого мастера получает 403', function () {
-    $dept1   = \App\Models\Department::create(['name' => 'A', 'is_active' => true]);
-    $dept2   = \App\Models\Department::create(['name' => 'B', 'is_active' => true]);
+    $dept1   = Department::create(['name' => 'A', 'is_active' => true]);
+    $dept2   = Department::create(['name' => 'B', 'is_active' => true]);
     $worker1 = Worker::create(['name' => 'Мастер Иванов', 'position' => 'Мастер', 'department_id' => $dept1->id]);
     $worker2 = Worker::create(['name' => 'Мастер Петров', 'position' => 'Мастер', 'department_id' => $dept2->id]);
     $user = User::factory()->create(['worker_id' => $worker1->id, 'is_admin' => false]);
@@ -120,7 +121,7 @@ test('страница дашборда мастера фильтрует при
     ]);
 
     $this->actingAs($user)
-        ->get('/my-work?date_from='.now()->format('Y-m-d').'&date_to='.now()->format('Y-m-d'))
+        ->get('/my-work?date_from=' . now()->format('Y-m-d') . '&date_to=' . now()->format('Y-m-d'))
         ->assertStatus(200);
 });
 

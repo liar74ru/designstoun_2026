@@ -1,8 +1,5 @@
 <?php
 
-use App\Models\Counterparty;
-use App\Models\Product;
-use App\Models\Store;
 use App\Models\SupplierOrder;
 use App\Services\Moysklad\MoySkladPurchaseOrderService;
 
@@ -39,15 +36,15 @@ describe('MoySkladPurchaseOrderService::updatePurchaseOrder()', function () {
 
     describe('MoySkladPurchaseOrderService::updatePurchaseOrder()', function () {
 
-    test('возвращает ошибку когда токен пустой', function () {
-        config()->set('services.moysklad.token', '');
+        test('возвращает ошибку когда токен пустой', function () {
+            config()->set('services.moysklad.token', '');
 
-        $service = new MoySkladPurchaseOrderService();
-        $result = $service->updatePurchaseOrder(new SupplierOrder());
+            $service = new MoySkladPurchaseOrderService();
+            $result = $service->updatePurchaseOrder(new SupplierOrder());
 
-        expect($result['success'])->toBeFalse();
+            expect($result['success'])->toBeFalse();
+        });
     });
-});
 });
 
 // ══════════════════��═══════════════════════════════════════════════════════════

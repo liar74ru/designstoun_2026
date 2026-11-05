@@ -26,6 +26,7 @@ class Setting extends Model
     protected $fillable = ['key', 'value', 'label', 'description'];
 
     private const CACHE_TTL = 86400;
+
     private const CACHE_PREFIX = 'setting.';
 
     public static function get(string $key, mixed $default = null): mixed

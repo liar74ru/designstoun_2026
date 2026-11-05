@@ -72,6 +72,7 @@ function wpuFake(array $existingProducts = [], array $existingMaterials = [], $p
             foreach ($map as $msId => $posId) {
                 $rows[] = ['id' => $posId, 'assortment' => ['meta' => ['href' => WPU_BASE . '/entity/product/' . $msId]]];
             }
+
             return Http::response([$section => ['rows' => $rows]], 200);
         }
         if (str_contains($url, '/entity/processing/') && $request->method() === 'PUT') {

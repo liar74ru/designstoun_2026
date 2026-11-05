@@ -1,19 +1,19 @@
 <?php
 
-use App\Models\Department;
-use Illuminate\Support\Facades\Queue;
 use App\Jobs\SyncReceptionToMoysklad;
 use App\Models\DepartmentExpense;
 use App\Models\RawMaterialBatch;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
+use App\Models\Store;
+use Illuminate\Support\Facades\Queue;
 use Tests\Helpers\AccessTestHelper as Access;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
  * Готовая активная приёмка: партия (по умолчанию без отдела) + приёмка на складе.
  *
- * @return array{reception: StoneReception, batch: RawMaterialBatch, store: \App\Models\Store}
+ * @return array{reception: StoneReception, batch: RawMaterialBatch, store: Store}
  */
 function rxaFixture(array $batchAttrs = [], array $receptionAttrs = []): array
 {

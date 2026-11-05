@@ -80,7 +80,7 @@ class WorkerController extends Controller
         $worker->archive();
 
         return redirect()->route('workers.index')
-            ->with('success', 'Работник '.$worker->name.' переведён в архив');
+            ->with('success', 'Работник ' . $worker->name . ' переведён в архив');
     }
 
     public function restore(Worker $worker)
@@ -90,7 +90,7 @@ class WorkerController extends Controller
         $worker->restore();
 
         return redirect()->route('workers.index')
-            ->with('success', 'Работник '.$worker->name.' возвращён из архива');
+            ->with('success', 'Работник ' . $worker->name . ' возвращён из архива');
     }
 
     public function createUser(Worker $worker)
@@ -137,7 +137,7 @@ class WorkerController extends Controller
         }
 
         return redirect()->route('workers.index')
-            ->with('success', 'Пользователь успешно создан для работника '.$worker->name);
+            ->with('success', 'Пользователь успешно создан для работника ' . $worker->name);
     }
 
     public function updateUser(Request $request, Worker $worker)
@@ -171,6 +171,6 @@ class WorkerController extends Controller
         }
 
         return redirect()->route('workers.index')
-            ->with('success', 'Учётная запись работника '.$worker->name.' обновлена');
+            ->with('success', 'Учётная запись работника ' . $worker->name . ' обновлена');
     }
 }

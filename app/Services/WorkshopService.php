@@ -6,14 +6,13 @@ use App\Jobs\DeleteProcessingInMoysklad;
 use App\Jobs\SyncWorkshopToMoysklad;
 use App\Models\Department;
 use App\Models\DepartmentModifier;
+use App\Models\Product;
+use App\Models\Store;
+use App\Models\Worker;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
-use App\Models\Product;
-use App\Models\Store;
-use App\Models\StoneReceptionItem;
-use App\Models\Worker;
 use App\Support\DocumentNaming;
 use App\Support\ItemCost;
 use App\Support\ModifierEngine;
@@ -21,6 +20,7 @@ use App\Support\ProductSearch;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -35,7 +35,7 @@ class WorkshopService
 
         $masterWorkers = Worker::with('departments')
             ->whereIn('position', Worker::MASTER_POSITIONS)
-            ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
+            ->where(fn ($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
             ->orderBy('name')->get();
 
         $userDepartment = auth()->user()?->worker?->department;
@@ -47,7 +47,7 @@ class WorkshopService
         $data = [
             'masterWorkers'       => $masterWorkers,
             'workers'             => Worker::with('departments')
-                ->where(fn($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
+                ->where(fn ($q) => $q->whereNull('archived_at')->orWhereIn('id', $keep))
                 ->orderBy('name')->get(),
             'products'            => Product::orderBy('name')->get(),
             'packageProducts'     => Product::where('sku', 'like', '07-03%')->orderBy('name')->get(),
@@ -56,7 +56,7 @@ class WorkshopService
             'defaultProductStore' => $userDepartment?->defaultProductStore ?? Store::getDefault(),
             'departments'         => Department::where('is_active', true)
                 ->when($accessibleDepartmentIds !== null,
-                    fn($q) => $q->whereIn('id', $accessibleDepartmentIds ?: [-1]))
+                    fn ($q) => $q->whereIn('id', $accessibleDepartmentIds ?: [-1]))
                 ->with('defaultRawStore', 'defaultProductStore')
                 ->orderBy('name')->get(),
         ];
@@ -114,31 +114,31 @@ class WorkshopService
                     $query->whereIn('moysklad_sync_status', is_array($value) ? $value : [$value]);
                 }),
                 AllowedFilter::callback('raw_product_id', function ($query, $value) {
-                    $query->whereHas('items', fn($q) => $q
+                    $query->whereHas('items', fn ($q) => $q
                         ->where('role', WorkshopItem::ROLE_RAW)
                         ->where('product_id', $value));
                 }),
                 AllowedFilter::callback('product_id', function ($query, $value) {
-                    $query->whereHas('items', fn($q) => $q
+                    $query->whereHas('items', fn ($q) => $q
                         ->where('role', WorkshopItem::ROLE_PRODUCT)
                         ->where('product_id', $value));
                 }),
                 AllowedFilter::callback('raw_product_search', function ($query, $value) {
                     if ($ids = ProductSearch::matchIds($value)) {
-                        $query->whereHas('items', fn($q) => $q
+                        $query->whereHas('items', fn ($q) => $q
                             ->where('role', WorkshopItem::ROLE_RAW)
                             ->whereIn('product_id', $ids));
                     }
                 }),
                 AllowedFilter::callback('product_search', function ($query, $value) {
                     if ($ids = ProductSearch::matchIds($value)) {
-                        $query->whereHas('items', fn($q) => $q
+                        $query->whereHas('items', fn ($q) => $q
                             ->where('role', WorkshopItem::ROLE_PRODUCT)
                             ->whereIn('product_id', $ids));
                     }
                 }),
                 AllowedFilter::callback('package_product_id', function ($query, $value) {
-                    $query->whereHas('items', fn($q) => $q
+                    $query->whereHas('items', fn ($q) => $q
                         ->where('role', WorkshopItem::ROLE_PACKAGE)
                         ->where('product_id', $value));
                 }),
@@ -148,13 +148,11 @@ class WorkshopService
                 AllowedFilter::exact('packer_id'),
             ])
             ->with(['packer', 'receiver', 'store', 'items.product', 'department'])
-            ->when($request->filled('date_from'), fn($q) =>
-                $q->whereDate('created_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn($q) =>
-                $q->whereDate('created_at', '<=', $request->date_to))
+            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('created_at', '<=', $request->date_to))
             ->when(
                 $accessible !== null && !array_key_exists('department_id', $request->input('filter', [])),
-                fn($q) => $q->whereIn('workshops.department_id', $accessible ?: [-1])
+                fn ($q) => $q->whereIn('workshops.department_id', $accessible ?: [-1])
             )
             // Сначала незавершённые, затем закрытые с ошибкой синхронизации, затем закрытые
             ->orderByRaw(
@@ -170,13 +168,13 @@ class WorkshopService
      * Последние операции цеха для панели копирования в create-форме.
      * Скоуп — по доступным пользователю отделам (как в getFilteredWorkshops).
      */
-    public function getLastWorkshops(?Request $request = null, int $limit = 15): \Illuminate\Support\Collection
+    public function getLastWorkshops(?Request $request = null, int $limit = 15): Collection
     {
         $accessible = $request?->user()?->accessibleDepartmentIds();
 
         return Workshop::query()
             ->with(['packer', 'items.product'])
-            ->when($accessible !== null, fn($q) => $q->whereIn('department_id', $accessible ?: [-1]))
+            ->when($accessible !== null, fn ($q) => $q->whereIn('department_id', $accessible ?: [-1]))
             ->orderByDesc('created_at')
             ->limit($limit)
             ->get();
@@ -188,6 +186,7 @@ class WorkshopService
             return Store::getDefault();
         }
         $packer->loadMissing('department.defaultProductionStore');
+
         return $packer->department?->defaultProductionStore ?? Store::getDefault();
     }
 
@@ -233,7 +232,7 @@ class WorkshopService
     /** Дельты для лога при создании: все строки как +quantity с ролью. */
     private function createItemDeltas($items): array
     {
-        return $items->map(fn($i) => [
+        return $items->map(fn ($i) => [
             'product_id' => $i->product_id,
             'role'       => $i->role,
             'delta'      => (float) $i->quantity,
@@ -363,8 +362,8 @@ class WorkshopService
     /** Списать/вернуть разницу остатка тары по товарам при неизменном складе. */
     private function applyPackageDeltas(Workshop $workshop, $before, $after): void
     {
-        $oldByPid = $before->groupBy('product_id')->map(fn($g) => (float) $g->sum('quantity'));
-        $newByPid = $after->groupBy('product_id')->map(fn($g) => (float) $g->sum('quantity'));
+        $oldByPid = $before->groupBy('product_id')->map(fn ($g) => (float) $g->sum('quantity'));
+        $newByPid = $after->groupBy('product_id')->map(fn ($g) => (float) $g->sum('quantity'));
 
         $pids = $oldByPid->keys()->merge($newByPid->keys())->unique();
         foreach ($pids as $pid) {
@@ -378,7 +377,7 @@ class WorkshopService
     /** Дельты для лога: сравнение состояния до/после по (role, product_id). */
     private function diffItemDeltas($before, $after): array
     {
-        $key    = fn($i) => $i->role . '|' . $i->product_id;
+        $key    = fn ($i) => $i->role . '|' . $i->product_id;
         $oldMap = $before->keyBy($key);
         $newMap = $after->keyBy($key);
 
@@ -405,7 +404,7 @@ class WorkshopService
         // Позиции нужны в памяти: после удаления по ним подтягиваются остатки из МойСклад.
         $workshop->loadMissing('items.product');
 
-        DB::transaction(fn() => $workshop->delete());
+        DB::transaction(fn () => $workshop->delete());
 
         // Запись уже удалена, поэтому в задачу — только значения. Без id техоперацию найдёт
         // по внешнему коду: операцию могли удалить, пока её создание ждало в очереди.
@@ -570,7 +569,7 @@ class WorkshopService
      */
     private function createWorkshopItems(Workshop $workshop, array $rows, string $role): void
     {
-        $rows = array_values(array_filter($rows, fn($r) => (float) ($r['quantity'] ?? 0) > 0));
+        $rows = array_values(array_filter($rows, fn ($r) => (float) ($r['quantity'] ?? 0) > 0));
         if (empty($rows)) {
             return;
         }
@@ -583,6 +582,7 @@ class WorkshopService
                     'quantity'   => $row['quantity'],
                 ]);
             }
+
             return;
         }
 
@@ -629,7 +629,7 @@ class WorkshopService
      */
     private function syncRoleItems(Workshop $workshop, array $rows, string $role): void
     {
-        $rows = array_values(array_filter($rows, fn($r) => (float) ($r['quantity'] ?? 0) > 0));
+        $rows = array_values(array_filter($rows, fn ($r) => (float) ($r['quantity'] ?? 0) > 0));
 
         $existing      = $workshop->items()->where('role', $role)->get()->keyBy('product_id');
         $newProductIds = array_column($rows, 'product_id');
@@ -644,6 +644,7 @@ class WorkshopService
 
             if ($existing->has($productId)) {
                 $existing[$productId]->update(['quantity' => $row['quantity']]);
+
                 continue;
             }
 
@@ -693,7 +694,7 @@ class WorkshopService
 
         if ($itemDeltas) {
             $now = now();
-            WorkshopLogItem::insert(collect($itemDeltas)->map(fn($d) => [
+            WorkshopLogItem::insert(collect($itemDeltas)->map(fn ($d) => [
                 'workshop_log_id' => $log->id,
                 'product_id'      => $d['product_id'],
                 'role'            => $d['role'],

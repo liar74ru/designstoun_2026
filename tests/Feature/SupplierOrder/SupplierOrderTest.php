@@ -1,13 +1,13 @@
 <?php
 
 use App\Models\Counterparty;
-use App\Models\Product;
 use App\Models\Store;
 use App\Models\SupplierOrder;
 use App\Models\SupplierOrderItem;
 use App\Services\Moysklad\MoySkladPurchaseOrderService;
 use App\Services\Moysklad\MoySkladSupplyService;
 use App\Services\Moysklad\StockSyncService;
+use Illuminate\Support\Str;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ─── Моки сервисов ───────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ function makeCounterparty(): Counterparty
 {
     return Counterparty::create([
         'name'        => 'Тест Поставщик',
-        'moysklad_id' => (string) \Illuminate\Support\Str::uuid(),
+        'moysklad_id' => (string) Str::uuid(),
     ]);
 }
 
@@ -91,7 +91,7 @@ describe('SupplierOrderController store()', function () {
         $user    = H::adminUser();
         $store   = H::store();
         $cp      = makeCounterparty();
-        $product = H::product(['moysklad_id' => (string) \Illuminate\Support\Str::uuid()]);
+        $product = H::product(['moysklad_id' => (string) Str::uuid()]);
 
         mockPurchaseOrderService(true, 'po-uuid-123');
 
@@ -221,7 +221,7 @@ describe('SupplierOrderController update()', function () {
             'number'          => 'CHANGED',
             'products'        => [['product_id' => H::product()->id, 'quantity' => 1.0]],
         ])->assertRedirect(route('supplier-orders.index'))
-          ->assertSessionHas('warning');
+            ->assertSessionHas('warning');
 
         $order->refresh();
         expect($order->number)->toBe('SENT-01');
@@ -318,7 +318,7 @@ describe('SupplierOrderController sync()', function () {
         $user    = H::adminUser();
         $store   = H::store();
         $cp      = makeCounterparty();
-        $product = H::product(['moysklad_id' => (string) \Illuminate\Support\Str::uuid()]);
+        $product = H::product(['moysklad_id' => (string) Str::uuid()]);
 
         mockPurchaseOrderService();
         mockSupplyService(true);

@@ -9,7 +9,9 @@ class WorkshopItem extends Model
     protected $table = 'workshop_items';
 
     const ROLE_RAW     = 'raw';      // сырьё (вход)
+
     const ROLE_PACKAGE = 'package';  // упаковка/тара
+
     const ROLE_PRODUCT = 'product';  // продукт (выход)
 
     protected $fillable = [

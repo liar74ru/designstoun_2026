@@ -113,5 +113,4 @@ class AdminSettingController extends Controller
         // Форма складов живёт в карточке отдела — туда и возвращаемся
         return back()->with('success', 'Склады отделов сохранены.');
     }
-
 }

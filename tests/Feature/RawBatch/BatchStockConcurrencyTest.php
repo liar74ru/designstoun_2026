@@ -1,7 +1,6 @@
 <?php
 
 use App\Exceptions\InsufficientRawMaterialException;
-use Illuminate\Support\Facades\Queue;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
@@ -9,6 +8,7 @@ use App\Models\StoneReception;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
 use App\Support\BatchStock;
+use Illuminate\Support\Facades\Queue;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /*

@@ -1,26 +1,26 @@
 <?php
 
-use App\Http\Controllers\CounterpartyController;
-use App\Http\Controllers\HelpController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\RawMaterialBatchController;
-use App\Http\Controllers\SalaryController;
-use App\Http\Controllers\WorkshopController;
-use App\Http\Controllers\StoneReceptionController;
-use App\Http\Controllers\StoreController;
-use App\Http\Controllers\SupplierOrderController;
-use App\Http\Controllers\SyncController;
-use App\Http\Controllers\WorkerController;
 use App\Http\Controllers\Admin\DepartmentModifierController;
 use App\Http\Controllers\Admin\OrderStateController;
 use App\Http\Controllers\Admin\SkuColorController;
 use App\Http\Controllers\Admin\WorkshopPresetController;
 use App\Http\Controllers\Admin\WorkshopPresetGroupController;
 use App\Http\Controllers\AdminSettingController;
-use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\CounterpartyController;
 use App\Http\Controllers\CutterWorkerDashboardController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EnterpriseDashboardController;
+use App\Http\Controllers\HelpController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\RawMaterialBatchController;
+use App\Http\Controllers\SalaryController;
+use App\Http\Controllers\StoneReceptionController;
+use App\Http\Controllers\StoreController;
+use App\Http\Controllers\SupplierOrderController;
+use App\Http\Controllers\SyncController;
+use App\Http\Controllers\WorkerController;
+use App\Http\Controllers\WorkshopController;
 use Illuminate\Support\Facades\Route;
 
 // Всё, кроме входа, — только для авторизованных. Гостя на «/» отправляет на вход сам
@@ -89,11 +89,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Заявки — операция orders
     Route::middleware('can:see-orders')->group(function () {
-        Route::get ('orders',       [OrderController::class, 'index'])->name('orders.index');
-        Route::post('orders/sync',  [OrderController::class, 'sync'])->name('orders.sync');
+        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::post('orders/sync', [OrderController::class, 'sync'])->name('orders.sync');
         // Биндинг по uuid (у заявки покупателя = moysklad_id): синхронизация удаляет выпавшие заявки,
         // локальные id протухают.
-        Route::get ('orders/{moyskladId}', [OrderController::class, 'show'])->name('orders.show');
+        Route::get('orders/{moyskladId}', [OrderController::class, 'show'])->name('orders.show');
         Route::post('orders/{moyskladId}/state', [OrderController::class, 'updateState'])
             ->name('orders.state.update');
         Route::post('orders/{moyskladId}/departments', [OrderController::class, 'updateDepartments'])
@@ -101,39 +101,39 @@ Route::middleware(['auth'])->group(function () {
         Route::post('orders/{moyskladId}/delivery-date', [OrderController::class, 'updateDeliveryDate'])
             ->name('orders.delivery-date.update');
         // Настройки позиции: склады комплектации и уточнения мастера
-        Route::post   ('orders/{moyskladId}/positions', [OrderController::class, 'storePosition'])
+        Route::post('orders/{moyskladId}/positions', [OrderController::class, 'storePosition'])
             ->name('orders.position.update');
-        Route::delete ('orders/{moyskladId}/positions/{productId}', [OrderController::class, 'destroyPosition'])
+        Route::delete('orders/{moyskladId}/positions/{productId}', [OrderController::class, 'destroyPosition'])
             ->name('orders.position.destroy');
         // Ручная отметка «позиция готова» из списка заявок (AJAX)
-        Route::post   ('orders/{moyskladId}/positions/{productId}/ready', [OrderController::class, 'updateReady'])
+        Route::post('orders/{moyskladId}/positions/{productId}/ready', [OrderController::class, 'updateReady'])
             ->name('orders.position.ready');
         // Скрыть позицию смешанной заявки для отдела (AJAX из карточки)
-        Route::post   ('orders/{moyskladId}/positions/{productId}/hidden', [OrderController::class, 'updateHidden'])
+        Route::post('orders/{moyskladId}/positions/{productId}/hidden', [OrderController::class, 'updateHidden'])
             ->name('orders.position.hidden');
         // Пересъёмка остатков: обнуляет изготовленное, поэтому отдельным действием
-        Route::post   ('orders/{moyskladId}/recalculate', [OrderController::class, 'recalculate'])
+        Route::post('orders/{moyskladId}/recalculate', [OrderController::class, 'recalculate'])
             ->name('orders.recalculate');
         // Очередь заявок: по ней сортируется список и делится изготовленное
-        Route::post   ('orders/{moyskladId}/priority/move', [OrderController::class, 'movePriority'])
+        Route::post('orders/{moyskladId}/priority/move', [OrderController::class, 'movePriority'])
             ->name('orders.priority.move');
-        Route::post   ('orders/{moyskladId}/priority/urgent', [OrderController::class, 'updateUrgent'])
+        Route::post('orders/{moyskladId}/priority/urgent', [OrderController::class, 'updateUrgent'])
             ->name('orders.priority.urgent');
-        Route::post   ('orders/{moyskladId}/priority/reset', [OrderController::class, 'resetPriority'])
+        Route::post('orders/{moyskladId}/priority/reset', [OrderController::class, 'resetPriority'])
             ->name('orders.priority.reset');
         // «Принято»: мастер увидел изменение состава заявки в МойСклад
-        Route::post   ('orders/{moyskladId}/changes/acknowledge', [OrderController::class, 'acknowledgeChanges'])
+        Route::post('orders/{moyskladId}/changes/acknowledge', [OrderController::class, 'acknowledgeChanges'])
             ->name('orders.changes.acknowledge');
         // Внутренний заказ полуфабриката другому отделу: создаётся из карточки заявки-основания
-        Route::get    ('orders/{moyskladId}/internal/create', [OrderController::class, 'createInternal'])
+        Route::get('orders/{moyskladId}/internal/create', [OrderController::class, 'createInternal'])
             ->name('orders.internal.create');
-        Route::get    ('orders/{moyskladId}/internal/edit', [OrderController::class, 'editInternal'])
+        Route::get('orders/{moyskladId}/internal/edit', [OrderController::class, 'editInternal'])
             ->name('orders.internal.edit');
-        Route::post   ('orders/{moyskladId}/internal', [OrderController::class, 'storeInternal'])
+        Route::post('orders/{moyskladId}/internal', [OrderController::class, 'storeInternal'])
             ->name('orders.internal.store');
-        Route::put    ('orders/{moyskladId}/internal', [OrderController::class, 'updateInternal'])
+        Route::put('orders/{moyskladId}/internal', [OrderController::class, 'updateInternal'])
             ->name('orders.internal.update');
-        Route::delete ('orders/{moyskladId}', [OrderController::class, 'destroyInternal'])
+        Route::delete('orders/{moyskladId}', [OrderController::class, 'destroyInternal'])
             ->name('orders.internal.destroy');
     });
 
@@ -217,18 +217,18 @@ Route::middleware(['auth'])->group(function () {
     Route::redirect('/packagings', '/workshops');
     Route::middleware('can:see-workshops')->group(function () {
         Route::resource('workshops', WorkshopController::class);
-        Route::post  ('workshops/{workshop}/copy',                [WorkshopController::class, 'copy'])->name('workshops.copy');
-        Route::patch ('workshops/{workshop}/reset-status',        [WorkshopController::class, 'resetStatus'])->name('workshops.reset-status');
-        Route::patch ('workshops/{workshop}/mark-completed',      [WorkshopController::class, 'markCompleted'])->name('workshops.mark-completed');
-        Route::post  ('workshops/{workshop}/sync',                [WorkshopController::class, 'syncToProcessing'])->name('workshops.sync');
-        Route::post  ('workshops/{workshop}/item-coeffs',         [WorkshopController::class, 'updateItemCoeff'])->name('workshops.update-item-coeff');
-        Route::post  ('workshops/{workshop}/refresh-item-coeffs', [WorkshopController::class, 'refreshItemCoeffs'])->name('workshops.refresh-item-coeffs');
-        Route::patch ('workshops/{workshop}/update-stores',       [WorkshopController::class, 'updateStores'])->name('workshops.update-stores');
-        Route::patch ('workshops/{workshop}/update-department',   [WorkshopController::class, 'updateDepartment'])
+        Route::post('workshops/{workshop}/copy', [WorkshopController::class, 'copy'])->name('workshops.copy');
+        Route::patch('workshops/{workshop}/reset-status', [WorkshopController::class, 'resetStatus'])->name('workshops.reset-status');
+        Route::patch('workshops/{workshop}/mark-completed', [WorkshopController::class, 'markCompleted'])->name('workshops.mark-completed');
+        Route::post('workshops/{workshop}/sync', [WorkshopController::class, 'syncToProcessing'])->name('workshops.sync');
+        Route::post('workshops/{workshop}/item-coeffs', [WorkshopController::class, 'updateItemCoeff'])->name('workshops.update-item-coeff');
+        Route::post('workshops/{workshop}/refresh-item-coeffs', [WorkshopController::class, 'refreshItemCoeffs'])->name('workshops.refresh-item-coeffs');
+        Route::patch('workshops/{workshop}/update-stores', [WorkshopController::class, 'updateStores'])->name('workshops.update-stores');
+        Route::patch('workshops/{workshop}/update-department', [WorkshopController::class, 'updateDepartment'])
             ->name('workshops.update-department')
             ->middleware('can:manage-admin');
-        Route::get   ('api/workers/{worker}/default-production-store', [WorkshopController::class, 'getDefaultStoreJson'])->name('api.worker.default-production-store');
-        Route::get   ('api/departments/{department}/workshop-presets', [WorkshopController::class, 'getPresetsJson'])->name('api.department.workshop-presets');
+        Route::get('api/workers/{worker}/default-production-store', [WorkshopController::class, 'getDefaultStoreJson'])->name('api.worker.default-production-store');
+        Route::get('api/departments/{department}/workshop-presets', [WorkshopController::class, 'getPresetsJson'])->name('api.department.workshop-presets');
     });
 
     // Партии сырья — операция raw-batches
@@ -270,10 +270,10 @@ Route::middleware(['auth'])->group(function () {
 
     // Настройки системы — только админ (через can:manage-admin на группе)
     Route::prefix('admin')->name('admin.')->middleware('can:manage-admin')->group(function () {
-        Route::get('/settings',  [AdminSettingController::class, 'index'])->name('settings.index');
+        Route::get('/settings', [AdminSettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
-        Route::get('/settings/rates',      [AdminSettingController::class, 'rates'])->name('settings.rates');
-        Route::get('/settings/moysklad',   [AdminSettingController::class, 'moysklad'])->name('settings.moysklad');
+        Route::get('/settings/rates', [AdminSettingController::class, 'rates'])->name('settings.rates');
+        Route::get('/settings/moysklad', [AdminSettingController::class, 'moysklad'])->name('settings.moysklad');
         Route::get('/settings/sku-colors', [AdminSettingController::class, 'skuColors'])->name('settings.sku-colors');
         Route::post('/sku-colors', [SkuColorController::class, 'update'])->name('sku-colors.update');
         Route::post('/departments/store-defaults', [AdminSettingController::class, 'updateDepartmentStores'])->name('departments.store-defaults');
@@ -284,35 +284,35 @@ Route::middleware(['auth'])->group(function () {
 
         // Пресеты цеха отдела
         Route::scopeBindings()->group(function () {
-            Route::get   ('/departments/{department}/presets/create',        [WorkshopPresetController::class, 'create'])->name('departments.presets.create');
-            Route::post  ('/departments/{department}/presets',               [WorkshopPresetController::class, 'store'])->name('departments.presets.store');
-            Route::get   ('/departments/{department}/presets/{preset}/edit', [WorkshopPresetController::class, 'edit'])->name('departments.presets.edit');
-            Route::patch ('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'update'])->name('departments.presets.update');
-            Route::delete('/departments/{department}/presets/{preset}',      [WorkshopPresetController::class, 'destroy'])->name('departments.presets.destroy');
-            Route::post  ('/departments/{department}/presets/{preset}/copy', [WorkshopPresetController::class, 'copy'])->name('departments.presets.copy');
-            Route::post  ('/departments/{department}/presets/{preset}/detach', [WorkshopPresetController::class, 'detach'])->name('departments.presets.detach');
+            Route::get('/departments/{department}/presets/create', [WorkshopPresetController::class, 'create'])->name('departments.presets.create');
+            Route::post('/departments/{department}/presets', [WorkshopPresetController::class, 'store'])->name('departments.presets.store');
+            Route::get('/departments/{department}/presets/{preset}/edit', [WorkshopPresetController::class, 'edit'])->name('departments.presets.edit');
+            Route::patch('/departments/{department}/presets/{preset}', [WorkshopPresetController::class, 'update'])->name('departments.presets.update');
+            Route::delete('/departments/{department}/presets/{preset}', [WorkshopPresetController::class, 'destroy'])->name('departments.presets.destroy');
+            Route::post('/departments/{department}/presets/{preset}/copy', [WorkshopPresetController::class, 'copy'])->name('departments.presets.copy');
+            Route::post('/departments/{department}/presets/{preset}/detach', [WorkshopPresetController::class, 'detach'])->name('departments.presets.detach');
 
-            Route::get   ('/departments/{department}/preset-groups/create',             [WorkshopPresetGroupController::class, 'create'])->name('departments.preset-groups.create');
-            Route::post  ('/departments/{department}/preset-groups',                    [WorkshopPresetGroupController::class, 'store'])->name('departments.preset-groups.store');
-            Route::get   ('/departments/{department}/preset-groups/{presetGroup}/edit', [WorkshopPresetGroupController::class, 'edit'])->name('departments.preset-groups.edit');
-            Route::patch ('/departments/{department}/preset-groups/{presetGroup}',      [WorkshopPresetGroupController::class, 'update'])->name('departments.preset-groups.update');
-            Route::delete('/departments/{department}/preset-groups/{presetGroup}',      [WorkshopPresetGroupController::class, 'destroy'])->name('departments.preset-groups.destroy');
+            Route::get('/departments/{department}/preset-groups/create', [WorkshopPresetGroupController::class, 'create'])->name('departments.preset-groups.create');
+            Route::post('/departments/{department}/preset-groups', [WorkshopPresetGroupController::class, 'store'])->name('departments.preset-groups.store');
+            Route::get('/departments/{department}/preset-groups/{presetGroup}/edit', [WorkshopPresetGroupController::class, 'edit'])->name('departments.preset-groups.edit');
+            Route::patch('/departments/{department}/preset-groups/{presetGroup}', [WorkshopPresetGroupController::class, 'update'])->name('departments.preset-groups.update');
+            Route::delete('/departments/{department}/preset-groups/{presetGroup}', [WorkshopPresetGroupController::class, 'destroy'])->name('departments.preset-groups.destroy');
         });
 
         // Правила-модификаторы себестоимости отдела
         Route::scopeBindings()->group(function () {
-            Route::get   ('/departments/{department}/modifiers/create',          [DepartmentModifierController::class, 'create'])->name('departments.modifiers.create');
-            Route::post  ('/departments/{department}/modifiers',                 [DepartmentModifierController::class, 'store'])->name('departments.modifiers.store');
-            Route::get   ('/departments/{department}/modifiers/{modifier}/edit', [DepartmentModifierController::class, 'edit'])->name('departments.modifiers.edit');
-            Route::patch ('/departments/{department}/modifiers/{modifier}',      [DepartmentModifierController::class, 'update'])->name('departments.modifiers.update');
-            Route::delete('/departments/{department}/modifiers/{modifier}',      [DepartmentModifierController::class, 'destroy'])->name('departments.modifiers.destroy');
+            Route::get('/departments/{department}/modifiers/create', [DepartmentModifierController::class, 'create'])->name('departments.modifiers.create');
+            Route::post('/departments/{department}/modifiers', [DepartmentModifierController::class, 'store'])->name('departments.modifiers.store');
+            Route::get('/departments/{department}/modifiers/{modifier}/edit', [DepartmentModifierController::class, 'edit'])->name('departments.modifiers.edit');
+            Route::patch('/departments/{department}/modifiers/{modifier}', [DepartmentModifierController::class, 'update'])->name('departments.modifiers.update');
+            Route::delete('/departments/{department}/modifiers/{modifier}', [DepartmentModifierController::class, 'destroy'])->name('departments.modifiers.destroy');
         });
 
         // Статусы заявок — справочник-зеркало МойСклад
-        Route::get ('/order-states',      [OrderStateController::class, 'index'])->name('order-states.index');
-        Route::post('/order-states',      [OrderStateController::class, 'update'])->name('order-states.update');
+        Route::get('/order-states', [OrderStateController::class, 'index'])->name('order-states.index');
+        Route::post('/order-states', [OrderStateController::class, 'update'])->name('order-states.update');
         Route::post('/order-states/sync', [OrderStateController::class, 'sync'])->name('order-states.sync');
     });
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

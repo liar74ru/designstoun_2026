@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Department;
 use App\Services\DepartmentModifierService;
+use Illuminate\Database\Seeder;
 
 class DepartmentsTableSeeder extends Seeder
 {

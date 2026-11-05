@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     private const DEFAULT_UNDERCUT_PENALTY = 1.5;
+
     private const DEFAULT_MASK_TILE_BONUS  = 2.0;
 
     public function up(): void

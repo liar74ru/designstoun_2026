@@ -17,11 +17,10 @@ use Illuminate\Http\Request;
 class OrderPriorityService
 {
     public const UP = 'up';
+
     public const DOWN = 'down';
 
-    public function __construct(private OrderService $orders)
-    {
-    }
+    public function __construct(private OrderService $orders) {}
 
     /**
      * Сдвинуть заявку на одну позицию. Границы «срочные / обычные» и «в конце списка /

@@ -37,6 +37,7 @@ class DeleteProcessingInMoysklad implements ShouldQueue
 
         if (!$result['retryable'] || $this->attempts() >= $this->tries) {
             $this->fail($result['message']);
+
             return;
         }
 

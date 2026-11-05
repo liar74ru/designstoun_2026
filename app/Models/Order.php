@@ -20,6 +20,7 @@ use Illuminate\Support\Str;
 class Order extends Model
 {
     public const KIND_CUSTOMER = 'customer';
+
     public const KIND_INTERNAL = 'internal';
 
     protected $fillable = [
@@ -209,9 +210,9 @@ class Order extends Model
 
         if ($viewerDepartmentIds) {
             $depts = implode(', ', array_fill(0, count($viewerDepartmentIds), '?'));
-            $sql  .= " OR (EXISTS (SELECT 1 FROM order_department od WHERE od.order_id = orders.id"
+            $sql  .= ' OR (EXISTS (SELECT 1 FROM order_department od WHERE od.order_id = orders.id'
                 . " AND od.department_id IN ({$depts}) AND od.final_state_id IN ({$states}))"
-                . " AND NOT EXISTS (SELECT 1 FROM order_department od WHERE od.order_id = orders.id"
+                . ' AND NOT EXISTS (SELECT 1 FROM order_department od WHERE od.order_id = orders.id'
                 . " AND od.department_id IN ({$depts}) AND od.final_state_id IS NULL))";
             $params = array_merge($params, $viewerDepartmentIds, $bottom, $viewerDepartmentIds);
         }

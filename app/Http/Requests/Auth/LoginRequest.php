@@ -45,6 +45,7 @@ class LoginRequest extends FormRequest
         if ($this->getLoginField() === 'phone') {
             return preg_replace('/\D/', '', $login);
         }
+
         return $login;
     }
 

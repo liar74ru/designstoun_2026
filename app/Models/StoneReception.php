@@ -7,12 +7,11 @@ use App\Models\Concerns\HasMoyskladSync;
 use App\Support\BatchStock;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use App\Models\RawMaterialBatch;
 
 class StoneReception extends Model
 {
-    use HasMoyskladSync;
     use HasEffectiveDepartment;
+    use HasMoyskladSync;
 
     protected $table = 'stone_receptions';
 
@@ -20,8 +19,11 @@ class StoneReception extends Model
      * Статусы приемки
      */
     const STATUS_ACTIVE    = 'active';
+
     const STATUS_COMPLETED = 'completed';
+
     const STATUS_PROCESSED = 'processed';
+
     const STATUS_ERROR     = 'error';
 
     protected $fillable = [
@@ -105,7 +107,7 @@ class StoneReception extends Model
      */
     public function receptionLogs()
     {
-        return $this->hasMany(\App\Models\ReceptionLog::class);
+        return $this->hasMany(ReceptionLog::class);
     }
 
     /**

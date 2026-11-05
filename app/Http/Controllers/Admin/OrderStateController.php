@@ -13,9 +13,7 @@ use Illuminate\View\View;
 
 class OrderStateController extends Controller
 {
-    public function __construct(private OrderStateSyncService $sync)
-    {
-    }
+    public function __construct(private OrderStateSyncService $sync) {}
 
     public function index(): View
     {

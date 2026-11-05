@@ -4,9 +4,8 @@ namespace App\Services\Moysklad;
 
 use App\Support\DocumentNaming;
 use App\Support\MoyskladMoment;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-use App\Models\Store;
-use App\Models\Product;
 
 class MoySkladMoveService extends MoySkladBaseService
 {
@@ -17,7 +16,6 @@ class MoySkladMoveService extends MoySkladBaseService
      *   - from_store_id: UUID склада источника
      *   - to_store_id: UUID склада назначения
      *   - products: массив товаров [['product_id' => '...', 'quantity' => 10], ...]
-     *
      * @return array ['success' => bool, 'move_id' => string|null, 'message' => string]
      */
     public function createMove(array $data): array
@@ -33,6 +31,7 @@ class MoySkladMoveService extends MoySkladBaseService
         if (!$this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
             Log::error('Попытка создания перемещения без учетных данных');
+
             return $result;
         }
 
@@ -40,6 +39,7 @@ class MoySkladMoveService extends MoySkladBaseService
             $organizationMeta = $this->getOrganizationMeta();
             if (!$organizationMeta) {
                 $result['message'] = 'Не удалось получить данные организации';
+
                 return $result;
             }
 
@@ -48,6 +48,7 @@ class MoySkladMoveService extends MoySkladBaseService
 
             if (!$fromStoreMeta || !$toStoreMeta) {
                 $result['message'] = 'Не удалось получить данные складов';
+
                 return $result;
             }
 
@@ -55,6 +56,7 @@ class MoySkladMoveService extends MoySkladBaseService
 
             if (empty($positions)) {
                 $result['message'] = 'Не добавлено ни одного товара в перемещение';
+
                 return $result;
             }
 
@@ -65,10 +67,18 @@ class MoySkladMoveService extends MoySkladBaseService
                 'positions'    => $positions,
             ];
 
-            if (!empty($data['name']))        $moveData['name']         = $data['name'];
-            if (!empty($data['description'])) $moveData['description']  = $data['description'];
-            if (!empty($data['external_id'])) $moveData['externalCode'] = $data['external_id'];
-            if (!empty($data['created_at']))  $moveData['moment']       = MoyskladMoment::format(\Carbon\Carbon::parse($data['created_at']));
+            if (!empty($data['name'])) {
+                $moveData['name']         = $data['name'];
+            }
+            if (!empty($data['description'])) {
+                $moveData['description']  = $data['description'];
+            }
+            if (!empty($data['external_id'])) {
+                $moveData['externalCode'] = $data['external_id'];
+            }
+            if (!empty($data['created_at'])) {
+                $moveData['moment']       = MoyskladMoment::format(Carbon::parse($data['created_at']));
+            }
 
             $response = $this->post('/entity/move', $moveData);
 
@@ -81,6 +91,7 @@ class MoySkladMoveService extends MoySkladBaseService
                 ]);
                 $result['code']    = DocumentNaming::isDuplicateName($errors) ? 'duplicate_name' : 'api_error';
                 $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
+
                 return $result;
             }
 
@@ -104,6 +115,7 @@ class MoySkladMoveService extends MoySkladBaseService
                 'trace' => $e->getTraceAsString(),
             ]);
             $result['message'] = 'Ошибка: ' . $e->getMessage();
+
             return $result;
         }
     }
@@ -120,6 +132,7 @@ class MoySkladMoveService extends MoySkladBaseService
 
         if (!$this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
+
             return $result;
         }
 
@@ -127,6 +140,7 @@ class MoySkladMoveService extends MoySkladBaseService
             $organizationMeta = $this->getOrganizationMeta();
             if (!$organizationMeta) {
                 $result['message'] = 'Не удалось получить данные организации';
+
                 return $result;
             }
 
@@ -135,6 +149,7 @@ class MoySkladMoveService extends MoySkladBaseService
 
             if (!$fromStoreMeta || !$toStoreMeta) {
                 $result['message'] = 'Не удалось получить данные складов';
+
                 return $result;
             }
 
@@ -142,6 +157,7 @@ class MoySkladMoveService extends MoySkladBaseService
 
             if (empty($positions)) {
                 $result['message'] = 'Нет позиций для обновления перемещения';
+
                 return $result;
             }
 
@@ -152,10 +168,18 @@ class MoySkladMoveService extends MoySkladBaseService
                 'positions'    => $positions,
             ];
 
-            if (!empty($data['name']))        $moveData['name']         = $data['name'];
-            if (!empty($data['description'])) $moveData['description']  = $data['description'];
-            if (!empty($data['external_id'])) $moveData['externalCode'] = $data['external_id'];
-            if (!empty($data['created_at']))  $moveData['moment']       = MoyskladMoment::format(\Carbon\Carbon::parse($data['created_at']));
+            if (!empty($data['name'])) {
+                $moveData['name']         = $data['name'];
+            }
+            if (!empty($data['description'])) {
+                $moveData['description']  = $data['description'];
+            }
+            if (!empty($data['external_id'])) {
+                $moveData['externalCode'] = $data['external_id'];
+            }
+            if (!empty($data['created_at'])) {
+                $moveData['moment']       = MoyskladMoment::format(Carbon::parse($data['created_at']));
+            }
 
             $response = $this->put('/entity/move/' . $moveId, $moveData);
 
@@ -168,17 +192,20 @@ class MoySkladMoveService extends MoySkladBaseService
                     'response' => $response->json(),
                 ]);
                 $result['message'] = 'Ошибка МойСклад: ' . $errorMsg;
+
                 return $result;
             }
 
             $result['success'] = true;
             $result['message'] = 'Перемещение обновлено';
             Log::info('Перемещение обновлено в МойСклад', ['move_id' => $moveId]);
+
             return $result;
 
         } catch (\Exception $e) {
             Log::error('Исключение при обновлении перемещения', ['move_id' => $moveId, 'error' => $e->getMessage()]);
             $result['message'] = 'Ошибка: ' . $e->getMessage();
+
             return $result;
         }
     }
@@ -196,6 +223,7 @@ class MoySkladMoveService extends MoySkladBaseService
 
         if (!$this->hasCredentials()) {
             $result['message'] = 'MoySklad токен не установлен';
+
             return $result;
         }
 
@@ -225,6 +253,7 @@ class MoySkladMoveService extends MoySkladBaseService
                 'move_id' => $moveId,
                 'error'   => $e->getMessage(),
             ]);
+
             return $result;
         }
     }
@@ -247,6 +276,7 @@ class MoySkladMoveService extends MoySkladBaseService
 
         if ($data === null) {
             $this->transientFailure = true;
+
             return false;
         }
 
@@ -267,12 +297,14 @@ class MoySkladMoveService extends MoySkladBaseService
                         'product_id' => $productId,
                         'quantity'   => $quantity,
                     ]);
+
                     continue;
                 }
 
                 $productMeta = $this->getEntityMeta('product', $productId);
                 if (!$productMeta) {
                     Log::warning('Не удалось получить метаданные товара', ['product_id' => $productId]);
+
                     continue;
                 }
 

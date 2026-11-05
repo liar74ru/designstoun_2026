@@ -4,6 +4,7 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\Store;
 use App\Services\Moysklad\StockSyncService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -118,7 +119,7 @@ describe('StockSyncService::syncAllStocksByStores()', function () {
     });
 
     test('сетевое исключение — success=false без выброса', function () {
-        Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('timeout'));
+        Http::fake(fn () => throw new ConnectionException('timeout'));
 
         $result = (new StockSyncService())->syncAllStocksByStores();
 

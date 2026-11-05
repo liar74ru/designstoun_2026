@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class WorkshopLog extends Model
 {
     const TYPE_CREATED = 'created';
+
     const TYPE_UPDATED = 'updated';
 
     protected $fillable = [

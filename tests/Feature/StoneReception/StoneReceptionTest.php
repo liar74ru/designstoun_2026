@@ -1,8 +1,6 @@
 <?php
 
 use App\Models\Department;
-use App\Models\Product;
-use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;

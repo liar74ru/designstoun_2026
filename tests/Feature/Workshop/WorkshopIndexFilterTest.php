@@ -1,9 +1,9 @@
 <?php
 
 use App\Models\Product;
+use App\Models\Worker;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
-use App\Models\Worker;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 /**
@@ -11,7 +11,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * продукта на выходе, упаковка — по строкам тары. Один товар в разных ролях
  * не должен находиться чужим фильтром.
  */
-
 beforeEach(function () {
     $this->store  = H::store();
     $this->packer = Worker::create(['name' => 'Работник', 'position' => 'Мастер']);

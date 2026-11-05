@@ -11,8 +11,11 @@ class Counterparty extends Model
     use HasFactory, HasUuids;
 
     protected $table = 'counterparties';
+
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [

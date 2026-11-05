@@ -9,9 +9,7 @@ use Illuminate\View\View;
 /** Справка по разделам — документы из docs/ (см. HelpService). */
 class HelpController extends Controller
 {
-    public function __construct(private HelpService $help)
-    {
-    }
+    public function __construct(private HelpService $help) {}
 
     public function index(Request $request): View
     {

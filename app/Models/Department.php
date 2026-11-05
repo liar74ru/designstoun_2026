@@ -133,6 +133,7 @@ class Department extends Model
         foreach ($this->operationSettings()->get(['operation_key', 'config']) as $row) {
             $map[$row->operation_key] = $row->config['positions'] ?? [];
         }
+
         return $map;
     }
 
@@ -155,9 +156,11 @@ class Department extends Model
                 $cfg = DepartmentOperationSetting::where('department_id', $departmentId)
                     ->where('operation_key', $operationKey)
                     ->value('config');
+
                 return is_array($cfg) ? ($cfg['positions'] ?? []) : [];
             }
         );
+
         return in_array($position, $positions, true);
     }
 

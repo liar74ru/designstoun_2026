@@ -8,7 +8,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * Фильтр «Работник» в списке приёмок: короткий список — работники отделов
  * пользователя без уволенных, остальные — по чекбоксу «все работники».
  */
-
 beforeEach(function () {
     $this->dept      = Access::department();
     $this->extraDept = Access::department();

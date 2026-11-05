@@ -1,4 +1,5 @@
 <?php
+
 // database/migrations/xxxx_xx_xx_xxxxxx_add_status_to_stone_receptions.php
 
 use Illuminate\Database\Migrations\Migration;

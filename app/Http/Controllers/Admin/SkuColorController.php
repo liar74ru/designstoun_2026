@@ -9,9 +9,7 @@ use Illuminate\Http\RedirectResponse;
 
 class SkuColorController extends Controller
 {
-    public function __construct(private SkuColorService $service)
-    {
-    }
+    public function __construct(private SkuColorService $service) {}
 
     public function update(SkuColorRequest $request): RedirectResponse
     {

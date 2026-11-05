@@ -6,8 +6,8 @@ use App\Models\Department;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
-use App\Models\Store;
 use App\Models\StoneReception;
+use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
 use App\Services\DepartmentModifierService;
@@ -92,10 +92,10 @@ class ReceptionTestHelper
      */
     public static function batch(
         Product $product,
-        Store   $store,
-        Worker  $worker,
-        float   $qty = 100.0,
-        array   $attrs = []
+        Store $store,
+        Worker $worker,
+        float $qty = 100.0,
+        array $attrs = []
     ): RawMaterialBatch {
         return RawMaterialBatch::create(array_merge([
             'product_id'         => $product->id,
@@ -113,10 +113,10 @@ class ReceptionTestHelper
      */
     public static function newBatch(
         Product $product,
-        Store   $store,
-        Worker  $worker,
-        float   $qty = 100.0,
-        array   $attrs = []
+        Store $store,
+        Worker $worker,
+        float $qty = 100.0,
+        array $attrs = []
     ): RawMaterialBatch {
         return self::batch($product, $store, $worker, $qty, array_merge([
             'status' => RawMaterialBatch::STATUS_NEW,
@@ -130,11 +130,11 @@ class ReceptionTestHelper
      */
     public static function reception(
         RawMaterialBatch $batch,
-        Worker           $receiver,
-        Worker           $cutter,
-        Store            $store,
-        float            $rawQtyUsed = 5.0,
-        array            $attrs = []
+        Worker $receiver,
+        Worker $cutter,
+        Store $store,
+        float $rawQtyUsed = 5.0,
+        array $attrs = []
     ): StoneReception {
         // Уменьшаем партию вручную (booted не помогает — он вызывает updateStocks дважды в тестах)
         $batch->remaining_quantity = (float) $batch->remaining_quantity - $rawQtyUsed;
@@ -145,7 +145,7 @@ class ReceptionTestHelper
                 'receiver_id'          => $receiver->id,
                 'cutter_id'            => $cutter->id,
                 'store_id'             => $store->id,
-                'raw_material_batch_id'=> $batch->id,
+                'raw_material_batch_id' => $batch->id,
                 'raw_quantity_used'    => $rawQtyUsed,
                 'status'               => 'active',
             ], $attrs));
@@ -156,12 +156,12 @@ class ReceptionTestHelper
      * Данные формы для POST /stone-receptions
      */
     public static function receptionPostData(
-        Worker           $receiver,
-        Worker           $cutter,
-        Store            $store,
+        Worker $receiver,
+        Worker $cutter,
+        Store $store,
         RawMaterialBatch $batch,
-        float            $rawQty = 5.0,
-        array            $products = []
+        float $rawQty = 5.0,
+        array $products = []
     ): array {
         return [
             'receiver_id'           => $receiver->id,

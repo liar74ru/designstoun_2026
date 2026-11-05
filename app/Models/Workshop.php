@@ -10,14 +10,16 @@ use Illuminate\Support\Facades\DB;
 
 class Workshop extends Model
 {
-    use HasMoyskladSync;
     use HasEffectiveDepartment;
+    use HasMoyskladSync;
     use ManagesStock;
 
     protected $table = 'workshops';
 
     const STATUS_ACTIVE    = 'active';
+
     const STATUS_COMPLETED = 'completed';
+
     const STATUS_ERROR     = 'error';
 
     protected $fillable = [

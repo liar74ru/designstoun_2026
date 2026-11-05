@@ -4,6 +4,7 @@ use App\Models\Department;
 use App\Models\User;
 use App\Models\Worker;
 use App\Services\WorkerService;
+use Illuminate\Support\Facades\Hash;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -37,7 +38,7 @@ describe('WorkerService::buildIndexQuery()', function () {
         expect($result->first()->id)->toBe($worker1->id);
     });
 
-test('мастер видит только свой department', function () {
+    test('мастер видит только свой department', function () {
         $dept1 = Department::create(['name' => 'Отдел 1', 'code' => 'D1']);
         $dept2 = Department::create(['name' => 'Отдел 2', 'code' => 'D2']);
         $masterWorker = Worker::create(['name' => 'Мастер', 'position' => 'Мастер', 'department_id' => $dept1->id]);
@@ -163,7 +164,7 @@ describe('WorkerService::updateUser()', function () {
         $service = new WorkerService();
         $service->updateUser($worker, 'newpassword', false, false);
 
-        expect(\Illuminate\Support\Facades\Hash::check('newpassword', $user->fresh()->password))->toBeTrue();
+        expect(Hash::check('newpassword', $user->fresh()->password))->toBeTrue();
     });
 
     test('админ может установить is_admin', function () {

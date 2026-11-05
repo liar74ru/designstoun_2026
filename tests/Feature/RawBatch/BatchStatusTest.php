@@ -1,11 +1,10 @@
 <?php
 
+use App\Models\Product;
+use App\Models\RawMaterialBatch;
+use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
-use App\Models\Product;
-use App\Models\Store;
-use App\Models\RawMaterialBatch;
-use App\Models\StoneReception;
 
 // ─── Вспомогательные фабрики ──────────────────────────────────────────────────
 
@@ -28,6 +27,7 @@ function makeBatch(string $status = 'in_work', float $remaining = 5.0): RawMater
 function makeAdminUser(): User
 {
     $worker = Worker::create(['name' => 'Админ', 'position' => 'Администратор']);
+
     return User::factory()->create(['worker_id' => $worker->id, 'is_admin' => true]);
 }
 

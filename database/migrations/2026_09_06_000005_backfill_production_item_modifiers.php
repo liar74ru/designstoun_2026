@@ -25,8 +25,8 @@ return new class extends Migration
     {
         $modifiers = DB::table('department_modifiers')
             ->get(['id', 'department_id', 'key', 'name', 'color', 'sort_order',
-                   'worker_coeff_delta', 'worker_coeff_replace',
-                   'master_coeff_delta', 'master_coeff_replace'])
+                'worker_coeff_delta', 'worker_coeff_replace',
+                'master_coeff_delta', 'master_coeff_replace'])
             ->groupBy('department_id');
 
         if ($modifiers->isEmpty()) {
@@ -66,7 +66,7 @@ return new class extends Migration
 
         DB::table($itemsTable)
             ->orderBy('id')
-            ->chunkById(200, function ($items) use ($itemsTable, $itemFk, $docTable, $docFk, $modifiers, $now) {
+            ->chunkById(200, function ($items) use ($itemFk, $docTable, $docFk, $modifiers, $now) {
                 $departments = DB::table($docTable)
                     ->whereIn('id', $items->pluck($docFk)->filter()->unique())
                     ->pluck('department_id', 'id');
@@ -87,10 +87,18 @@ return new class extends Migration
                     $sku       = $skus[$item->product_id] ?? null;
 
                     $keys = [];
-                    if ($this->isMaskTile($sku))          { $keys[] = 'mask_tile'; }
-                    if ($item->is_edging)                 { $keys[] = 'edging'; }
-                    if ($item->is_undercut)               { $keys[] = 'undercut'; }
-                    if ($item->is_small_tile)             { $keys[] = 'small_tile'; }
+                    if ($this->isMaskTile($sku)) {
+                        $keys[] = 'mask_tile';
+                    }
+                    if ($item->is_edging) {
+                        $keys[] = 'edging';
+                    }
+                    if ($item->is_undercut) {
+                        $keys[] = 'undercut';
+                    }
+                    if ($item->is_small_tile) {
+                        $keys[] = 'small_tile';
+                    }
 
                     foreach ($keys as $key) {
                         $rule = $deptRules[$key] ?? null;

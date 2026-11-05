@@ -3,6 +3,7 @@
 use App\Jobs\DeleteProcessingInMoysklad;
 use App\Jobs\SyncReceptionToMoysklad;
 use App\Jobs\SyncWorkshopToMoysklad;
+use App\Models\Product;
 use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
@@ -10,7 +11,9 @@ use App\Models\Store;
 use App\Models\Worker;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
-use App\Models\Product;
+use App\Services\Moysklad\ProcessingDeleteService;
+use App\Services\Moysklad\StoneReceptionSyncService;
+use App\Services\Moysklad\WorkshopSyncService;
 use App\Services\StoneReceptionService;
 use App\Services\WorkshopService;
 use App\Support\DocumentNaming;
@@ -119,7 +122,7 @@ function psjRun(StoneReception $reception, int $attempt = 1): SyncReceptionToMoy
 {
     $job = (new SyncReceptionToMoysklad($reception->fresh()))->withFakeQueueInteractions();
     $job->job->attempts = $attempt;
-    $job->handle(app(\App\Services\Moysklad\StoneReceptionSyncService::class));
+    $job->handle(app(StoneReceptionSyncService::class));
 
     return $job;
 }
@@ -418,7 +421,7 @@ describe('Цех', function () {
     {
         $job = (new SyncWorkshopToMoysklad($workshop->fresh()))->withFakeQueueInteractions();
         $job->job->attempts = $attempt;
-        $job->handle(app(\App\Services\Moysklad\WorkshopSyncService::class));
+        $job->handle(app(WorkshopSyncService::class));
 
         return $job;
     }
@@ -528,7 +531,7 @@ describe('Удаление техоперации', function () {
     {
         $job = (new DeleteProcessingInMoysklad($processingId, 'reception_1', $ids))->withFakeQueueInteractions();
         $job->job->attempts = $attempt;
-        $job->handle(app(\App\Services\Moysklad\ProcessingDeleteService::class));
+        $job->handle(app(ProcessingDeleteService::class));
 
         return $job;
     }

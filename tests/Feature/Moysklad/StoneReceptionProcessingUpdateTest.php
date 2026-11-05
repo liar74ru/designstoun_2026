@@ -85,6 +85,7 @@ function srpuFake(array $existingPositions = [], $putResponse = null, bool $exis
                     'assortment' => ['meta' => ['href' => SRPU_BASE . '/entity/product/' . $msId]],
                 ];
             }
+
             return Http::response(['id' => 'proc-1', 'products' => ['rows' => $rows]], 200);
         }
         if (str_contains($url, '/entity/processing/') && $request->method() === 'PUT') {

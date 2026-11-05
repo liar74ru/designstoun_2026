@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Exceptions\InsufficientRawMaterialException;
 use App\Http\Requests\StoneReception\StoreStoneReceptionRequest;
 use App\Http\Requests\StoneReception\UpdateStoneReceptionRequest;
+use App\Models\Department;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
 use App\Models\Setting;
 use App\Models\StoneReception;
+use App\Models\Store;
 use App\Models\Worker;
 use App\Services\StoneReceptionService;
 use App\Support\DepartmentAccess;
@@ -77,7 +79,7 @@ class StoneReceptionController extends Controller
         if ($copyFromId = $request->input('copy_from')) {
             $copyFrom = StoneReception::with(['items.product', 'items.modifiers'])->find($copyFromId);
             if ($copyFrom) {
-                $copyItems = $copyFrom->items->map(fn($item) => [
+                $copyItems = $copyFrom->items->map(fn ($item) => [
                     'product_id'    => $item->product_id,
                     'product_label' => $item->product?->name ?? '',
                     'modifiers'     => $item->modifiers->pluck('key')->all(),
@@ -101,8 +103,7 @@ class StoneReceptionController extends Controller
 
         $data['department_id'] = $this->service->resolveDepartmentId($data);
         if (! $data['department_id']) {
-            return back()->withErrors(['error' =>
-                'Не удалось определить отдел приёмки. Назначьте отдел пильщику или приёмщику.'])
+            return back()->withErrors(['error' => 'Не удалось определить отдел приёмки. Назначьте отдел пильщику или приёмщику.'])
                 ->withInput();
         }
         if (! DepartmentAccess::canAssign($request->user(), $data['department_id'])) {
@@ -131,6 +132,7 @@ class StoneReceptionController extends Controller
             return $e->render();
         } catch (\Exception $e) {
             Log::error('Ошибка создания приёмки:', ['error' => $e->getMessage(), 'data' => $data]);
+
             return back()->withErrors(['error' => 'Не удалось сохранить приёмку. Попробуйте ещё раз, если повторится — сообщите администратору.'])->withInput();
         }
     }
@@ -145,7 +147,7 @@ class StoneReceptionController extends Controller
             'items.product',
             'items.modifiers',
             'rawMaterialBatch.product',
-            'receptionLogs' => fn($q) => $q->orderBy('created_at', 'asc'),
+            'receptionLogs' => fn ($q) => $q->orderBy('created_at', 'asc'),
             'receptionLogs.items.product',
             'receptionLogs.items.chargedWorker',
             'receptionLogs.stoneReception.items.modifiers.modifier',
@@ -153,8 +155,8 @@ class StoneReceptionController extends Controller
             'receptionLogs.cutter',
         ]);
 
-        $stores        = \App\Models\Store::orderBy('name')->get();
-        $departments   = \App\Models\Department::orderBy('name')->get();
+        $stores        = Store::orderBy('name')->get();
+        $departments   = Department::orderBy('name')->get();
         $masterWorkers = $this->service->getMasterWorkers();
 
         return view('stone-receptions.show', compact('stoneReception', 'stores', 'departments', 'masterWorkers'));
@@ -201,6 +203,7 @@ class StoneReceptionController extends Controller
             return $e->render();
         } catch (\Exception $e) {
             Log::error('Ошибка обновления приёмки:', ['error' => $e->getMessage()]);
+
             return back()->withErrors(['error' => 'Не удалось сохранить приёмку. Попробуйте ещё раз, если повторится — сообщите администратору.'])->withInput();
         }
     }
@@ -225,9 +228,11 @@ class StoneReceptionController extends Controller
 
         try {
             $this->service->delete($stoneReception);
+
             return redirect()->route('stone-receptions.index')->with('success', 'Приемка удалена');
         } catch (\Exception $e) {
             Log::error('Ошибка удаления приёмки:', ['error' => $e->getMessage()]);
+
             return back()->withErrors(['error' => 'Ошибка удаления']);
         }
     }
@@ -339,7 +344,7 @@ class StoneReceptionController extends Controller
 
     public function getBatchesJson(Worker $worker): JsonResponse
     {
-        $batches = $this->service->getActiveBatchesForWorker($worker)->map(fn($b) => [
+        $batches = $this->service->getActiveBatchesForWorker($worker)->map(fn ($b) => [
             'id'                 => $b->id,
             'label'              => $b->product->name
                 . ' (ост: ' . Uom::format($b->remaining_quantity, $b->product->uom, 2) . ')'
@@ -372,7 +377,7 @@ class StoneReceptionController extends Controller
     public function getReceptionsByBatchJson(RawMaterialBatch $batch): JsonResponse
     {
         $receptions = $this->service->getReceptionsByBatch($batch)
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'id'                    => $r->id,
                 'created_at'            => $r->created_at->format('d.m H:i'),
                 'total_quantity'        => number_format($r->items->sum('quantity'), 2),
@@ -380,7 +385,7 @@ class StoneReceptionController extends Controller
                 'cutter_name'           => $r->cutter?->name,
                 'cutter_id'             => $r->cutter_id,
                 'raw_material_batch_id' => $r->raw_material_batch_id,
-                'items'                 => $r->items->map(fn($i) => [
+                'items'                 => $r->items->map(fn ($i) => [
                     'product_id'    => $i->product_id,
                     'product_name'  => $i->product?->name ?? '—',
                     'product_label' => $i->product?->name ?? '—',

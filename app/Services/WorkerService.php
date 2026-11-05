@@ -51,7 +51,7 @@ class WorkerService
         // Мастер видит работников всех своих отделов
         if ($authUser->isMaster() && $authUser->worker) {
             $masterDepartmentIds = $authUser->worker->departmentIds();
-            $query->whereHas('departments', fn($q) => $q->whereIn('departments.id', $masterDepartmentIds ?: [-1]));
+            $query->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $masterDepartmentIds ?: [-1]));
         }
 
         if (!empty($filters['position'])) {
@@ -59,7 +59,7 @@ class WorkerService
         }
 
         if (!empty($filters['department_id'])) {
-            $query->whereHas('departments', fn($q) => $q->where('departments.id', $filters['department_id']));
+            $query->whereHas('departments', fn ($q) => $q->where('departments.id', $filters['department_id']));
         }
 
         if (isset($filters['has_account'])) {

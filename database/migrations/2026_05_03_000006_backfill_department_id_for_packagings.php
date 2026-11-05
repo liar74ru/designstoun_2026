@@ -10,14 +10,14 @@ return new class extends Migration
         $driver = DB::getDriverName();
 
         if ($driver === 'pgsql') {
-            DB::statement("
+            DB::statement('
                 UPDATE packagings p
                 SET department_id = w.department_id
                 FROM workers w
                 WHERE p.packer_id = w.id
                   AND w.department_id IS NOT NULL
                   AND p.department_id IS NULL
-            ");
+            ');
 
             return;
         }

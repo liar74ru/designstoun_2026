@@ -3,8 +3,8 @@
 namespace App\Services\Moysklad;
 
 use App\Models\Product;
-use App\Models\Store;
 use App\Models\ProductStock;
+use App\Models\Store;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -19,6 +19,7 @@ class StockSyncService extends MoySkladBaseService
     private function extractProductIdFromHref(string $href): ?string
     {
         preg_match('/\\/product\\/([a-f0-9-]+)/i', $href, $matches);
+
         return $matches[1] ?? null;
     }
 
@@ -62,13 +63,19 @@ class StockSyncService extends MoySkladBaseService
 
         foreach ($rowsByProduct as $moyskladId => $row) {
             $productId = $productIds[$moyskladId] ?? null;
-            if (!$productId) continue;
+            if (!$productId) {
+                continue;
+            }
 
             foreach ($row['stockByStore'] ?? [] as $storeStock) {
                 $storeId = basename($storeStock['meta']['href'] ?? '');
 
-                if ($filterStoreId && $storeId !== $filterStoreId) continue;
-                if (!isset($storeIds[$storeId])) continue;
+                if ($filterStoreId && $storeId !== $filterStoreId) {
+                    continue;
+                }
+                if (!isset($storeIds[$storeId])) {
+                    continue;
+                }
 
                 $values = [
                     'quantity'   => round((float) ($storeStock['stock']     ?? 0), 3),
@@ -80,7 +87,9 @@ class StockSyncService extends MoySkladBaseService
 
                 // stockMode=all отдаёт и пустые склады: пустую строку не создаём,
                 // но существующую обнуляем — иначе списанный до нуля остаток остаётся старым.
-                if (!$current && !array_filter($values)) continue;
+                if (!$current && !array_filter($values)) {
+                    continue;
+                }
 
                 if ($current
                     && round($current->quantity, 3) === $values['quantity']
@@ -122,12 +131,15 @@ class StockSyncService extends MoySkladBaseService
             do {
                 // stockMode=all — иначе склады с нулевым остатком не приходят и не обнуляются
                 $params = ['limit' => $limit, 'offset' => $offset, 'filter' => 'stockMode=all'];
-                if ($storeId) $params['store'] = $storeId;
+                if ($storeId) {
+                    $params['store'] = $storeId;
+                }
 
                 $data = $this->get('/report/stock/bystore', $params);
 
                 if (!$data) {
                     $result['message'] = 'Ошибка получения данных из МойСклад';
+
                     return $result;
                 }
 

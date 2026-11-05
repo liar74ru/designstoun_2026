@@ -8,6 +8,7 @@ use App\Models\SupplierOrderItem;
 use App\Models\User;
 use App\Models\Worker;
 use App\Services\Moysklad\MoySkladPurchaseOrderService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -212,7 +213,7 @@ describe('MoySkladPurchaseOrderService::createPurchaseOrder() — HTTP', functio
 
     test('сетевое исключение не выбрасывается наружу', function () {
         $order = poMakeOrder();
-        poHttpFake(['POST /entity/purchaseorder' => fn () => throw new \Illuminate\Http\Client\ConnectionException('timeout')]);
+        poHttpFake(['POST /entity/purchaseorder' => fn () => throw new ConnectionException('timeout')]);
 
         $result = (new MoySkladPurchaseOrderService())->createPurchaseOrder($order);
 
@@ -294,7 +295,7 @@ describe('MoySkladPurchaseOrderService::updatePurchaseOrder() — HTTP', functio
 
     test('сетевое исключение не выбрасывается наружу', function () {
         $order = poMakeOrder(['moysklad_id' => 'po-1']);
-        poHttpFake(['PUT /entity/purchaseorder/po-1' => fn () => throw new \Illuminate\Http\Client\ConnectionException('timeout')]);
+        poHttpFake(['PUT /entity/purchaseorder/po-1' => fn () => throw new ConnectionException('timeout')]);
 
         $result = (new MoySkladPurchaseOrderService())->updatePurchaseOrder($order);
 
@@ -360,7 +361,7 @@ describe('MoySkladPurchaseOrderService::checkExists() — HTTP', function () {
     });
 
     test('сетевое исключение → false', function () {
-        poHttpFake(['GET /entity/purchaseorder/po-7' => fn () => throw new \Illuminate\Http\Client\ConnectionException('timeout')]);
+        poHttpFake(['GET /entity/purchaseorder/po-7' => fn () => throw new ConnectionException('timeout')]);
 
         expect((new MoySkladPurchaseOrderService())->checkExists('po-7'))->toBeFalse();
     });

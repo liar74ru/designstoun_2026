@@ -6,6 +6,7 @@ use App\Models\Store;
 use App\Models\SupplierOrder;
 use App\Models\SupplierOrderItem;
 use App\Services\Moysklad\MoySkladSupplyService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -192,7 +193,7 @@ describe('MoySkladSupplyService::createSupply() — HTTP', function () {
 
     test('сетевое исключение не выбрасывается наружу', function () {
         $order = supMakeOrder();
-        supHttpFake(['POST /entity/supply' => fn () => throw new \Illuminate\Http\Client\ConnectionException('timeout')]);
+        supHttpFake(['POST /entity/supply' => fn () => throw new ConnectionException('timeout')]);
 
         $result = (new MoySkladSupplyService())->createSupply($order);
 
@@ -225,7 +226,7 @@ describe('MoySkladSupplyService::deleteSupply() — HTTP', function () {
     });
 
     test('сетевое исключение не выбрасывается наружу', function () {
-        supHttpFake(['DELETE /entity/supply/supply-1' => fn () => throw new \Illuminate\Http\Client\ConnectionException('timeout')]);
+        supHttpFake(['DELETE /entity/supply/supply-1' => fn () => throw new ConnectionException('timeout')]);
 
         $result = (new MoySkladSupplyService())->deleteSupply('supply-1');
 

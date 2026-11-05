@@ -18,7 +18,7 @@ class ProductStock extends Model
         'reserved',
         'in_transit',
         'available',
-        'notes'
+        'notes',
     ];
 
     protected $casts = [

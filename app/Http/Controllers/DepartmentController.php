@@ -108,6 +108,7 @@ class DepartmentController extends Controller
                 DepartmentSetting::where('department_id', $department->id)
                     ->where('key', $key)
                     ->delete();
+
                 continue;
             }
 

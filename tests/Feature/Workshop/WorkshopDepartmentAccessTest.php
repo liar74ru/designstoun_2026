@@ -1,13 +1,13 @@
 <?php
 
 use App\Models\Department;
-use App\Models\Workshop;
-use App\Models\WorkshopItem;
 use App\Models\Product;
 use App\Models\Worker;
+use App\Models\Workshop;
+use App\Models\WorkshopItem;
 use Illuminate\Support\Str;
-use Tests\Helpers\ReceptionTestHelper as H;
 use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 function makeWorkshopInDept(?Department $dept, string $tag): Workshop
 {
@@ -103,7 +103,7 @@ test('админ видит все операции независимо от о
 
     makeWorkshopInDept($deptA, 'PKG-A');
     makeWorkshopInDept($deptB, 'PKG-B');
-    makeWorkshopInDept(null,   'PKG-NULL');
+    makeWorkshopInDept(null, 'PKG-NULL');
 
     $this->actingAs(H::adminUser())
         ->get(route('workshops.index'))

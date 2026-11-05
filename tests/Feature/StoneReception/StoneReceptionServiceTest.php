@@ -1,9 +1,8 @@
 <?php
 
-use App\Models\Product;
-use Illuminate\Support\Facades\Queue;
-use App\Jobs\SyncReceptionToMoysklad;
 use App\Jobs\DeleteProcessingInMoysklad;
+use App\Jobs\SyncReceptionToMoysklad;
+use App\Models\Product;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
 use App\Models\StoneReception;
@@ -13,6 +12,7 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Services\RawMaterialBatchService;
 use App\Services\StoneReceptionService;
+use Illuminate\Support\Facades\Queue;
 
 /**
  * Сборка StoneReceptionService с моками для тестов.
@@ -56,7 +56,7 @@ describe('StoneReceptionService::getFilterData()', function () {
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $result = $service->getFilterData();
 
         expect($result['filterRawProducts'])->not->toBeNull();
@@ -87,7 +87,7 @@ describe('StoneReceptionService::create()', function () {
 
         $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $reception = $service->create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -119,7 +119,7 @@ $service = makeStoneReceptionService();
 
         $receiver = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $reception = $service->create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -162,7 +162,7 @@ $service = makeStoneReceptionService();
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $newReception = $service->create([
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -230,7 +230,7 @@ describe('StoneReceptionService::update()', function () {
         $editorUser = User::factory()->create(['worker_id' => $editor->id]);
         $this->actingAs($editorUser);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $service->update($reception, [
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -329,7 +329,7 @@ $service = makeStoneReceptionService();
             'quantity' => 2.0,
         ]);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $service->update($reception, [
             'receiver_id' => $receiver->id,
             'cutter_id' => $cutter->id,
@@ -444,7 +444,7 @@ describe('StoneReceptionService::closeBatch()', function () {
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $result = $service->closeBatch($batch);
 
         expect($result)->toBeTrue();
@@ -468,7 +468,7 @@ $service = makeStoneReceptionService();
             'status' => RawMaterialBatch::STATUS_USED,
         ]);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $result = $service->closeBatch($batch);
 
         expect($result)->toBeFalse();
@@ -577,7 +577,7 @@ describe('StoneReceptionService::markCompleted()', function () {
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $service->markCompleted($reception);
 
         $reception->refresh();
@@ -614,7 +614,7 @@ describe('StoneReceptionService::resetStatus()', function () {
             'status' => StoneReception::STATUS_COMPLETED,
         ]);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $result = $service->resetStatus($reception);
 
         expect($result)->toBeTrue();
@@ -653,7 +653,7 @@ $service = makeStoneReceptionService();
             'status' => StoneReception::STATUS_ACTIVE,
         ]);
 
-$service = makeStoneReceptionService();
+        $service = makeStoneReceptionService();
         $result = $service->resetStatus($oldReception);
 
         expect($result)->toBeString();

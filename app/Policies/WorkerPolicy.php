@@ -18,6 +18,7 @@ class WorkerPolicy
         if ($user->isAdmin()) {
             return true;
         }
+
         return $user->worker_id === $worker->id;
     }
 
@@ -38,6 +39,7 @@ class WorkerPolicy
         if ($user->isMaster() && $user->worker) {
             return array_intersect($worker->departmentIds(), $user->worker->departmentIds()) !== [];
         }
+
         return false;
     }
 

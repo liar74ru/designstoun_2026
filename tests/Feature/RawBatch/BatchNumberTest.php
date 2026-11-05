@@ -1,15 +1,15 @@
 <?php
 
-use Illuminate\Support\Facades\Queue;
-use Illuminate\Database\UniqueConstraintViolationException;
-use App\Models\RawMaterialMovement;
-use App\Models\ProductStock;
-use App\Models\Worker;
 use App\Models\Product;
-use App\Models\Store;
+use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
+use App\Models\RawMaterialMovement;
+use App\Models\Store;
+use App\Models\Worker;
 use App\Services\RawMaterialBatchService;
-use Carbon\Carbon;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 function bnBatch(Worker $worker, ?string $number): RawMaterialBatch
@@ -127,7 +127,7 @@ test('партии прошлой недели не влияют на счётч
 
     // RawMaterialBatch::create() перезаписывает created_at текущим временем —
     // используем DB::table чтобы явно сохранить дату прошлой недели
-    \Illuminate\Support\Facades\DB::table('raw_material_batches')->insert([
+    DB::table('raw_material_batches')->insert([
         'product_id'         => $product->id,
         'initial_quantity'   => 5,
         'remaining_quantity' => 5,
@@ -154,7 +154,7 @@ test('API возвращает следующий номер партии для
         ->getJson("/api/workers/{$worker->id}/next-batch-number")
         ->assertStatus(200)
         ->assertJsonStructure(['batch_number'])
-        ->assertJsonPath('batch_number', fn($v) => str_ends_with($v, '-01'));
+        ->assertJsonPath('batch_number', fn ($v) => str_ends_with($v, '-01'));
 });
 
 test('API недоступен без авторизации', function () {

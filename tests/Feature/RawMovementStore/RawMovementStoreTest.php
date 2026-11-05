@@ -5,6 +5,7 @@ use App\Models\ProductStock;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Services\Moysklad\MoySkladMoveService;
+use App\Services\Moysklad\StockSyncService;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // МойСклад мокаем во всех тестах — реальных HTTP-запросов нет
@@ -23,9 +24,9 @@ function mockMoySklad(bool $success = true): void
     app()->instance(MoySkladMoveService::class, $mock);
 
     // Остатки после синхронизации из МойСклад не тянем — в тестах сети нет
-    $stock = Mockery::mock(\App\Services\Moysklad\StockSyncService::class);
+    $stock = Mockery::mock(StockSyncService::class);
     $stock->shouldReceive('refreshProducts')->andReturnNull();
-    app()->instance(\App\Services\Moysklad\StockSyncService::class, $stock);
+    app()->instance(StockSyncService::class, $stock);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -219,7 +220,7 @@ describe('RawMaterialMovementController return()', function () {
         expect($batch->status)->toBe('in_work');
 
         // Новая партия: статус returned, на складе-назначении
-        $returnedBatch = \App\Models\RawMaterialBatch::where('status', 'returned')
+        $returnedBatch = RawMaterialBatch::where('status', 'returned')
             ->where('current_store_id', $toStore->id)
             ->first();
         expect($returnedBatch)->not->toBeNull();
@@ -312,7 +313,7 @@ describe('RawMaterialMovementController return()', function () {
             ->assertRedirect(route('raw-batches.show', $batch));
 
         // Возврат всё равно записан в БД (новая партия со статусом returned)
-        expect(\App\Models\RawMaterialBatch::where('status', 'returned')
+        expect(RawMaterialBatch::where('status', 'returned')
             ->where('current_store_id', $toStore->id)->exists())->toBeTrue();
     });
 });

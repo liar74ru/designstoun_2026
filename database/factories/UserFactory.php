@@ -26,16 +26,16 @@ class UserFactory extends Factory
 
     public function admin(): static
     {
-        return $this->state(fn() => ['is_admin' => true]);
+        return $this->state(fn () => ['is_admin' => true]);
     }
 
     public function withPhone(string $phone): static
     {
-        return $this->state(fn() => ['phone' => $phone]);
+        return $this->state(fn () => ['phone' => $phone]);
     }
 
     public function unverified(): static
     {
-        return $this->state(fn() => ['email_verified_at' => null]);
+        return $this->state(fn () => ['email_verified_at' => null]);
     }
 }

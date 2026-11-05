@@ -135,7 +135,7 @@ class MoySkladService extends MoySkladBaseService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            $result['message'] = 'Ошибка синхронизации складов: '.$e->getMessage();
+            $result['message'] = 'Ошибка синхронизации складов: ' . $e->getMessage();
         }
 
         return $result;
@@ -273,7 +273,7 @@ class MoySkladService extends MoySkladBaseService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            $result['message'] = 'Ошибка синхронизации групп: '.$e->getMessage();
+            $result['message'] = 'Ошибка синхронизации групп: ' . $e->getMessage();
         }
 
         return $result;
@@ -358,7 +358,7 @@ class MoySkladService extends MoySkladBaseService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            $result['message'] = 'Ошибка синхронизации товаров: '.$e->getMessage();
+            $result['message'] = 'Ошибка синхронизации товаров: ' . $e->getMessage();
         }
 
         return $result;
@@ -487,6 +487,7 @@ class MoySkladService extends MoySkladBaseService
     {
         if (! $this->hasCredentials()) {
             Log::error('Попытка получить товар без токена');
+
             return null;
         }
 
@@ -679,13 +680,13 @@ class MoySkladService extends MoySkladBaseService
                 $result['message'] .= ", ошибок: {$result['errors']}";
             }
 
-            Log::info('Синхронизация контрагентов завершена: '.$result['message']);
+            Log::info('Синхронизация контрагентов завершена: ' . $result['message']);
 
         } catch (\Exception $e) {
             Log::error('Ошибка синхронизации контрагентов', [
                 'error' => $e->getMessage(),
             ]);
-            $result['message'] = 'Ошибка синхронизации: '.$e->getMessage();
+            $result['message'] = 'Ошибка синхронизации: ' . $e->getMessage();
         }
 
         return $result;

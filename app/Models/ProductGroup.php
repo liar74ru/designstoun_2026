@@ -90,6 +90,7 @@ class ProductGroup extends Model
 
         return $level;
     }
+
     /**
      * Получить количество товаров в группе включая подгруппы
      */

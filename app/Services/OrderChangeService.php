@@ -49,6 +49,7 @@ class OrderChangeService
 
             if ($original === $to) {
                 unset($changes[$key]);
+
                 continue;
             }
 

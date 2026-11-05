@@ -4,9 +4,9 @@ use App\Models\Department;
 use App\Models\DepartmentSetting;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Models\Worker;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
-use App\Models\Worker;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Tests\Helpers\ReceptionTestHelper as H;
@@ -18,7 +18,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * Формы цеха другими тестами не рендерятся, поэтому ошибка в партиале
  * всплыла бы только в браузере.
  */
-
 beforeEach(fn () => Cache::flush());
 
 function ratesWorkshop(?Department $dept = null): Workshop

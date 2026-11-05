@@ -23,7 +23,6 @@ use Tests\Helpers\ReceptionTestHelper as H;
  * Общий дашборд предприятия: агрегация всего производства за период по всем приёмкам,
  * с разбивкой по отделам. Только для админа.
  */
-
 function makeEnterpriseReception(Department $dept, string $receiverName, float $qty, ?Product $product = null): void
 {
     $store    = Store::factory()->create();

@@ -235,7 +235,7 @@ test('форма правки отмечает все группы пресет�
         ->assertSee('name="group_ids[]"', false)
         ->getContent();
 
-    $checked = fn($group) => (bool) preg_match(
+    $checked = fn ($group) => (bool) preg_match(
         '/value="' . $group->id . '"\s+id="presetGroup' . $group->id . '"[^>]*checked/', $html
     );
 

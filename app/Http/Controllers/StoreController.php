@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Store;
 use App\Services\Moysklad\MoySkladService;
 use App\Services\Moysklad\StockSyncService;
-use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
 
 class StoreController extends Controller
 {
@@ -59,6 +59,7 @@ class StoreController extends Controller
                 ->with('error', $result['message']);
         }
     }
+
     /**
      * Синхронизировать остатки по всем складам
      */

@@ -1,13 +1,13 @@
 <?php
 
 use App\Models\Department;
+use App\Models\DepartmentOperationSetting;
 use App\Models\Order;
 use App\Models\OrderState;
-use App\Models\Product;
-use App\Models\Setting;
-use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
+use App\Services\Moysklad\CustomerOrderSyncService;
+use App\Services\Moysklad\StockSyncService;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 beforeEach(function () {
@@ -47,7 +47,7 @@ describe('OrderController::index()', function () {
         $worker = Worker::create(['name' => 'Работник', 'department_id' => $dept1->id, 'position' => 'Мастер']);
         $user = User::factory()->for($worker)->create(['is_admin' => false]);
 
-        \App\Models\DepartmentOperationSetting::create([
+        DepartmentOperationSetting::create([
             'department_id' => $dept1->id,
             'operation_key' => 'orders',
             'config'        => ['positions' => ['Мастер']],
@@ -139,10 +139,10 @@ describe('OrderController::sync()', function () {
         config()->set('services.moysklad.token', 'test-token');
         $user = H::adminUser();
 
-        $this->mock(\App\Services\Moysklad\CustomerOrderSyncService::class)
+        $this->mock(CustomerOrderSyncService::class)
             ->shouldReceive('pullActive')
             ->andReturn(['success' => true, 'message' => 'ok', 'count' => 0]);
-        $this->mock(\App\Services\Moysklad\StockSyncService::class)
+        $this->mock(StockSyncService::class)
             ->shouldReceive('syncAllProductsStocksByStores')
             ->andReturn(['success' => true, 'message' => 'ok']);
 

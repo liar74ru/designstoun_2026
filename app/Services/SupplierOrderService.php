@@ -24,19 +24,16 @@ class SupplierOrderService
 
         $orders = QueryBuilder::for(SupplierOrder::class)
             ->allowedFilters([
-                AllowedFilter::callback('department_id', fn($q, $v) =>
-                    $q->whereIn('supplier_orders.department_id', (array) $v)),
+                AllowedFilter::callback('department_id', fn ($q, $v) => $q->whereIn('supplier_orders.department_id', (array) $v)),
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('counterparty_id', 'supplier_orders.counterparty_id'),
             ])
             ->with(['counterparty', 'store', 'receiver', 'items.product', 'department', 'createdBy.worker'])
-            ->when($request->filled('date_from'), fn($q) =>
-                $q->whereDate('created_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn($q) =>
-                $q->whereDate('created_at', '<=', $request->date_to))
+            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('created_at', '<=', $request->date_to))
             ->when(
                 $accessible !== null && !array_key_exists('department_id', $request->input('filter', [])),
-                fn($q) => $q->whereIn('supplier_orders.department_id', $accessible ?: [-1])
+                fn ($q) => $q->whereIn('supplier_orders.department_id', $accessible ?: [-1])
             )
             ->orderBy('created_at', 'desc')
             ->paginate(20)
@@ -53,7 +50,7 @@ class SupplierOrderService
             : $accessible;
 
         $filterCounterparties = Counterparty::whereIn('id', SupplierOrder::select('counterparty_id')
-                ->when($deptScope !== null, fn($q) => $q->whereIn('department_id', $deptScope ?: [-1])))
+            ->when($deptScope !== null, fn ($q) => $q->whereIn('department_id', $deptScope ?: [-1])))
             ->orderBy('name')
             ->get();
 
@@ -76,7 +73,7 @@ class SupplierOrderService
 
         return SupplierOrder::with(['counterparty', 'store', 'items.product', 'createdBy.worker'])
             ->when($accessible !== null,
-                fn($q) => $q->whereIn('department_id', $accessible ?: [-1]))
+                fn ($q) => $q->whereIn('department_id', $accessible ?: [-1]))
             ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->get();

@@ -5,7 +5,6 @@ use App\Support\BackNavigation;
 /**
  * Формы — «проходные» страницы: кнопка «Назад» на них не возвращает (resources/js/back-link.js).
  */
-
 test('форма распознаётся по последнему сегменту имени маршрута', function (string $route) {
     expect(BackNavigation::isTransient($route))->toBeTrue();
 })->with([

@@ -3,9 +3,6 @@
 namespace App\Services\Moysklad;
 
 use App\Models\SupplierOrder;
-use App\Services\Moysklad\MoySkladPurchaseOrderService;
-use App\Services\Moysklad\MoySkladSupplyService;
-use App\Services\Moysklad\StockSyncService;
 use App\Support\DocumentNaming;
 
 class SupplierOrderSyncService
@@ -34,6 +31,7 @@ class SupplierOrderSyncService
                 'status'      => SupplierOrder::STATUS_NEW,
                 'sync_error'  => null,
             ]);
+
             return ['success' => true];
         }
 
@@ -41,6 +39,7 @@ class SupplierOrderSyncService
             'status'     => SupplierOrder::STATUS_ERROR,
             'sync_error' => $result['message'],
         ]);
+
         return ['success' => false, 'message' => $result['message']];
     }
 
@@ -56,6 +55,7 @@ class SupplierOrderSyncService
             } else {
                 $order->update(['sync_error' => null]);
             }
+
             return ['success' => true];
         }
 
@@ -63,12 +63,14 @@ class SupplierOrderSyncService
             'status'     => SupplierOrder::STATUS_ERROR,
             'sync_error' => $result['message'],
         ]);
+
         return ['success' => false, 'message' => $result['message']];
     }
 
     public function deleteOrderFromMoysklad(string $moyskladId): array
     {
         $result = $this->purchaseOrderService->deletePurchaseOrder($moyskladId);
+
         return ['success' => $result['success'], 'message' => $result['message'] ?? ''];
     }
 
@@ -85,6 +87,7 @@ class SupplierOrderSyncService
             $supplyResult = $this->supplyService->deleteSupply($order->supply_moysklad_id);
             if (!$supplyResult['success']) {
                 $order->update(['sync_error' => $supplyResult['message']]);
+
                 return ['success' => false, 'message' => $supplyResult['message']];
             }
 
@@ -101,6 +104,7 @@ class SupplierOrderSyncService
             $poResult = $this->purchaseOrderService->deletePurchaseOrder($order->moysklad_id);
             if (!$poResult['success']) {
                 $order->update(['sync_error' => $poResult['message']]);
+
                 return ['success' => false, 'message' => $poResult['message']];
             }
         }
@@ -129,6 +133,7 @@ class SupplierOrderSyncService
                 'sync_error'         => null,
             ]);
             $this->syncSuppliedProductStocks($order);
+
             return ['status' => 'success'];
         }
 
@@ -141,6 +146,7 @@ class SupplierOrderSyncService
         }
 
         $order->update(['sync_error' => $result['message']]);
+
         return ['status' => 'error', 'message' => $result['message']];
     }
 
@@ -163,6 +169,7 @@ class SupplierOrderSyncService
             $name   = DocumentNaming::nextSuffix($name);
             $result = $this->purchaseOrderService->createPurchaseOrder($order, $name);
         }
+
         return ['result' => $result, 'name' => $name];
     }
 
@@ -172,6 +179,7 @@ class SupplierOrderSyncService
 
         if (!$poResult['success']) {
             $order->update(['sync_error' => $poResult['message']]);
+
             return ['status' => 'error', 'message' => $poResult['message']];
         }
 
@@ -191,6 +199,7 @@ class SupplierOrderSyncService
 
         if (!$poResult['success']) {
             $order->update(['sync_error' => $poResult['message']]);
+
             return ['status' => 'error', 'message' => "Не удалось создать Заказ поставщику в МойСклад: {$poResult['message']}"];
         }
 
@@ -211,6 +220,7 @@ class SupplierOrderSyncService
 
         if (!$supplyResult['success']) {
             $order->update(['sync_error' => $supplyResult['message']]);
+
             return ['status' => 'error', 'message' => "Заказ поставщику создан, но не удалось создать Приёмку: {$supplyResult['message']}"];
         }
 
@@ -232,6 +242,7 @@ class SupplierOrderSyncService
 
         if (!$supplyResult['success']) {
             $order->update(['sync_error' => $supplyResult['message']]);
+
             return ['status' => 'error', 'message' => $supplyResult['message']];
         }
 

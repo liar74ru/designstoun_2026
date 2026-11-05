@@ -3,8 +3,8 @@
 use App\Models\Department;
 use App\Models\RawMaterialBatch;
 use App\Models\Worker;
-use Tests\Helpers\ReceptionTestHelper as H;
 use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 function makeBatchForDeptChange(?Department $dept = null): RawMaterialBatch
 {

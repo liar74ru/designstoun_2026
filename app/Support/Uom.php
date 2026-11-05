@@ -31,7 +31,6 @@ class Uom
     /**
      * Суммы количества по единицам в порядке появления.
      *
-     * @param  iterable  $rows
      * @param  callable(mixed): (float|int|string|null)  $qty
      * @param  callable(mixed): (?string)  $uom  единица строки (сырая или нормализованная)
      * @return array<string, float>  единица → сумма; без единицы — ключ ''

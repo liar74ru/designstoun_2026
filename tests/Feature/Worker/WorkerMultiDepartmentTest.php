@@ -6,8 +6,8 @@ use App\Models\Worker;
 use App\Services\WorkerService;
 use App\Support\OperationAccessor;
 use Illuminate\Support\Facades\Cache;
-use Tests\Helpers\ReceptionTestHelper as H;
 use Tests\Helpers\AccessTestHelper as Access;
+use Tests\Helpers\ReceptionTestHelper as H;
 
 beforeEach(fn () => Cache::flush());
 
@@ -18,7 +18,7 @@ function mdDepartment(string $name, string $code): Department
 
 function mdBatchInDept(Department $dept, string $batchNumber): void
 {
-    H::batch(H::product(), H::store(), H::cutter('Пильщик отдела '.$dept->code), 25.0, [
+    H::batch(H::product(), H::store(), H::cutter('Пильщик отдела ' . $dept->code), 25.0, [
         'batch_number'  => $batchNumber,
         'department_id' => $dept->id,
     ]);

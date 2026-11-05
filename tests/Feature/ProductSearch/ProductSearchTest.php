@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 /**
  * Поиск по каталогу: id подходящих товаров для фильтров списков и дашбордов.
  */
-
 beforeEach(function () {
     $this->quartz  = Product::factory()->create(['name' => 'Плитка Кварцит 50хL']);
     $this->quartz2 = Product::factory()->create(['name' => 'Брусчатка кварцит']);

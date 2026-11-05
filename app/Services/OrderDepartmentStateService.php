@@ -30,8 +30,7 @@ class OrderDepartmentStateService
         private CustomerOrderSyncService $sync,
         private OrderChangeService $changes,
         private OrderProductionService $production,
-    ) {
-    }
+    ) {}
 
     /**
      * Сменить статус заявки от имени пользователя.

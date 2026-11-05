@@ -27,8 +27,7 @@ class OrderService
         private OrderChangeService $changes,
         private InternalOrderService $internal,
         private OrderDepartmentStateService $departmentStates,
-    ) {
-    }
+    ) {}
 
     public function getIndexData(Request $request): array
     {
@@ -84,8 +83,8 @@ class OrderService
             'noDepartmentOption' => self::NO_DEPARTMENT,
             // Только контрагенты, у которых есть видимые пользователю заявки.
             'filterCounterparties' => Counterparty::whereIn('id', $this->accessibleOrders(Order::query(), $accessible)
-                    ->whereNotNull('counterparty_id')
-                    ->select('counterparty_id'))
+                ->whereNotNull('counterparty_id')
+                ->select('counterparty_id'))
                 ->orderBy('name')
                 ->get(),
             'kindOptions'        => [Order::KIND_CUSTOMER => 'Заявки покупателей', Order::KIND_INTERNAL => 'Внутренние заказы'],
@@ -120,8 +119,7 @@ class OrderService
 
         return QueryBuilder::for(Order::class)
             ->allowedFilters([
-                AllowedFilter::callback('status', fn ($q, $v) =>
-                    $q->whereIn('state_name', (array) $v)),
+                AllowedFilter::callback('status', fn ($q, $v) => $q->whereIn('state_name', (array) $v)),
                 AllowedFilter::callback('department_id', function ($q, $v) {
                     $values   = (array) $v;
                     $ids      = array_values(array_filter($values, 'is_numeric'));
@@ -136,8 +134,7 @@ class OrderService
                     });
                 }),
                 AllowedFilter::exact('counterparty_id'),
-                AllowedFilter::callback('kind', fn ($q, $v) =>
-                    $q->where('kind', $v === Order::KIND_INTERNAL ? Order::KIND_INTERNAL : Order::KIND_CUSTOMER)),
+                AllowedFilter::callback('kind', fn ($q, $v) => $q->where('kind', $v === Order::KIND_INTERNAL ? Order::KIND_INTERNAL : Order::KIND_CUSTOMER)),
                 // Не фильтр выборки, а режим отображения позиций — см. getIndexData().
                 AllowedFilter::callback('show_hidden', fn ($q) => $q),
             ])
@@ -145,12 +142,10 @@ class OrderService
             // скрыты: показываются только при отмеченном «Без отдела».
             // Внутренний заказ видит и заказчик — это его исходящий заказ.
             ->tap(fn ($q) => $this->accessibleOrders($q, $accessible))
-            ->when(! $request->has('filter.department_id'), fn ($q) =>
-                $q->has('departments'))
+            ->when(! $request->has('filter.department_id'), fn ($q) => $q->has('departments'))
             // Фильтр статусов не пришёл — показываем набор, отмеченный админом «по умолчанию».
             // Проверяем наличие ключа: пустой filter[status] форма не присылает вовсе.
-            ->when(! $request->has('filter.status') && $defaults !== [], fn ($q) =>
-                $q->whereIn('state_name', $defaults));
+            ->when(! $request->has('filter.status') && $defaults !== [], fn ($q) => $q->whereIn('state_name', $defaults));
     }
 
     /**
@@ -161,12 +156,10 @@ class OrderService
      */
     private function accessibleOrders($query, ?array $accessible)
     {
-        return $query->when($accessible !== null, fn ($q) =>
-            $q->where(fn ($w) => $w
-                ->whereHas('departments', fn ($d) =>
-                    $d->whereIn('departments.id', $accessible ?: [-1]))
-                ->orWhereDoesntHave('departments')
-                ->orWhereIn('customer_department_id', $accessible ?: [-1])));
+        return $query->when($accessible !== null, fn ($q) => $q->where(fn ($w) => $w
+            ->whereHas('departments', fn ($d) => $d->whereIn('departments.id', $accessible ?: [-1]))
+            ->orWhereDoesntHave('departments')
+            ->orWhereIn('customer_department_id', $accessible ?: [-1])));
     }
 
     /**

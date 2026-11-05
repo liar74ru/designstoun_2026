@@ -1,9 +1,6 @@
 <?php
 
-use App\Models\Product;
 use App\Models\RawMaterialBatch;
-use App\Models\Store;
-use App\Models\Worker;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -31,7 +28,7 @@ describe('RawMaterialBatch модель', function () {
 
     test('canBeArchived() требует used/returned И нулевой остаток', function () {
         $b1 = new RawMaterialBatch(['status' => 'used',    'remaining_quantity' => 0.0]);
-        $b2 = new RawMaterialBatch(['status' => 'returned','remaining_quantity' => 0.0]);
+        $b2 = new RawMaterialBatch(['status' => 'returned', 'remaining_quantity' => 0.0]);
         $b3 = new RawMaterialBatch(['status' => 'used',    'remaining_quantity' => 1.5]);
         $b4 = new RawMaterialBatch(['status' => 'in_work',  'remaining_quantity' => 0.0]);
 

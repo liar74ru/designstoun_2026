@@ -8,15 +8,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class RawMaterialBatch extends Model
 {
-    use HasMoyskladSync;
     use HasEffectiveDepartment;
+    use HasMoyskladSync;
 
     // Статусы
     const STATUS_NEW       = 'new';       // Создана, без действий
+
     const STATUS_IN_WORK   = 'in_work';   // В работе / Не уточнена (техоперация создана)
+
     const STATUS_CONFIRMED = 'confirmed'; // Уточнена (кол-во сырья подтверждено в МойСклад)
+
     const STATUS_USED      = 'used';
+
     const STATUS_RETURNED  = 'returned';
+
     const STATUS_ARCHIVED  = 'archived';
 
     protected $fillable = [

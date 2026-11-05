@@ -5,6 +5,7 @@ use App\Models\ProductStock;
 use App\Models\Store;
 use App\Services\Moysklad\StockSyncService;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Console\Kernel;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // StockSyncService — syncAllProductsStocksByStores()
@@ -218,7 +219,7 @@ describe('StockSyncService — нулевые остатки', function () {
 describe('Команда moysklad:sync-stocks', function () {
 
     test('запланирована ежедневно на 06:00 по Москве', function () {
-        app(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        app(Kernel::class)->bootstrap();
 
         $event = collect(app(Schedule::class)->events())
             ->first(fn ($e) => str_contains($e->command ?? '', 'moysklad:sync-stocks'));

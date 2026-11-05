@@ -106,7 +106,7 @@ describe('Сбой при сохранении', function () {
 
     test('создание: подробности только в логе, пользователю общий текст', function () {
         $this->partialMock(WorkshopService::class, fn ($mock) => $mock
-            ->shouldReceive('create')->andThrow(new \RuntimeException('SQLSTATE секретная деталь')));
+            ->shouldReceive('create')->andThrow(new RuntimeException('SQLSTATE секретная деталь')));
 
         $this->actingAs(H::adminUser())
             ->post(route('workshops.store'), $this->validPayload)
@@ -117,7 +117,7 @@ describe('Сбой при сохранении', function () {
         $workshop = app(WorkshopService::class)->create($this->validPayload, false);
 
         $this->partialMock(WorkshopService::class, fn ($mock) => $mock
-            ->shouldReceive('update')->andThrow(new \RuntimeException('SQLSTATE секретная деталь')));
+            ->shouldReceive('update')->andThrow(new RuntimeException('SQLSTATE секретная деталь')));
 
         $this->actingAs(H::adminUser())
             ->put(route('workshops.update', $workshop), $this->validPayload)

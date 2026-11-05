@@ -2,11 +2,11 @@
 
 namespace App\Services\Moysklad;
 
+use App\Models\Setting;
+use App\Models\Worker;
 use App\Models\Workshop;
 use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
-use App\Models\Setting;
-use App\Models\Worker;
 use App\Services\Moysklad\Concerns\HandlesProcessingSync;
 use App\Support\DepartmentSettings;
 use App\Support\DocumentNaming;
@@ -132,6 +132,7 @@ class WorkshopSyncService extends MoySkladBaseService
                     'response'     => $response->json(),
                     'workshop_id' => $workshop->id,
                 ]);
+
                 return $result;
             }
 
@@ -156,6 +157,7 @@ class WorkshopSyncService extends MoySkladBaseService
                 'workshop_id' => $workshop->id,
                 'error'        => $e->getMessage(),
             ]);
+
             return $result;
         }
     }
@@ -163,9 +165,6 @@ class WorkshopSyncService extends MoySkladBaseService
     /**
      * Обновить техоперацию цеха: продукты, материалы (сырьё + упаковка), processingSum, description.
      *
-     * @param  string      $processingId
-     * @param  Workshop   $workshop
-     * @param  string|null $description
      * @return array ['success', 'code', 'message']
      */
     public function updateProcessingProducts(
@@ -239,6 +238,7 @@ class WorkshopSyncService extends MoySkladBaseService
                     'status'        => $response->status(),
                     'response'      => $response->json(),
                 ]);
+
                 return $result;
             }
 
@@ -247,6 +247,7 @@ class WorkshopSyncService extends MoySkladBaseService
             Log::info('WorkshopSyncService::updateProcessingProducts: успешно', [
                 'processing_id' => $processingId,
             ]);
+
             return $result;
 
         } catch (\Exception $e) {
@@ -256,6 +257,7 @@ class WorkshopSyncService extends MoySkladBaseService
                 'processing_id' => $processingId,
                 'error'         => $e->getMessage(),
             ]);
+
             return $result;
         }
     }
@@ -277,6 +279,7 @@ class WorkshopSyncService extends MoySkladBaseService
                 && !$this->adoptExistingProcessing($workshop, DocumentNaming::externalCode('workshop', $workshop->id))) {
                 $message = 'МойСклад не ответил: не удалось проверить, создана ли техоперация';
                 $workshop->markSyncError($message);
+
                 return $this->syncOutcome(false, $message);
             }
 
@@ -322,6 +325,7 @@ class WorkshopSyncService extends MoySkladBaseService
                 'error'        => $e->getMessage(),
             ]);
             $workshop->markSyncError('Ошибка: ' . $e->getMessage());
+
             return $this->syncOutcome(false, 'Ошибка: ' . $e->getMessage());
         }
     }
@@ -367,6 +371,7 @@ class WorkshopSyncService extends MoySkladBaseService
      *
      * @param  iterable  $items  строки WorkshopItem одной роли
      * @return array  [moysklad_id => ['quantity' => float, 'assortment' => ['meta' => ...]]]
+     *
      * @throws \Exception  позиция не может войти в документ
      */
     private function groupItemsByMoysklad($items): array
@@ -384,7 +389,7 @@ class WorkshopSyncService extends MoySkladBaseService
             }
         }
 
-        return array_filter($grouped, fn($p) => $p['quantity'] > 0);
+        return array_filter($grouped, fn ($p) => $p['quantity'] > 0);
     }
 
     /**
@@ -471,7 +476,7 @@ class WorkshopSyncService extends MoySkladBaseService
             $date         = $log->created_at->format('d.m.Y');
             $packerName   = $packers[$log->packer_id]   ?? '—';
             $receiverName = $receivers[$log->receiver_id] ?? '—';
-            $lines        = ["___", "{$date} #{$log->id} работник: {$packerName} / приёмщик: {$receiverName}"];
+            $lines        = ['___', "{$date} #{$log->id} работник: {$packerName} / приёмщик: {$receiverName}"];
 
             foreach ($log->items as $item) {
                 $productName = $item->product?->name ?? "Товар #{$item->product_id}";
@@ -493,6 +498,7 @@ class WorkshopSyncService extends MoySkladBaseService
         if (!$this->hasCredentials()) {
             return null;
         }
+
         return $this->get('/entity/processing/' . $processingId);
     }
 }
