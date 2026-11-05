@@ -329,7 +329,7 @@
                                 </td>
                                 <td>
                                     @if($product->total_quantity > 0)
-                                        <span class="badge bg-success">{{ $product->total_quantity }} шт.</span>
+                                        <span class="badge bg-success">{{ $product->total_quantity }} {{ \App\Support\Uom::of($product) }}</span>
                                     @else
                                         <span class="badge bg-danger">Нет</span>
                                     @endif

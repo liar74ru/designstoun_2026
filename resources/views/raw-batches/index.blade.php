@@ -180,13 +180,13 @@
                             <div class="d-flex flex-column gap-1 mt-1">
                                 <div>
                                     <span class="badge rounded-pill bg-primary">
-                                        всего: {{ $fmt($batch->initial_quantity) }} м³
+                                        всего: {{ $fmt($batch->initial_quantity) }} {{ \App\Support\Uom::of($batch->product) }}
                                     </span>
                                 </div>
                                 <div>
                                     <span class="badge rounded-pill"
                                           style="{{ $batch->remaining_quantity > 0 ? 'background:#d1e7dd;color:#0a3622' : 'background:#6c757d;color:#fff' }}">
-                                        остаток: {{ $fmt($batch->remaining_quantity) }} м³
+                                        остаток: {{ $fmt($batch->remaining_quantity) }} {{ \App\Support\Uom::of($batch->product) }}
                                     </span>
                                 </div>
                             </div>

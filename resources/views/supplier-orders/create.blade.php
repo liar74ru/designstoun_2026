@@ -117,7 +117,7 @@
                                         <input class="form-check-input" type="checkbox" id="allCatalogCheck">
                                         <label class="form-check-label small text-muted" for="allCatalogCheck">весь каталог</label>
                                     </div>
-                                    <span class="text-muted small">Итого: <strong id="totalQty">0</strong> м³</span>
+                                    <span class="text-muted small">Итого: <strong id="totalQty">0</strong></span>
                                 </div>
                             </div>
                             <div class="info-block-body">
@@ -254,7 +254,7 @@
                                         @foreach($order->items as $item)
                                             <div class="text-muted" style="font-size:.75rem">
                                                 {{ $item->product?->name ?? '—' }}
-                                                <span class="text-dark">× {{ number_format($item->quantity, 3) }} м³</span>
+                                                <span class="text-dark">× {{ number_format($item->quantity, 3) }} {{ \App\Support\Uom::of($item->product) }}</span>
                                             </div>
                                         @endforeach
                                     </div>
@@ -443,7 +443,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(r => r.json())
         .then(data => { window.ProductPickerStockMap = data; });
 
-    // ── Итого м³ ─────────────────────────────────────────────────────────────
+    // ── Итого по единицам ────────────────────────────────────────────────────
     const container      = document.getElementById('productsContainer');
     const totalQtyEl     = document.getElementById('totalQty');
     const addBtn         = document.getElementById('addProductBtn');
@@ -460,12 +460,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function updateTotal() {
-        let sum = 0;
-        container.querySelectorAll('.product-picker-qty').forEach(el => {
-            sum += parseFloat(el.value) || 0;
-        });
-        totalQtyEl.textContent = sum.toFixed(3);
+        totalQtyEl.textContent = Uom.formatTotals(Uom.totalsFromRows(container));
     }
+    document.addEventListener('product-picker:selected', updateTotal);
+    document.addEventListener('product-picker:unit', updateTotal);
 
     document.addEventListener('product-picker:removed', updateTotal);
     container.addEventListener('input', e => {
@@ -613,7 +611,6 @@ document.addEventListener('DOMContentLoaded', function () {
     @include('partials.product-picker-row', [
         'index'       => '__IDX__',
         'placeholder' => 'Название сырья...',
-        'unit'        => 'м³',
         'qtyWidth'    => '150px',
         'qtyMode'     => 'simple',
         'showRemove'  => true,

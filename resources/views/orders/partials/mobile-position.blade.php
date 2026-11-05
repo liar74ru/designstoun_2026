@@ -17,7 +17,7 @@
     $cell     = fn ($field) => ['row' => $row, 'fmt1' => $fmt1, 'field' => $field, 'storeNames' => $storeNames];
 
     // Единица: у позиции заявки uom_name из МойСклад не приходит — берём из товара.
-    $uom = strtr((string) ($row['item']->uom_name ?: $row['product']?->uom), ['м2' => 'м²', 'м3' => 'м³']);
+    $uom = \App\Support\Uom::label($row['item']->uom_name ?: $row['product']?->uom);
 
     // Тысячи — узким неразрывным пробелом: с запятой 1250.5 читается как «1,25».
     $num     = fn ($v) => rtrim(rtrim(number_format((float) $v, 3, '.', "\u{202F}"), '0'), '.');

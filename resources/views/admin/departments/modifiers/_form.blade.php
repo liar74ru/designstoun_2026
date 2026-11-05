@@ -268,8 +268,8 @@
                 <template x-if="preview">
                     <span>
                         Пример: ставка отдела <span x-text="preview.rate"></span> ₽ и коэффициент
-                        продукта 2 — было <span class="fw-semibold" x-text="preview.before"></span> ₽/м²,
-                        с этим правилом <span class="fw-semibold" x-text="preview.after"></span> ₽/м².
+                        продукта 2 — было <span class="fw-semibold" x-text="preview.before"></span> ₽/ед.,
+                        с этим правилом <span class="fw-semibold" x-text="preview.after"></span> ₽/ед.
                     </span>
                 </template>
             </div>

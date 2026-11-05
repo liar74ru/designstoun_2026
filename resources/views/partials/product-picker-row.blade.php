@@ -9,9 +9,8 @@
       $label           — string: название продукта для предзаполнения (default: '')
       $quantity        — string: значение qty для предзаполнения (default: '')
       $placeholder     — string: placeholder поиска (default: 'Название продукта...')
-      $unit            — string: 'м²' или 'м³' (default: 'м²')
-      $dynamicUnit     — bool (default: false) — если true, ставит data-dynamic-unit на строку,
-                         и JS (product-picker.js) подменяет единицу (.product-picker-unit) на uom выбранного товара
+      $unit            — string: единица предзаполненного товара, Uom::of($product) (default: '').
+                         При выборе товара JS (product-picker.js) подменяет .product-picker-unit на его единицу
       $qtyStep         — string (default: '0.001')
       $qtyMin          — string (default: '0.001')
       $qtyWidth        — string (default: '130px')
@@ -41,7 +40,7 @@
     $label           = $label           ?? '';
     $quantity        = $quantity        ?? '';
     $placeholder     = $placeholder     ?? 'Название продукта...';
-    $unit            = $unit            ?? 'м²';
+    $unit            = $unit            ?? '';
     $qtyStep         = $qtyStep         ?? '0.001';
     $qtyMin          = $qtyMin          ?? '0.001';
     $qtyWidth        = $qtyWidth        ?? '130px';
@@ -58,7 +57,6 @@
     $requiredProduct = $requiredProduct ?? true;
     $skuPrefix       = $skuPrefix       ?? null;
     $extraRowClass   = $extraRowClass   ?? '';
-    $dynamicUnit     = $dynamicUnit     ?? false;
 
     $idxStr  = (string) $index;
     $hasRow2 = $qtyMode !== 'none' || $showModifiers || $showCoeff;
@@ -67,7 +65,6 @@
 <div class="product-picker-row {{ $extraRowClass }}"
      data-tpl-index="{{ $idxStr }}"
      @if($skuPrefix) data-sku-prefix="{{ $skuPrefix }}" @endif
-     @if($dynamicUnit) data-dynamic-unit="1" @endif
      style="padding:.35rem 0;border-bottom:1px solid #f0f0f0">
 
     {{-- Строка 1: поиск + tree-кнопка + удалить --}}

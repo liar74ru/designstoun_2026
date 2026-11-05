@@ -19,7 +19,7 @@
         Изменения продукта, количества и складов будут синхронизированы с МойСклад.
         @if($batch->status === \App\Models\RawMaterialBatch::STATUS_IN_WORK)
             <br>Остаток будет пересчитан с учётом уже израсходованного сырья
-            (израсходовано: <strong>{{ number_format($batch->initial_quantity - $batch->remaining_quantity, 3) }} м³</strong>).
+            (израсходовано: <strong>{{ number_format($batch->initial_quantity - $batch->remaining_quantity, 3) }} {{ \App\Support\Uom::of($batch->product) }}</strong>).
         @endif
     </div>
 
@@ -76,7 +76,7 @@
 
                 <div class="mb-3">
                     <label for="quantity" class="form-label fw-semibold">
-                        Количество (м³) <span class="text-danger">*</span>
+                        Количество <span id="quantityUnit">{{ \App\Support\Uom::of($batch->product) !== '' ? '(' . \App\Support\Uom::of($batch->product) . ')' : '' }}</span> <span class="text-danger">*</span>
                     </label>
                     <input type="number" name="quantity" id="quantity"
                            class="form-control @error('quantity') is-invalid @enderror"
@@ -86,7 +86,7 @@
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                     <div class="form-text text-muted">
-                        Текущий остаток: <strong>{{ rtrim(rtrim(number_format($batch->remaining_quantity, 2), '0'), '.') }} м³</strong>
+                        Текущий остаток: <strong>{{ rtrim(rtrim(number_format($batch->remaining_quantity, 2), '0'), '.') }} {{ \App\Support\Uom::of($batch->product) }}</strong>
                         — будет заменён новым значением.
                     </div>
                 </div>
@@ -175,6 +175,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (row && window.ProductPicker) {
         window.ProductPicker.initRow(row);
     }
+
+    // Единица количества — из карточки выбранного сырья
+    const quantityUnit = document.getElementById('quantityUnit');
+    document.addEventListener('product-picker:selected', e => {
+        if (!quantityUnit) return;
+        const unit = Uom.label(e.detail?.unit);
+        quantityUnit.textContent = unit ? `(${unit})` : '';
+    });
 
     allCatalogCheck?.addEventListener('change', function () {
         if (this.checked) {

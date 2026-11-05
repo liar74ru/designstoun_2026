@@ -9,6 +9,7 @@ use App\Models\Store;
 use App\Models\Worker;
 use App\Services\RawMaterialBatchService;
 use App\Support\DepartmentAccess;
+use App\Support\Uom;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,6 +118,7 @@ class RawMaterialBatchController extends Controller
             'batch_number'       => $batch->batch_number,
             'initial_quantity'   => (float) $batch->initial_quantity,   // итоговое кол-во сырья в партии
             'remaining_quantity' => (float) $batch->remaining_quantity,
+            'uom'                => Uom::of($batch->product),
             'adjust_url'         => route('raw-batches.adjust.form', $batch),
         ]);
     }
@@ -238,7 +240,7 @@ class RawMaterialBatchController extends Controller
 
         if ($newRemaining < 0) {
             return back()
-                ->withErrors(['quantity' => 'Новое количество (' . number_format((float) $data['quantity'], 3) . ' м³) меньше уже израсходованного (' . number_format($usedQuantity, 3) . ' м³).'])
+                ->withErrors(['quantity' => 'Новое количество (' . $this->qty((float) $data['quantity'], $batch) . ') меньше уже израсходованного (' . $this->qty($usedQuantity, $batch) . ').'])
                 ->withInput();
         }
 
@@ -304,7 +306,7 @@ class RawMaterialBatchController extends Controller
 
         if ($newRemaining < 0) {
             return back()
-                ->withErrors(['delta' => 'Нельзя убрать больше чем есть в партии (остаток: ' . number_format($batch->remaining_quantity, 3) . ' м³)'])
+                ->withErrors(['delta' => 'Нельзя убрать больше чем есть в партии (остаток: ' . $this->qty($batch->remaining_quantity, $batch) . ')'])
                 ->withInput();
         }
 
@@ -319,11 +321,11 @@ class RawMaterialBatchController extends Controller
         $this->service->queueSync($result['batch']);
 
         $action = $delta > 0
-            ? 'добавлено ' . number_format($delta, 3) . ' м³'
-            : 'убрано ' . number_format(abs($delta), 3) . ' м³';
+            ? 'добавлено ' . $this->qty($delta, $batch)
+            : 'убрано ' . $this->qty(abs($delta), $batch);
 
         return redirect()->route('raw-batches.show', $batch)
-            ->with('success', "Количество обновлено: {$action}. Новый остаток: " . number_format($result['newRemaining'], 3) . ' м³');
+            ->with('success', "Количество обновлено: {$action}. Новый остаток: " . $this->qty($result['newRemaining'], $batch));
     }
 
     public function markAsUsed(RawMaterialBatch $batch): JsonResponse|RedirectResponse
@@ -343,7 +345,7 @@ class RawMaterialBatchController extends Controller
         }
 
         if ((float) $batch->remaining_quantity > 0) {
-            $msg = 'Перевести в «Израсходована» можно только партию с нулевым остатком. Текущий остаток: ' . number_format($batch->remaining_quantity, 3) . ' м³.';
+            $msg = 'Перевести в «Израсходована» можно только партию с нулевым остатком. Текущий остаток: ' . $this->qty($batch->remaining_quantity, $batch) . '.';
             if (request()->expectsJson()) {
                 return response()->json(['error' => $msg], 422);
             }
@@ -385,7 +387,7 @@ class RawMaterialBatchController extends Controller
         }
 
         if ((float) $batch->remaining_quantity > 0) {
-            return back()->with('error', 'Нельзя архивировать партию с ненулевым остатком (' . number_format($batch->remaining_quantity, 3) . ' м³). Сначала спишите или верните остаток.');
+            return back()->with('error', 'Нельзя архивировать партию с ненулевым остатком (' . $this->qty($batch->remaining_quantity, $batch) . '). Сначала спишите или верните остаток.');
         }
 
         $this->service->archive($batch);
@@ -494,5 +496,11 @@ class RawMaterialBatchController extends Controller
         }
 
         return redirect()->back()->with('success', 'Отправлено в МойСклад.');
+    }
+
+    /** Количество сырья партии с единицей её товара: «1,500 т». */
+    private function qty(float|string|null $value, RawMaterialBatch $batch): string
+    {
+        return trim(number_format((float) $value, 3) . ' ' . Uom::of($batch->product));
     }
 }

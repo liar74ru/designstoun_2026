@@ -31,7 +31,7 @@
 
 @section('content')
     @php
-        $uom      = $product->stocks->first()?->store?->uom ?? 'шт';
+        $uom      = \App\Support\Uom::of($product);
         $skuColor = \App\Models\Product::getColorBySku($product->sku);
         $skuBg    = $skuColor === '#FFFFFF' ? '' : 'background:' . $skuColor . '18;';
 

@@ -359,7 +359,7 @@
                                     <th class="text-end text-nowrap">Кол-во</th>
                                     <th style="width:1%"></th>
                                     <th class="text-end text-nowrap" title="Коэффициент зафиксирован при создании">Коэф.</th>
-                                    <th class="text-end text-nowrap">₽/м²</th>
+                                    <th class="text-end text-nowrap">Ставка</th>
                                     <th class="text-end text-nowrap">Зарплата</th>
                                 </tr>
                             </thead>
@@ -400,14 +400,14 @@
                                     <td class="text-end text-nowrap text-muted">
                                         <div style="font-size:.7rem;line-height:1.5">
                                             @if($item->worker_cost_per_m2 !== null)
-                                                {{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} ₽
+                                                {{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} {{ \App\Support\Uom::rate($item->product?->uom) }}
                                             @else
                                                 —
                                             @endif
                                         </div>
                                         <div style="font-size:.7rem;line-height:1.5">
                                             @if($item->master_cost_per_m2 !== null)
-                                                {{ number_format($item->master_cost_per_m2, 0, '.', ' ') }} ₽
+                                                {{ number_format($item->master_cost_per_m2, 0, '.', ' ') }} {{ \App\Support\Uom::rate($item->product?->uom) }}
                                             @else
                                                 —
                                             @endif

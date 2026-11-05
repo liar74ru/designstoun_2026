@@ -119,13 +119,13 @@
                             {{ $item->product->name }}
                         </span>
                         <span class="fw-semibold text-primary text-nowrap" style="font-size:.72rem">
-                            {{ number_format($item->quantity, 3, ',', '.') }} м²
+                            {{ number_format($item->quantity, 3, ',', '.') }} {{ \App\Support\Uom::of($item->product) }}
                         </span>
                     </div>
                 @endforeach
                 <div class="d-flex justify-content-end" style="margin-top:.15rem">
                     <span class="fw-semibold text-nowrap" style="font-size:.72rem">
-                        Итого: {{ number_format($reception->total_quantity, 3, ',', '.') }} м²
+                        Итого: {{ \App\Support\Uom::formatTotals(\App\Support\Uom::itemTotals($reception->items)) }}
                     </span>
                 </div>
             </div>

@@ -74,7 +74,7 @@
                                 @foreach($order->items as $item)
                                     <div class="small text-truncate" style="max-width:200px" title="{{ $item->product?->name }}">
                                         {{ $item->product?->name ?? '—' }}
-                                        <span class="text-muted">× {{ rtrim(rtrim(number_format($item->quantity, 3), '0'), '.') }} м³</span>
+                                        <span class="text-muted">× {{ rtrim(rtrim(number_format($item->quantity, 3), '0'), '.') }} {{ \App\Support\Uom::of($item->product) }}</span>
                                     </div>
                                 @endforeach
                             </td>
@@ -158,7 +158,7 @@
                                 <div class="d-flex align-items-center gap-1 mb-1" style="font-size:.8rem">
                                     <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-muted flex-shrink-0"></ion-icon>
                                     <span class="text-truncate">{{ $item->product?->name ?? '—' }}</span>
-                                    <span class="text-muted flex-shrink-0">× {{ $fmt($item->quantity) }} м³</span>
+                                    <span class="text-muted flex-shrink-0">× {{ $fmt($item->quantity) }} {{ \App\Support\Uom::of($item->product) }}</span>
                                 </div>
                             @endforeach
 

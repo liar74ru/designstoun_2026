@@ -111,7 +111,7 @@
                             @if($item->chargedWorker)
                                 <span class="fw-normal text-muted">зарплата: {{ $item->chargedWorker->name }}</span>
                             @endif
-                            {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }} м²
+                            {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3, ',', '.') }} {{ \App\Support\Uom::of($item->product) }}
                         </span>
                     </div>
                 @endforeach

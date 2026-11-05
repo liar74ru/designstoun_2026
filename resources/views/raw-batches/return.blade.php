@@ -38,13 +38,13 @@
             <div class="d-flex flex-column gap-1">
                 <div>
                     <span class="badge rounded-pill bg-primary">
-                        перемещ.: {{ $batch->latestMovement?->quantity ? $fmt($batch->latestMovement->quantity).' м³' : '—' }}
+                        перемещ.: {{ $batch->latestMovement?->quantity ? $fmt($batch->latestMovement->quantity).' '.\App\Support\Uom::of($batch->product) : '—' }}
                     </span>
                 </div>
                 <div>
                     <span class="badge rounded-pill"
                           style="{{ $batch->remaining_quantity > 0 ? 'background:#d1e7dd;color:#0a3622' : 'background:#6c757d;color:#fff' }}">
-                        остаток: {{ $fmt($batch->remaining_quantity) }} м³
+                        остаток: {{ $fmt($batch->remaining_quantity) }} {{ \App\Support\Uom::of($batch->product) }}
                     </span>
                 </div>
             </div>
@@ -86,13 +86,13 @@
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label fw-semibold">Количество для возврата (м³) <span class="text-danger">*</span></label>
+                    <label class="form-label fw-semibold">Количество для возврата{{ \App\Support\Uom::of($batch->product) !== '' ? ' (' . \App\Support\Uom::of($batch->product) . ')' : '' }} <span class="text-danger">*</span></label>
                     <input type="number" name="quantity"
                            class="form-control @error('quantity') is-invalid @enderror"
                            step="0.001" min="0.001" max="{{ $batch->remaining_quantity }}"
                            value="{{ old('quantity', rtrim(rtrim(number_format($batch->remaining_quantity, 3, '.', ''), '0'), '.')) }}"
                            required>
-                    <div class="form-text text-muted">Доступно: {{ $fmt($batch->remaining_quantity) }} м³</div>
+                    <div class="form-text text-muted">Доступно: {{ $fmt($batch->remaining_quantity) }} {{ \App\Support\Uom::of($batch->product) }}</div>
                     @error('quantity')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror

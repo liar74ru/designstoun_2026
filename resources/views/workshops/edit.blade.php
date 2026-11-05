@@ -216,7 +216,7 @@
                                        style="width:90px;border-radius:.4rem" step="0.001" placeholder="0">
                                 <span class="text-muted">=</span>
                                 <span class="fw-semibold js-scale-result">{{ (float) $item->quantity }}</span>
-                                <span class="text-muted small js-scale-unit">шт</span>
+                                <span class="text-muted small js-scale-unit">{{ \App\Support\Uom::of($item->product) }}</span>
                             </div>
                         </div>
                     @endforeach
@@ -236,8 +236,8 @@
                             'name' => 'raw_materials', 'index' => $ri++,
                             'value' => $item->product_id, 'label' => $item->product->name,
                             'quantity' => number_format((float) $item->quantity, 3, '.', ''),
-                            'placeholder' => 'Введите название сырья...', 'unit' => 'м²',
-                            'dynamicUnit' => true, 'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
+                            'placeholder' => 'Введите название сырья...', 'unit' => \App\Support\Uom::of($item->product),
+                            'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
                         ])
                     @endforeach
                 </div>
@@ -257,7 +257,7 @@
                             'name' => 'packages', 'index' => $ri++,
                             'value' => $item->product_id, 'label' => $item->product->name,
                             'quantity' => number_format((float) $item->quantity, 3, '.', ''),
-                            'placeholder' => 'Введите вариант упаковки...', 'unit' => 'шт',
+                            'placeholder' => 'Введите вариант упаковки...', 'unit' => \App\Support\Uom::of($item->product),
                             'qtyWidth' => '120px', 'qtyMode' => 'simple', 'skuPrefix' => '07-03', 'showRemove' => true,
                         ])
                     @endforeach
@@ -279,8 +279,8 @@
                             'name' => 'products', 'index' => $ri++,
                             'value' => $item->product_id, 'label' => $item->product->name,
                             'quantity' => number_format((float) $item->quantity, 3, '.', ''),
-                            'placeholder' => 'Введите название продукта...', 'unit' => 'шт',
-                            'dynamicUnit' => true, 'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
+                            'placeholder' => 'Введите название продукта...', 'unit' => \App\Support\Uom::of($item->product),
+                            'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
                         ])
                     @endforeach
                 </div>
@@ -346,22 +346,22 @@
 <template id="tplRaw">
     @include('partials.product-picker-row', [
         'name' => 'raw_materials', 'index' => '__IDX__',
-        'placeholder' => 'Введите название сырья...', 'unit' => 'м²',
-        'dynamicUnit' => true, 'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
+        'placeholder' => 'Введите название сырья...',
+        'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
     ])
 </template>
 <template id="tplPackage">
     @include('partials.product-picker-row', [
         'name' => 'packages', 'index' => '__IDX__',
-        'placeholder' => 'Введите вариант упаковки...', 'unit' => 'шт',
+        'placeholder' => 'Введите вариант упаковки...',
         'qtyWidth' => '120px', 'qtyMode' => 'simple', 'skuPrefix' => '07-03', 'showRemove' => true,
     ])
 </template>
 <template id="tplProduct">
     @include('partials.product-picker-row', [
         'name' => 'products', 'index' => '__IDX__',
-        'placeholder' => 'Введите название продукта...', 'unit' => 'шт',
-        'dynamicUnit' => true, 'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
+        'placeholder' => 'Введите название продукта...',
+        'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
     ])
 </template>
 @endsection
@@ -408,14 +408,10 @@
 
     const rawTotalEl  = document.getElementById('rawTotalQty');
     const prodTotalEl = document.getElementById('prodTotalQty');
-    function sumQty(container) {
-        let sum = 0;
-        container.querySelectorAll('.product-picker-qty').forEach(el => sum += parseFloat(el.value) || 0);
-        return sum;
-    }
+    // Итоги — по единицам товаров строк: «2,00 м² · 5,00 шт»
     function updateTotals() {
-        rawTotalEl.textContent  = sumQty(blocks.raw.container).toFixed(2);
-        prodTotalEl.textContent = sumQty(blocks.product.container).toFixed(2);
+        rawTotalEl.textContent  = Uom.formatTotals(Uom.totalsFromRows(blocks.raw.container), 2);
+        prodTotalEl.textContent = Uom.formatTotals(Uom.totalsFromRows(blocks.product.container), 2);
     }
     function rowsData(container) {
         return Array.from(container.querySelectorAll('.product-picker-row')).map(row => ({
@@ -430,6 +426,8 @@
         });
     });
     document.addEventListener('product-picker:removed', updateTotals);
+    document.addEventListener('product-picker:selected', updateTotals);
+    document.addEventListener('product-picker:unit', updateTotals);
 
     document.querySelectorAll('[data-add]').forEach(btn => {
         btn.addEventListener('click', () => addRow(btn.dataset.add));

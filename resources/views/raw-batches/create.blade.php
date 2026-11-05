@@ -150,7 +150,7 @@
                             <div class="info-block">
                                 <div class="info-block-header d-flex justify-content-between align-items-center">
                                     <span class="small fw-semibold text-muted">
-                                        Количество (м³) <span class="text-danger">*</span>
+                                        Количество <span id="quantityUnit"></span> <span class="text-danger">*</span>
                                     </span>
                                 </div>
                                 <div class="info-block-body">
@@ -341,7 +341,7 @@
                                             </div>
                                             <div class="d-flex gap-2 mt-1" style="font-size:.75rem">
                                                 <span class="text-muted">
-                                                    <i class="bi bi-box me-1"></i>{{ number_format($batch->initial_quantity, 2) }} м³
+                                                    <i class="bi bi-box me-1"></i>{{ number_format($batch->initial_quantity, 2) }} {{ \App\Support\Uom::of($batch->product) }}
                                                 </span>
                                                 @if($batch->currentWorker)
                                                     <span class="text-muted text-truncate">
@@ -481,13 +481,22 @@
                             if (!data || !data.adjust_url) return;
                             const num = data.batch_number ? ` №${data.batch_number}` : '';
                             // итоговое количество сырья в партии + остаток
-                            const qty = ` (всего: ${data.initial_quantity} м³, остаток: ${data.remaining_quantity} м³)`;
+                            const unit = data.uom ? ` ${data.uom}` : '';
+                            const qty = ` (всего: ${data.initial_quantity}${unit}, остаток: ${data.remaining_quantity}${unit})`;
                             info.textContent = num + qty;
                             link.href = data.adjust_url;
                             alertBox.style.display = '';
                         })
                         .catch(() => {});
                 }
+
+                // Единица количества — из карточки выбранного сырья
+                const quantityUnit = document.getElementById('quantityUnit');
+                document.addEventListener('product-picker:selected', e => {
+                    if (!quantityUnit) return;
+                    const unit = Uom.label(e.detail?.unit);
+                    quantityUnit.textContent = unit ? `(${unit})` : '';
+                });
 
                 workerSelect?.addEventListener('change', checkExistingBatch);
                 document.addEventListener('product-picker:selected', checkExistingBatch);

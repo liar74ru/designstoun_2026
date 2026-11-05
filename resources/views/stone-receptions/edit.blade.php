@@ -113,12 +113,13 @@
                                                    id="raw_material_batch_id"
                                                    value="{{ $stoneReception->raw_material_batch_id }}"
                                                    data-remaining="{{ (float)($stoneReception->rawMaterialBatch?->remaining_quantity ?? 0) }}"
+                                                   data-uom="{{ \App\Support\Uom::of($stoneReception->rawMaterialBatch?->product) }}"
                                                    data-product-sku="{{ $stoneReception->rawMaterialBatch?->product?->sku ?? '' }}">
                                             @php $editBatch = $stoneReception->rawMaterialBatch; @endphp
                                             @if($editBatch && $editBatch->status === \App\Models\RawMaterialBatch::STATUS_IN_WORK && (float)$editBatch->remaining_quantity <= 0)
                                                 <div class="mt-1 p-2 rounded border border-warning bg-warning bg-opacity-10 d-flex justify-content-between align-items-center gap-2" style="flex-wrap:wrap">
                                                     <span class="small text-warning-emphasis">
-                                                        <i class="bi bi-exclamation-triangle me-1"></i>Остаток 0 м³ — готова к закрытию
+                                                        <i class="bi bi-exclamation-triangle me-1"></i>Остаток 0 {{ \App\Support\Uom::of($editBatch->product) }} — готова к закрытию
                                                     </span>
                                                     <button type="button"
                                                             class="btn btn-warning btn-sm text-nowrap"
@@ -162,6 +163,7 @@
                                 $rawQtyLocked = $stoneReception->rawMaterialBatch &&
                                     $stoneReception->rawMaterialBatch->current_worker_id != $stoneReception->cutter_id;
                                 $rawRemaining = (float)($stoneReception->rawMaterialBatch?->remaining_quantity ?? 0);
+                                $rawUom       = \App\Support\Uom::of($stoneReception->rawMaterialBatch?->product);
                             @endphp
                             <div class="rounded border border-secondary border-opacity-25 mb-2">
                                 <div class="px-2 py-1 border-bottom border-secondary border-opacity-25">
@@ -176,7 +178,7 @@
                                         <input type="hidden" name="raw_quantity_delta" value="0">
                                         <div class="d-flex align-items-center gap-2 mb-1">
                                             <div class="form-control form-control-sm bg-light fw-bold" style="min-width:110px;font-size:.95rem">
-                                                {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                                {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} {{ $rawUom }}
                                             </div>
                                         </div>
                                         <div class="alert alert-warning py-1 px-2 mb-0" style="font-size:.75rem">
@@ -186,7 +188,7 @@
                                         {{-- Десктоп --}}
                                         <div class="d-none d-sm-block">
                                             <label class="form-label small mb-1">
-                                                Изменение <span class="text-muted fw-normal">(м³, можно «−»)</span>
+                                                Изменение <span class="text-muted fw-normal">({{ $rawUom !== '' ? $rawUom . ', ' : '' }}можно «−»)</span>
                                             </label>
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="number"
@@ -201,7 +203,7 @@
                                                 <div class="d-flex align-items-center gap-1">
                                                     <span class="fw-bold" style="font-size:.9rem">Итого:</span>
                                                     <div id="raw_result" class="form-control form-control-sm bg-light fw-bold" style="min-width:110px;font-size:.95rem">
-                                                        {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                                        {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} {{ $rawUom }}
                                                     </div>
                                                 </div>
                                             </div>
@@ -214,7 +216,7 @@
                                         {{-- Мобильный --}}
                                         <div class="d-sm-none">
                                             <label class="form-label small text-muted mb-1">
-                                                Изменение <span class="fw-normal">(м³, можно «−»)</span>
+                                                Изменение <span class="fw-normal">({{ $rawUom !== '' ? $rawUom . ', ' : '' }}можно «−»)</span>
                                             </label>
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="number"
@@ -229,7 +231,7 @@
                                                 <div class="text-center flex-shrink-0">
                                                     <div class="fw-bold" style="font-size:.82rem">Итого:</div>
                                                     <div id="raw_result_mobile" class="fw-bold text-primary" style="font-size:.95rem">
-                                                        {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} м³
+                                                        {{ number_format($stoneReception->raw_quantity_used, 3, '.', '') }} {{ $rawUom }}
                                                     </div>
                                                 </div>
                                             </div>
@@ -253,7 +255,7 @@
                                             <input class="form-check-input" type="checkbox" id="allCatalogCheck">
                                             <label class="form-check-label small text-muted" for="allCatalogCheck">весь каталог</label>
                                         </div>
-                                        <span class="text-muted small">Итого: <strong id="totalProducts">0</strong> м²</span>
+                                        <span class="text-muted small">Итого: <strong id="totalProducts">0</strong></span>
                                     </div>
                                 </div>
 
@@ -263,7 +265,8 @@
                                         @php $current = (float)$item->quantity; $idx = $loop->index; @endphp
                                         <div class="existing-row rounded border border-secondary border-opacity-25 position-relative"
                                              style="padding:.2rem .35rem;margin-bottom:.25rem"
-                                             data-current="{{ $current }}">
+                                             data-current="{{ $current }}"
+                                             data-uom="{{ \App\Support\Uom::of($item->product) }}">
                                             <input type="hidden" name="products[{{ $idx }}][product_id]" value="{{ $item->product_id }}">
                                             <input type="hidden" class="js-qty-out" name="products[{{ $idx }}][quantity]" value="{{ $current }}">
 
@@ -292,7 +295,7 @@
                                                 <span class="js-result fw-semibold" style="font-size:.82rem;min-width:50px">
                                                     {{ number_format($current, 3, '.', '') }}
                                                 </span>
-                                                <span class="text-muted" style="font-size:.8rem">м²</span>
+                                                <span class="text-muted" style="font-size:.8rem">{{ \App\Support\Uom::of($item->product) }}</span>
                                             </div>
 
                                         </div>
@@ -379,7 +382,7 @@
                                             <div class="d-flex align-items-center gap-2 mb-1">
                                                 <span class="fw-semibold small">#{{ $reception->id }}</span>
                                                 <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size:.7rem">
-                                                    {{ number_format($reception->total_quantity, 2) }} м²
+                                                    {{ \App\Support\Uom::formatTotals(\App\Support\Uom::itemTotals($reception->items), 2) }}
                                                 </span>
                                                 <span class="text-muted" style="font-size:.72rem">
                                                     {{ $reception->created_at->format('d.m H:i') }}
@@ -516,20 +519,24 @@
                 saveCloseBatchBtn.disabled = !hasBatch;
             }
 
+            // Количество сырья с единицей товара партии
+            const rawUnit = document.getElementById('raw_material_batch_id')?.dataset.uom || '';
+            const rawQty  = v => v.toFixed(3) + (rawUnit ? ' ' + rawUnit : '');
+
             function updateRaw(delta) {
                 const result = Math.round((currentRaw + delta) * 1000) / 1000;
 
-                const resultStr = result.toFixed(3) + ' м³';
+                const resultStr = rawQty(result);
                 if (rawResultDiv)    { rawResultDiv.textContent = resultStr; rawResultDiv.classList.toggle('text-danger', result < 0); }
-                if (rawResultMobile) { rawResultMobile.textContent = result.toFixed(3) + ' м³'; rawResultMobile.classList.toggle('text-danger', result < 0); }
+                if (rawResultMobile) { rawResultMobile.textContent = resultStr; rawResultMobile.classList.toggle('text-danger', result < 0); }
 
                 const batchInput = document.getElementById('raw_material_batch_id');
                 if (batchInput?.value) {
                     const remaining   = parseFloat(batchInput.dataset.remaining) || 0;
                     const batchBefore = Math.round((remaining + currentRaw) * 1000) / 1000;
                     const batchAfter  = Math.round((remaining - delta) * 1000) / 1000;
-                    const beforeText  = `Всего было: ${batchBefore.toFixed(3)} м³`;
-                    const afterText   = `Доступно: ${batchAfter.toFixed(3)} м³`;
+                    const beforeText  = `Всего было: ${rawQty(batchBefore)}`;
+                    const afterText   = `Доступно: ${rawQty(batchAfter)}`;
                     const afterColor  = batchAfter > 0 ? 'text-success' : 'text-danger';
                     if (rawInfoBefore)  rawInfoBefore.textContent  = beforeText;
                     if (rawInfoAfter)   { rawInfoAfter.textContent = afterText; rawInfoAfter.className = afterColor; }
@@ -834,19 +841,28 @@
             });
 
             // ── Итого ────────────────────────────────────────────────────────────────
+            // Итог — по единицам товаров: «2,00 м² · 5,00 шт»
             function updateTotal() {
-                let total = 0;
-                document.querySelectorAll('#existing-products .js-qty-out').forEach(el => {
-                    total += parseFloat(el.value) || 0;
+                const totals = new Map();
+                const add = (unit, qty) => {
+                    if (!qty) return;
+                    unit = Uom.label(unit);
+                    totals.set(unit, (totals.get(unit) ?? 0) + qty);
+                };
+                document.querySelectorAll('#existing-products .existing-row').forEach(row => {
+                    add(row.dataset.uom, parseFloat(row.querySelector('.js-qty-out')?.value) || 0);
                 });
-                newContainer.querySelectorAll('.js-new-qty-out').forEach(el => {
-                    total += parseFloat(el.value) || 0;
+                newContainer.querySelectorAll('.product-picker-row').forEach(row => {
+                    add(row.querySelector('.product-picker-unit')?.textContent,
+                        parseFloat(row.querySelector('.js-new-qty-out')?.value) || 0);
                 });
-                document.getElementById('totalProducts').textContent = total.toFixed(2);
+                document.getElementById('totalProducts').textContent = Uom.formatTotals(totals, 2);
             }
 
             updateTotal();
             document.addEventListener('product-picker:removed', updateTotal);
+            document.addEventListener('product-picker:selected', updateTotal);
+            document.addEventListener('product-picker:unit', updateTotal);
 
             // ── Валидация ────────────────────────────────────────────────────────────
             document.getElementById('receptionForm').addEventListener('submit', function (e) {
@@ -891,7 +907,6 @@
     @include('partials.product-picker-row', [
         'index'         => '__IDX__',
         'placeholder'   => 'Название продукта...',
-        'unit'          => 'м²',
         'qtyMode'       => 'delta',
         'showModifiers' => true,
         'departmentId'  => $stoneReception->effectiveDepartmentId(),

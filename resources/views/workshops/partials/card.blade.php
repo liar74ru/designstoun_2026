@@ -7,7 +7,7 @@
     $canModify    = auth()->user()?->can('modify', $workshop);
     $isActive     = $workshop->status === 'active';
     $btnStyle     = 'width:22px;height:22px;padding:0;font-size:.65rem';
-    $uomOf        = fn ($product) => strtr((string) $product?->uom, ['м2' => 'м²', 'м3' => 'м³']);
+    $uomOf        = fn ($product) => \App\Support\Uom::of($product);
 @endphp
 <div style="border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
     <div style="padding:.1rem .35rem">

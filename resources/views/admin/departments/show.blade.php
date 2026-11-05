@@ -425,7 +425,7 @@
                 <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
                     <span>Накладные расходы отдела</span>
                     <span class="text-muted fw-normal" style="font-size:.75rem">
-                        Итого: <span x-text="total.toLocaleString('ru-RU')"></span> ₽/м²
+                        Итого: <span x-text="total.toLocaleString('ru-RU')"></span> ₽/ед.
                     </span>
                 </div>
                 <div class="card-body p-2 p-md-3">
@@ -449,7 +449,7 @@
                                        :name="'expenses[' + i + '][amount]'"
                                        x-model="row.amount"
                                        placeholder="0">
-                                <span class="input-group-text d-none d-sm-inline">₽/м²</span>
+                                <span class="input-group-text d-none d-sm-inline">₽/ед.</span>
                                 <button type="button" class="btn btn-outline-danger" @click="rows.splice(i, 1)"
                                         title="Удалить расход">
                                     <i class="bi bi-trash"></i>

@@ -354,13 +354,13 @@ function entWorkshopNoDept(?Department $packerDept, float $qty, string $tag): vo
 }
 
 /** Поступление сырья: партия + движение 'create' (вкладка «Сырьё»). */
-function entIncomingRaw(?Department $dept, float $qty, string $tag): void
+function entIncomingRaw(?Department $dept, float $qty, string $tag, ?Product $product = null): void
 {
     $store  = Store::factory()->create();
     $worker = Worker::create(['name' => 'Приёмщик сырья ' . $tag, 'position' => 'Работник']);
 
     $batch = RawMaterialBatch::create([
-        'product_id'         => Product::factory()->create()->id,
+        'product_id'         => ($product ?? Product::factory()->create())->id,
         'initial_quantity'   => $qty,
         'remaining_quantity' => $qty,
         'current_store_id'   => $store->id,
@@ -733,4 +733,78 @@ test('неверная дата считается незаданной, вер�
         ->assertOk()
         ->assertViewHas('dateFrom', null)
         ->assertViewHas('dateTo', fn ($to) => $to->format('Y-m-d H:i:s') === '2026-03-05 23:59:59');
+});
+
+// ─── Единицы измерения ───────────────────────────────────────────────────────
+//
+// Продукция и сырьё бывают в разных единицах (м², шт, т …): складывать их в одно
+// число с подписью «м²» нельзя — итог разбивается по единицам товаров.
+
+/** Суммы по единицам без учёта порядка: ключи по алфавиту. */
+function sortedUnits(array $totals): array
+{
+    ksort($totals);
+
+    return $totals;
+}
+
+test('итоги производства разбиты по единицам товаров', function () {
+    $dept  = Department::create(['name' => 'Отдел единиц', 'is_active' => true]);
+    $tile  = Product::factory()->create(['prod_cost_coeff' => 1.0, 'uom' => 'м2']);
+    $piece = Product::factory()->create(['prod_cost_coeff' => 1.0, 'uom' => 'шт']);
+
+    makeEnterpriseReception($dept, 'Приёмщик плитки', 10.0, $tile);
+    makeEnterpriseReception($dept, 'Приёмщик штук', 3.0, $piece);
+
+    $response = entDashboard($this, H::adminUser());
+
+    // Порядок единиц — порядок строк сводки, он зависит от названий товаров
+    $response->assertOk()
+        ->assertSee('10,000 м²')
+        ->assertSee('3,000 шт')
+        ->assertDontSee('Произведено, м²');
+
+    expect(sortedUnits($response->viewData('departments')->first()['totalQuantityByUnit']))
+        ->toBe(['м²' => 10.0, 'шт' => 3.0])
+        ->and(sortedUnits($response->viewData('grandQuantityByUnit')))->toBe(['м²' => 10.0, 'шт' => 3.0])
+        // Числовой итог для расчётов остаётся прежним
+        ->and((float) $response->viewData('grandQuantity'))->toEqual(13.0);
+});
+
+test('итог по отделам складывается по каждой единице отдельно', function () {
+    $deptA = Department::create(['name' => 'Отдел единиц А', 'is_active' => true]);
+    $deptB = Department::create(['name' => 'Отдел единиц Б', 'is_active' => true]);
+    $tile  = Product::factory()->create(['prod_cost_coeff' => 1.0, 'uom' => 'м2']);
+    $piece = Product::factory()->create(['prod_cost_coeff' => 1.0, 'uom' => 'шт']);
+
+    makeEnterpriseReception($deptA, 'Приёмщик ЕА', 10.0, $tile);
+    makeEnterpriseReception($deptB, 'Приёмщик ЕБ-1', 5.0, $tile);
+    makeEnterpriseReception($deptB, 'Приёмщик ЕБ-2', 2.0, $piece);
+
+    $grand = entDashboard($this, H::adminUser())->viewData('grandQuantityByUnit');
+
+    expect(sortedUnits($grand))->toBe(['м²' => 15.0, 'шт' => 2.0]);
+});
+
+test('входящее сырьё подписано единицей товара, а не «м³»', function () {
+    $dept = Department::create(['name' => 'Отдел сырья в тоннах', 'is_active' => true]);
+
+    entIncomingRaw($dept, 4.0, 'T', Product::factory()->create(['uom' => 'т']));
+    entIncomingRaw($dept, 2.0, 'M3', Product::factory()->create(['uom' => 'м3']));
+
+    $response = entDashboard($this, H::adminUser());
+
+    $response->assertOk()->assertSee('4,000 т · 2,000 м³');
+
+    expect($response->viewData('incomingRawByUnit'))->toBe(['т' => 4.0, 'м³' => 2.0])
+        ->and($response->viewData('incomingRaw')->pluck('uom')->all())->toBe(['т', 'м³']);
+});
+
+test('у сырья без единицы в карточке подпись не подставляется', function () {
+    entIncomingRaw(null, 5.0, 'NOUOM', Product::factory()->create(['uom' => null]));
+
+    $response = entDashboard($this, H::adminUser());
+
+    expect($response->viewData('incomingRaw')->first()['uom'])->toBe('')
+        ->and($response->viewData('incomingRawByUnit'))->toBe(['' => 5.0]);
 });

@@ -268,10 +268,10 @@
                                 <thead class="table-light">
                                 <tr>
                                     <th style="border-left:4px solid transparent;padding:.3rem .1rem .3rem .4rem">Продукт</th>
-                                    <th class="text-end text-nowrap" style="padding:.3rem .25rem .3rem .1rem">м²</th>
+                                    <th class="text-end text-nowrap" style="padding:.3rem .25rem .3rem .1rem">Кол-во</th>
                                     <th style="padding:.3rem .1rem"></th>
                                     <th class="text-end text-nowrap" style="padding:.3rem .25rem" title="Коэффициент зафиксирован на момент приёмки">Коэф.</th>
-                                    <th class="text-end text-nowrap" style="padding:.3rem .25rem">₽/м²</th>
+                                    <th class="text-end text-nowrap" style="padding:.3rem .25rem">Ставка</th>
                                     <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .25rem">Зарплата</th>
                                 </tr>
                                 </thead>
@@ -296,7 +296,7 @@
                                             ])
                                         </td>
                                         <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
-                                            {{ number_format($item->quantity, 3, ',', ' ') }}
+                                            {{ \App\Support\Uom::format($item->quantity, $item->product?->uom) }}
                                         </td>
                                         {{-- Метка роли: верхняя строка — пильщик, нижняя — мастер --}}
                                         <td class="text-center text-muted" style="{{ $skuBg }};padding:.3rem .1rem">
@@ -322,14 +322,14 @@
                                         <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
                                             <div style="font-size:.65rem;line-height:1.5">
                                                 @if($item->worker_cost_per_m2 !== null)
-                                                    {{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} ₽
+                                                    {{ number_format($item->worker_cost_per_m2, 0, '.', ' ') }} {{ \App\Support\Uom::rate($item->product?->uom) }}
                                                 @else
                                                     —
                                                 @endif
                                             </div>
                                             <div style="font-size:.65rem;line-height:1.5">
                                                 @if($item->master_cost_per_m2 !== null)
-                                                    {{ number_format($item->master_cost_per_m2, 0, '.', ' ') }} ₽
+                                                    {{ number_format($item->master_cost_per_m2, 0, '.', ' ') }} {{ \App\Support\Uom::rate($item->product?->uom) }}
                                                 @else
                                                     —
                                                 @endif
@@ -358,7 +358,7 @@
                                 <tr>
                                     <th class="fw-bold" style="padding:.3rem .1rem .3rem .4rem">ИТОГО:</th>
                                     <th class="text-end text-nowrap fw-semibold" style="font-size:.9rem;padding:.3rem .25rem .3rem .1rem">
-                                        {{ number_format($stoneReception->items->sum('quantity'), 3, ',', ' ') }} м²
+                                        {{ \App\Support\Uom::formatTotals(\App\Support\Uom::itemTotals($stoneReception->items)) }}
                                     </th>
                                     <th class="text-center text-muted fw-normal" style="padding:.3rem .1rem">
                                         <div style="font-size:.75rem;line-height:1.5" title="Пильщик"><i class="bi bi-person"></i></div>
@@ -383,7 +383,7 @@
                                     <tr>
                                         <th colspan="6" class="text-muted fw-normal" style="padding:.3rem .4rem">
                                             Коэф. выхода: {{ number_format($coeff * 100, 1) }}%
-                                            (1 м³ → {{ number_format($coeff, 3) }} м²)
+                                            (1 {{ \App\Support\Uom::of($stoneReception->rawMaterialBatch?->product) }} → {{ \App\Support\Uom::format($coeff, \App\Support\Uom::common($stoneReception->items->map(fn ($i) => $i->product?->uom))) }})
                                         </th>
                                     </tr>
                                 @endif

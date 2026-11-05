@@ -12,6 +12,7 @@ use App\Models\StoneReception;
 use App\Models\Worker;
 use App\Services\StoneReceptionService;
 use App\Support\DepartmentAccess;
+use App\Support\Uom;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -341,9 +342,10 @@ class StoneReceptionController extends Controller
         $batches = $this->service->getActiveBatchesForWorker($worker)->map(fn($b) => [
             'id'                 => $b->id,
             'label'              => $b->product->name
-                . ' (ост: ' . number_format($b->remaining_quantity, 2) . ' м³)'
+                . ' (ост: ' . Uom::format($b->remaining_quantity, $b->product->uom, 2) . ')'
                 . ($b->batch_number ? ' №' . $b->batch_number : ''),
             'remaining_quantity' => (float) $b->remaining_quantity,
+            'uom'                => Uom::of($b->product),
             'product_sku'        => $b->product->sku ?? '',
             'status'             => $b->status,
             'batch_number'       => $b->batch_number,
@@ -374,6 +376,7 @@ class StoneReceptionController extends Controller
                 'id'                    => $r->id,
                 'created_at'            => $r->created_at->format('d.m H:i'),
                 'total_quantity'        => number_format($r->items->sum('quantity'), 2),
+                'total_label'           => Uom::formatTotals(Uom::itemTotals($r->items), 2),
                 'cutter_name'           => $r->cutter?->name,
                 'cutter_id'             => $r->cutter_id,
                 'raw_material_batch_id' => $r->raw_material_batch_id,
@@ -382,6 +385,7 @@ class StoneReceptionController extends Controller
                     'product_name'  => $i->product?->name ?? '—',
                     'product_label' => $i->product?->name ?? '—',
                     'quantity'      => number_format($i->quantity, 2),
+                    'uom'           => Uom::of($i->product),
                     'modifiers'     => $i->modifiers->pluck('key')->all(),
                 ]),
             ]);

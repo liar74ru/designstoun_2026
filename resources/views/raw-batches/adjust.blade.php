@@ -37,13 +37,13 @@
             <div class="d-flex flex-column gap-1">
                 <div>
                     <span class="badge rounded-pill bg-primary">
-                        перемещ.: {{ $batch->latestMovement?->quantity ? $fmt($batch->latestMovement->quantity).' м³' : '—' }}
+                        перемещ.: {{ $batch->latestMovement?->quantity ? $fmt($batch->latestMovement->quantity).' '.\App\Support\Uom::of($batch->product) : '—' }}
                     </span>
                 </div>
                 <div>
                     <span class="badge rounded-pill"
                           style="{{ $batch->remaining_quantity > 0 ? 'background:#d1e7dd;color:#0a3622' : 'background:#6c757d;color:#fff' }}">
-                        остаток: {{ $fmt($batch->remaining_quantity) }} м³
+                        остаток: {{ $fmt($batch->remaining_quantity) }} {{ \App\Support\Uom::of($batch->product) }}
                     </span>
                 </div>
             </div>
@@ -75,7 +75,7 @@
                 <div class="mb-3">
                     <div class="text-muted small mb-1">Текущий остаток</div>
                     <div class="qty-display text-secondary">
-                        {{ $fmt($batch->remaining_quantity) }} <span class="fs-6 fw-normal">м³</span>
+                        {{ $fmt($batch->remaining_quantity) }} <span class="fs-6 fw-normal">{{ \App\Support\Uom::of($batch->product) }}</span>
                     </div>
                 </div>
 
@@ -93,7 +93,7 @@
                 <div class="mb-4">
                     <div class="text-muted small mb-1">Итого будет</div>
                     <div class="qty-display" id="result">
-                        {{ $fmt($batch->remaining_quantity) }} <span class="fs-6 fw-normal">м³</span>
+                        {{ $fmt($batch->remaining_quantity) }} <span class="fs-6 fw-normal">{{ \App\Support\Uom::of($batch->product) }}</span>
                     </div>
                     <div id="result_hint" class="mt-2 small"></div>
                 </div>
@@ -122,6 +122,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const current   = {{ (float)$batch->remaining_quantity }};
+    const unit      = @json(\App\Support\Uom::of($batch->product));
     const deltaInput = document.getElementById('delta');
     const resultEl   = document.getElementById('result');
     const hint       = document.getElementById('result_hint');
@@ -136,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const delta  = parseFloat(this.value) || 0;
         const result = Math.round((current + delta) * 1000) / 1000;
 
-        resultEl.innerHTML = fmt(result) + ' <span class="fs-6 fw-normal">м³</span>';
+        resultEl.innerHTML = fmt(result) + ` <span class="fs-6 fw-normal">${escapeHtml(unit)}</span>`;
 
         if (result < 0) {
             resultEl.style.color = '#842029';
@@ -148,13 +149,13 @@ document.addEventListener('DOMContentLoaded', function () {
             resultEl.style.color = '#0a3622';
             resultEl.style.background = '#d1e7dd';
             resultEl.style.borderColor = '#a3cfbb';
-            hint.innerHTML = `<span class="text-success"><i class="bi bi-plus-circle me-1"></i>Добавляем ${fmt(Math.abs(delta))} м³ — остаток увеличится</span>`;
+            hint.innerHTML = `<span class="text-success"><i class="bi bi-plus-circle me-1"></i>Добавляем ${fmt(Math.abs(delta))} ${escapeHtml(unit)} — остаток увеличится</span>`;
             submitBtn.disabled = false;
         } else if (delta < 0) {
             resultEl.style.color = '#664d03';
             resultEl.style.background = '#fff3cd';
             resultEl.style.borderColor = '#ffda6a';
-            hint.innerHTML = `<span class="text-warning"><i class="bi bi-dash-circle me-1"></i>Убираем ${fmt(Math.abs(delta))} м³ — остаток уменьшится</span>`;
+            hint.innerHTML = `<span class="text-warning"><i class="bi bi-dash-circle me-1"></i>Убираем ${fmt(Math.abs(delta))} ${escapeHtml(unit)} — остаток уменьшится</span>`;
             submitBtn.disabled = false;
         } else {
             resultEl.style.color = '';

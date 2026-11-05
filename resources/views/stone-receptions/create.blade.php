@@ -176,12 +176,13 @@
                                                 @foreach($filteredBatches as $batch)
                                                     <option value="{{ $batch->id }}"
                                                             data-remaining="{{ $batch->remaining_quantity }}"
+                                                            data-uom="{{ \App\Support\Uom::of($batch->product) }}"
                                                             data-product-sku="{{ $batch->product->sku ?? '' }}"
                                                             data-status="{{ $batch->status }}"
                                                             data-department-id="{{ $batch->department_id }}"
                                                         {{ old('raw_material_batch_id', request('raw_material_batch_id')) == $batch->id ? 'selected' : '' }}>
                                                         @if((float)$batch->remaining_quantity <= 0) ⚠ @endif{{ $batch->product->name }}
-                                                        (ост: {{ number_format($batch->remaining_quantity, 2) }} м³)
+                                                        (ост: {{ \App\Support\Uom::format($batch->remaining_quantity, $batch->product->uom, 2) }})
                                                         @if($batch->batch_number) №{{ $batch->batch_number }} @endif
                                                     </option>
                                                 @endforeach
@@ -211,7 +212,7 @@
                                         </div>
                                         <div class="col-4 col-sm-3">
                                             <label class="form-label small fw-semibold mb-1">
-                                                Расход <span class="text-muted fw-normal">(м³)</span> <span class="text-danger">*</span>
+                                                Расход <span class="text-muted fw-normal" id="rawQtyUnit"></span> <span class="text-danger">*</span>
                                             </label>
                                             <input type="number" step="0.001" min="0.001"
                                                    name="raw_quantity_used" id="rawQtyInput"
@@ -235,7 +236,7 @@
                                             <input class="form-check-input" type="checkbox" id="allCatalogCheck">
                                             <label class="form-check-label small text-muted" for="allCatalogCheck">весь каталог</label>
                                         </div>
-                                        <span class="text-muted small">Итого: <strong id="totalQty">0</strong> м²</span>
+                                        <span class="text-muted small">Итого: <strong id="totalQty">0</strong></span>
                                     </div>
                                 </div>
                                 <div class="info-block-body">
@@ -335,7 +336,7 @@
                                             <div class="d-flex align-items-center gap-2 mb-1">
                                                 <span class="fw-semibold small">#{{ $reception->id }}</span>
                                                 <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size:.7rem">
-                                                    {{ number_format($reception->total_quantity, 2) }} м²
+                                                    {{ \App\Support\Uom::formatTotals(\App\Support\Uom::itemTotals($reception->items), 2) }}
                                                 </span>
                                                 <span class="text-muted" style="font-size:.72rem">
                                                     {{ $reception->created_at->format('d.m H:i') }}
@@ -430,6 +431,7 @@
             const remainingInfo        = document.getElementById('remainingInfo');
             const container            = document.getElementById('productsContainer');
             const totalQtyEl           = document.getElementById('totalQty');
+            const rawQtyUnit           = document.getElementById('rawQtyUnit');
             const addBtn               = document.getElementById('addProductBtn');
             const activeReceptionAlert = document.getElementById('activeReceptionAlert');
             const activeReceptionLink  = document.getElementById('activeReceptionLink');
@@ -480,6 +482,7 @@
                             const opt = document.createElement('option');
                             opt.value = b.id;
                             opt.dataset.remaining    = b.remaining_quantity;
+                            opt.dataset.uom          = b.uom || '';
                             opt.dataset.productSku   = b.product_sku || '';
                             opt.dataset.status       = b.status || '';
                             opt.dataset.departmentId = b.department_id ?? '';
@@ -500,13 +503,15 @@
                     const rem  = parseFloat(opt.dataset.remaining) || 0;
                     const used = parseFloat(rawQtyInput.value) || 0;
                     const afterRem = Math.round((rem - used) * 1000) / 1000;
-                    remainingInfo.textContent = `Доступно: ${rem.toFixed(3)} м³`;
+                    remainingInfo.textContent = `Доступно: ${Uom.format(rem, opt.dataset.uom)}`;
+                    if (rawQtyUnit) rawQtyUnit.textContent = opt.dataset.uom ? `(${opt.dataset.uom})` : '';
                     remainingInfo.className = used > rem
                         ? 'form-text text-danger'
                         : 'form-text text-info';
                     if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = false;
                 } else {
                     remainingInfo.textContent = '';
+                    if (rawQtyUnit) rawQtyUnit.textContent = '';
                     if (saveCloseBatchBtn) saveCloseBatchBtn.disabled = true;
                 }
             }
@@ -538,7 +543,7 @@
 
                 const items = receptions.map(r => {
                     const productsHtml = r.items.map(i =>
-                        `<div class="text-muted" style="font-size:.75rem">${escapeHtml(i.product_name)} <span class="text-dark">× ${i.quantity}</span></div>`
+                        `<div class="text-muted" style="font-size:.75rem">${escapeHtml(i.product_name)} <span class="text-dark">× ${i.quantity}${i.uom ? ' ' + escapeHtml(i.uom) : ''}</span></div>`
                     ).join('');
                     const cutterHtml = r.cutter_name
                         ? `<div class="text-muted mt-1" style="font-size:.72rem"><i class="bi bi-hammer me-1"></i>${escapeHtml(r.cutter_name)}</div>`
@@ -555,7 +560,7 @@
                             <div class="flex-grow-1 me-2">
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <span class="fw-semibold small">#${r.id}</span>
-                                    <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size:.7rem">${r.total_quantity} м²</span>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size:.7rem">${escapeHtml(r.total_label)}</span>
                                     <span class="text-muted" style="font-size:.72rem">${r.created_at}</span>
                                 </div>
                                 ${productsHtml}
@@ -859,15 +864,13 @@
                 }
             });
 
+            // Итог — по единицам товаров строк: «2,00 м² · 5,00 шт»
             function updateTotal() {
-                let sum = 0;
-                container.querySelectorAll('.product-picker-qty').forEach(el => {
-                    sum += parseFloat(el.value) || 0;
-                });
-                totalQtyEl.textContent = sum.toFixed(2);
+                totalQtyEl.textContent = Uom.formatTotals(Uom.totalsFromRows(container), 2);
             }
 
             document.addEventListener('product-picker:removed', updateTotal);
+            document.addEventListener('product-picker:unit', updateTotal);
             container.addEventListener('input', e => {
                 if (e.target.classList.contains('product-picker-qty')) updateTotal();
             });
@@ -1042,7 +1045,6 @@
         @include('partials.product-picker-row', [
             'index'        => '__IDX__',
             'placeholder'  => 'Название продукта...',
-            'unit'         => 'м²',
             'qtyMode'       => 'simple',
             'showModifiers' => true,
             'departmentId'  => old('department_id', $defaultDepartmentId ?? null),

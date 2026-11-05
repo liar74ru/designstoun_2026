@@ -20,6 +20,11 @@
   МойСклад один товар: название, артикул, единицу измерения, описание, цены, коэффициенты.
   Остатки этой кнопкой не обновляются — для них есть свои кнопки (см. раздел 4).
 - **Артикул** — поле «Артикул» товара в МойСклад, а если оно пустое — «Код».
+- **Единица измерения** (м², м³, т, шт, пог. м …) берётся из карточки товара в МойСклад. Во всех
+  разделах количество подписывается единицей своего товара: сырьё в тоннах — «т», плитка — «м²».
+  Если в документе товары с разными единицами, итог показывается по каждой отдельно:
+  «12,500 м² · 3,000 шт». Ставки в строках — за единицу товара («₽/м²», «₽/шт»), общие ставки и
+  расходы отдела — «₽/ед.». Нет единицы у товара — число выводится без подписи.
 
 ## 2. Артикул и что по нему видно
 
@@ -180,6 +185,7 @@
 | 3. Коэффициенты | `ProductController::updateCoeffs`, `Requests\Product\ProductCoeffRequest`, `ProductService::updateCostCoeffs`, `MoySkladService::updateProductCostCoeffs` (общая запись реквизитов — `updateProductAttributes`); вывод — `RateFormula::formatCoeff` | `Unit/RateFormulaTest` (формат), `ProductController/ProductAttributesWriteTest` (запись в МойСклад) |
 | 4. Остатки | `Moysklad\StockSyncService::applyRows`, `syncAllProductsStocksByStores`, `updateProductStocksByMoyskladId`, `refreshProducts`; команда `moysklad:sync-stocks` в `routes/console.php`; `Product::getTotalQuantityAttribute`, `getInStockAttribute` | `Stock/ProductStockTest`, `Moysklad/StockSyncServiceTest`, `Moysklad/StockSyncByStoreTest` |
 | 5. Список | `ProductController::index`, `ProductGroupService::getGroupAndChildrenIds`; мобильное дерево — `products/partials/mobile-list.blade.php` поверх `api.products.tree` (поле `ms_id`) и `api.products.stocks`, цвет — карта `SkuColor::map()` | `ProductController/ProductControllerTest` |
+| 1. Единица измерения | `products.uom`; показ — только `Support\Uom` (`label`, `of`, `rate`, `itemTotals`/`totals`, `formatTotals`, `common`), в JS — `resources/js/uom.js` (`window.Uom`); в пикере единицу ставит `product-picker.js` (`selectProduct`, `fillUnit`, событие `product-picker:unit`); суммы дашбордов — `totalQuantityByUnit`, `grandQuantityByUnit`, `incomingRawByUnit` в `WorkerDashboardService` | `tests/Unit/UomTest`, `MasterDashboard/EnterpriseDashboardTest` (разбивка итогов по единицам), `Moysklad/ReceptionDescriptionCostTest` («₽/шт», «₽/ед.») |
 | 6. Выбор товара | `resources/js/product-picker.js`, `partials/product-picker*.blade.php`; `ProductController::groupsJson` (кэш `products_tree_json_v4`, 600 с); скрытые — `products.is_hidden` из атрибута `hiddenByDefault` (`processProduct`, `refreshFromMoysklad`), запись из карточки — `ProductController::updateHidden` (`products.hidden.update`, `can:see-products`), `ProductHiddenRequest`, `ProductService::updateHidden`, `MoySkladService::updateProductHidden`, поле `hidden` в `ProductGroupService::attachProductsToTree`, фильтрует клиент (`catalogShowsHidden`, `.tree-show-hidden`); товары из заявок — `ProductGroupService::productIdsInActiveOrders` (статус `is_enabled` и не `is_list_bottom`, позиция `shipped < quantity` либо внутренний заказ), `markOrderedProducts` (поле `in_order`, поверх кэша), в JS `orderedFirst`; `stocksJson`, `getCoeff`; совпадение — JS `tokenize`/`fuzzyMatch` и его зеркало `Support\ProductSearch` (`tokenize`, `matches`; `LOOKALIKES` — одинаковые в обоих); «Все, где есть» — параметр `searchName` пикера (второй hidden `.product-picker-search-value`, событие `product-picker:search`), на сервере фильтры `*_search` → `ProductSearch::matchIds` / `idsFromRequest`; список товаров в разметке вместо `/api/products/tree` — параметр `products` (`data-products`), для страниц без `use-product-api` (выработка работника) | `ProductController/ProductControllerTest`, `ProductController/ProductAttributesWriteTest` (скрытие из карточки), `tests/Unit/ProductSearchTest`, `ProductSearch/ProductSearchTest` |
 
 Заметки:

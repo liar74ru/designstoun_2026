@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\OrderState;
 use App\Models\Product;
 use App\Models\ProductGroup;
+use App\Support\Uom;
 use Illuminate\Support\Facades\DB;
 
 class ProductGroupService
@@ -110,7 +111,7 @@ class ProductGroupService
                     'ms_id'  => $p->moysklad_id,
                     'label'  => $p->name,
                     'sku'    => $p->sku ?? '',
-                    'unit'   => $p->uom,
+                    'unit'   => Uom::label($p->uom),
                     // Скрытые отдаются вместе со всеми: прячет их пикер, пока не включён «весь каталог»
                     'hidden' => $p->is_hidden,
                 ])

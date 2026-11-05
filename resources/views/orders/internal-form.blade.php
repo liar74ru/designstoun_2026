@@ -205,8 +205,8 @@
 <template id="tplItem">
     @include('partials.product-picker-row', [
         'name' => 'items', 'index' => '__IDX__',
-        'placeholder' => 'Введите название полуфабриката...', 'unit' => 'м²',
-        'dynamicUnit' => true, 'qtyWidth' => '140px', 'qtyMode' => 'simple', 'showRemove' => true,
+        'placeholder' => 'Введите название полуфабриката...',
+        'qtyWidth' => '140px', 'qtyMode' => 'simple', 'showRemove' => true,
     ])
 </template>
 @endsection

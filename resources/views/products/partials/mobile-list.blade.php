@@ -110,7 +110,7 @@
                             </div>
                             <div class="flex-shrink-0">
                                 ${qty > 0
-                                    ? `<span class="badge bg-success">${qtyFmt.format(qty)} ${esc(p.unit || 'шт.')}</span>`
+                                    ? `<span class="badge bg-success">${qtyFmt.format(qty)} ${esc(Uom.label(p.unit))}</span>`
                                     : '<span class="badge bg-danger">Нет</span>'}
                             </div>
                         </div>

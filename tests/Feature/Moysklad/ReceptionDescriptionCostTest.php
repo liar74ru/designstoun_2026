@@ -48,7 +48,7 @@ function receptionDescriptionFor(array $items, ?Department $dept = null): array
     foreach ($items as $row) {
         StoneReceptionItem::create([
             'stone_reception_id' => $reception->id,
-            'product_id'         => Product::factory()->create()->id,
+            'product_id'         => Product::factory()->create(['uom' => $row['uom'] ?? 'м2'])->id,
             'quantity'           => $row['quantity'],
             'worker_cost_per_m2' => $row['worker'],
             'master_cost_per_m2' => $row['master'],
@@ -153,9 +153,10 @@ test('приёмка без позиций не делит на ноль', funct
 
     [, $description] = receptionDescriptionFor([], $dept);
 
+    // Позиций нет — единицу взять неоткуда
     expect($description)
-        ->toContain('Зарплата пильщика (средн.): 0 ₽/м²')
-        ->toContain('Зарплата мастера (средн.): 0 ₽/м²');
+        ->toContain('Зарплата пильщика (средн.): 0 ₽/ед.')
+        ->toContain('Зарплата мастера (средн.): 0 ₽/ед.');
 });
 
 test('приёмка без отдела берёт накладные по цепочке фолбэка', function () {
@@ -187,4 +188,32 @@ test('приёмка без отдела берёт накладные по це
     );
 
     expect($description)->toContain('Накладные расходы отдела: 35 ₽/м²');
+});
+
+test('суммы подписаны единицей продукции приёмки', function () {
+    $dept = Department::create(['name' => 'Резка', 'is_active' => true]);
+
+    [, $description] = receptionDescriptionFor([
+        ['quantity' => 4, 'worker' => 300, 'master' => 100, 'uom' => 'шт'],
+        ['quantity' => 6, 'worker' => 300, 'master' => 100, 'uom' => 'шт'],
+    ], $dept);
+
+    expect($description)
+        ->toContain('Зарплата пильщика (средн.): 300 ₽/шт')
+        ->toContain('Зарплата мастера (средн.): 100 ₽/шт')
+        ->not->toContain('₽/м²');
+});
+
+test('продукция с разными единицами — «₽/ед.»', function () {
+    $dept = Department::create(['name' => 'Резка', 'is_active' => true]);
+
+    [, $description] = receptionDescriptionFor([
+        ['quantity' => 10, 'worker' => 400, 'master' => 100, 'uom' => 'м2'],
+        ['quantity' => 10, 'worker' => 500, 'master' => 200, 'uom' => 'шт'],
+    ], $dept);
+
+    expect($description)
+        ->toContain('Накладные расходы отдела: 0 ₽/ед.')
+        ->toContain('Зарплата пильщика (средн.): 450 ₽/ед.')
+        ->toContain('Зарплата мастера (средн.): 150 ₽/ед.');
 });

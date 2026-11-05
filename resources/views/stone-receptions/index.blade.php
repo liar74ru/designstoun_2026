@@ -95,11 +95,11 @@
                                                 <div class="{{ !$loop->last ? 'mb-1 pb-1 border-bottom' : '' }}">
                                                     <strong>{{ $item->product->name }}</strong><br>
                                                     <small class="text-muted">{{ $item->product->sku }}</small>
-                                                    <span class="badge bg-info ms-1">{{ number_format($item->quantity, 3) }} м²</span>
+                                                    <span class="badge bg-info ms-1">{{ number_format($item->quantity, 3) }} {{ \App\Support\Uom::of($item->product) }}</span>
                                                 </div>
                                             @endforeach
                                         </td>
-                                        <td><span class="badge bg-primary">{{ number_format($reception->total_quantity, 3) }} м²</span></td>
+                                        <td><span class="badge bg-primary">{{ \App\Support\Uom::formatTotals(\App\Support\Uom::itemTotals($reception->items)) }}</span></td>
                                         <td>
                                             @if($reception->rawMaterialBatch)
                                                 @php
@@ -118,7 +118,7 @@
                                                 <span class="text-muted">—</span>
                                             @endif
                                         </td>
-                                        <td><span class="badge bg-warning text-dark">{{ number_format($reception->raw_quantity_used, 3) }} м³</span></td>
+                                        <td><span class="badge bg-warning text-dark">{{ number_format($reception->raw_quantity_used, 3) }} {{ \App\Support\Uom::of($reception->rawMaterialBatch?->product) }}</span></td>
                                         <td>{{ $reception->receiver->name ?? '—' }}</td>
                                         <td>{{ $reception->cutter->name ?? '—' }}</td>
                                         <td>{{ $reception->store->name ?? '—' }}</td>

@@ -5,6 +5,7 @@ namespace App\Services\Moysklad;
 use App\Models\RawMaterialBatch;
 use App\Models\RawMaterialMovement;
 use App\Support\DocumentNaming;
+use App\Support\Uom;
 use Illuminate\Support\Facades\Log;
 
 class RawMaterialBatchSyncService
@@ -63,7 +64,7 @@ class RawMaterialBatchSyncService
             $result = $moveId
                 ? $this->moveService->updateMove($moveId, $this->moveData($batch, $movement) + [
                     'name'        => $name,
-                    'description' => 'Обновлено через систему. Количество: ' . number_format($batch->moveQuantity(), 3) . ' м³',
+                    'description' => 'Обновлено через систему. Количество: ' . trim(number_format($batch->moveQuantity(), 3) . ' ' . Uom::of($batch->product)),
                 ])
                 : $this->createMove($batch, $movement, $externalCode);
 

@@ -223,7 +223,7 @@
                                                 </td>
                                                 <td class="small text-muted">{{ $item->product->sku ?? '—' }}</td>
                                                 <td class="text-end">
-                                                    <span class="badge bg-primary">{{ number_format($item->quantity, 3) }} м²</span>
+                                                    <span class="badge bg-primary">{{ number_format($item->quantity, 3) }} {{ \App\Support\Uom::of($item->product) }}</span>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -232,7 +232,7 @@
                                         <tr>
                                             <th colspan="2" class="small">Итого:</th>
                                             <th class="text-end">
-                                                <span class="badge bg-primary">{{ number_format($supplierOrder->items->sum('quantity'), 3) }} м²</span>
+                                                <span class="badge bg-primary">{{ \App\Support\Uom::formatTotals(\App\Support\Uom::itemTotals($supplierOrder->items)) }}</span>
                                             </th>
                                         </tr>
                                         </tfoot>
@@ -252,7 +252,7 @@
                                             <div class="small fw-semibold text-truncate me-2" style="font-size:.8rem;max-width:70%">
                                                 {{ $item->product->name ?? '—' }}
                                             </div>
-                                            <span class="badge bg-primary" style="font-size:.65rem">{{ number_format($item->quantity, 3) }} м²</span>
+                                            <span class="badge bg-primary" style="font-size:.65rem">{{ number_format($item->quantity, 3) }} {{ \App\Support\Uom::of($item->product) }}</span>
                                         </div>
                                         @if($item->product?->sku)
                                             <div class="text-muted mt-1" style="font-size:.7rem">
@@ -265,7 +265,7 @@
                                 {{-- Итого мобильный --}}
                                 <div class="d-flex justify-content-between align-items-center mt-2 pt-1" style="border-top:1px solid #dee2e6">
                                     <span class="small fw-semibold">Итого:</span>
-                                    <span class="badge bg-primary" style="font-size:.68rem">{{ number_format($supplierOrder->items->sum('quantity'), 3) }} м²</span>
+                                    <span class="badge bg-primary" style="font-size:.68rem">{{ \App\Support\Uom::formatTotals(\App\Support\Uom::itemTotals($supplierOrder->items)) }}</span>
                                 </div>
                             </div>
 

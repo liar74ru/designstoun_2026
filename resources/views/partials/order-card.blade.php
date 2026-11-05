@@ -17,7 +17,7 @@
 @php
     $fmt1  = fn ($v) => number_format((float) $v, 1, '.', '');
     $num   = fn ($v) => rtrim(rtrim(number_format((float) $v, 3, '.', "\u{202F}"), '0'), '.');
-    $uomOf = fn ($r) => strtr((string) ($r['item']->uom_name ?: $r['product']?->uom), ['м2' => 'м²', 'м3' => 'м³']);
+    $uomOf = fn ($r) => \App\Support\Uom::label($r['item']->uom_name ?: $r['product']?->uom);
 
     // Скрытые, но не показанные — о них напоминает строка под позициями.
     $hiddenLeft = ($hiddenCount ?? 0) - $rows->where('hidden', true)->count();

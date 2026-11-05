@@ -14,6 +14,7 @@ use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
 use App\Support\DepartmentSettings;
+use App\Support\Uom;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -266,6 +267,8 @@ class WorkerDashboardService
                     'department'     => $deptId ? $departments->get($deptId) : null,
                     'summary'        => $summary,
                     'totalQuantity'  => $summary->sum('quantity'),
+                    // Для показа: у плитки, штук и погонных метров суммы раздельные
+                    'totalQuantityByUnit' => self::quantityByUnit($summary),
                     'totalPay'       => $summary->sum('pay'),
                     'totalMasterPay' => $summary->sum('masterPay'),
                     // Надбавки больше не рубли, а коэффициенты-правила отдела:
@@ -373,10 +376,12 @@ class WorkerDashboardService
         return [
             'departments'       => $departments,
             'grandQuantity'     => $departments->sum('totalQuantity'),
+            'grandQuantityByUnit' => self::mergeUnitTotals($departments->pluck('totalQuantityByUnit')),
             'grandPay'          => $departments->sum('totalPay'),
             'grandMasterPay'    => $departments->sum('totalMasterPay'),
             'incomingRaw'       => $incomingRaw,
             'incomingRawTotal'  => $incomingRaw->sum('quantity'),
+            'incomingRawByUnit' => Uom::totals($incomingRaw, fn ($row) => $row['quantity'], fn ($row) => $row['uom']),
             'filterDepartments' => $restrictDepartmentIds !== null
                 ? Department::whereIn('id', $restrictDepartmentIds)->orderBy('name')->get()
                 : Department::orderBy('name')->get(),
@@ -396,6 +401,25 @@ class WorkerDashboardService
             'dateFrom'          => $dateFrom,
             'dateTo'            => $dateTo,
         ];
+    }
+
+    /** Суммы строк сводки по единицам товара: ['м²' => 12.5, 'шт' => 3]. */
+    public static function quantityByUnit(iterable $summary): array
+    {
+        return Uom::totals($summary, fn ($row) => $row['quantity'], fn ($row) => $row['product']?->uom);
+    }
+
+    /** Сложение сумм по единицам нескольких отделов. */
+    private static function mergeUnitTotals(iterable $totalsList): array
+    {
+        $merged = [];
+        foreach ($totalsList as $totals) {
+            foreach ($totals ?? [] as $unit => $sum) {
+                $merged[$unit] = ($merged[$unit] ?? 0.0) + $sum;
+            }
+        }
+
+        return $merged;
     }
 
     /**
@@ -434,7 +458,7 @@ class WorkerDashboardService
 
                 return [
                     'product'  => $product,
-                    'uom'      => $product?->uom ?: 'м³',
+                    'uom'      => Uom::of($product),
                     'quantity' => $movements->sum(fn ($m) => $m->movement_type === 'adjust_decrease'
                         ? -(float) $m->quantity
                         : (float) $m->quantity),

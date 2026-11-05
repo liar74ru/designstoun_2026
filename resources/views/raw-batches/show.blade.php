@@ -3,6 +3,7 @@
 @section('title', 'Партия #' . $batch->id)
 
 @section('content')
+    @php $batchUom = \App\Support\Uom::of($batch->product); @endphp
     <div class="container py-4">
         <x-page-header
             title="📄 Партия #{{ $batch->batch_number ?? $batch->id }}"
@@ -42,13 +43,13 @@
                             </tr>
                             <tr>
                                 <th>Количество:</th>
-                                <td>{{ number_format($batch->initial_quantity, 3) }} м²</td>
+                                <td>{{ number_format($batch->initial_quantity, 3) }} {{ $batchUom }}</td>
                             </tr>
                             <tr>
                                 <th>Остаток сырья:</th>
                                 <td>
                                 <span class="badge {{ $batch->remaining_quantity > 0 ? 'bg-primary' : 'bg-secondary' }}">
-                                    {{ number_format($batch->remaining_quantity, 3) }} м²
+                                    {{ number_format($batch->remaining_quantity, 3) }} {{ $batchUom }}
                                 </span>
                                 </td>
                             </tr>
@@ -221,6 +222,7 @@
                 @php
                     $totalQty = $batch->receptions ? $batch->receptions->sum(fn($r) => $r->items->sum('quantity')) : 0;
                     $totalRaw = $batch->receptions ? $batch->receptions->sum('raw_quantity_used') : 0;
+                    $productTotals = \App\Support\Uom::itemTotals($batch->receptions ? $batch->receptions->flatMap->items : []);
                 @endphp
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
@@ -254,17 +256,17 @@
                                                             <a href="{{ route('products.show', $item->product->moysklad_id) }}" class="small">
                                                                 {{ $item->product->name }}
                                                             </a>
-                                                            <span class="text-muted small ms-1">× {{ number_format($item->quantity, 3) }}</span><br>
+                                                            <span class="text-muted small ms-1">× {{ number_format($item->quantity, 3) }} {{ \App\Support\Uom::of($item->product) }}</span><br>
                                                         @endif
                                                     @empty
                                                         <span class="text-muted small">—</span>
                                                     @endforelse
                                                 </td>
                                                 <td class="text-end">
-                                                    <span class="badge bg-primary">{{ number_format($reception->items->sum('quantity'), 3) }} м²</span>
+                                                    <span class="badge bg-primary">{{ \App\Support\Uom::formatTotals(\App\Support\Uom::itemTotals($reception->items)) }}</span>
                                                 </td>
                                                 <td class="text-end">
-                                                    <span class="badge bg-info">{{ number_format($reception->raw_quantity_used, 3) }} м²</span>
+                                                    <span class="badge bg-info">{{ number_format($reception->raw_quantity_used, 3) }} {{ $batchUom }}</span>
                                                 </td>
                                                 <td class="small text-nowrap">{{ $reception->created_at->format('d.m.Y H:i') }}</td>
                                                 <td class="small">{{ $reception->receiver->name ?? '—' }}</td>
@@ -274,8 +276,8 @@
                                         <tfoot class="table-light">
                                         <tr>
                                             <th class="small">Итого:</th>
-                                            <th class="text-end"><span class="badge bg-primary">{{ number_format($totalQty, 3) }} м²</span></th>
-                                            <th class="text-end"><span class="badge bg-info">{{ number_format($totalRaw, 3) }} м²</span></th>
+                                            <th class="text-end"><span class="badge bg-primary">{{ \App\Support\Uom::formatTotals($productTotals) }}</span></th>
+                                            <th class="text-end"><span class="badge bg-info">{{ number_format($totalRaw, 3) }} {{ $batchUom }}</span></th>
                                             <th colspan="2" class="text-muted small fw-normal">
                                                 @if($batch->initial_quantity > 0)
                                                     Выход: {{ number_format(($totalQty / $batch->initial_quantity) * 100, 1) }}%
@@ -318,7 +320,7 @@
                                     <div class="list-group-item">
                                         <div class="d-flex justify-content-between">
                                             <strong>{{ $movement->created_at->format('d.m.Y H:i') }}</strong>
-                                            <span class="badge bg-info">{{ number_format($movement->quantity, 3) }} м²</span>
+                                            <span class="badge bg-info">{{ number_format($movement->quantity, 3) }} {{ $batchUom }}</span>
                                         </div>
                                         <div class="small">
                                             @switch($movement->movement_type)
@@ -346,17 +348,17 @@
                                                 @case('use')
                                                     <i class="bi bi-scissors text-primary"></i>
                                                     Списано при производстве:
-                                                    <strong>{{ $movement->quantity }}</strong> м²
+                                                    <strong>{{ $movement->quantity }}</strong> {{ $batchUom }}
                                                     @break
                                                 @case('adjust_increase')
                                                     <i class="bi bi-plus-circle text-success"></i>
                                                     Корректировка:
-                                                    <strong>+{{ number_format($movement->quantity, 3) }}</strong> м²
+                                                    <strong>+{{ number_format($movement->quantity, 3) }}</strong> {{ $batchUom }}
                                                     @break
                                                 @case('adjust_decrease')
                                                     <i class="bi bi-dash-circle text-danger"></i>
                                                     Корректировка:
-                                                    <strong>−{{ number_format($movement->quantity, 3) }}</strong> м²
+                                                    <strong>−{{ number_format($movement->quantity, 3) }}</strong> {{ $batchUom }}
                                                     @break
                                             @endswitch
                                         </div>

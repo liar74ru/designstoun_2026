@@ -38,13 +38,13 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Количество для передачи (м³) <span class="text-danger">*</span></label>
+                            <label class="form-label fw-semibold">Количество для передачи{{ \App\Support\Uom::of($batch->product) !== '' ? ' (' . \App\Support\Uom::of($batch->product) . ')' : '' }} <span class="text-danger">*</span></label>
                             <input type="number" name="quantity"
                                    class="form-control @error('quantity') is-invalid @enderror"
                                    step="0.001" min="0.001" max="{{ $batch->remaining_quantity }}"
                                    value="{{ old('quantity', rtrim(rtrim(number_format($batch->remaining_quantity, 3, '.', ''), '0'), '.')) }}"
                                    required>
-                            <div class="form-text text-muted">Доступно: {{ rtrim(rtrim(number_format($batch->remaining_quantity, 2), '0'), '.') }} м³</div>
+                            <div class="form-text text-muted">Доступно: {{ rtrim(rtrim(number_format($batch->remaining_quantity, 2), '0'), '.') }} {{ \App\Support\Uom::of($batch->product) }}</div>
                             @error('quantity')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror

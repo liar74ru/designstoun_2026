@@ -182,7 +182,7 @@
                     @php
                         $deptRates = array_filter([
                             $dept['worker'] ? 'пильщика ' . number_format($dept['rates']['piece'], 0, ',', ' ') . ' ₽/ед' : null,
-                            $dept['master'] ? 'база мастера ' . number_format($dept['rates']['base'], 0, ',', ' ') . ' ₽/м²' : null,
+                            $dept['master'] ? 'база мастера ' . number_format($dept['rates']['base'], 0, ',', ' ') . ' ' . \App\Support\Uom::rate() : null,
                         ]);
                         $bothRoles = $dept['worker'] && $dept['master'];
                     @endphp
@@ -202,7 +202,7 @@
                             <div class="px-3 py-1 bg-light border-bottom d-flex justify-content-between align-items-center small">
                                 <span class="fw-semibold"><i class="bi {{ $roleIcon }} me-1"></i>{{ $roleLabel }}</span>
                                 <span class="text-muted">
-                                    <span class="me-2">{{ number_format($dept[$role]['totalQuantity'], 3, ',', ' ') }} м²</span>
+                                    <span class="me-2">{{ \App\Support\Uom::formatTotals($dept[$role]['totalQuantityByUnit']) }}</span>
                                     @if($canSeePay)
                                         <span class="text-success">{{ number_format($dept[$role][$payKey], 0, ',', ' ') }} ₽</span>
                                     @endif

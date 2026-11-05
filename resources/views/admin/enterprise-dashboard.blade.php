@@ -51,8 +51,8 @@
                 <div class="col-12 col-md-4">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body py-2 px-3">
-                            <div class="text-muted small mb-1">Произведено, м²</div>
-                            <div class="fs-4 fw-bold">{{ number_format($grandQuantity, 3, ',', ' ') }}</div>
+                            <div class="text-muted small mb-1">Произведено</div>
+                            <div class="fs-4 fw-bold">{{ \App\Support\Uom::formatTotals($grandQuantityByUnit) }}</div>
                         </div>
                     </div>
                 </div>
@@ -82,7 +82,7 @@
                             <i class="bi bi-building me-1"></i>{{ $dept['department']?->name ?? 'Без отдела' }}
                         </span>
                         <span class="small text-muted">
-                            <span class="me-2">{{ number_format($dept['totalQuantity'], 3, ',', ' ') }} м²</span>
+                            <span class="me-2">{{ \App\Support\Uom::formatTotals($dept['totalQuantityByUnit']) }}</span>
                             <span class="text-primary me-2">пильщики {{ number_format($dept['totalPay'], 0, ',', ' ') }} ₽</span>
                             <span class="text-success">мастера {{ number_format($dept['totalMasterPay'], 0, ',', ' ') }} ₽</span>
                         </span>
@@ -98,7 +98,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th style="border-left:4px solid transparent;padding:.3rem .1rem .3rem .4rem">Плитка</th>
-                                    <th class="text-end text-nowrap" style="padding:.3rem .25rem">м²</th>
+                                    <th class="text-end text-nowrap" style="padding:.3rem .25rem">Кол-во</th>
                                     <th class="text-end text-nowrap" style="padding:.3rem .25rem">Пильщики ₽</th>
                                     <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .25rem">Мастера ₽</th>
                                 </tr>
@@ -124,7 +124,7 @@
                                         ])
                                     </td>
                                     <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem">
-                                        {{ number_format($row['quantity'], 3, ',', ' ') }}
+                                        {{ \App\Support\Uom::format($row['quantity'], $row['product']?->uom) }}
                                     </td>
                                     <td class="text-end text-nowrap text-primary" style="{{ $skuBg }};padding:.3rem .25rem">
                                         {{ number_format($row['pay'], 0, ',', ' ') }}
@@ -139,7 +139,7 @@
                                 <tr>
                                     <th class="fw-bold" style="padding:.3rem .1rem .3rem .4rem">ИТОГО:</th>
                                     <th class="text-end text-nowrap fw-semibold" style="padding:.3rem .25rem">
-                                        {{ number_format($dept['totalQuantity'], 3, ',', ' ') }}
+                                        {{ \App\Support\Uom::formatTotals($dept['totalQuantityByUnit']) }}
                                     </th>
                                     <th class="text-end text-nowrap text-primary" style="padding:.3rem .25rem">
                                         {{ number_format($dept['totalPay'], 0, ',', ' ') }}
@@ -168,7 +168,7 @@
                             <i class="bi bi-box-seam me-1"></i>Входящее сырьё за период
                         </span>
                         <span class="small text-muted">
-                            итого {{ number_format($incomingRawTotal, 3, ',', ' ') }} м³
+                            итого {{ \App\Support\Uom::formatTotals($incomingRawByUnit) }}
                         </span>
                     </div>
                     <div class="table-responsive">
@@ -212,9 +212,9 @@
                             <tfoot class="table-light">
                                 <tr>
                                     <th class="fw-bold" style="padding:.3rem .1rem .3rem .4rem">ИТОГО:</th>
-                                    <th class="text-end text-nowrap text-muted" style="padding:.3rem .25rem">м³</th>
+                                    <th></th>
                                     <th class="text-end text-nowrap fw-semibold" style="padding:.3rem .4rem .3rem .25rem">
-                                        {{ number_format($incomingRawTotal, 3, ',', ' ') }}
+                                        {{ \App\Support\Uom::formatTotals($incomingRawByUnit) }}
                                     </th>
                                 </tr>
                             </tfoot>

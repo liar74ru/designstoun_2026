@@ -246,12 +246,9 @@ function selectProduct(searchInput, hiddenInput, product, row) {
     const searchValue = row?.querySelector('.product-picker-search-value');
     if (searchValue) searchValue.value = '';
 
-    // Подмена единицы измерения на uom товара (только для opt-in строк).
-    // Если у товара нет единицы — оставляем значение из шаблона.
-    if (row?.dataset.dynamicUnit && product.unit) {
-        row.querySelectorAll('.product-picker-unit')
-           .forEach(el => { el.textContent = product.unit; });
-    }
+    // Единица измерения — из карточки выбранного товара (нет единицы → пусто)
+    row?.querySelectorAll('.product-picker-unit')
+       .forEach(el => { el.textContent = window.Uom.label(product.unit); });
 
     document.dispatchEvent(new CustomEvent('product-picker:selected', {
         detail: { row, productId: product.id, unit: product.unit, sku: product.sku }
@@ -412,9 +409,26 @@ async function openTreeModal(btn) {
     if (hiddenCheck) hiddenCheck.onchange = render;
 }
 
+// ─── Единица предзаполненной строки ───────────────────────────────────────────
+// Строку восстановили из old() или заполнили скриптом — единицы в разметке нет.
+// Берём её из карточки товара и сообщаем форме, чтобы пересчитать итоги.
+function fillUnit(row) {
+    const hidden = row.querySelector('input[type="hidden"]');
+    const units  = row.querySelectorAll('.product-picker-unit');
+    if (!hidden?.value || !units.length || [...units].some(el => el.textContent.trim())) return;
+
+    fetchTree().then(tree => {
+        const product = flattenProducts(tree).find(p => String(p.id) === String(hidden.value));
+        if (!product?.unit) return;
+        units.forEach(el => { el.textContent = window.Uom.label(product.unit); });
+        document.dispatchEvent(new CustomEvent('product-picker:unit', { detail: { row } }));
+    }).catch(() => {});
+}
+
 // ─── Инициализация строки ─────────────────────────────────────────────────────
 function initRow(row) {
     initSearch(row);
+    fillUnit(row);
 
     const treeBtn = row.querySelector('.product-picker-tree-btn');
     if (treeBtn) {

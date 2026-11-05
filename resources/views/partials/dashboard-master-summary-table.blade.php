@@ -1,4 +1,4 @@
-{{-- Сводка по продуктам для мастера: $rows, $totalQuantity, $totalMasterPay, $showPay (без денег — только м²) --}}
+{{-- Сводка по продуктам для мастера: $rows, $totalQuantity, $totalMasterPay, $showPay (без денег — только количество). Единицы — из карточек товаров, итог по единицам --}}
 @php $showPay = $showPay ?? true; @endphp
 <table class="table mb-0" style="font-size:.75rem;table-layout:auto">
     <colgroup>
@@ -13,11 +13,11 @@
         <tr>
             <th style="border-left:4px solid transparent;padding:.3rem .1rem .3rem .4rem">Плитка</th>
             @if($showPay)
-                <th class="text-end text-nowrap" style="padding:.3rem .25rem .3rem .1rem">м²</th>
+                <th class="text-end text-nowrap" style="padding:.3rem .25rem .3rem .1rem">Кол-во</th>
                 <th class="text-end text-nowrap" style="padding:.3rem .25rem">Ставка</th>
                 <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .25rem">Сумма</th>
             @else
-                <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .1rem">м²</th>
+                <th class="text-end text-nowrap" style="border-right:4px solid transparent;padding:.3rem .4rem .3rem .1rem">Кол-во</th>
             @endif
         </tr>
     </thead>
@@ -38,17 +38,17 @@
             </td>
             @if($showPay)
                 <td class="text-end text-nowrap" style="{{ $skuBg }};padding:.3rem .25rem .3rem .1rem">
-                    {{ number_format($row['quantity'], 3, ',', ' ') }}
+                    {{ \App\Support\Uom::format($row['quantity'], $row['product']?->uom) }}
                 </td>
                 <td class="text-end text-nowrap text-muted" style="{{ $skuBg }};padding:.3rem .25rem">
-                    {{ number_format($row['masterCost'], 0, ',', ' ') }} ₽
+                    {{ number_format($row['masterCost'], 0, ',', ' ') }} {{ \App\Support\Uom::rate($row['product']?->uom) }}
                 </td>
                 <td class="text-end text-nowrap fw-semibold text-success" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .25rem">
                     {{ number_format($row['masterPay'], 0, ',', ' ') }} ₽
                 </td>
             @else
                 <td class="text-end text-nowrap" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .1rem">
-                    {{ number_format($row['quantity'], 3, ',', ' ') }}
+                    {{ \App\Support\Uom::format($row['quantity'], $row['product']?->uom) }}
                 </td>
             @endif
         </tr>
@@ -58,7 +58,7 @@
         <tr>
             <th class="fw-bold" style="padding:.3rem .1rem .3rem .4rem">ИТОГО:</th>
             <th class="text-end text-nowrap fw-semibold" style="font-size:.9rem;padding:.3rem .25rem">
-                {{ number_format($totalQuantity, 3, ',', ' ') }}
+                {{ \App\Support\Uom::formatTotals(\App\Support\Uom::totals($rows, fn ($r) => $r['quantity'], fn ($r) => $r['product']?->uom)) }}
             </th>
             @if($showPay)
                 <th></th>

@@ -221,7 +221,7 @@
                     <div class="pf-node raw">
                         <div class="pf-head">
                             <span class="pf-title"><span class="pf-step">1</span><i class="bi bi-box"></i> Сырьё <span class="text-danger">*</span></span>
-                            <span class="pf-badge">Итого: <strong id="rawTotalQty">0</strong> <span id="rawTotalQtyUnit">м²</span></span>
+                            <span class="pf-badge">Итого: <strong id="rawTotalQty">0</strong></span>
                         </div>
 
                         <div id="rawContainer"></div>
@@ -405,8 +405,6 @@
         'name'        => 'raw_materials',
         'index'       => '__IDX__',
         'placeholder' => 'Введите название сырья...',
-        'unit'        => 'м²',
-        'dynamicUnit' => true,
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
         'showRemove'  => true,
@@ -418,7 +416,6 @@
         'name'        => 'packages',
         'index'       => '__IDX__',
         'placeholder' => 'Введите вариант упаковки...',
-        'unit'        => 'шт',
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
         'skuPrefix'   => '07-03',
@@ -431,8 +428,6 @@
         'name'        => 'products',
         'index'       => '__IDX__',
         'placeholder' => 'Введите название продукта...',
-        'unit'        => 'шт',
-        'dynamicUnit' => true,
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
         'showRemove'  => true,
@@ -499,7 +494,6 @@
 
     // ── Итоги по блокам ──────────────────────────────────────────────────────
     const rawTotalEl  = document.getElementById('rawTotalQty');
-    const rawUnitEl   = document.getElementById('rawTotalQtyUnit');
     const prodTotalEl = document.getElementById('prodTotalQty');
 
     function sumQty(container) {
@@ -507,18 +501,12 @@
         container.querySelectorAll('.product-picker-qty').forEach(el => sum += parseFloat(el.value) || 0);
         return sum;
     }
+    // Итоги — по единицам товаров строк: «2,00 м² · 5,00 шт»
     function updateTotals() {
-        rawTotalEl.textContent  = sumQty(blocks.raw.container).toFixed(2);
-        prodTotalEl.textContent = sumQty(blocks.product.container).toFixed(2);
+        rawTotalEl.textContent  = Uom.formatTotals(Uom.totalsFromRows(blocks.raw.container), 2);
+        prodTotalEl.textContent = Uom.formatTotals(Uom.totalsFromRows(blocks.product.container), 2);
     }
-
-    // Единица «Итого» сырья — по выбранному товару.
-    document.addEventListener('product-picker:selected', (e) => {
-        const row = e.detail?.row;
-        if (row && blocks.raw.container.contains(row) && rawUnitEl) {
-            rawUnitEl.textContent = e.detail.unit || 'м²';
-        }
-    });
+    document.addEventListener('product-picker:unit', updateTotals);
 
     // ── Автоподсказка затрат (₽/ед продукта) ─────────────────────────────────
     const costInput = document.getElementById('manualProcessingSum');

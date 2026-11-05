@@ -7,6 +7,7 @@ use App\Services\Moysklad\Concerns\HandlesProcessingSync;
 use App\Support\DepartmentSettings;
 use App\Support\DocumentNaming;
 use App\Support\MoyskladMoment;
+use App\Support\Uom;
 use Illuminate\Support\Facades\Log;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
@@ -496,7 +497,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
     /**
      * Расшифровка себестоимости за единицу продукции для примечания техоперации.
      *
-     * Зарплаты — средние за м² по всей приёмке (итог / общее количество),
+     * Зарплаты — средние за единицу по всей приёмке (итог / общее количество),
      * поэтому три строки в сумме дают ровно тот processingSum, который уходит
      * в МойСклад, и его можно проверить глазами.
      */
@@ -517,10 +518,13 @@ class StoneReceptionSyncService extends MoySkladBaseService
         $worker   = $totalQuantity > 0 ? $workerTotal / $totalQuantity : 0.0;
         $master   = $totalQuantity > 0 ? $masterTotal / $totalQuantity : 0.0;
 
+        // Единица — общая у продукции приёмки; разные или не заданы → «₽/ед.»
+        $rate = Uom::rate(Uom::common($reception->items->map(fn ($item) => $item->product?->uom)));
+
         return implode("\n", [
-            'Накладные расходы отдела: ' . $this->formatMoney($overhead) . ' ₽/м²',
-            'Зарплата пильщика (средн.): ' . $this->formatMoney($worker) . ' ₽/м²',
-            'Зарплата мастера (средн.): ' . $this->formatMoney($master) . ' ₽/м²',
+            'Накладные расходы отдела: ' . $this->formatMoney($overhead) . ' ' . $rate,
+            'Зарплата пильщика (средн.): ' . $this->formatMoney($worker) . ' ' . $rate,
+            'Зарплата мастера (средн.): ' . $this->formatMoney($master) . ' ' . $rate,
         ]);
     }
 
