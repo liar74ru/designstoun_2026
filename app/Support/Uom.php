@@ -16,6 +16,9 @@ class Uom
     /** Как МойСклад пишет единицу → как её показываем. */
     private const NORMALIZE = ['м2' => 'м²', 'м3' => 'м³'];
 
+    /** Штучные единицы: нули после запятой не показываем, дробь — если есть. */
+    private const INTEGER_UNITS = ['шт'];
+
     /** Единица для показа; нет единицы → пустая строка (без подстановки по умолчанию). */
     public static function label(?string $uom): string
     {
@@ -63,16 +66,32 @@ class Uom
         return '₽/' . ($unit === '' ? 'ед.' : $unit);
     }
 
-    /** «12,500 м²» — число с единицей; без единицы — только число. */
+    /**
+     * Число без единицы: «12,500» для м²; для штук — «3», а дробь — только
+     * если она есть («2,5»).
+     */
+    public static function number(float|int|string|null $qty, ?string $unit, int $decimals = 3): string
+    {
+        $value = round((float) $qty, $decimals);
+        $text  = number_format($value, $decimals, ',', ' ');
+
+        if ($decimals > 0 && in_array(self::label($unit), self::INTEGER_UNITS, true)) {
+            $text = rtrim(rtrim($text, '0'), ',');
+        }
+
+        return $text;
+    }
+
+    /** «12,500 м²», «3 шт» — число с единицей; без единицы — только число. */
     public static function format(float|int|string|null $qty, ?string $unit, int $decimals = 3): string
     {
-        $number = number_format((float) $qty, $decimals, ',', ' ');
+        $number = self::number($qty, $unit, $decimals);
         $unit   = self::label($unit);
 
         return $unit === '' ? $number : $number . ' ' . $unit;
     }
 
-    /** «12,500 м² · 3,000 шт»; пустой список → «0». */
+    /** «12,500 м² · 3 шт»; пустой список → «0». */
     public static function formatTotals(array $totals, int $decimals = 3): string
     {
         if ($totals === []) {

@@ -760,7 +760,7 @@ test('итоги производства разбиты по единицам �
     // Порядок единиц — порядок строк сводки, он зависит от названий товаров
     $response->assertOk()
         ->assertSee('10,000 м²')
-        ->assertSee('3,000 шт')
+        ->assertSee('3 шт')
         ->assertDontSee('Произведено, м²');
 
     expect(sortedUnits($response->viewData('departments')->first()['totalQuantityByUnit']))

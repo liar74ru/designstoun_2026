@@ -81,7 +81,16 @@ describe('Uom::format() / formatTotals()', function () {
     });
 
     test('итог по нескольким единицам — через «·»', function () {
-        expect(Uom::formatTotals(['м²' => 12.5, 'шт' => 3.0]))->toBe('12,500 м² · 3,000 шт');
+        expect(Uom::formatTotals(['м²' => 12.5, 'шт' => 3.0]))->toBe('12,500 м² · 3 шт');
+    });
+
+    test('штуки — без нулей после запятой, дробь — если есть', function () {
+        expect(Uom::format(3, 'шт'))->toBe('3 шт')
+            ->and(Uom::format(2.5, 'шт'))->toBe('2,5 шт')
+            ->and(Uom::format(1.125, 'шт'))->toBe('1,125 шт')
+            ->and(Uom::format(2.9999999, 'шт'))->toBe('3 шт')
+            ->and(Uom::format(1500, 'шт'))->toBe('1 500 шт')
+            ->and(Uom::number(12.5, 'м²'))->toBe('12,500');
     });
 
     test('пустой итог — ноль', function () {

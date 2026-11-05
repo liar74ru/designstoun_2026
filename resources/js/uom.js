@@ -9,6 +9,9 @@
 
 const NORMALIZE = { 'м2': 'м²', 'м3': 'м³' };
 
+/** Штучные единицы: нули после запятой не показываем, дробь — если есть. */
+const INTEGER_UNITS = ['шт'];
+
 /** Единица для показа; нет единицы → ''. */
 export function label(uom) {
     const s = String(uom ?? '').trim();
@@ -20,20 +23,20 @@ export function rate(unit) {
     return `₽/${label(unit) || 'ед.'}`;
 }
 
-function number(value, decimals) {
+function number(value, decimals, unit = '') {
     return Number(value || 0).toLocaleString('ru-RU', {
-        minimumFractionDigits: decimals,
+        minimumFractionDigits: INTEGER_UNITS.includes(label(unit)) ? 0 : decimals,
         maximumFractionDigits: decimals,
     });
 }
 
-/** «12,500 м²»; без единицы — только число. */
+/** «12,500 м²», «3 шт»; без единицы — только число. Зеркало Uom::format(). */
 export function format(qty, unit, decimals = 3) {
     const u = label(unit);
-    return u ? `${number(qty, decimals)} ${u}` : number(qty, decimals);
+    return u ? `${number(qty, decimals, u)} ${u}` : number(qty, decimals);
 }
 
-/** Map единица → сумма → «12,500 м² · 3,000 шт»; пусто → «0». */
+/** Map единица → сумма → «12,500 м² · 3 шт»; пусто → «0». */
 export function formatTotals(totals, decimals = 3) {
     const entries = totals instanceof Map ? [...totals] : Object.entries(totals ?? {});
     if (!entries.length) return number(0, decimals);

@@ -204,7 +204,7 @@
                                         {{ $row['uom'] }}
                                     </td>
                                     <td class="text-end text-nowrap fw-semibold" style="border-right:4px solid {{ $skuColor }};{{ $skuBg }};padding:.3rem .4rem .3rem .25rem">
-                                        {{ number_format($row['quantity'], 3, ',', ' ') }}
+                                        {{ \App\Support\Uom::number($row['quantity'], $row['uom']) }}
                                     </td>
                                 </tr>
                             @endforeach
