@@ -57,6 +57,17 @@ describe('RawMaterialBatchController create()', function () {
             ->assertStatus(200);
     });
 
+    test('пикер сырья берёт дерево каталога, а не $products формы', function () {
+        H::product(['sku' => '01-01-01']);
+
+        // data-products без sku — фильтр «01-» отсекал всё, поиск работал только с «весь каталог»
+        $this->actingAs(H::adminUser())
+            ->get(route('raw-batches.create'))
+            ->assertStatus(200)
+            ->assertSee('data-sku-prefix="01-"', false)
+            ->assertDontSee('data-products=', false);
+    });
+
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

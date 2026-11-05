@@ -15,7 +15,7 @@
                      'filter[product_search]'. Задан — в выпадашке первым идёт пункт
                      «Все, где есть «…»» (только для фильтров списков; default: null)
       $searchValue — string|null: текущий текст поиска (default: '')
-      $products    — Collection|null: готовый список товаров вместо /api/products/tree — для
+      $pickerProducts — Collection|null: готовый список товаров вместо /api/products/tree — для
                      страниц, где у пользователя нет use-product-api (дашборд работника)
 --}}
 @php
@@ -29,13 +29,14 @@
     $required    = $required ?? false;
     $searchName  = $searchName ?? null;
     $searchValue = $searchName ? ($searchValue ?? '') : '';
-    $products    = $products ?? null;
+    // Не $products: @include видит переменные родителя, а $products отдают формы (весь каталог)
+    $pickerProducts = $pickerProducts ?? null;
 @endphp
 
 <div class="product-picker-row"
      @if($skuPrefix) data-sku-prefix="{{ $skuPrefix }}" @endif
      @if($allowedIds !== null) data-allowed-ids="{{ json_encode(array_values($allowedIds)) }}" @endif
-     @if($products !== null) data-products="{{ $products->map(fn ($p) => ['id' => $p->id, 'label' => $p->name])->values()->toJson() }}" @endif>
+     @if($pickerProducts !== null) data-products="{{ $pickerProducts->map(fn ($p) => ['id' => $p->id, 'label' => $p->name])->values()->toJson() }}" @endif>
     <div class="flex-grow-1 position-relative">
         <div class="input-group input-group-sm">
             <input type="text"

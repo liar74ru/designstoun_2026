@@ -93,7 +93,7 @@
                                     'value'       => $productValue,
                                     'label'       => $productLabel,
                                     'placeholder' => 'Введите название...',
-                                    'products'    => $filterProducts,
+                                    'pickerProducts' => $filterProducts,
                                     'showTree'    => false,
                                     'showClear'   => true,
                                     'searchName'  => 'filter[product_search]',
