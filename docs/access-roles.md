@@ -12,32 +12,48 @@
 Методы модели `User` (`app/Models/User.php`):
 
 ```php
-isAdmin()  // $this->is_admin === true
-isMaster() // $this->worker?->position === 'Мастер'
-isWorker() // position in ['Пильщик', 'Галтовщик']
-isCutter() // $this->worker?->position === 'Пильщик'
+isAdmin()                // $this->is_admin
+isMaster()               // position === 'Мастер'
+isWorker()               // position === 'Работник'
+isLoginBlocked()         // работник в архиве (см. «Вход»)
+accessibleDepartmentIds() // null — админ (все отделы), иначе основной отдел + pivot
+primaryDepartmentId()    // основной отдел — дефолт селектов в формах
 ```
+
+`Worker::POSITIONS` = `['Администратор', 'Мастер', 'Помощник мастера', 'Работник', 'Разнорабочий']`.
+Пользователь без привязанного работника и без `is_admin` видит только главную.
 
 ---
 
 ## Роли и доступ
 
+Что видит каждая роль, задаёт **реестр операций** `config/department_operations.php`, а не код:
+у операции один из флагов видимости.
+
+- `admin_only` — только администратор.
+- `positions_always_visible` — всегда видна перечисленным позициям (например, `worker-dashboard`).
+- `configurable_positions` — администратор включает её позициям по отделам: матрица в `admin/departments/{id}`,
+  таблица `department_operation_settings`.
+
+Проверка — одна точка `App\Support\OperationAccessor::canSee($user, $key)`. Для каждой операции в
+`AppServiceProvider::boot()` есть Gate `see-{key}`: на маршрутах — `->middleware('can:see-<key>')`,
+в шаблонах — `@can('see-<key>')`. Чисто админские разделы — `can:manage-admin`. Эндпоинты для нескольких
+операций сразу — составной Gate (`use-product-api`, `OperationAccessor::canSeeAny()`).
+
 ### Администратор (`is_admin = true`)
-- Полный доступ ко всему
-- Может управлять работниками, товарами, настройками
+- Видит все операции реестра и все отделы
+- Управляет работниками, товарами, настройками, отделами и их правами
 - Может ставить ручные даты в приёмках/партиях
 - Видит дашборд любого работника
 
-### Мастер (`workers.position = 'Мастер'`)
-- Приёмка камня (`stone-receptions.*`)
-- Партии сырья (`raw-batches.*`)
-- Поступления сырья (`supplier-orders.*`)
-- Список работников (только своего отдела, если `department_id` задан)
-- Просмотр дашбордов работников (только своего отдела)
-- Редирект после логина → `stone-receptions.logs`
+### Мастер и помощник мастера
+- Операции — по матрице прав своих отделов (`configurable_positions`)
+- Списки — только своих отделов (`accessibleDepartmentIds()`); чужие записи смотреть можно, менять нельзя
+  (раздел «Отдел»)
+- Мастер видит дашборды работников своего отдела (`WorkerPolicy::viewDashboard`), помощник — нет
 
-### Работник (`workers.position` in `['Работник', 'Разнорабочий']`)
-- Только свой дашборд выработки (`worker.dashboard`)
+### Работник и разнорабочий
+- Свой дашборд выработки (`worker.dashboard`, `positions_always_visible`)
 - Смена пароля (`workers.edit-user`)
 
 ### Стартовая страница
@@ -67,19 +83,15 @@ isCutter() // $this->worker?->position === 'Пильщик'
 
 ## Middleware
 
-Оба middleware применяются **глобально** ко всем авторизованным маршрутам (`bootstrap/app.php`).
+Своих middleware ролей нет (прежние `WorkerOnly` и `MasterOnly` с белым списком маршрутов заменены реестром
+операций и Gate `can:see-<key>`, см. «Роли и доступ»). В `app/Http/Middleware` один класс:
 
-### `WorkerOnly` (`app/Http/Middleware/WorkerOnly.php`)
-- Срабатывает только если `isWorker() === true`
-- Разрешённые маршруты: `worker.dashboard`, `worker.dashboard.by-id`, `workers.edit-user`, `workers.update-user`, `logout`
-- Всё остальное → редирект на `worker.dashboard`
+### `EnsureLoginAllowed`
+- Подключён ко всей группе `web` (`bootstrap/app.php`)
+- Работника перевели в архив, пока он в системе (`User::isLoginBlocked()`) — сессия и «запомнить меня»
+  обрываются, редирект на вход с ошибкой
 
-### `MasterOnly` (`app/Http/Middleware/MasterOnly.php`)
-- Срабатывает только если `isMaster() === true`
-- Белый список `ALLOWED_ROUTES` (~100 маршрутов): приёмки, партии, поступления, AJAX-эндпоинты, дашборды, смена пароля
-- Всё остальное → редирект на `stone-receptions.logs`
-
-**Важно:** при добавлении нового маршрута (включая `/api/*`) — добавь его имя в `ALLOWED_ROUTES` в `MasterOnly.php`.
+**Новый маршрут** — зарегистрируй операцию в реестре и защити `can:see-<key>` (правило — в CLAUDE.md).
 
 ---
 
@@ -88,7 +100,7 @@ isCutter() // $this->worker?->position === 'Пильщик'
 ### Контроллеры
 | Файл | Что проверяет |
 |---|---|
-| `AdminSettingController` | `abort_unless(isAdmin(), 403)` |
+| `AdminSettingController` | маршруты под `can:manage-admin` |
 | `AuthenticatedSessionController` | редирект по роли после логина |
 | `WorkerController` | мастер видит только свой отдел; только admin меняет `is_admin` |
 | `CutterWorkerDashboardController` | admin видит всех; мастер — свой отдел; рабочий — только себя |

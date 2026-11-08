@@ -1,4 +1,3 @@
-import './bootstrap';
 import './escape-html';
 import './form-submit-guard';
 import './filter-memory';

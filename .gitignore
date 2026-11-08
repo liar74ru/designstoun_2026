@@ -24,10 +24,6 @@ Homestead.yaml
 Thumbs.db
 .env.*
 !.env.example
-storage/*.key
-public/storage
-public/hot
-public/build
 storage/logs/*
 storage/logs/laravel.log
 storage/framework/cache/data/
@@ -36,12 +32,9 @@ storage/framework/views/*
 !.gitignore
 npm-debug.log
 yarn-error.log
-CLAUDE.md
 # Внутренний план работ — только локально
 docs/plans/roadmap.md
 coverage-report
-C:*
---cache-result
 .superpowers/
 .agents/
 .claude/

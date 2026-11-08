@@ -102,7 +102,7 @@ COPY --chown=www-data:www-data . .
 COPY --from=vendor   --chown=www-data:www-data /app/vendor        ./vendor
 COPY --from=frontend --chown=www-data:www-data /app/public/build  ./public/build
 
-RUN mkdir -p storage/logs storage/framework/{sessions,views,cache} bootstrap/cache \
+RUN mkdir -p storage/logs storage/framework/sessions storage/framework/views storage/framework/cache bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 

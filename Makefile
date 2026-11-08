@@ -4,7 +4,7 @@
 
 .PHONY: setup install start start-frontend start-queue db migrate seed \
         watch console log test test-pg test-fast test-js test-coverage lint lint-fix stan \
-        ide-helper dump deploy help
+        ide-helper dump help
 
 # ----------------------------------------------------------------
 # Установка проекта (первый запуск)
@@ -193,8 +193,6 @@ ide-helper:
 # ----------------------------------------------------------------
 # Деплой
 # ----------------------------------------------------------------
-deploy:
-	git push heroku
 
 # ----------------------------------------------------------------
 # Помощь

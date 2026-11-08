@@ -8,7 +8,6 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/css/custom.css',
                 'resources/js/app.js',
-                'resources/js/bootstrap.js',
                 'resources/js/dropdown-tree.js',
                 'resources/js/product-picker.js',
                 'resources/js/product-search.js',
