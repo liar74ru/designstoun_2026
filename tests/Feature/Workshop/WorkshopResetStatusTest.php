@@ -45,7 +45,12 @@ test('задача после сброса правит ту же техопер
     // Настоящий syncWorkshop (выбор «создать / обновить»), подменены только запросы в МойСклад
     $stocks = Mockery::mock(StockSyncService::class);
     $stocks->shouldReceive('refreshProducts');
-    $sync = Mockery::mock(WorkshopSyncService::class, [$stocks])->makePartial();
+    // Подменяются только перечисленные методы: makePartial() глушит и методы, абстрактные
+    // в ProcessingSyncService (documentType и т.п.), и они вернули бы null.
+    $sync = Mockery::mock(
+        WorkshopSyncService::class . '[reactivateProcessing,createProcessingForWorkshop,updateProcessingProducts]',
+        [$stocks]
+    );
     $sync->shouldReceive('reactivateProcessing')->once()->with('proc-1')->andReturn(['success' => true, 'message' => '']);
     $sync->shouldNotReceive('createProcessingForWorkshop');
     $sync->shouldReceive('updateProcessingProducts')->once()

@@ -4,27 +4,16 @@ namespace App\Services\Moysklad;
 
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
-use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\Worker;
-use App\Services\Moysklad\Concerns\HandlesProcessingSync;
 use App\Support\DepartmentSettings;
-use App\Support\DocumentNaming;
-use App\Support\MoyskladMoment;
 use App\Support\Uom;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 
-class StoneReceptionSyncService extends MoySkladBaseService
+/** @extends ProcessingSyncService<StoneReception> */
+class StoneReceptionSyncService extends ProcessingSyncService
 {
-    use HandlesProcessingSync;
-
-    public function __construct(
-        private StockSyncService $stockSyncService,
-    ) {
-        parent::__construct();
-    }
-
     /**
      * Накладные расходы на единицу продукции для отдела документа —
      * сумма строк `department_expenses`. Наследования из глобальных настроек
@@ -43,34 +32,15 @@ class StoneReceptionSyncService extends MoySkladBaseService
      */
     public function createProcessingForReception(StoneReception $reception, ?string $customName = null, ?string $description = null): array
     {
-        $reception->loadMissing('rawMaterialBatch.product');
-        $batch            = $reception->rawMaterialBatch;
-        $materialQuantity = (float) $reception->raw_quantity_used;
-
-        $result = [
-            'success'         => false,
-            'processing_id'   => null,
-            'processing_name' => null,
-            'code'            => '',
-            'message'         => '',
-        ];
-
-        try {
-            if (!$this->hasCredentials()) {
-                throw new \Exception('MoySklad токен не установлен');
-            }
-
-            $organizationMeta = $this->getOrganizationMeta();
-            if (!$organizationMeta) {
-                throw new \Exception('Не удалось получить данные организации');
-            }
+        return $this->createProcessing($reception, $customName, $description, function () use ($reception) {
+            $reception->loadMissing('rawMaterialBatch.product', 'items.product');
 
             $storeMeta = $this->getEntityMeta('store', $reception->store_id);
             if (!$storeMeta) {
                 throw new \Exception('Не удалось получить данные склада');
             }
 
-            $rawProduct = $batch->product;
+            $rawProduct = $reception->rawMaterialBatch->product;
             if (!$rawProduct || !$rawProduct->moysklad_id) {
                 throw new \Exception('Товар партии не синхронизирован с МойСклад (нет moysklad_id)');
             }
@@ -79,142 +49,34 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 throw new \Exception('Не удалось получить метаданные сырья из МойСклад');
             }
 
-            $reception->loadMissing('items.product');
-            $productsGrouped = [];
-            $totalQuantity   = 0;
-
-            foreach ($reception->items as $item) {
-                $moyskladId = $this->positionMoyskladId($item->product);
-                if (isset($productsGrouped[$moyskladId])) {
-                    $productsGrouped[$moyskladId]['quantity'] += (float) $item->quantity;
-                } else {
-                    $productsGrouped[$moyskladId] = [
-                        'quantity'   => (float) $item->quantity,
-                        'assortment' => ['meta' => $this->positionMeta($item->product)],
-                    ];
-                }
-                $totalQuantity += (float) $item->quantity;
-            }
-
-            $productsGrouped = array_filter($productsGrouped, fn ($p) => $p['quantity'] > 0);
-
+            $productsGrouped = $this->groupPositions($reception->items);
             if (empty($productsGrouped)) {
                 throw new \Exception('Нет продуктов с moysklad_id для создания техоперации');
             }
 
-            $receptionDate = $reception->created_at ?? now();
-            $weekPrefix = DocumentNaming::weekPrefix('ТО', $receptionDate);
-            $sequence = DocumentNaming::nextSequence(
-                StoneReception::where('moysklad_processing_name', 'like', $weekPrefix . '%')
-                    ->pluck('moysklad_processing_name'),
-                $weekPrefix
-            );
+            $totalQuantity = (float) $reception->items->sum('quantity');
 
-            $name = $customName ?? DocumentNaming::weeklyName('ТО', $sequence, $receptionDate);
-
-            $reception->loadMissing('items.product');
-            $workerSalaryTotal = 0;
-            $masterSalaryTotal = 0;
-            foreach ($reception->items as $item) {
-                $workerSalaryTotal += $item->effectiveProdCost() * (float) $item->quantity;
-                $masterSalaryTotal += (float) ($item->master_cost_per_m2 ?? 0) * (float) $item->quantity;
-            }
-            $totalProcessingSum = $this->calcProcessingSum(
-                $workerSalaryTotal + $masterSalaryTotal
-                    + $this->manualCostPerUnit($reception->effectiveDepartmentId()) * $totalQuantity,
-                $totalQuantity
-            );
-
-            $processingData = [
-                'organization'   => ['meta' => $organizationMeta],
+            return [
                 'productsStore'  => ['meta' => $storeMeta],
                 'materialsStore' => ['meta' => $storeMeta],
-                'processingSum'  => $totalProcessingSum,
+                'processingSum'  => $this->processingSum($reception->items, $totalQuantity, $reception->effectiveDepartmentId()),
                 'products'       => array_values($productsGrouped),
                 'materials'      => [[
-                    'quantity'   => $materialQuantity,
+                    'quantity'   => (float) $reception->raw_quantity_used,
                     'assortment' => ['meta' => $rawProductMeta],
                 ]],
-                'name'           => $name,
-                'externalCode'   => DocumentNaming::externalCode('reception', $reception->id),
                 'quantity'       => $totalQuantity,
-                'moment'         => MoyskladMoment::format($receptionDate),
             ];
-
-            if ($description !== null) {
-                $processingData['description'] = $description;
-            }
-
-            $inWorkName = Setting::get('MOYSKLAD_IN_WORK_STATE', '');
-            if ($inWorkName) {
-                $inWorkHref = $this->getProcessingStateHref($inWorkName);
-                if ($inWorkHref) {
-                    $processingData['state'] = ['meta' => ['href' => $inWorkHref, 'type' => 'state', 'mediaType' => 'application/json']];
-                }
-            }
-
-            $response = null;
-            for ($attempt = 0; $attempt < 10; $attempt++) {
-                $processingData['name'] = $name;
-                $response = $this->post('/entity/processing', $processingData);
-
-                if ($response->successful()) {
-                    break;
-                }
-
-                $errors = $response->json()['errors'] ?? [];
-                if (!DocumentNaming::isDuplicateName($errors)) {
-                    break;
-                }
-
-                $name = DocumentNaming::nextSuffix($name);
-            }
-
-            if (!$response->successful()) {
-                $result['code']    = 'api_error';
-                $result['message'] = 'Ошибка МойСклад: ' . $this->extractApiError($response->json());
-                Log::error('createProcessingForReception: ошибка API', [
-                    'status'       => $response->status(),
-                    'response'     => $response->json(),
-                    'reception_id' => $reception->id,
-                ]);
-
-                return $result;
-            }
-
-            $data = $response->json();
-            $result['success']         = true;
-            $result['processing_id']   = $data['id'] ?? null;
-            $result['processing_name'] = $data['name'] ?? $name;
-            $result['message']         = 'Техоперация создана: ' . ($data['name'] ?? $name);
-
-            Log::info('createProcessingForReception: успешно', [
-                'processing_id'   => $result['processing_id'],
-                'processing_name' => $result['processing_name'],
-                'reception_id'    => $reception->id,
-            ]);
-
-            return $result;
-
-        } catch (\Exception $e) {
-            $result['code']    = 'exception';
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
-            Log::error('createProcessingForReception: исключение', [
-                'reception_id' => $reception->id,
-                'error'        => $e->getMessage(),
-            ]);
-
-            return $result;
-        }
+        });
     }
 
     /**
      * Обновить продукты (и опционально количество материала) в существующей техоперации.
      *
      * @param  string             $processingId       UUID техоперации в МойСклад
-     * @param  Collection  $allItems  StoneReceptionItem со всех приёмок партии
+     * @param  Collection  $allItems  позиции приёмки (StoneReceptionItem)
      * @param  string             $storeId            UUID склада
-     * @param  float|null         $materialQuantity   Новое кол-во сырья (null = не менять материал)
+     * @param  float|null         $materialQuantity   Новое кол-во сырья (null или 0 = не менять материал)
      * @param  string|null        $materialMoyskladId moysklad_id товара-сырья
      * @param  int|null           $departmentId       Отдел документа — источник накладных расходов
      * @return array ['success', 'code', 'message']
@@ -228,74 +90,28 @@ class StoneReceptionSyncService extends MoySkladBaseService
         ?string $description = null,
         ?int $departmentId = null
     ): array {
-        $result = ['success' => false, 'code' => '', 'message' => ''];
-
-        try {
-            if (!$this->hasCredentials()) {
-                throw new \Exception('MoySklad токен не установлен');
-            }
-
+        return $this->updateProcessing($processingId, $description, function () use (
+            $processingId, $allItems, $storeId, $materialQuantity, $materialMoyskladId, $departmentId
+        ) {
             $storeMeta = $this->getEntityMeta('store', $storeId);
             if (!$storeMeta) {
                 throw new \Exception('Не удалось получить данные склада');
             }
 
-            $productsGrouped = [];
-            $totalQuantity   = 0;
-
-            foreach ($allItems as $item) {
-                $moyskladId = $this->positionMoyskladId($item->product);
-                if (isset($productsGrouped[$moyskladId])) {
-                    $productsGrouped[$moyskladId]['quantity'] += (float) $item->quantity;
-                } else {
-                    $productsGrouped[$moyskladId] = [
-                        'quantity'   => (float) $item->quantity,
-                        'assortment' => ['meta' => $this->positionMeta($item->product)],
-                    ];
-                }
-                $totalQuantity += (float) $item->quantity;
-            }
-
-            $productsGrouped = array_filter($productsGrouped, fn ($p) => $p['quantity'] > 0);
-            $totalQuantity   = array_sum(array_column($productsGrouped, 'quantity'));
-
+            $productsGrouped = $this->groupPositions($allItems);
             if (empty($productsGrouped)) {
                 throw new \Exception('Нет продуктов с moysklad_id для обновления техоперации');
             }
 
-            $workerSalaryTotal = 0;
-            $masterSalaryTotal = 0;
-            foreach ($allItems as $item) {
-                $workerSalaryTotal += $item->effectiveProdCost() * (float) $item->quantity;
-                $masterSalaryTotal += (float) ($item->master_cost_per_m2 ?? 0) * (float) $item->quantity;
-            }
-
-            $existingPositionIds = $this->fetchExistingPositionIds($processingId, 'products');
-
-            $products = [];
-            foreach ($productsGrouped as $moyskladId => $product) {
-                $entry = $product;
-                if (isset($existingPositionIds[$moyskladId])) {
-                    $entry['id'] = $existingPositionIds[$moyskladId];
-                }
-                $products[] = $entry;
-            }
+            $totalQuantity = array_sum(array_column($productsGrouped, 'quantity'));
 
             $payload = [
                 'productsStore'  => ['meta' => $storeMeta],
                 'materialsStore' => ['meta' => $storeMeta],
-                'processingSum'  => $this->calcProcessingSum(
-                    $workerSalaryTotal + $masterSalaryTotal
-                        + $totalQuantity * $this->manualCostPerUnit($departmentId),
-                    $totalQuantity
-                ),
-                'products'  => $products,
-                'quantity'  => $totalQuantity,
+                'processingSum'  => $this->processingSum($allItems, $totalQuantity, $departmentId),
+                'products'       => $this->withExistingIds($productsGrouped, $processingId, 'products'),
+                'quantity'       => $totalQuantity,
             ];
-
-            if ($description !== null) {
-                $payload['description'] = $description;
-            }
 
             if ($materialQuantity !== null && $materialQuantity > 0) {
                 if (!$materialMoyskladId) {
@@ -311,36 +127,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
                 ]];
             }
 
-            $response = $this->put('/entity/processing/' . $processingId, $payload);
-
-            if (!$response->successful()) {
-                $result['code']    = 'api_error';
-                $result['message'] = 'Ошибка МойСклад: ' . $this->extractApiError($response->json());
-                Log::error('updateProcessingProducts: ошибка API', [
-                    'processing_id' => $processingId,
-                    'status'        => $response->status(),
-                    'response'      => $response->json(),
-                ]);
-
-                return $result;
-            }
-
-            $result['success'] = true;
-            $result['message'] = 'Техоперация обновлена';
-            Log::info('updateProcessingProducts: успешно', ['processing_id' => $processingId]);
-
-            return $result;
-
-        } catch (\Exception $e) {
-            $result['code']    = 'exception';
-            $result['message'] = 'Ошибка: ' . $e->getMessage();
-            Log::error('updateProcessingProducts: исключение', [
-                'processing_id' => $processingId,
-                'error'         => $e->getMessage(),
-            ]);
-
-            return $result;
-        }
+            return $payload;
+        });
     }
 
     /**
@@ -351,81 +139,7 @@ class StoneReceptionSyncService extends MoySkladBaseService
      */
     public function syncReception(StoneReception $reception, ?string $customName = null, array $alsoRefresh = []): array
     {
-        $this->transientFailure = false;
-
-        $batch = $reception->rawMaterialBatch;
-        if (!$batch) {
-            // Молчать нельзя: приёмка осталась бы с пустым moysklad_sync_status,
-            // а бейдж «Не синхр» в реестре рисуется только при непустом значении.
-            Log::warning('syncReception: у приёмки нет партии сырья', [
-                'reception_id' => $reception->id,
-            ]);
-            $reception->markSyncError('Партия сырья не привязана к приёмке');
-
-            return $this->syncOutcome(false, 'Партия сырья не привязана к приёмке');
-        }
-
-        try {
-            $reception->loadMissing('items.product', 'rawMaterialBatch.product');
-            $description = $this->buildReceptionDescription($reception, $batch);
-
-            if (!$reception->hasMoySkladProcessing()
-                && !$this->adoptExistingProcessing($reception, DocumentNaming::externalCode('reception', $reception->id))) {
-                $message = 'МойСклад не ответил: не удалось проверить, создана ли техоперация';
-                $reception->markSyncError($message);
-
-                return $this->syncOutcome(false, $message);
-            }
-
-            if (!$reception->hasMoySkladProcessing()) {
-                $result = $this->createProcessingForReception($reception, $customName, $description ?: null);
-
-                if ($result['success']) {
-                    $reception->markSynced($result['processing_id'], $result['processing_name']);
-                    $this->refreshAffectedStocks($reception, $alsoRefresh);
-                } else {
-                    $reception->markSyncError($result['message']);
-                    Log::warning('syncReception: не удалось создать техоперацию', [
-                        'reception_id' => $reception->id,
-                        'message'      => $result['message'],
-                    ]);
-                }
-
-                return $this->syncOutcome($result['success'], $result['message'], $result['success']);
-            }
-
-            $result = $this->updateProcessingProducts(
-                $reception->moysklad_processing_id,
-                $reception->items,
-                $reception->store_id ?? '',
-                (float) $reception->raw_quantity_used,
-                $batch->product->moysklad_id ?? '',
-                $description ?: null,
-                $reception->effectiveDepartmentId()
-            );
-
-            if ($result['success']) {
-                $reception->markSynced($reception->moysklad_processing_id);
-                $this->refreshAffectedStocks($reception, $alsoRefresh);
-            } else {
-                $reception->markSyncError($result['message']);
-                Log::warning('syncReception: не удалось обновить техоперацию', [
-                    'reception_id'  => $reception->id,
-                    'processing_id' => $reception->moysklad_processing_id,
-                    'message'       => $result['message'],
-                ]);
-            }
-
-            return $this->syncOutcome($result['success'], $result['message']);
-        } catch (\Exception $e) {
-            Log::error('syncReception: исключение', [
-                'reception_id' => $reception->id,
-                'error'        => $e->getMessage(),
-            ]);
-            $reception->markSyncError('Ошибка: ' . $e->getMessage());
-
-            return $this->syncOutcome(false, 'Ошибка: ' . $e->getMessage());
-        }
+        return $this->sync($reception, $customName, $alsoRefresh);
     }
 
     /**
@@ -435,24 +149,99 @@ class StoneReceptionSyncService extends MoySkladBaseService
      */
     public function pushReception(StoneReception $reception, ?string $customName = null, array $alsoRefresh = []): array
     {
-        return $this->applyDocumentState($reception, $this->syncReception($reception, $customName, $alsoRefresh));
+        return $this->push($reception, $customName, $alsoRefresh);
+    }
+
+    protected function documentType(): string
+    {
+        return 'reception';
+    }
+
+    protected function namePrefix(): string
+    {
+        return 'ТО';
+    }
+
+    protected function relationsForSync(): array
+    {
+        return ['items.product', 'rawMaterialBatch.product'];
+    }
+
+    /** @param  StoneReception  $document */
+    protected function syncPrecheck(Model $document): ?string
+    {
+        return $document->rawMaterialBatch ? null : 'Партия сырья не привязана к приёмке';
+    }
+
+    /** @param  StoneReception  $document */
+    protected function describe(Model $document): string
+    {
+        return $this->buildReceptionDescription($document, $document->rawMaterialBatch);
+    }
+
+    /** @param  StoneReception  $document */
+    protected function createDocument(Model $document, ?string $customName, ?string $description): array
+    {
+        return $this->createProcessingForReception($document, $customName, $description);
+    }
+
+    /** @param  StoneReception  $document */
+    protected function updateDocument(Model $document, ?string $description): array
+    {
+        return $this->updateProcessingProducts(
+            $document->moysklad_processing_id,
+            $document->items,
+            $document->store_id ?? '',
+            (float) $document->raw_quantity_used,
+            $document->rawMaterialBatch->product->moysklad_id ?? '',
+            $description,
+            $document->effectiveDepartmentId()
+        );
     }
 
     /**
-     * Подтянуть из МойСклад актуальные остатки товаров, затронутых приёмкой:
-     * сырьё партии + вся готовая продукция + $alsoRefresh (товары «до правки»:
-     * убранные позиции и сырьё прежней партии). Вызывается только после успешной
-     * техоперации; ошибки логирует StockSyncService::refreshProducts().
+     * Сырьё партии + вся готовая продукция. Товары «до правки» (убранные позиции,
+     * сырьё прежней партии) приходят в sync() через $alsoRefresh.
+     *
+     * @param  StoneReception  $document
      */
-    private function refreshAffectedStocks(StoneReception $reception, array $alsoRefresh = []): void
+    protected function affectedMoyskladIds(Model $document): iterable
     {
-        $ids = collect($alsoRefresh);
-        $ids->push($reception->rawMaterialBatch?->product?->moysklad_id);
-        foreach ($reception->items as $item) {
-            $ids->push($item->product?->moysklad_id);
+        return collect([$document->rawMaterialBatch?->product?->moysklad_id])
+            ->merge($document->items->map(fn ($item) => $item->product?->moysklad_id));
+    }
+
+    /**
+     * processingSum за единицу: зарплаты пильщика и мастера по позициям + накладные отдела.
+     *
+     * @param  iterable  $items  StoneReceptionItem
+     */
+    private function processingSum(iterable $items, float $totalQuantity, ?int $departmentId): int
+    {
+        [$workerTotal, $masterTotal] = $this->salaryTotals($items);
+
+        return $this->calcProcessingSum(
+            $workerTotal + $masterTotal + $this->manualCostPerUnit($departmentId) * $totalQuantity,
+            $totalQuantity
+        );
+    }
+
+    /**
+     * Итоги зарплат пильщика и мастера по позициям: ставка × количество.
+     *
+     * @param  iterable  $items  StoneReceptionItem
+     * @return array{0: float, 1: float}
+     */
+    private function salaryTotals(iterable $items): array
+    {
+        $worker = 0.0;
+        $master = 0.0;
+        foreach ($items as $item) {
+            $worker += $item->effectiveProdCost() * (float) $item->quantity;
+            $master += (float) ($item->master_cost_per_m2 ?? 0) * (float) $item->quantity;
         }
 
-        $this->stockSyncService->refreshProducts($ids);
+        return [$worker, $master];
     }
 
     private function buildReceptionDescription(StoneReception $reception, RawMaterialBatch $batch): string
@@ -512,13 +301,8 @@ class StoneReceptionSyncService extends MoySkladBaseService
         $reception->loadMissing('items.product');
 
         $totalQuantity = (float) $reception->items->sum('quantity');
-        $workerTotal   = 0.0;
-        $masterTotal   = 0.0;
 
-        foreach ($reception->items as $item) {
-            $workerTotal += $item->effectiveProdCost() * (float) $item->quantity;
-            $masterTotal += (float) ($item->master_cost_per_m2 ?? 0) * (float) $item->quantity;
-        }
+        [$workerTotal, $masterTotal] = $this->salaryTotals($reception->items);
 
         $overhead = $this->manualCostPerUnit($reception->effectiveDepartmentId());
         $worker   = $totalQuantity > 0 ? $workerTotal / $totalQuantity : 0.0;
@@ -538,17 +322,5 @@ class StoneReceptionSyncService extends MoySkladBaseService
     private function formatMoney(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2, '.', ' '), '0'), '.');
-    }
-
-    /**
-     * Получить информацию о техоперации
-     */
-    public function getProcessing($processingId)
-    {
-        if (!$this->hasCredentials()) {
-            return null;
-        }
-
-        return $this->get('/entity/processing/' . $processingId);
     }
 }

@@ -156,6 +156,13 @@ POST не отправляется. Вне прода код получает п
 `markSyncError` и возвращают `['success', 'message', 'retryable', 'created']`. Вызывает их задача
 очереди, а не сервис документа.
 
+Оба — обёртки над `ProcessingSyncService::sync()` / `push()` (абстрактная база `StoneReceptionSyncService`
+и `WorkshopSyncService`). В базе — только то, что зависит от МойСклад и этого порядка: поиск по `externalCode`,
+POST с повтором при занятом имени (`createProcessing`), PUT (`updateProcessing`), имя по неделе, статус «в работе»,
+группировка позиций (`groupPositions`), id существующих позиций (`withExistingIds`), остатки после отправки.
+**Состав документа** — склады, продукты, материалы, processingSum, примечание — строит подкласс замыканием
+`$buildPayload`: он зависит от модели, у приёмки и цеха разный и пока не объединяется (модели ещё меняются).
+
 ### description техоперации
 
 `buildReceptionDescription()` формирует поле `description` из логов приёмки: дата, получатель, дельты по товарам (со знаком + / −), пометка `(подкол)`. Передаётся при создании и каждом обновлении техоперации.
@@ -208,7 +215,7 @@ POST не отправляется. Вне прода код получает п
 
 ## Trait `HandlesProcessingSync` для sync-сервисов техопераций
 
-Сервисы, работающие с техоперациями МойСклад (`WorkshopSyncService`, `StoneReceptionSyncService`), используют общий трейт `App\Services\Moysklad\Concerns\HandlesProcessingSync`. Он наследуется поверх `MoySkladBaseService` и предоставляет:
+Сервисы, работающие с техоперациями МойСклад (`ProcessingSyncService` — база приёмки и цеха, `ProcessingDeleteService`), используют общий трейт `App\Services\Moysklad\Concerns\HandlesProcessingSync`. Он наследуется поверх `MoySkladBaseService` и предоставляет:
 
 | Метод | Назначение |
 |---|---|

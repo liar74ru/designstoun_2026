@@ -4,7 +4,8 @@ namespace App\Services\Moysklad\Concerns;
 
 use App\Models\Product;
 use App\Models\Setting;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\StoneReception;
+use App\Models\Workshop;
 use Illuminate\Support\Facades\Log;
 
 trait HandlesProcessingSync
@@ -208,7 +209,7 @@ trait HandlesProcessingSync
      *
      * @return bool false — проверить не удалось, POST делать нельзя.
      */
-    protected function adoptExistingProcessing(Model $document, string $externalCode): bool
+    protected function adoptExistingProcessing(StoneReception|Workshop $document, string $externalCode): bool
     {
         if (!$this->hasCredentials()) {
             return true; // Об отсутствии токена сообщит создание техоперации
@@ -253,7 +254,7 @@ trait HandlesProcessingSync
      * поэтому порядок «завершили → сбросили» не важен. После неудачного обновления статус не
      * трогаем: смена статуса прошла бы и с непроехавшими позициями, а markSynced() затёр бы ошибку.
      */
-    protected function applyDocumentState(Model $document, array $outcome): array
+    protected function applyDocumentState(StoneReception|Workshop $document, array $outcome): array
     {
         if (!$outcome['success']) {
             return $outcome;
