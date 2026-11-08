@@ -185,6 +185,10 @@
                                             <i class="bi bi-lock me-1"></i> Партия передана другому пильщику — изменение расхода недоступно.
                                         </div>
                                     @else
+                                        @php
+                                            // Итог расхода проверяется сервером как raw_quantity_used — ошибку показываем у поля «Изменение»
+                                            $rawError = $errors->first('raw_quantity_delta') ?: $errors->first('raw_quantity_used');
+                                        @endphp
                                         {{-- Десктоп --}}
                                         <div class="d-none d-sm-block">
                                             <label class="form-label small mb-1">
@@ -194,7 +198,7 @@
                                                 <input type="number"
                                                        name="raw_quantity_delta"
                                                        id="raw_quantity_delta"
-                                                       class="form-control form-control-sm @error('raw_quantity_delta') is-invalid @enderror"
+                                                       class="form-control form-control-sm {{ $rawError ? 'is-invalid' : '' }}"
                                                        style="width:110px"
                                                        step="0.001"
                                                        placeholder="0.000"
@@ -207,7 +211,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            @error('raw_quantity_delta')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                                            @if($rawError)<div class="invalid-feedback d-block">{{ $rawError }}</div>@endif
                                             <small class="d-block mt-1" style="font-size:.72rem">
                                                 <span id="raw_info_before" class="text-muted"></span><span id="raw_info_sep" class="fw-bold text-dark" style="display:none"> | </span><span id="raw_info_after" class="text-info"></span>
                                             </small>
@@ -222,7 +226,7 @@
                                                 <input type="number"
                                                        name="raw_quantity_delta"
                                                        id="raw_quantity_delta_mobile"
-                                                       class="form-control form-control-sm flex-fill"
+                                                       class="form-control form-control-sm flex-fill {{ $rawError ? 'is-invalid' : '' }}"
                                                        step="0.001"
                                                        placeholder="0.000"
                                                        value="{{ old('raw_quantity_delta', $rawRemaining) }}"
@@ -235,6 +239,7 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @if($rawError)<div class="invalid-feedback d-block">{{ $rawError }}</div>@endif
                                             <small class="d-block mt-1" style="font-size:.7rem">
                                                 <span id="raw_info_before_mobile" class="text-muted"></span><span id="raw_info_sep_mobile" class="fw-bold text-dark" style="display:none"> | </span><span id="raw_info_after_mobile" class="text-info"></span>
                                             </small>

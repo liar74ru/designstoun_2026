@@ -1,9 +1,11 @@
 <?php
 
+use App\Jobs\SyncReceptionToMoysklad;
 use App\Models\Department;
 use App\Models\ReceptionLog;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
+use Illuminate\Support\Facades\Queue;
 use Tests\Helpers\ReceptionTestHelper as H;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -272,6 +274,35 @@ describe('Редактирование приёмки [update()]', function () {
         expect($reception->fresh()->raw_material_batch_id)->toBe($batch->id);
         expect((float) $scarce->fresh()->remaining_quantity)->toBe(1.0);
         expect((float) $batch->fresh()->remaining_quantity)->toBe(45.0);
+    });
+
+    // При расходе 0 техоперация уходит без материалов, и в МойСклад остаётся старое сырьё,
+    // хотя у нас оно вернулось в партию.
+    test('весь расход сырья убрать нельзя: ошибка у поля, ничего не меняется', function () {
+        Queue::fake();
+
+        $receiver  = H::worker();
+        $cutter    = H::cutter();
+        $store     = H::store();
+        $product   = H::product();
+        $batch     = H::batch(H::product(), $store, $cutter, 50.0);
+        $reception = H::reception($batch, $receiver, $cutter, $store, 5.0);
+        $reception->items()->create(['product_id' => $product->id, 'quantity' => 2.0]);
+
+        $this->actingAs(H::adminUser())->put(route('stone-receptions.update', $reception), [
+            'receiver_id'           => $receiver->id,
+            'cutter_id'             => $cutter->id,
+            'store_id'              => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_delta'    => -5.0,
+            'products'              => [
+                ['product_id' => $product->id, 'quantity' => 2.0],
+            ],
+        ])->assertSessionHasErrors('raw_quantity_used');
+
+        expect((float) $reception->fresh()->raw_quantity_used)->toBe(5.0)
+            ->and((float) $batch->fresh()->remaining_quantity)->toBe(45.0);
+        Queue::assertNotPushed(SyncReceptionToMoysklad::class);
     });
 });
 

@@ -41,7 +41,7 @@ class UpdateStoneReceptionRequest extends FormRequest
                 'exists:raw_material_batches,id',
                 new ModifiableBatch($this->user(), (int) $this->route('stone_reception')->raw_material_batch_id ?: null),
             ],
-            'raw_quantity_used'      => 'required|numeric|min:0',
+            'raw_quantity_used'      => 'required|numeric|min:0.001',
             'notes'                  => 'nullable|string',
             'manual_created_at'      => 'nullable|date',
             'products'               => 'required|array|min:1',
@@ -58,6 +58,8 @@ class UpdateStoneReceptionRequest extends FormRequest
             'receiver_id.required'           => 'Выберите приемщика',
             'raw_material_batch_id.required'  => 'Выберите партию сырья',
             'raw_quantity_used.required'      => 'Укажите расход сырья',
+            // Расход 0 не дошёл бы до МойСклад: техоперация осталась бы со старым сырьём
+            'raw_quantity_used.min'           => 'Расход сырья должен быть больше нуля. Чтобы убрать приёмку, удалите её',
             'products.required'              => 'Добавьте хотя бы один продукт',
             'products.*.product_id.required' => 'Выберите продукт',
             'products.*.quantity.required'   => 'Укажите количество',

@@ -82,7 +82,8 @@
 - **Продукция**: у каждой строки видно «текущее + добавка = итог». Добавка может быть с минусом.
   Итог 0 — позиция уходит из приёмки. Новые товары добавляются кнопкой «Добавить продукт».
 - **Расход сырья**: поле «Изменение (<единица сырья>, можно «−»)». По умолчанию в нём **весь остаток партии** —
-  если сырьё ещё не кончилось, исправьте число. Итоговый расход не может быть отрицательным.
+  если сырьё ещё не кончилось, исправьте число. Итоговый расход должен быть больше нуля: убрать
+  весь расход нельзя — такую приёмку удалите.
 - Если партию передали другому пильщику, расход поменять нельзя — поле закрыто замком.
 - Можно выбрать другую партию: сырьё вернётся в старую и спишется из новой (если в ней хватает).
 - Каждое сохранение пишет в **«Журнал изменений»** запись с разницей «было → стало».
@@ -170,7 +171,7 @@
 | 2. Партия | `StoneReceptionService::create`, `RawMaterialBatchService::split`, `StoneReceptionService::consumeRaw` | `StoneReceptionServiceTest`, `ReceptionStatusCascadeTest`, `ReceptionCreateSplitTest` |
 | 3. Отдел | `StoneReceptionService::resolveDepartmentId`, `updateDepartment`; `StoneReception::effectiveDepartmentChain` | `ReceptionDepartmentChangeTest` |
 | 4. Статусы | `StoneReceptionService::markCompleted`, `closeBatch`, `resetStatus`; `RawMaterialBatchService::markAsUsed` / `markAsInWork` | `ReceptionActionsTest`, `ReceptionStatusCascadeTest`, `StoneReceptionServiceTest` |
-| 5. Правка | `StoneReceptionService::update`, `updateReceptionItems`, `writeReceptionLog`, `updateLogReceiver`; `HandlesBatchStock::handleBatchChanges` | `StoneReceptionTest`, `ReceptionLogTest`, `ReceptionLogReceiverTest` |
+| 5. Правка | `StoneReceptionService::update`, `updateReceptionItems`, `writeReceptionLog`, `updateLogReceiver`; `HandlesBatchStock::handleBatchChanges`; расход > 0 — `UpdateStoneReceptionRequest` (`min:0.001`: при 0 `updateProcessingProducts` не шлёт материалы, в МойСклад осталось бы старое сырьё) | `StoneReceptionTest`, `ReceptionLogTest`, `ReceptionLogReceiverTest` |
 | 6. Коэффициенты | `ProductionDocumentService::updateItemCoeff`, `refreshItemCoeffs`, `createCostedItem` (общие с цехом; приёмка — `batchSku`, `afterCoeffsChanged` → `processing_sum` партии); `Http\Requests\UpdateItemCoeffsRequest`; `Support\ItemCost`; снятые sku-правила — `stone_reception_items.disabled_modifier_keys`, `ModifierEngine::disabledSkuKeys` | `ReceptionActionsTest`, `ReceptionExtraActionsTest`, `StoneReceptionEdgingFlowTest`, `EdgingCoeffTest`, `Modifier/DisabledSkuModifierTest`, `Access/RecordDepartmentAccessTest` |
 | 9. Список: поиск по части названия | `StoneReceptionService::getFilteredReceptions`, `getFilteredLogs`, `getBatchesWithoutReceptions` (фильтры `raw_product_search`, `product_search`); `Support\ProductSearch`; пикер — `searchName` в `partials/product-picker`, JS `product-picker.js` | `ReceptionIndexProductSearchTest`, `tests/Unit/ProductSearchTest`, `tests/Feature/ProductSearch/ProductSearchTest` |
 | 7. МойСклад | `StoneReceptionService::queueSync`; `Jobs\SyncReceptionToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\StoneReceptionSyncService::pushReception`, `syncReception`, `createProcessingForReception`, `updateProcessingProducts`, `buildReceptionDescription`, `buildCostSummary`; `DocumentNaming` | `ReceptionExtraActionsTest`, `tests/Feature/Moysklad/ProcessingSyncJobTest`, `StoneReceptionSyncServiceTest`, `StoneReceptionProcessingUpdateTest`, `ReceptionDescriptionCostTest` |
