@@ -3,7 +3,7 @@
 # ================================================================
 
 .PHONY: setup install start start-frontend start-queue db migrate seed \
-        watch console log test test-pg test-fast test-coverage lint lint-fix stan \
+        watch console log test test-pg test-fast test-js test-coverage lint lint-fix stan \
         ide-helper dump deploy help
 
 # ----------------------------------------------------------------
@@ -162,6 +162,10 @@ test-pg: test
 test-fast:
 	DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test --parallel
 
+# JS-тесты (Vitest, tests/js): превью формул по общей фикстуре с Pest
+test-js:
+	npm test
+
 test-coverage:
 	XDEBUG_MODE=coverage php artisan test --coverage-html coverage-report
 
@@ -214,6 +218,7 @@ help:
 	@echo "  make console        — открыть tinker"
 	@echo "  make test           — тесты на PostgreSQL (БД designstoun_test)"
 	@echo "  make test-fast      — быстрые тесты на SQLite (перед коммитом — make test)"
+	@echo "  make test-js        — JS-тесты (Vitest)"
 	@echo "  make lint           — проверка стиля (Pint)"
 	@echo "  make lint-fix       — исправить стиль (Pint)"
 	@echo "  make stan           — статический анализ (larastan)"

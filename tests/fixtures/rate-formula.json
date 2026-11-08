@@ -1,0 +1,153 @@
+{
+    "_comment": [
+        "Общие примеры расчёта себестоимости для PHP и JS (A6).",
+        "Сервер считает через App\\Support\\RateFormula и ModifierEngine, превью в формах —",
+        "через resources/js/rate-formula.js. Оба файла проверяются по этим примерам:",
+        "tests/Feature/Modifier/RateFormulaFixtureTest.php и tests/js/rate-formula.test.js.",
+        "Меняешь правило расчёта — меняй пример здесь: упадёт та копия, которую забыли поправить.",
+        "Правила — в том виде, в каком их отдаёт partials/production-rates-js.blade.php; порядок — порядок id."
+    ],
+
+    "coeffShare": 0.17,
+
+    "stepped": [
+        { "name": "коэффициент 0 — базовая ставка", "rate": 100, "coeff": 0, "step": 10, "expected": 100 },
+        { "name": "117 вниз до десятков", "rate": 100, "coeff": 1, "step": 10, "expected": 110 },
+        { "name": "456,3 вниз до десятков", "rate": 390, "coeff": 1, "step": 10, "expected": 450 },
+        { "name": "мелкая плитка: коэффициент 3", "rate": 100, "coeff": 3, "step": 10, "expected": 150 },
+        { "name": "дробный коэффициент", "rate": 390, "coeff": 1.75, "step": 10, "expected": 500 },
+        { "name": "отрицательный коэффициент", "rate": 390, "coeff": -2.5, "step": 10, "expected": 220 },
+        { "name": "шаг 1", "rate": 100, "coeff": 1, "step": 1, "expected": 117 },
+        { "name": "шаг 5", "rate": 100, "coeff": 1, "step": 5, "expected": 115 },
+        { "name": "эпсилон: 146,99999… при шаге 1 — это 147", "rate": 300, "coeff": -3, "step": 1, "expected": 147 },
+        { "name": "эпсилон: 252,99999… при шаге 1 — это 253", "rate": 440, "coeff": -2.5, "step": 1, "expected": 253 },
+        { "name": "ставка ниже нуля округляется вниз", "rate": 200, "coeff": -6, "step": 10, "expected": -10 }
+    ],
+
+    "formatCoeff": [
+        { "value": 1.75, "expected": "1.75" },
+        { "value": 2.5, "expected": "2.5" },
+        { "value": 2, "expected": "2" },
+        { "value": -0.75, "expected": "-0.75" },
+        { "value": -5.2, "expected": "-5.2" },
+        { "value": 0, "expected": "0" },
+        { "value": null, "expected": "0" },
+        { "value": "1.7500", "expected": "1.75" },
+        { "value": 1.75000001, "expected": "1.75" },
+        { "value": 0.12345, "expected": "0.1235" },
+        { "value": -0.00004, "expected": "0" },
+        { "value": 100, "expected": "100" }
+    ],
+
+    "matchesPattern": [
+        { "value": "04-07-20", "pattern": "04-07-*", "expected": true },
+        { "value": "04-07-20", "pattern": "04-07-20", "expected": true },
+        { "value": "04-08-20", "pattern": "04-07-*", "expected": false },
+        { "value": "04-07", "pattern": "04-07-*", "expected": false },
+        { "value": "04-07-20-5", "pattern": "04-07-*", "expected": true },
+        { "value": "01-02-30", "pattern": "*-*-30", "expected": true },
+        { "value": "01-02-31", "pattern": "*-*-30", "expected": false },
+        { "value": null, "pattern": "04-*", "expected": false },
+        { "value": "04-07-20", "pattern": null, "expected": false },
+        { "value": "", "pattern": "*", "expected": false }
+    ],
+
+    "rules": [
+        {
+            "key": "mask_tile", "name": "Плитка-маска", "trigger": "sku",
+            "sku_pattern": "04-07-*", "available_when_batch_sku": null, "applies_to": "both",
+            "worker_coeff_delta": 2, "master_coeff_delta": null
+        },
+        {
+            "key": "undercut", "name": "Подкол", "trigger": "manual",
+            "sku_pattern": null, "available_when_batch_sku": null, "applies_to": "both",
+            "worker_coeff_delta": -1.5, "master_coeff_delta": -0.75
+        },
+        {
+            "key": "trim", "name": "Торцовка", "trigger": "manual",
+            "sku_pattern": null, "available_when_batch_sku": "*-*-30", "applies_to": "reception",
+            "worker_coeff_delta": 0.25, "master_coeff_delta": 1.75
+        },
+        {
+            "key": "small", "name": "Мелкая плитка", "trigger": "sku",
+            "sku_pattern": "*-*-10", "available_when_batch_sku": null, "applies_to": "workshop",
+            "worker_coeff_delta": 0.5, "master_coeff_delta": null
+        }
+    ],
+
+    "resolve": [
+        {
+            "name": "sku-правило срабатывает по маске",
+            "scope": "reception", "sku": "04-07-20",
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": ["mask_tile"], "workerCoeff": 3, "masterCoeff": 0 }
+        },
+        {
+            "name": "снятое у позиции sku-правило не срабатывает",
+            "scope": "reception", "sku": "04-07-20", "disabledKeys": ["mask_tile"],
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": [], "workerCoeff": 1, "masterCoeff": 0 }
+        },
+        {
+            "name": "ручное и sku-правило складываются",
+            "scope": "reception", "sku": "04-07-20", "manualKeys": ["undercut"],
+            "baseCoeff": 1, "masterBaseCoeff": 0.5,
+            "expected": { "keys": ["mask_tile", "undercut"], "workerCoeff": 1.5, "masterCoeff": -0.25 }
+        },
+        {
+            "name": "ручное правило недоступно при чужой партии",
+            "scope": "reception", "sku": "01-01-20", "manualKeys": ["trim"], "batchSku": "01-01-20",
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": [], "workerCoeff": 1, "masterCoeff": 0 }
+        },
+        {
+            "name": "ручное правило доступно при подходящей партии",
+            "scope": "reception", "sku": "01-01-20", "manualKeys": ["trim"], "batchSku": "01-01-30",
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": ["trim"], "workerCoeff": 1.25, "masterCoeff": 1.75 }
+        },
+        {
+            "name": "партия неизвестна — условие доступности не мешает",
+            "scope": "reception", "sku": "01-01-20", "manualKeys": ["trim"],
+            "baseCoeff": 0, "masterBaseCoeff": 0,
+            "expected": { "keys": ["trim"], "workerCoeff": 0.25, "masterCoeff": 1.75 }
+        },
+        {
+            "name": "правило приёмки в цехе не действует",
+            "scope": "workshop", "sku": "01-01-20", "manualKeys": ["trim"],
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": [], "workerCoeff": 1, "masterCoeff": 0 }
+        },
+        {
+            "name": "правило цеха срабатывает в цехе",
+            "scope": "workshop", "sku": "01-02-10",
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": ["small"], "workerCoeff": 1.5, "masterCoeff": 0 }
+        },
+        {
+            "name": "правило цеха в приёмке не действует",
+            "scope": "reception", "sku": "01-02-10",
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": [], "workerCoeff": 1, "masterCoeff": 0 }
+        },
+        {
+            "name": "ключ sku-правила в ручных не включает его без совпадения SKU",
+            "scope": "reception", "sku": "01-01-20", "manualKeys": ["mask_tile", "unknown"],
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": [], "workerCoeff": 1, "masterCoeff": 0 }
+        },
+        {
+            "name": "все правила цеха разом",
+            "scope": "workshop", "sku": "04-07-10", "manualKeys": ["undercut"],
+            "baseCoeff": 2, "masterBaseCoeff": 1,
+            "expected": { "keys": ["mask_tile", "undercut", "small"], "workerCoeff": 3, "masterCoeff": 0.25 }
+        },
+        {
+            "name": "отдел не задан — правил нет",
+            "noDepartment": true,
+            "scope": "reception", "sku": "04-07-20", "manualKeys": ["undercut"],
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": [], "workerCoeff": 1, "masterCoeff": 0 }
+        }
+    ]
+}

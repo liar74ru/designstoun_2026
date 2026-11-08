@@ -87,6 +87,10 @@ jobs:
 
       - run: npm ci && npm run build
 
+      # Превью формул в JS по той же фикстуре, что и Pest (tests/fixtures/rate-formula.json)
+      - name: Vitest
+        run: npm test
+
       - name: Окружение
         run: |
           cp .env.example .env

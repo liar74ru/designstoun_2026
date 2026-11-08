@@ -225,8 +225,8 @@
 |---|---|---|
 | 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`; фильтр продукта — `Support\ProductSearch::idsFromRequest`, в `getDashboardData` — `$productIds`, `filteredTotalPay`, `filterProducts`; пикер со списком в разметке — `products` у `partials/product-picker`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange` (`fridayShowsPrevious`), `SalaryService::expectedPay`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `WorkerDashboardProductFilterTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
 | 2. За что начисляется | `WorkerDashboardService::getDashboardData`, `masterReceptionLogs`, `buildProductSummary`, `buildWorkshopProductSummary`; минус за правку — `StoneReceptionService::minusShares`, `reception_log_items.charged_worker_id` | `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `tests/Feature/StoneReception/ReceptionLogTest`, `tests/Feature/StoneReception/ReceptionLogReceiverTest` |
-| 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `pieceRoundStep`, `masterRoundStep`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest` |
-| 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest` |
+| 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `pieceRoundStep`, `masterRoundStep`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest`, `RateFormulaFixtureTest` + `tests/js/rate-formula.test.js` |
+| 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest`, `RateFormulaFixtureTest` + `tests/js/rate-formula.test.js` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `ProductionDocumentService::updateItemCoeff` / `refreshItemCoeffs` / `createCostedItem` (одни для приёмки и цеха) | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
 | 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `updateLastPayout`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank`; запрет удаления — `WorkerService::delete` (`HISTORY_REFERENCES`) | `tests/Feature/Worker/SalaryPayoutTest`, `SalaryHideBalanceTest`, `WorkerControllerTest` |
 | 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `hasOutput`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
@@ -243,7 +243,10 @@
 - «Мастер» в `WorkerPolicy::viewDashboard` — только `position = Мастер` (`User::isMaster`);
   помощник мастера чужие дашборды не открывает.
 - Эталонный расчёт превью в JS — `resources/js/rate-formula.js`, ставки и правила приходят из
-  `partials/production-rates-js.blade.php`.
+  `partials/production-rates-js.blade.php`. Обе копии формулы (PHP и JS) проверяются по одним
+  примерам — `tests/fixtures/rate-formula.json`: Pest (`RateFormulaFixtureTest`) и Vitest
+  (`tests/js/rate-formula.test.js`, `make test-js`, в CI). Меняешь правило расчёта — поправь пример
+  в фикстуре: упадёт та копия, которую забыли.
 - Копилка: остаток = `SUM(piggy_bank_entries.amount)`. Выдача — снимок `accrued` и
   снимок недели в `salary_payouts`, проводка `payout` в журнал.
   Период `[period_from, period_to)`, `period_to` — пятница 00:00 (`payableTo()`);
