@@ -47,10 +47,15 @@
                 <span class="text-muted small">Найдено: {{ $workshops->total() }}</span>
             </div>
 
-            {{-- ─── ПЛИТКИ ─── --}}
-            <div class="row g-1 p-2 mx-0">
+            {{-- ─── ДЕСКТОП: шкала времени ─── --}}
+            <div class="d-none d-md-block">
+                @include('workshops.partials.list-timeline')
+            </div>
+
+            {{-- ─── МОБИЛЬНЫЕ ПЛИТКИ ─── --}}
+            <div class="row g-1 p-2 mx-0 d-md-none">
                 @foreach($workshops as $workshop)
-                    <div class="col-12 col-md-6">
+                    <div class="col-12">
                         @include('workshops.partials.card', ['workshop' => $workshop])
                     </div>
                 @endforeach

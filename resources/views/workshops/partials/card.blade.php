@@ -4,9 +4,6 @@
     $productItems = $workshop->items->where('role', \App\Models\WorkshopItem::ROLE_PRODUCT);
     $skuColor     = \App\Models\Product::getColorBySku($rawItems->first()?->product?->sku);
     $skuBg        = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
-    $canModify    = auth()->user()?->can('modify', $workshop);
-    $isActive     = $workshop->status === 'active';
-    $btnStyle     = 'width:22px;height:22px;padding:0;font-size:.65rem';
     $uomOf        = fn ($product) => \App\Support\Uom::of($product);
 @endphp
 <div style="border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
@@ -18,55 +15,7 @@
                 {{ $workshop->created_at->format('d.m.Y H:i') }}
                 <span class="text-secondary ms-1">#{{ $workshop->id }}</span>
             </a>
-            <div class="d-flex gap-1 align-items-center">
-                @if($canModify && $isActive)
-                    <a href="{{ route('workshops.edit', $workshop) }}"
-                       class="btn btn-success d-inline-flex align-items-center justify-content-center"
-                       style="{{ $btnStyle }}" title="Изменить">
-                        <i class="bi bi-pencil"></i>
-                    </a>
-                    <form action="{{ route('workshops.mark-completed', $workshop) }}" method="POST" class="d-inline-flex"
-                          onsubmit="return confirm('Закрыть операцию?')" data-submit-guard>
-                        @csrf @method('PATCH')
-                        <button type="submit" class="btn btn-warning d-inline-flex align-items-center justify-content-center"
-                                style="{{ $btnStyle }}" title="Закрыть">
-                            <i class="bi bi-check2-circle"></i>
-                        </button>
-                    </form>
-                @endif
-                <form action="{{ route('workshops.copy', $workshop) }}" method="POST" class="d-inline-flex" data-submit-guard>
-                    @csrf
-                    <button type="submit" class="btn btn-outline-info d-inline-flex align-items-center justify-content-center"
-                            style="{{ $btnStyle }}" title="Копия">
-                        <i class="bi bi-copy"></i>
-                    </button>
-                </form>
-                <a href="{{ route('workshops.show', $workshop) }}"
-                   class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center"
-                   style="{{ $btnStyle }}" title="Просмотр">
-                    <i class="bi bi-eye"></i>
-                </a>
-                @if($canModify && !$isActive)
-                    <form action="{{ route('workshops.reset-status', $workshop) }}" method="POST" class="d-inline-flex"
-                          onsubmit="return confirm('Сбросить статус?')" data-submit-guard>
-                        @csrf @method('PATCH')
-                        <button type="submit" class="btn btn-outline-warning d-inline-flex align-items-center justify-content-center"
-                                style="{{ $btnStyle }}" title="Сбросить статус">
-                            <i class="bi bi-arrow-counterclockwise"></i>
-                        </button>
-                    </form>
-                @endif
-                @if($canModify && $isActive)
-                    <form action="{{ route('workshops.destroy', $workshop) }}" method="POST" class="d-inline-flex"
-                          onsubmit="return confirm('Удалить операцию?')" data-submit-guard>
-                        @csrf @method('DELETE')
-                        <button type="submit" class="btn btn-outline-danger d-inline-flex align-items-center justify-content-center"
-                                style="{{ $btnStyle }}" title="Удалить">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
-                @endif
-            </div>
+            @include('workshops.partials.actions', ['workshop' => $workshop])
         </div>
 
         {{-- Строка 2: работник слева, статус справа --}}
@@ -74,18 +23,7 @@
             <span class="text-muted text-truncate me-2" style="font-size:.72rem">
                 <i class="bi bi-person me-1"></i>{{ $workshop->packer->name ?? '—' }}
             </span>
-            <div class="d-flex gap-1 align-items-center flex-shrink-0">
-                @if($workshop->moysklad_sync_status && !$workshop->isSynced())
-                    <span class="badge {{ $workshop->syncStatusBadgeClass() }}" style="font-size:.65rem">{{ $workshop->syncStatusLabel() }}</span>
-                @endif
-                @if($isActive)
-                    <span class="badge bg-success" style="font-size:.65rem">Активна</span>
-                @elseif($workshop->status === 'completed')
-                    <span class="badge bg-warning text-dark" style="font-size:.65rem">Закрыта</span>
-                @else
-                    <span class="badge bg-danger" style="font-size:.65rem">Ошибка</span>
-                @endif
-            </div>
+            @include('workshops.partials.status-badges', ['workshop' => $workshop])
         </div>
 
         {{-- Блок: сырьё + упаковка = продукт --}}
