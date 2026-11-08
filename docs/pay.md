@@ -240,6 +240,27 @@
 - Блок свёрнут, если за текущую неделю часов нет; открывается нажатием на заголовок. Итог часов
   и сумма за выбранный период видны в заголовке и в свёрнутом блоке.
 
+## 9. Сводка выплат по отделам
+
+Страница **[Выплаты](app:salary-payouts)** (только администратор) — все выдачи одной недели в
+одной таблице: начислено, наличные, карта, налог, сколько ушло в копилку (минус — взято из неё) и
+итого выдано. Из карточки работника туда ведёт значок с купюрами в шапке блока «Копилка и выдача» —
+сразу на неделю его последней выдачи.
+
+- **Неделя** — та, по которую выдали (пятница — четверг). Если работнику выдали сразу за две
+  недели, выдача стоит в последней из них.
+- Работники **сгруппированы по отделам**, у каждого отдела — итог, внизу — общий итог.
+- **Работник, заработавший в нескольких отделах**, стоит в каждом из них. Начислено — сколько он
+  заработал в этом отделе (по отделу приёмки или операции цеха). Наличные, карта, налог, копилка
+  и итого делятся **пропорционально заработанному в отделе**: 12 000 ₽ в Цехе и 6 000 ₽ в Галтовке —
+  две трети выдачи в Цех, треть в Галтовку. Суммы по отделам сходятся с выдачей до копейки.
+- **Часы ремонтных работ** — в основном отделе работника.
+- Если в отделе получился минус (исправления после приёмки), выдача в нём не показывается — она
+  делится между отделами с плюсом. Нечего делить (всё начисленное ≤ 0) — вся выдача в основном
+  отделе.
+- Разбивка по отделам запоминается в момент «Зарплата выдана», как и начисленное. Исправление
+  выдачи меняет суммы, а доли отделов остаются прежними.
+
 ## Для разработчиков
 
 Документ — единый источник правил расчёта зарплаты: **меняешь правило — обнови этот файл**.
@@ -255,6 +276,7 @@
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `ProductionDocumentService::updateItemCoeff` / `refreshItemCoeffs` / `createCostedItem` (одни для приёмки и цеха) | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
 | 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `updateLastPayout`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank`; запрет удаления — `WorkerService::delete` (`HISTORY_REFERENCES`) | `tests/Feature/Worker/SalaryPayoutTest`, `SalaryHideBalanceTest`, `WorkerControllerTest` |
 | 8. Ремонтные работы | `WorkerHourService` (`create`, `update` — сумма от ставки записи, `unpaidFrom` = `SalaryService::openPeriod()[0]`, `isUnpaid`), `WorkerHourEntryPolicy` (`create` — сам и админ, `modify`), `Salary\WorkerHourRequest`, `WorkerHourController`, роуты `worker-hours.*`; таблица `worker_hour_entries` (снапшот `hourly_rate`, `amount`); ставка — `DepartmentSettings::hourlyRate` (`HOURLY_RATE`, default 0); в начисление — `getDashboardData` (`hourEntries`, `totalHoursPay` в `totalPay`, по `work_date`); `partials/worker-hours`, `worker-hours/edit` | `tests/Feature/Worker/WorkerHoursTest`, `WorkerControllerTest` (запрет удаления) |
+| 9. Сводка выплат | `SalaryService::accruedByDepartment` (снимок в `markPaid` → `salary_payout_departments`; выдачи до снимка — расчёт на лету), `SalaryPayoutReportService` (`report`, `splitPayout` — доли по положительному начисленному, остаток округления — наибольшей доле), `SalaryPayoutReportController`, роут `salary-payouts.index`, admin_only-операция `salary-payouts`; `salary-payouts/index`, ссылка в `partials/salary-piggy-bank` | — |
 | 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `hasOutput`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
 
 Заметки:

@@ -36,6 +36,15 @@
                             onclick="event.stopPropagation()">
                         <i class="bi bi-sliders"></i>
                     </button>
+                    @if($salary['lastPayout'])
+                        {{-- Сводка по отделам за неделю последней выдачи --}}
+                        <a href="{{ route('salary-payouts.index', ['week' => $salary['lastPayout']->period_to->toDateString()]) }}"
+                           class="btn btn-sm btn-outline-secondary py-0 px-1 lh-1"
+                           title="Сводка выплат по отделам за неделю последней выдачи"
+                           onclick="event.stopPropagation()">
+                            <i class="bi bi-cash-stack"></i>
+                        </a>
+                    @endif
                 @endif
                 <i class="bi bi-chevron-down" id="salary-chevron"></i>
             </span>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Выданная зарплата за неделю (Пт 00:00 – Чт 23:59). Начисленное — снимок на момент выдачи;
@@ -54,6 +55,12 @@ class SalaryPayout extends Model
     public function worker(): BelongsTo
     {
         return $this->belongsTo(Worker::class);
+    }
+
+    /** @return HasMany<SalaryPayoutDepartment, $this> */
+    public function departments(): HasMany
+    {
+        return $this->hasMany(SalaryPayoutDepartment::class);
     }
 
     /** @return BelongsTo<User, $this> */

@@ -112,6 +112,7 @@ class HelpService
         'products'             => ['route' => 'products.index',             'operation' => 'products'],
         'enterprise-dashboard' => ['route' => 'admin.enterprise-dashboard', 'operation' => 'enterprise-dashboard'],
         'my-work'              => ['route' => 'worker.dashboard',           'operation' => 'worker-dashboard'],
+        'salary-payouts'       => ['route' => 'salary-payouts.index',       'operation' => 'salary-payouts'],
     ];
 
     private const DEVELOPER_HEADING = '## Для разработчиков';

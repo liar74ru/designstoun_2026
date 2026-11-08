@@ -281,8 +281,9 @@ class SalaryService
                 }
             }
 
-            $accrued = round($this->accrued($worker, $from, $to), 2);
-            $recalc  = round($recalc, 2);
+            $byDepartment = $this->accruedByDepartment($worker, $from, $to);
+            $accrued      = round(array_sum($byDepartment), 2);
+            $recalc       = round($recalc, 2);
             $total   = round($cash + ($card ?? 0) + ($tax ?? 0), 2);
             $toBank  = round($accrued + $recalc - $total, 2);
 
@@ -302,6 +303,16 @@ class SalaryService
                 'paid_by_user_id'  => $actor->id,
                 'comment'          => $comment,
             ]);
+
+            // Снимок по отделам — для сводки выплат (SalaryPayoutReportService)
+            foreach ($byDepartment as $departmentId => $amount) {
+                if ($amount != 0) {
+                    $payout->departments()->create([
+                        'department_id' => $departmentId ?: null,
+                        'accrued'       => $amount,
+                    ]);
+                }
+            }
 
             if ($toBank != 0) {
                 $worker->piggyBankEntries()->create([
@@ -421,8 +432,30 @@ class SalaryService
      */
     private function accrued(Worker $worker, Carbon $from, Carbon $to): float
     {
+        return array_sum($this->accruedByDepartment($worker, $from, $to));
+    }
+
+    /**
+     * Начислено за [from, to) по отделам: выработка — по отделу документа, часы ремонтных
+     * работ — по основному отделу работника на момент записи. Ключ 0 — без отдела.
+     * Сумма значений — то же, что totalPay дашборда.
+     *
+     * @return array<int, float>
+     */
+    public function accruedByDepartment(Worker $worker, Carbon $from, Carbon $to): array
+    {
         $data = $this->dashboard->getDashboardData($worker->id, $from, $to->copy()->subSecond());
 
-        return (float) $data['totalPay'];
+        $result = [];
+        foreach ($data['departments'] as $dept) {
+            $id          = $dept['department']->id ?? 0;
+            $result[$id] = round(($result[$id] ?? 0) + (float) $dept['totalPay'], 2);
+        }
+        foreach ($data['hourEntries'] as $entry) {
+            $id          = $entry->department_id ?? 0;
+            $result[$id] = round(($result[$id] ?? 0) + (float) $entry->amount, 2);
+        }
+
+        return $result;
     }
 }

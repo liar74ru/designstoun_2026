@@ -15,6 +15,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RawMaterialBatchController;
 use App\Http\Controllers\SalaryController;
+use App\Http\Controllers\SalaryPayoutReportController;
 use App\Http\Controllers\StoneReceptionController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\SupplierOrderController;
@@ -66,6 +67,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/workers/{worker}/piggy-bank/adjust', [SalaryController::class, 'adjustPiggy'])
         ->middleware('can:manage-admin')
         ->name('salary.piggy-adjust');
+    // Сводка выплат за неделю по отделам — только админ (admin_only-операция реестра)
+    Route::get('/salary-payouts', [SalaryPayoutReportController::class, 'index'])
+        ->middleware('can:see-salary-payouts')
+        ->name('salary-payouts.index');
     // Бывший дашборд мастера: выработка обеих ролей теперь на одной странице.
     // Адреса оставлены для старых закладок.
     Route::get('/master-work', fn () => redirect()->route('worker.dashboard', request()->query()))

@@ -89,6 +89,14 @@ return [
         'route_pattern'          => 'workers.*',
         'configurable_positions' => ['Мастер', 'Помощник мастера'],
     ],
+    'salary-payouts' => [
+        'label'         => 'Выплаты',
+        'icon'          => 'bi-cash-stack',
+        'group'         => 5,
+        'route'         => 'salary-payouts.index',
+        'route_pattern' => 'salary-payouts.*',
+        'admin_only'    => true,
+    ],
     'admin-settings' => [
         'label'         => 'Настройки',
         'short_label'   => 'Настр.',
