@@ -47,7 +47,7 @@
                 @include('partials.help-button', ['page' => 'products', 'class' => 'btn-outline-secondary me-2'])
 
                 <!-- КНОПКА: синхронизация остатков по складам -->
-                <form action="{{ route('products.stocks.sync-all-by-stores') }}" method="POST" class="d-inline">
+                <form data-submit-guard action="{{ route('products.stocks.sync-all-by-stores') }}" method="POST" class="d-inline">
                     @csrf
                     <button type="submit" class="btn btn-info me-2"
                             onclick="return confirm('Обновить остатки по складам для ВСЕХ товаров? Это может занять несколько минут.')">
@@ -57,7 +57,7 @@
 
                 <!-- КНОПКА: синхронизация товаров и групп -->
                 <form method="POST" action="{{ route('products.sync') }}" class="d-inline" data-submit-guard
-                      onsubmit="return confirm('Загрузить/обновить товары и группы из МойСклад?')">
+                      data-confirm="Загрузить/обновить товары и группы из МойСклад?">
                     @csrf
                     <button type="submit" class="btn btn-success">
                         <i class="bi bi-cloud-download"></i> Синхронизировать
@@ -344,7 +344,7 @@
 
                                         <form method="POST" action="{{ route('products.refresh', $product->moysklad_id) }}"
                                               class="d-inline" data-submit-guard
-                                              onsubmit="return confirm('Обновить данные товара из МойСклад?')">
+                                              data-confirm="Обновить данные товара из МойСклад?">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-outline-warning" title="Обновить из МойСклад">
                                                 <i class="bi bi-arrow-repeat"></i>

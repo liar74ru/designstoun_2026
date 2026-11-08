@@ -129,7 +129,7 @@
                         {{-- Кнопка синхронизации --}}
                         @can('modify', $supplierOrder)
                         <div class="mt-3">
-                            <form method="POST" action="{{ route('supplier-orders.sync', $supplierOrder) }}">
+                            <form data-submit-guard method="POST" action="{{ route('supplier-orders.sync', $supplierOrder) }}">
                                 @csrf
                                 <button type="submit"
                                         class="btn btn-sm w-100 {{ $supplierOrder->sync_error ? 'btn-warning' : ($supplierOrder->supply_moysklad_id ? 'btn-outline-secondary' : 'btn-outline-primary') }}">
@@ -171,7 +171,7 @@
                                     </a>
                                 @endif
                                 @if($canDelete)
-                                    <form method="POST" action="{{ route('supplier-orders.destroy', $supplierOrder) }}"
+                                    <form data-submit-guard method="POST" action="{{ route('supplier-orders.destroy', $supplierOrder) }}"
                                           data-confirm="{{ $confirmText }}">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="btn btn-danger w-100">

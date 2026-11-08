@@ -97,7 +97,7 @@
                                         <a href="{{ route('raw-batches.edit', $batch) }}" class="btn btn-sm btn-outline-secondary" title="Редактировать">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
+                                        <form data-submit-guard method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
                                               class="d-inline"
                                               data-confirm="Удалить партию #{{ $batch->id }}? Это действие необратимо.">
                                             @csrf @method('DELETE')
@@ -123,8 +123,8 @@
                                         </a>
                                     @endif
                                     @if($canModify && $batch->canBeMarkedAsUsed())
-                                        <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline"
-                                              onsubmit="return confirm('Отметить как «Израсходована»?')">
+                                        <form data-submit-guard method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline"
+                                              data-confirm="Отметить как «Израсходована»?">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-outline-warning" title="Израсходована">
                                                 <i class="bi bi-check2-circle"></i>
@@ -219,8 +219,8 @@
                                 </a>
                             @endif
                             @if($canModify && $batch->canBeMarkedAsUsed())
-                                <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}"
-                                      onsubmit="return confirm('Отметить как «Израсходована»?')">
+                                <form data-submit-guard method="POST" action="{{ route('raw-batches.mark-used', $batch) }}"
+                                      data-confirm="Отметить как «Израсходована»?">
                                     @csrf
                                     <button type="submit" class="btn btn-sm btn-outline-warning" style="min-width:90px">
                                         <i class="bi bi-check2-circle"></i> Израсх.

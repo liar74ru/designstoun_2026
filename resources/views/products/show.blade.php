@@ -104,7 +104,7 @@
                     <form action="{{ route('products.stocks.sync', $product->moysklad_id) }}"
                           method="POST"
                           data-submit-guard
-                          onsubmit="return confirm('Обновить остатки по складам из МойСклад?')">
+                          data-confirm="Обновить остатки по складам из МойСклад?">
                         @csrf
                         <button type="submit" class="btn btn-sm btn-outline-primary py-0" title="Синхронизировать остатки">
                             <i class="bi bi-arrow-repeat"></i>
@@ -305,7 +305,7 @@
                                   method="POST"
                                   class="border-top mt-3 pt-3"
                                   data-submit-guard
-                                  onsubmit="return confirm('Записать коэффициенты в МойСклад?')">
+                                  data-confirm="Записать коэффициенты в МойСклад?">
                                 @csrf
                                 @method('PATCH')
                                 <div class="row g-2 align-items-end small">

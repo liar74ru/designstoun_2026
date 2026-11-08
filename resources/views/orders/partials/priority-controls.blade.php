@@ -37,7 +37,7 @@
 
     @if($order->priority_manual)
         <form method="POST" action="{{ route('orders.priority.reset', $order->uuid) }}" data-submit-guard
-              onsubmit="return confirm('Вернуть заявку на место по сроку отгрузки?')">
+              data-confirm="Вернуть заявку на место по сроку отгрузки?">
             @csrf
             <button type="submit" class="priority-btn is-manual" title="Место задано вручную — вернуть по сроку отгрузки">
                 <i class="bi bi-pin-angle-fill"></i>

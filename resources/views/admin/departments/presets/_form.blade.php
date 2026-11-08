@@ -4,7 +4,7 @@
     $groups — группы текущего отдела, $allDepartments — активные отделы,
     $prefillItems — [{role, product_id, product_label, quantity}] (edit или old-инпут).
 --}}
-<form method="POST" action="{{ $action }}" id="presetForm">
+<form data-submit-guard method="POST" action="{{ $action }}" id="presetForm">
     @csrf
     @if($method !== 'POST')
         @method($method)

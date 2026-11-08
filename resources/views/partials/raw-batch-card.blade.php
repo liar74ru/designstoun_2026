@@ -28,8 +28,8 @@
                         </a>
                     @endif
                     @if($isActive && $bRem <= 0)
-                        <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline-flex"
-                              onsubmit="return confirm('Завершить партию? Сырьё будет отмечено как израсходованное.')">
+                        <form data-submit-guard method="POST" action="{{ route('raw-batches.mark-used', $batch) }}" class="d-inline-flex"
+                              data-confirm="Завершить партию? Сырьё будет отмечено как израсходованное.">
                             @csrf
                             <button type="submit"
                                     class="btn btn-warning d-inline-flex align-items-center justify-content-center"
@@ -39,8 +39,8 @@
                         </form>
                     @endif
                     @if($batch->status === \App\Models\RawMaterialBatch::STATUS_USED)
-                        <form method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}" class="d-inline-flex"
-                              onsubmit="return confirm('Вернуть партию в работу?')">
+                        <form data-submit-guard method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}" class="d-inline-flex"
+                              data-confirm="Вернуть партию в работу?">
                             @csrf
                             <button type="submit"
                                     class="btn btn-outline-success d-inline-flex align-items-center justify-content-center"

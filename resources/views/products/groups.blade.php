@@ -12,7 +12,7 @@
             <div class="btn-group">
                 {{-- Кнопка синхронизации групп --}}
                 <form method="POST" action="{{ route('products.groups.sync') }}" class="d-inline" data-submit-guard
-                      onsubmit="return confirm('Синхронизировать группы с МойСклад?')">
+                      data-confirm="Синхронизировать группы с МойСклад?">
                     @csrf
                     <button type="submit" class="btn btn-success">
                         <i class="bi bi-arrow-repeat"></i> Синхронизировать группы

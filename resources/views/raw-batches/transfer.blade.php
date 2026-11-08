@@ -29,7 +29,7 @@
                         #transferForm .form-control,
                         #transferForm .form-select { border-radius: .4rem; }
                     </style>
-                    <form method="POST" action="{{ route('raw-batches.transfer', $batch) }}" id="transferForm">
+                    <form data-submit-guard method="POST" action="{{ route('raw-batches.transfer', $batch) }}" id="transferForm">
                         @csrf
 
                         <div class="mb-3">

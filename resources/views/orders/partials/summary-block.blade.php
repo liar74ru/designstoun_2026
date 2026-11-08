@@ -100,7 +100,7 @@
             </div>
             @if($order->priority_manual)
                 <form method="POST" action="{{ route('orders.priority.reset', $order->uuid) }}" data-submit-guard
-                      class="flex-shrink-0" onsubmit="return confirm('Вернуть заявку на место по сроку отгрузки?')">
+                      class="flex-shrink-0" data-confirm="Вернуть заявку на место по сроку отгрузки?">
                     @csrf
                     <button type="submit" class="btn btn-sm osum-chip" title="Место в очереди задано вручную">
                         <i class="bi bi-pin-angle-fill"></i> Вернуть по сроку
@@ -141,7 +141,7 @@
             @endif
             {{-- Отдельная форма: вкладывать её в форму переключателя статуса нельзя --}}
             <form method="POST" action="{{ route('orders.recalculate', $order->uuid) }}" data-submit-guard
-                  onsubmit="return confirm('Взять текущие остатки по складам и начать отсчёт изготовленного заново?')">
+                  data-confirm="Взять текущие остатки по складам и начать отсчёт изготовленного заново?">
                 @csrf
                 <button type="submit" class="btn btn-link btn-sm text-muted p-0" title="Пересчитать по складам">
                     <i class="bi bi-arrow-repeat"></i> Пересчитать

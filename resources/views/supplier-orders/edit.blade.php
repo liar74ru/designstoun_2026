@@ -26,7 +26,7 @@
                 #editOrderForm .form-control,
                 #editOrderForm .form-select { border-radius: .4rem; }
             </style>
-            <form method="POST" action="{{ route('supplier-orders.update', $supplierOrder) }}" id="editOrderForm">
+            <form data-submit-guard method="POST" action="{{ route('supplier-orders.update', $supplierOrder) }}" id="editOrderForm">
                 @csrf
                 @method('PUT')
 
@@ -198,7 +198,7 @@
             <p class="text-muted small mb-3">
                 Поступление будет безвозвратно удалено. Запись в МойСклад также будет удалена.
             </p>
-            <form method="POST" action="{{ route('supplier-orders.destroy', $supplierOrder) }}"
+            <form data-submit-guard method="POST" action="{{ route('supplier-orders.destroy', $supplierOrder) }}"
                   data-confirm="Удалить поступление №{{ $supplierOrder->number }}? Это действие необратимо.">
                 @csrf
                 @method('DELETE')

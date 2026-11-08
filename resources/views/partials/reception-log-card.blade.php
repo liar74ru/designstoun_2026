@@ -48,7 +48,7 @@
                         </a>
                     @endif
                     @if($log->stoneReception)
-                        <form action="{{ route('stone-receptions.copy', $log->stone_reception_id) }}"
+                        <form data-submit-guard action="{{ route('stone-receptions.copy', $log->stone_reception_id) }}"
                               method="POST" class="d-inline-flex">
                             @csrf
                             <button type="submit"

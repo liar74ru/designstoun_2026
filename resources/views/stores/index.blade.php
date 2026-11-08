@@ -12,7 +12,7 @@
             <!-- Action Buttons -->
             <div class="flex space-x-3">
                 <!-- Sync Stores Button -->
-                <form method="POST" action="{{ route('stores.sync') }}" class="inline">
+                <form data-submit-guard method="POST" action="{{ route('stores.sync') }}" class="inline">
                     @csrf
                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,7 +23,7 @@
                 </form>
 
                 <!-- Sync Stocks by Stores Button (NEW) -->
-                <form method="POST" action="{{ route('stores.stocks.sync-all') }}" class="inline">
+                <form data-submit-guard method="POST" action="{{ route('stores.stocks.sync-all') }}" class="inline">
                     @csrf
                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
                             onclick="return confirm('Обновить остатки по ВСЕМ складам из МойСклад? Это может занять некоторое время.')">
@@ -130,7 +130,7 @@
                                     </a>
 
                                     <!-- Sync stocks for specific store (NEW) -->
-                                    <form method="POST" action="{{ route('stores.stocks.sync', $store->id) }}" class="inline"
+                                    <form data-submit-guard method="POST" action="{{ route('stores.stocks.sync', $store->id) }}" class="inline"
                                           data-confirm="Обновить остатки для склада «{{ $store->name }}»?">
                                         @csrf
                                         <button type="submit" class="text-green-600 hover:text-green-800">
@@ -156,7 +156,7 @@
                 <h3 class="text-lg font-medium text-gray-900 mb-2">Нет складов</h3>
                 <p class="text-gray-600 mb-6">Выполните синхронизацию для загрузки складов из МойСклада</p>
                 <div class="flex justify-center space-x-3">
-                    <form method="POST" action="{{ route('stores.sync') }}" class="inline">
+                    <form data-submit-guard method="POST" action="{{ route('stores.sync') }}" class="inline">
                         @csrf
                         <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +165,7 @@
                             Синхронизировать склады
                         </button>
                     </form>
-                    <form method="POST" action="{{ route('stores.stocks.sync-all') }}" class="inline">
+                    <form data-submit-guard method="POST" action="{{ route('stores.stocks.sync-all') }}" class="inline">
                         @csrf
                         <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

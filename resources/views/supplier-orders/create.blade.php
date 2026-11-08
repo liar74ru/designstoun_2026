@@ -23,7 +23,7 @@
                         #supplierOrderForm .form-control,
                         #supplierOrderForm .form-select { border-radius: .4rem; }
                     </style>
-                    <form method="POST" action="{{ route('supplier-orders.store') }}" id="supplierOrderForm">
+                    <form data-submit-guard method="POST" action="{{ route('supplier-orders.store') }}" id="supplierOrderForm">
                         @csrf
 
                         @if($errors->any())
@@ -76,7 +76,6 @@
                                                     Синхронизировать
                                                 </a>
                                             </div>
-                                            <form id="sync-cp-form" action="{{ route('counterparties.sync') }}" method="POST" class="d-none">@csrf</form>
                                         @endif
                                     </div>
 
@@ -207,6 +206,10 @@
                             </button>
                         </div>
                     </form>
+                    {{-- Вне формы заказа: вложенная <form> браузер отбрасывает, а её </form> закрыл бы форму заказа --}}
+                    @if($counterparties->isEmpty())
+                        <form id="sync-cp-form" action="{{ route('counterparties.sync') }}" method="POST" class="d-none">@csrf</form>
+                    @endif
                 </div>
             </div>
         </div>

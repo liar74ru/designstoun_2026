@@ -9,7 +9,7 @@
         backUrl="{{ route('home') }}"
         backLabel="Главная">
         <x-slot name="actions">
-            <form method="POST" action="{{ route('counterparties.sync') }}">
+            <form data-submit-guard method="POST" action="{{ route('counterparties.sync') }}">
                 @csrf
                 <button type="submit" class="btn btn-primary btn-lg px-4">
                     <i class="bi bi-arrow-repeat"></i> Синхронизировать
@@ -17,7 +17,7 @@
             </form>
         </x-slot>
         <x-slot name="mobileActions">
-            <form method="POST" action="{{ route('counterparties.sync') }}">
+            <form data-submit-guard method="POST" action="{{ route('counterparties.sync') }}">
                 @csrf
                 <button type="submit" class="btn btn-primary btn-sm">
                     <i class="bi bi-arrow-repeat"></i>
@@ -30,7 +30,7 @@
 
     {{-- Мобильная кнопка синхронизации --}}
     <div class="d-md-none mb-2">
-        <form method="POST" action="{{ route('counterparties.sync') }}">
+        <form data-submit-guard method="POST" action="{{ route('counterparties.sync') }}">
             @csrf
             <button type="submit" class="btn btn-primary w-100">
                 <i class="bi bi-arrow-repeat"></i> Синхронизировать с МойСклад

@@ -160,7 +160,7 @@
                   data-has-old="{{ session()->hasOldInput('paid_cash') ? 1 : 0 }}"
                   {{-- Скрытый остаток в разметку не выводим --}}
                   @unless($hideBalance) data-balance="{{ $salary['balance'] }}" @endunless
-                  onsubmit="return confirm('Отметить зарплату выданной? Период будет закрыт.')"
+                  data-confirm="Отметить зарплату выданной? Период будет закрыт."
                   class="bg-light rounded p-2 mt-2">
                 @csrf
                 <div class="fw-semibold small mb-2"><i class="bi bi-cash-coin me-1"></i>Выдать зарплату</div>
@@ -208,7 +208,7 @@
                       data-gross="{{ $last->accrued + $last->recalc }}"
                       data-has-old="{{ session()->hasOldInput('edit_cash') ? 1 : 0 }}"
                       @unless($hideBalance) data-balance="{{ round($salary['balance'] - $last->to_bank, 2) }}" @endunless
-                      onsubmit="return confirm('Сохранить исправление? Копилка будет пересчитана.')"
+                      data-confirm="Сохранить исправление? Копилка будет пересчитана."
                       class="bg-light rounded p-2 mt-2">
                     @csrf
                     @method('PATCH')

@@ -35,7 +35,7 @@
                             #batchForm .form-control,
                             #batchForm .form-select { border-radius: .4rem; }
                         </style>
-                        <form method="POST" action="{{ route('raw-batches.store') }}" id="batchForm">
+                        <form data-submit-guard method="POST" action="{{ route('raw-batches.store') }}" id="batchForm">
                             @csrf
 
                             @if($errors->any())

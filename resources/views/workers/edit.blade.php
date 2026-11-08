@@ -11,7 +11,7 @@
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-body p-4">
-                        <form method="POST" action="{{ route('workers.update', $worker) }}">
+                        <form data-submit-guard method="POST" action="{{ route('workers.update', $worker) }}">
                             @csrf
                             @method('PUT')
 
@@ -131,7 +131,7 @@
 
                             <div class="d-flex gap-2 flex-wrap">
                                 @if($worker->isArchived())
-                                    <form method="POST" action="{{ route('workers.restore', $worker) }}">
+                                    <form data-submit-guard method="POST" action="{{ route('workers.restore', $worker) }}">
                                         @csrf
                                         @method('PATCH')
                                         <button type="submit" class="btn btn-outline-success">
@@ -139,7 +139,7 @@
                                         </button>
                                     </form>
                                 @else
-                                    <form method="POST" action="{{ route('workers.archive', $worker) }}"
+                                    <form data-submit-guard method="POST" action="{{ route('workers.archive', $worker) }}"
                                           data-confirm="Перевести работника {{ $worker->name }} в архив?">
                                         @csrf
                                         @method('PATCH')
@@ -149,7 +149,7 @@
                                     </form>
                                 @endif
 
-                                <form method="POST" action="{{ route('workers.destroy', $worker) }}"
+                                <form data-submit-guard method="POST" action="{{ route('workers.destroy', $worker) }}"
                                       data-confirm="Вы уверены, что хотите удалить работника {{ $worker->name }}? Действие необратимо.">
                                     @csrf
                                     @method('DELETE')

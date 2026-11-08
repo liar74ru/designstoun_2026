@@ -28,7 +28,7 @@
                         <p class="card-text text-muted small mb-3">
                             Каталог и дерево групп из МойСклад
                         </p>
-                        <form method="POST" action="{{ route('products.sync') }}" class="mt-auto sync-form">
+                        <form data-submit-guard="Выполняется…" method="POST" action="{{ route('products.sync') }}" class="mt-auto sync-form">
                             @csrf
                             <button type="submit" class="btn btn-primary w-100"
                                     onclick="return confirm('Загрузить/обновить товары и группы из МойСклад?')">
@@ -51,7 +51,7 @@
                         <p class="card-text text-muted small mb-3">
                             Поставщики и покупатели из МойСклад
                         </p>
-                        <form method="POST" action="{{ route('counterparties.sync') }}" class="mt-auto sync-form">
+                        <form data-submit-guard="Выполняется…" method="POST" action="{{ route('counterparties.sync') }}" class="mt-auto sync-form">
                             @csrf
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="bi bi-arrow-repeat"></i> Синхронизировать
@@ -73,7 +73,7 @@
                         <p class="card-text text-muted small mb-3">
                             Места хранения из МойСклад
                         </p>
-                        <form method="POST" action="{{ route('stores.sync') }}" class="mt-auto sync-form">
+                        <form data-submit-guard="Выполняется…" method="POST" action="{{ route('stores.sync') }}" class="mt-auto sync-form">
                             @csrf
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="bi bi-arrow-repeat"></i> Синхронизировать
@@ -95,7 +95,7 @@
                         <p class="card-text text-muted small mb-3">
                             Текущие остатки всех товаров по всем складам
                         </p>
-                        <form method="POST" action="{{ route('products.stocks.sync-all-by-stores') }}" class="mt-auto sync-form">
+                        <form data-submit-guard="Выполняется…" method="POST" action="{{ route('products.stocks.sync-all-by-stores') }}" class="mt-auto sync-form">
                             @csrf
                             <button type="submit" class="btn btn-primary w-100"
                                     onclick="return confirm('Обновить остатки по ВСЕМ складам? Это может занять несколько минут.')">
@@ -118,7 +118,7 @@
                         <p class="card-text text-muted small mb-3">
                             Активные заявки покупателей из МойСклад
                         </p>
-                        <form method="POST" action="{{ route('orders.sync') }}" class="mt-auto sync-form">
+                        <form data-submit-guard="Выполняется…" method="POST" action="{{ route('orders.sync') }}" class="mt-auto sync-form">
                             @csrf
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="bi bi-arrow-repeat"></i> Синхронизировать
@@ -140,7 +140,7 @@
                         <p class="card-text text-muted small mb-3">
                             Справочник статусов заказа покупателя: имена и цвета
                         </p>
-                        <form method="POST" action="{{ route('admin.order-states.sync') }}" class="mt-auto sync-form">
+                        <form data-submit-guard="Выполняется…" method="POST" action="{{ route('admin.order-states.sync') }}" class="mt-auto sync-form">
                             @csrf
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="bi bi-arrow-repeat"></i> Синхронизировать
@@ -184,19 +184,4 @@
             cursor: wait;
         }
     </style>
-@endpush
-
-@push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('form.sync-form').forEach(function (form) {
-                form.addEventListener('submit', function () {
-                    const btn = form.querySelector('button[type=submit]');
-                    if (!btn) return;
-                    btn.disabled = true;
-                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Выполняется…';
-                });
-            });
-        });
-    </script>
 @endpush

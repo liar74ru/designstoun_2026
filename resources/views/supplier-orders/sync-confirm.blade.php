@@ -33,7 +33,7 @@
                         </p>
 
                         <div class="d-grid gap-2">
-                            <form method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
+                            <form data-submit-guard method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
                                 @csrf
                                 <input type="hidden" name="mode" value="recreate">
                                 <button type="submit" class="btn btn-primary w-100">
@@ -41,7 +41,7 @@
                                     Создать Заказ поставщику + Приёмку
                                 </button>
                             </form>
-                            <form method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
+                            <form data-submit-guard method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
                                 @csrf
                                 <input type="hidden" name="mode" value="create_order_only">
                                 <button type="submit" class="btn btn-outline-primary w-100">
@@ -75,7 +75,7 @@
                         </p>
 
                         <div class="d-grid gap-2">
-                            <form method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
+                            <form data-submit-guard method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
                                 @csrf
                                 <input type="hidden" name="mode" value="recreate">
                                 <button type="submit" class="btn btn-primary w-100">
@@ -83,7 +83,7 @@
                                     Создать Заказ поставщику + Приёмку
                                 </button>
                             </form>
-                            <form method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
+                            <form data-submit-guard method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
                                 @csrf
                                 <input type="hidden" name="mode" value="create_order_only">
                                 <button type="submit" class="btn btn-outline-primary w-100">
@@ -120,7 +120,7 @@
                         </p>
 
                         <div class="d-grid gap-2">
-                            <form method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
+                            <form data-submit-guard method="POST" action="{{ route('supplier-orders.force-sync', $order) }}">
                                 @csrf
                                 <input type="hidden" name="mode" value="suffix_supply">
                                 <input type="hidden" name="suggested_name" value="{{ $suggested }}">

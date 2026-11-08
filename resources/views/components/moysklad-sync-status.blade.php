@@ -60,7 +60,7 @@
         @endif
 
         @if($showButton)
-            <form method="POST" action="{{ $syncRoute }}" class="mt-2">
+            <form data-submit-guard method="POST" action="{{ $syncRoute }}" class="mt-2">
                 @csrf
                 <button type="submit"
                         class="btn btn-sm w-100 {{ $model->hasSyncError() ? 'btn-warning' : ($model->hasMoySkladProcessing() ? 'btn-outline-secondary' : 'btn-outline-primary') }}">

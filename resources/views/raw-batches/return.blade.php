@@ -60,7 +60,7 @@
                 #returnForm .form-control,
                 #returnForm .form-select { border-radius: .4rem; }
             </style>
-            <form method="POST" action="{{ route('raw-batches.return', $batch) }}" id="returnForm">
+            <form data-submit-guard method="POST" action="{{ route('raw-batches.return', $batch) }}" id="returnForm">
                 @csrf
 
                 <div class="mb-3">

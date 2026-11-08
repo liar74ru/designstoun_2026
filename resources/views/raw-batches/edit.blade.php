@@ -32,7 +32,7 @@
                 #editForm .form-control,
                 #editForm .form-select { border-radius: .4rem; }
             </style>
-            <form method="POST" action="{{ route('raw-batches.update', $batch) }}" id="editForm">
+            <form data-submit-guard method="POST" action="{{ route('raw-batches.update', $batch) }}" id="editForm">
                 @csrf
                 @method('PUT')
 
@@ -152,7 +152,7 @@
                 Партия будет безвозвратно удалена. Перемещение в МойСклад также будет удалено.
                 Сырьё вернётся на склад-источник.
             </p>
-            <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
+            <form data-submit-guard method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
                   data-confirm="Удалить партию #{{ $batch->id }}? Это действие необратимо.">
                 @csrf
                 @method('DELETE')

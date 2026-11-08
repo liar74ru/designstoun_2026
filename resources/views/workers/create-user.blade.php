@@ -50,7 +50,7 @@
                             </table>
                         </div>
 
-                        <form method="POST" action="{{ route('workers.store-user', $worker) }}">
+                        <form data-submit-guard method="POST" action="{{ route('workers.store-user', $worker) }}">
                             @csrf
 
                             {{-- Блок с телефоном (только для информации) --}}

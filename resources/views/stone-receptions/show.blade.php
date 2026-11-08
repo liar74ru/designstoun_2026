@@ -74,7 +74,7 @@
                             <div class="info-block-body">
                                 @if($stoneReception->status === \App\Models\StoneReception::STATUS_ACTIVE
                                     && auth()->user()->can('modify', $stoneReception))
-                                    <form method="POST"
+                                    <form data-submit-guard method="POST"
                                           action="{{ route('stone-receptions.update-store', $stoneReception) }}"
                                           class="d-flex gap-2 align-items-center">
                                         @csrf
@@ -108,7 +108,7 @@
                             </div>
                             <div class="info-block-body">
                                 @if(auth()->user()->isAdmin())
-                                    <form method="POST"
+                                    <form data-submit-guard method="POST"
                                           action="{{ route('stone-receptions.update-department', $stoneReception) }}"
                                           class="d-flex gap-2 align-items-center">
                                         @csrf
@@ -182,9 +182,9 @@
                             @if($stoneReception->status === \App\Models\StoneReception::STATUS_ACTIVE
                                 && $stoneReception->rawMaterialBatch
                                 && (float)$stoneReception->rawMaterialBatch->remaining_quantity <= 0)
-                                <form method="POST"
+                                <form data-submit-guard method="POST"
                                       action="{{ route('stone-receptions.mark-completed', $stoneReception) }}"
-                                      onsubmit="return confirm('Отметить приёмку как «Завершена»?\nСырьё в партии закончилось.')">
+                                      data-confirm="Отметить приёмку как «Завершена»?&#10;Сырьё в партии закончилось.">
                                     @csrf
                                     @method('PATCH')
                                     <button type="submit" class="btn btn-warning w-100">
@@ -195,9 +195,9 @@
                             @endif
 
                             @if($stoneReception->status !== \App\Models\StoneReception::STATUS_ACTIVE)
-                                <form method="POST"
+                                <form data-submit-guard method="POST"
                                       action="{{ route('stone-receptions.reset-status', $stoneReception) }}"
-                                      onsubmit="return confirm('Вернуть приёмку в статус «Активна»?')">
+                                      data-confirm="Вернуть приёмку в статус «Активна»?">
                                     @csrf
                                     @method('PATCH')
                                     <button type="submit" class="btn btn-success w-100">
@@ -206,7 +206,7 @@
                                 </form>
                             @endif
 
-                            <form method="POST"
+                            <form data-submit-guard method="POST"
                                   action="{{ route('stone-receptions.destroy', $stoneReception) }}"
                                   data-confirm="Удалить приёмку #{{ $stoneReception->id }}? Остатки будут возвращены в партию.">
                                 @csrf
@@ -232,9 +232,9 @@
                         <span class="small fw-semibold">📦 Принятая продукция</span>
                         @can('modify', $stoneReception)
                         <div class="d-flex gap-1">
-                            <form method="POST"
+                            <form data-submit-guard method="POST"
                                   action="{{ route('stone-receptions.refresh-item-coeffs', $stoneReception) }}"
-                                  onsubmit="return confirm('Обновить коэффициенты из справочника товаров?\nЗначения effective_cost_coeff будут пересчитаны по текущим prod_cost_coeff.')">
+                                  data-confirm="Обновить коэффициенты из справочника товаров?&#10;Значения effective_cost_coeff будут пересчитаны по текущим prod_cost_coeff.">
                                 @csrf
                                 <button type="submit"
                                         class="btn btn-sm btn-outline-secondary"
@@ -400,7 +400,7 @@
                                     Только для исправления ошибочно заданных значений.
                                 </span>
                             </div>
-                            <form method="POST"
+                            <form data-submit-guard method="POST"
                                   action="{{ route('stone-receptions.update-item-coeff', $stoneReception) }}"
                                   id="coeffEditForm">
                                 @csrf

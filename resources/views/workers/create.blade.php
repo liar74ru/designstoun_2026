@@ -19,7 +19,7 @@
                             </div>
                         @endif
 
-                        <form method="POST" action="{{ route('workers.store') }}">
+                        <form data-submit-guard method="POST" action="{{ route('workers.store') }}">
                             @csrf
 
                             <div class="mb-3">

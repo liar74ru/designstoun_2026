@@ -94,7 +94,7 @@
                                         <i class="bi bi-eye"></i>
                                     </a>
                                     @if($order->status === \App\Models\SupplierOrder::STATUS_NEW && auth()->user()->can('modify', $order))
-                                        <form method="POST" action="{{ route('supplier-orders.sync', $order) }}"
+                                        <form data-submit-guard method="POST" action="{{ route('supplier-orders.sync', $order) }}"
                                               class="d-inline"
                                               data-confirm="Создать приёмку в МойСклад для поступления №{{ $order->number }}?">
                                             @csrf
@@ -111,7 +111,7 @@
                                         <a href="{{ route('supplier-orders.edit', $order) }}" class="btn btn-sm btn-outline-secondary" title="Редактировать">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <form method="POST" action="{{ route('supplier-orders.destroy', $order) }}"
+                                        <form data-submit-guard method="POST" action="{{ route('supplier-orders.destroy', $order) }}"
                                               class="d-inline"
                                               data-confirm="Удалить поступление №{{ $order->number }}? Запись также будет удалена в МойСклад.">
                                             @csrf @method('DELETE')
@@ -178,7 +178,7 @@
                         {{-- Правая часть: кнопки --}}
                         <div class="d-flex flex-column gap-1 flex-shrink-0" style="width:88px">
                             @if($order->status === \App\Models\SupplierOrder::STATUS_NEW && auth()->user()->can('modify', $order))
-                                <form method="POST" action="{{ route('supplier-orders.sync', $order) }}"
+                                <form data-submit-guard method="POST" action="{{ route('supplier-orders.sync', $order) }}"
                                       data-confirm="Создать приёмку в МойСклад для поступления №{{ $order->number }}?">
                                     @csrf
                                     <button type="submit" class="btn btn-outline-primary w-100"
@@ -203,7 +203,7 @@
                                    style="font-size:.8rem;padding:.23rem .35rem">
                                     <i class="bi bi-pencil"></i> Изменить
                                 </a>
-                                <form method="POST" action="{{ route('supplier-orders.destroy', $order) }}"
+                                <form data-submit-guard method="POST" action="{{ route('supplier-orders.destroy', $order) }}"
                                       data-confirm="Удалить поступление №{{ $order->number }}? Запись также будет удалена в МойСклад.">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-outline-danger w-100"

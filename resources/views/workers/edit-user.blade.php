@@ -86,7 +86,7 @@
                 <span class="fw-semibold"><i class="bi bi-lock text-muted me-1"></i>Изменить пароль</span>
             </div>
             <div class="card-body p-3">
-                <form method="POST" action="{{ route('workers.update-user', $worker) }}">
+                <form data-submit-guard method="POST" action="{{ route('workers.update-user', $worker) }}">
                     @csrf
                     @method('PUT')
 

@@ -11,7 +11,7 @@
         :hide-mobile="true">
         <x-slot name="actions">
             @include('partials.help-button', ['page' => 'orders', 'class' => 'btn-outline-secondary btn-lg'])
-            <form method="POST" action="{{ route('orders.sync') }}" class="d-inline sync-form">
+            <form data-submit-guard="Выполняется…" method="POST" action="{{ route('orders.sync') }}" class="d-inline sync-form">
                 @csrf
                 <button type="submit" class="btn btn-primary btn-lg px-4"
                         onclick="return confirm('Синхронизировать заявки и остатки?')">
@@ -23,7 +23,7 @@
 
     {{-- Мобильные кнопки --}}
     <div class="d-md-none mb-2 d-flex gap-2">
-        <form method="POST" action="{{ route('orders.sync') }}" class="sync-form flex-grow-1">
+        <form data-submit-guard="Выполняется…" method="POST" action="{{ route('orders.sync') }}" class="sync-form flex-grow-1">
             @csrf
             <button type="submit" class="btn btn-primary w-100"
                     onclick="return confirm('Синхронизировать заявки и остатки?')">
@@ -191,15 +191,6 @@
             document.querySelectorAll('[data-ocard-toggle]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     btn.closest('.ocard').classList.toggle('is-compact');
-                });
-            });
-
-            document.querySelectorAll('form.sync-form').forEach(function (form) {
-                form.addEventListener('submit', function () {
-                    const btn = form.querySelector('button[type=submit]');
-                    if (!btn) return;
-                    btn.disabled = true;
-                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Выполняется…';
                 });
             });
         });

@@ -156,8 +156,8 @@
                                 @endif
 
                                 @if($canModify && $batch->canBeMarkedAsUsed())
-                                    <form method="POST" action="{{ route('raw-batches.mark-used', $batch) }}"
-                                          onsubmit="return confirm('Отметить партию как «Израсходована»?\nСвязанная активная приёмка будет завершена.')">
+                                    <form data-submit-guard method="POST" action="{{ route('raw-batches.mark-used', $batch) }}"
+                                          data-confirm="Отметить партию как «Израсходована»?&#10;Связанная активная приёмка будет завершена.">
                                         @csrf
                                         <button type="submit" class="btn btn-warning w-100">
                                             <i class="bi bi-check2-circle"></i> Израсходована
@@ -166,8 +166,8 @@
                                 @endif
 
                                 @if($canModify && $batch->status === \App\Models\RawMaterialBatch::STATUS_USED)
-                                    <form method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}"
-                                          onsubmit="return confirm('Вернуть партию в статус «В работе»?\nЕсли есть завершённая приёмка, она снова станет активной.')">
+                                    <form data-submit-guard method="POST" action="{{ route('raw-batches.mark-in-work', $batch) }}"
+                                          data-confirm="Вернуть партию в статус «В работе»?&#10;Если есть завершённая приёмка, она снова станет активной.">
                                         @csrf
                                         <button type="submit" class="btn btn-success w-100">
                                             <i class="bi bi-arrow-counterclockwise"></i> Вернуть в работу
@@ -176,8 +176,8 @@
                                 @endif
 
                                 @if($canModify && $batch->canBeArchived())
-                                    <form method="POST" action="{{ route('raw-batches.archive', $batch) }}"
-                                          onsubmit="return confirm('Отправить партию в архив? Это финальный статус.')">
+                                    <form data-submit-guard method="POST" action="{{ route('raw-batches.archive', $batch) }}"
+                                          data-confirm="Отправить партию в архив? Это финальный статус.">
                                         @csrf
                                         <button type="submit" class="btn btn-dark w-100">
                                             <i class="bi bi-archive"></i> В архив
@@ -196,7 +196,7 @@
                                 @endif
 
                                 @if($canModify && $batch->canBeEditedOrDeleted())
-                                    <form method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
+                                    <form data-submit-guard method="POST" action="{{ route('raw-batches.destroy-new', $batch) }}"
                                           data-confirm="Удалить партию #{{ $batch->id }}? Это действие необратимо.">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="btn btn-danger w-100">

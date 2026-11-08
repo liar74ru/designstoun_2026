@@ -203,7 +203,7 @@
 
                             <form method="POST"
                                   action="{{ route('workshops.mark-completed', $workshop) }}"
-                                  onsubmit="return confirm('Закрыть операцию?')"
+                                  data-confirm="Закрыть операцию?"
                                   data-submit-guard>
                                 @csrf
                                 @method('PATCH')
@@ -214,7 +214,7 @@
                         @else
                             <form method="POST"
                                   action="{{ route('workshops.reset-status', $workshop) }}"
-                                  onsubmit="return confirm('Сбросить статус?')"
+                                  data-confirm="Сбросить статус?"
                                   data-submit-guard>
                                 @csrf
                                 @method('PATCH')
@@ -329,7 +329,7 @@
                         <div class="d-flex gap-1">
                             <form method="POST"
                                   action="{{ route('workshops.refresh-item-coeffs', $workshop) }}"
-                                  onsubmit="return confirm('Обновить коэффициенты из справочника товаров?\nЗначения effective_cost_coeff будут пересчитаны по текущим prod_cost_coeff.')"
+                                  data-confirm="Обновить коэффициенты из справочника товаров?&#10;Значения effective_cost_coeff будут пересчитаны по текущим prod_cost_coeff."
                                   data-submit-guard>
                                 @csrf
                                 <button type="submit"

@@ -69,7 +69,7 @@
                     letter-spacing: .02em;
                 }
             </style>
-            <form method="POST" action="{{ route('raw-batches.adjust', $batch) }}" id="adjustForm">
+            <form data-submit-guard method="POST" action="{{ route('raw-batches.adjust', $batch) }}" id="adjustForm">
                 @csrf
 
                 <div class="mb-3">

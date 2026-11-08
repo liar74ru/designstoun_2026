@@ -26,9 +26,9 @@
                         </a>
                     @endif
                     @if($canModify && $reception->status == 'active')
-                        <form action="{{ route('stone-receptions.mark-completed', $reception) }}"
+                        <form data-submit-guard action="{{ route('stone-receptions.mark-completed', $reception) }}"
                               method="POST" class="d-inline-flex"
-                              onsubmit="return confirm('Завершить приёмку?')">
+                              data-confirm="Завершить приёмку?">
                             @csrf
                             @method('PATCH')
                             <button type="submit"
@@ -38,7 +38,7 @@
                             </button>
                         </form>
                     @endif
-                    <form action="{{ route('stone-receptions.copy', $reception) }}"
+                    <form data-submit-guard action="{{ route('stone-receptions.copy', $reception) }}"
                           method="POST" class="d-inline-flex">
                         @csrf
                         <button type="submit"
@@ -56,9 +56,9 @@
                     </a>
                 @endif
                 @if($canModify && $reception->status != 'active')
-                    <form action="{{ route('stone-receptions.reset-status', $reception) }}"
+                    <form data-submit-guard action="{{ route('stone-receptions.reset-status', $reception) }}"
                           method="POST" class="d-inline-flex"
-                          onsubmit="return confirm('Сбросить статус на Активна?')">
+                          data-confirm="Сбросить статус на Активна?">
                         @csrf
                         @method('PATCH')
                         <button type="submit"
@@ -69,9 +69,9 @@
                     </form>
                 @endif
                 @if($canModify && $reception->status == 'active')
-                    <form action="{{ route('stone-receptions.destroy', $reception) }}"
+                    <form data-submit-guard action="{{ route('stone-receptions.destroy', $reception) }}"
                           method="POST" class="d-inline-flex"
-                          onsubmit="return confirm('Удалить приёмку?')">
+                          data-confirm="Удалить приёмку?">
                         @csrf
                         @method('DELETE')
                         <button type="submit"
