@@ -3,7 +3,7 @@
 # ================================================================
 
 .PHONY: setup install start start-frontend start-queue db migrate seed \
-        watch console log test test-pg test-coverage lint lint-fix stan \
+        watch console log test test-pg test-fast test-coverage lint lint-fix stan \
         ide-helper dump deploy help
 
 # ----------------------------------------------------------------
@@ -149,13 +149,18 @@ cache-warm:
 # ----------------------------------------------------------------
 # Тесты
 # ----------------------------------------------------------------
+# PostgreSQL, как на проде: БД designstoun_test (phpunit.xml), хост и пользователь — из .env.
+# Без --parallel: у пользователя БД нет CREATEDB для копий базы на процесс
 test:
 	php artisan test
 
-# Те же тесты на PostgreSQL: отдельная БД, хост и пользователь — из .env
-TEST_PG_DATABASE ?= designstoun_test
-test-pg:
-	DB_CONNECTION=pgsql DB_DATABASE=$(TEST_PG_DATABASE) php artisan test
+# Прежнее имя — то же, что make test
+test-pg: test
+
+# Быстрая проверка по ходу работы на SQLite in-memory. Ошибки типов PG не ловит —
+# перед коммитом make test
+test-fast:
+	DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test --parallel
 
 test-coverage:
 	XDEBUG_MODE=coverage php artisan test --coverage-html coverage-report
@@ -207,8 +212,8 @@ help:
 	@echo "  make cache-warm     — прогреть кэш для продакшена"
 	@echo "  make log            — следить за логами"
 	@echo "  make console        — открыть tinker"
-	@echo "  make test           — запустить тесты (SQLite)"
-	@echo "  make test-pg        — тесты на PostgreSQL (БД designstoun_test)"
+	@echo "  make test           — тесты на PostgreSQL (БД designstoun_test)"
+	@echo "  make test-fast      — быстрые тесты на SQLite (перед коммитом — make test)"
 	@echo "  make lint           — проверка стиля (Pint)"
 	@echo "  make lint-fix       — исправить стиль (Pint)"
 	@echo "  make stan           — статический анализ (larastan)"
