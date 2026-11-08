@@ -18,6 +18,7 @@ use App\Support\ItemCost;
 use App\Support\ModifierEngine;
 use App\Support\ProductSearch;
 use App\Support\QueryParam;
+use App\Traits\ManagesStock;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -28,6 +29,8 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class WorkshopService
 {
+    use ManagesStock;
+
     public function getFormOptions(?Workshop $workshop = null): array
     {
         // При редактировании сохраняем уже назначенных работников в списках,
@@ -216,8 +219,8 @@ class WorkshopService
             $this->createWorkshopItems($workshop, $data['raw_materials'], WorkshopItem::ROLE_RAW);
             $this->createWorkshopItems($workshop, $data['products'], WorkshopItem::ROLE_PRODUCT);
 
-            // Списать тару со склада сырья (booted::created здесь не годится — строки уже есть).
-            $workshop->adjustAllPackageStock(1);
+            // Списать тару со склада сырья — после вставки package-строк.
+            $this->adjustAllPackageStock($workshop, 1);
 
             $workshop->load('items');
             $productSnapshot = (float) $workshop->items
@@ -358,14 +361,42 @@ class WorkshopService
         $workshop->update(['department_id' => $departmentId]);
     }
 
+    /**
+     * Скорректировать складской остаток одного товара тары (ProductStock).
+     * Двигается только упаковочная тара (role=package); сырьё и продукт — нет.
+     *
+     * delta > 0 — списываем (отнимаем со склада); delta < 0 — возвращаем.
+     */
+    private function adjustPackageStock(Workshop $workshop, int $productId, float $delta, ?string $storeId = null): void
+    {
+        $storeId ??= $workshop->store_id;
+
+        if (!$productId || !$storeId || abs($delta) < 0.0001) {
+            return;
+        }
+
+        $this->adjustStock($productId, $storeId, -$delta);
+    }
+
+    /**
+     * Списать/вернуть тару всех package-строк со склада.
+     * $sign = +1 списать, -1 вернуть.
+     */
+    private function adjustAllPackageStock(Workshop $workshop, int $sign, ?string $storeId = null): void
+    {
+        foreach ($workshop->packageItems()->get() as $item) {
+            $this->adjustPackageStock($workshop, $item->product_id, $sign * (float) $item->quantity, $storeId);
+        }
+    }
+
     /** Смена склада сырья: вернуть тару на старый склад и списать с нового. */
     private function movePackageStock(Workshop $workshop, $before, $after, ?string $oldStoreId): void
     {
         foreach ($before as $it) {
-            $workshop->adjustPackageStock($it->product_id, -1 * (float) $it->quantity, $oldStoreId);
+            $this->adjustPackageStock($workshop, $it->product_id, -1 * (float) $it->quantity, $oldStoreId);
         }
         foreach ($after as $it) {
-            $workshop->adjustPackageStock($it->product_id, (float) $it->quantity);
+            $this->adjustPackageStock($workshop, $it->product_id, (float) $it->quantity);
         }
     }
 
@@ -379,7 +410,7 @@ class WorkshopService
         foreach ($pids as $pid) {
             $delta = ($newByPid[$pid] ?? 0) - ($oldByPid[$pid] ?? 0);
             if (abs($delta) > 0.0001) {
-                $workshop->adjustPackageStock((int) $pid, $delta);
+                $this->adjustPackageStock($workshop, (int) $pid, $delta);
             }
         }
     }
@@ -414,7 +445,11 @@ class WorkshopService
         // Позиции нужны в памяти: после удаления по ним подтягиваются остатки из МойСклад.
         $workshop->loadMissing('items.product');
 
-        DB::transaction(fn () => $workshop->delete());
+        // Тара возвращается до удаления: строки уходят каскадом вместе с операцией.
+        DB::transaction(function () use ($workshop) {
+            $this->adjustAllPackageStock($workshop, -1);
+            $workshop->delete();
+        });
 
         // Запись уже удалена, поэтому в задачу — только значения. Без id техоперацию найдёт
         // по внешнему коду: операцию могли удалить, пока её создание ждало в очереди.
@@ -433,7 +468,7 @@ class WorkshopService
     public function markCompleted(Workshop $workshop): void
     {
         DB::transaction(function () use ($workshop) {
-            $workshop->markAsCompleted();
+            $workshop->update(['status' => Workshop::STATUS_COMPLETED]);
         });
 
         $workshop->refresh();

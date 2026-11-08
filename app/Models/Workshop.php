@@ -4,17 +4,14 @@ namespace App\Models;
 
 use App\Models\Concerns\HasEffectiveDepartment;
 use App\Models\Concerns\HasMoyskladSync;
-use App\Traits\ManagesStock;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
 
 class Workshop extends Model
 {
     use HasEffectiveDepartment;
     use HasMoyskladSync;
-    use ManagesStock;
 
     protected $table = 'workshops';
 
@@ -142,73 +139,10 @@ class Workshop extends Model
         return $this->items->where('role', WorkshopItem::ROLE_PRODUCT)->sum('quantity');
     }
 
-    // ─── Статус ──────────────────────────────────────────────────────────────
-
-    public function markAsCompleted(): void
-    {
-        $this->update(['status' => self::STATUS_COMPLETED]);
-    }
-
-    public function markAsActive(): void
-    {
-        $this->update([
-            'status'                 => self::STATUS_ACTIVE,
-            'moysklad_processing_id' => null,
-            'synced_at'              => null,
-        ]);
-    }
-
-    public function markAsError(): void
-    {
-        $this->update([
-            'status'    => self::STATUS_ERROR,
-            'synced_at' => now(),
-        ]);
-    }
-
     // ─── Scopes ──────────────────────────────────────────────────────────────
 
     public function scopeActive($query)
     {
         return $query->where('status', self::STATUS_ACTIVE);
-    }
-
-    /**
-     * Скорректировать складской остаток одного товара тары (ProductStock).
-     * Двигается только упаковочная тара (role=package); сырьё и продукт — нет.
-     *
-     * delta > 0 — списываем (отнимаем со склада); delta < 0 — возвращаем.
-     */
-    public function adjustPackageStock(int $productId, float $delta, ?string $storeId = null): void
-    {
-        $storeId ??= $this->store_id;
-
-        if (!$productId || !$storeId || abs($delta) < 0.0001) {
-            return;
-        }
-
-        $this->adjustStock($productId, $storeId, -$delta);
-    }
-
-    /**
-     * Списать/вернуть тару всех package-строк со склада.
-     * $sign = +1 списать, -1 вернуть.
-     */
-    public function adjustAllPackageStock(int $sign = 1, ?string $storeId = null): void
-    {
-        foreach ($this->packageItems()->get() as $item) {
-            $this->adjustPackageStock($item->product_id, $sign * (float) $item->quantity, $storeId);
-        }
-    }
-
-    protected static function booted()
-    {
-        // Списание тары на создании выполняется в WorkshopService::create()
-        // после вставки package-строк (событие created срабатывает до них).
-        static::deleting(function (Workshop $workshop) {
-            DB::transaction(function () use ($workshop) {
-                $workshop->adjustAllPackageStock(-1);
-            });
-        });
     }
 }

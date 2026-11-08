@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\DepartmentModifier;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
+use App\Models\RawMaterialMovement;
 use App\Models\ReceptionLog;
 use App\Models\ReceptionLogItem;
 use App\Models\StoneReception;
@@ -268,7 +269,7 @@ class StoneReceptionService
     /**
      * Предварительная проверка остатка партии — до закрытия активной приёмки и split.
      * Окончательно остаток проверяется под блокировкой партии при списании
-     * (StoneReception::updateStocks): между проверкой и сохранением его могла забрать
+     * (consumeRaw): между проверкой и сохранением его могла забрать
      * другая приёмка.
      *
      * @throws InsufficientRawMaterialException
@@ -300,7 +301,7 @@ class StoneReceptionService
 
             $existingActive = $batch->getActiveReception();
             if ($existingActive) {
-                $existingActive->markAsCompleted();
+                $existingActive->update(['status' => StoneReception::STATUS_COMPLETED]);
             }
 
             // Если у партии уже есть завершённые/обработанные приёмки и остаётся сырьё —
@@ -325,6 +326,7 @@ class StoneReceptionService
             $batchSnapshotBefore = (float) $batch->remaining_quantity;
 
             $reception = StoneReception::create($this->prepareReceptionData($data));
+            $this->consumeRaw($reception);
             $this->createReceptionItems($reception, $data['products']);
 
             // Отдел приёмки ведёт за собой отдел партии сырья
@@ -438,6 +440,71 @@ class StoneReceptionService
     }
 
     /**
+     * Списать сырьё приёмки из партии и записать движение «use». Вызывается в транзакции
+     * создания: остаток проверяется под блокировкой партии.
+     *
+     * Остатки готовой продукции в product_stocks НЕ трогаем — они являются
+     * зеркалом МойСклад и подтягиваются после успешной техоперации
+     * (StoneReceptionSyncService::refreshAffectedStocks).
+     *
+     * @throws InsufficientRawMaterialException
+     */
+    private function consumeRaw(StoneReception $reception): void
+    {
+        $batch = BatchStock::lockById($reception->raw_material_batch_id);
+        if (!$batch) {
+            return;
+        }
+
+        BatchStock::ensureAvailable($batch, (float) $reception->raw_quantity_used);
+
+        $batch->remaining_quantity = max(0, (float) $batch->remaining_quantity - (float) $reception->raw_quantity_used);
+        BatchStock::syncStatus($batch);
+        $batch->save();
+        $reception->setRelation('rawMaterialBatch', $batch);
+
+        RawMaterialMovement::create([
+            'batch_id'       => $batch->id,
+            'from_store_id'  => $reception->store_id,
+            'to_store_id'    => null,
+            'from_worker_id' => $reception->cutter_id,
+            'to_worker_id'   => null,
+            'moved_by'       => $reception->receiver_id,
+            'movement_type'  => 'use',
+            'quantity'       => $reception->raw_quantity_used,
+        ]);
+    }
+
+    /**
+     * Вернуть сырьё удалённой приёмки в партию и записать движение «return_to_store».
+     * Статус партии не меняется — им управляют вручную.
+     *
+     * Остатки готовой продукции локально не откатываем: техоперацию в МойСклад удаляет
+     * задача DeleteProcessingInMoysklad, после чего остатки подтягиваются из МойСклад.
+     */
+    private function returnRaw(StoneReception $reception): void
+    {
+        $batch = BatchStock::lockById($reception->raw_material_batch_id);
+        if (!$batch) {
+            return;
+        }
+
+        $batch->remaining_quantity = (float) $batch->remaining_quantity + (float) $reception->raw_quantity_used;
+        $batch->save();
+
+        RawMaterialMovement::create([
+            'batch_id'       => $batch->id,
+            'from_store_id'  => null,
+            'to_store_id'    => $reception->store_id,
+            'from_worker_id' => null,
+            'to_worker_id'   => $reception->cutter_id,
+            'moved_by'       => $reception->receiver_id,
+            'movement_type'  => 'return_to_store',
+            'quantity'       => $reception->raw_quantity_used,
+        ]);
+    }
+
+    /**
      * Поставить отправку приёмки в МойСклад в очередь. Вызывается после транзакции.
      * Что отправлять, задача читает из записи при выполнении — см. pushReception().
      */
@@ -454,7 +521,10 @@ class StoneReceptionService
         // подтягиваются остатки затронутых товаров из МойСклад.
         $reception->loadMissing('items.product', 'rawMaterialBatch.product');
 
-        DB::transaction(fn () => $reception->delete());
+        DB::transaction(function () use ($reception) {
+            $reception->delete();
+            $this->returnRaw($reception);
+        });
 
         // Запись уже удалена, поэтому в задачу — только значения. Без id техоперацию найдёт
         // по внешнему коду: приёмку могли удалить, пока её создание ждало в очереди.
@@ -532,7 +602,7 @@ class StoneReceptionService
     public function markCompleted(StoneReception $reception): void
     {
         DB::transaction(function () use ($reception) {
-            $reception->markAsCompleted();
+            $reception->update(['status' => StoneReception::STATUS_COMPLETED]);
 
             $batch = $reception->rawMaterialBatch;
             if ($batch) {

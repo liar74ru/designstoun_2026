@@ -183,7 +183,7 @@
 | 1–2. Состав, создание | `WorkshopController::create`, `store`, `copy`; `WorkshopService::create`, `createWorkshopItems`; `StoreWorkshopRequest` | `WorkshopServiceTest`, `WorkshopValidationTest` |
 | 3. Шаблоны | `WorkshopPresetService::getPresetsJsonFor`, `WorkshopController::getPresetsJson`, `Admin\WorkshopPresetController`, `Admin\WorkshopPresetGroupController`; JS `resources/js/workshop-preset-picker.js` (выбор по группам), `applyPreset` в `workshops/create.blade.php` | `Workshop/WorkshopPresetGroupTest` |
 | 4. Отдел | `WorkshopService::resolveDepartmentId`, `prepareWorkshopData`, `updateDepartment`; `Workshop::effectiveDepartmentChain` | `WorkshopServiceTest`, `tests/Feature/MasterDashboard/EnterpriseDashboardTest` |
-| 5. Тара | `Workshop::adjustPackageStock`, `adjustAllPackageStock`, `booted` (`deleting`); `WorkshopService::movePackageStock`, `applyPackageDeltas`, `updateStores` | `WorkshopServiceTest` |
+| 5. Тара | `WorkshopService::adjustPackageStock`, `adjustAllPackageStock`, `delete`, `movePackageStock`, `applyPackageDeltas`, `updateStores` | `WorkshopServiceTest` |
 | 6. Правка | `WorkshopService::update`, `syncRoleItems`, `diffItemDeltas`, `writeWorkshopLog`; JS «Итого продукта» в `workshops/edit.blade.php` (спека `docs/superpowers/specs/2026-07-19-workshop-edit-proportional-scaling-design.md`) | `WorkshopServiceTest` |
 | 7. Зарплата | `WorkshopService::createProductItem`, `updateItemCoeff`, `refreshItemCoeffs`; `WorkshopItem::effectiveProdCost`; снятые sku-правила — `workshop_items.disabled_modifier_keys` | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `Modifier/DisabledSkuModifierTest` |
 | 8. МойСклад | `WorkshopService::queueSync`; `Jobs\SyncWorkshopToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\WorkshopSyncService::pushWorkshop`, `syncWorkshop`, `createProcessingForWorkshop`, `updateProcessingProducts`, `computeProcessingSum`, `buildWorkshopDescription` | `tests/Feature/Moysklad/ProcessingSyncJobTest`, `WorkshopSyncServiceTest`, `WorkshopProcessingUpdateTest` |
@@ -204,5 +204,5 @@
   правил отдела. Серверный фолбэк — `computeProcessingSum()`, та же сумма с правилами.
 - В логе `receiver_id` берётся из формы; у не-админа в edit-форме это скрытое поле с текущим
   приёмщиком операции (в приёмке, наоборот, засчитывается правящий).
-- Статус `error` (`Workshop::markAsError`) объявлен, но нигде не выставляется.
+- Статус `error` (`Workshop::STATUS_ERROR`) объявлен, но нигде не выставляется.
 - `workshop_logs` удаляются каскадом вместе с операцией.

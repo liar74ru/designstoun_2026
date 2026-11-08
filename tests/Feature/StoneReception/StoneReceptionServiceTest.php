@@ -4,6 +4,7 @@ use App\Jobs\DeleteProcessingInMoysklad;
 use App\Jobs\SyncReceptionToMoysklad;
 use App\Models\Product;
 use App\Models\RawMaterialBatch;
+use App\Models\RawMaterialMovement;
 use App\Models\ReceptionLog;
 use App\Models\StoneReception;
 use App\Models\StoneReceptionItem;
@@ -146,7 +147,7 @@ describe('StoneReceptionService::create()', function () {
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
-            'remaining_quantity' => 100.0,
+            'remaining_quantity' => 95.0, // 5 уже списала активная приёмка ниже
             'current_store_id' => $store->id,
             'current_worker_id' => $cutter->id,
             'status' => RawMaterialBatch::STATUS_IN_WORK,
@@ -412,6 +413,77 @@ describe('StoneReceptionService::delete()', function () {
         expect(StoneReception::find($reception->id))->toBeNull();
         Queue::assertPushed(DeleteProcessingInMoysklad::class, fn ($job) => $job->processingId === 'ms-uuid-1');
     });
+
+    test('возвращает сырьё в партию и пишет движение return_to_store, статус партии не меняет', function () {
+        $rawProduct = Product::factory()->create(['name' => 'Гранит']);
+        $product    = Product::factory()->create(['name' => 'Плитка']);
+        $store      = Store::factory()->create();
+        $cutter     = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
+        $receiver   = Worker::create(['name' => 'Приёмщик', 'position' => 'Мастер']);
+        $batch      = RawMaterialBatch::create([
+            'product_id'         => $rawProduct->id,
+            'initial_quantity'   => 10.0,
+            'remaining_quantity' => 10.0,
+            'current_store_id'   => $store->id,
+            'current_worker_id'  => $cutter->id,
+            'status'             => RawMaterialBatch::STATUS_IN_WORK,
+        ]);
+
+        $service   = makeStoneReceptionService();
+        $reception = $service->create([
+            'receiver_id'           => $receiver->id,
+            'cutter_id'             => $cutter->id,
+            'store_id'              => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_used'     => 4.0,
+            'products'              => [['product_id' => $product->id, 'quantity' => 1.0]],
+        ], false);
+
+        expect((float) $batch->fresh()->remaining_quantity)->toBe(6.0);
+        $statusBefore = $batch->fresh()->status;
+
+        $service->delete($reception);
+
+        $batch->refresh();
+        expect((float) $batch->remaining_quantity)->toBe(10.0)
+            ->and($batch->status)->toBe($statusBefore);
+
+        $movement = RawMaterialMovement::where('batch_id', $batch->id)
+            ->where('movement_type', 'return_to_store')->sole();
+        expect((float) $movement->quantity)->toBe(4.0)
+            ->and($movement->to_store_id)->toBe($store->id)
+            ->and($movement->to_worker_id)->toBe($cutter->id)
+            ->and($movement->moved_by)->toBe($receiver->id);
+    });
+
+    test('запись в обход сервиса партию и движения не трогает', function () {
+        $rawProduct = Product::factory()->create(['name' => 'Гранит']);
+        $store      = Store::factory()->create();
+        $cutter     = Worker::create(['name' => 'Пильщик', 'position' => 'Работник']);
+        $batch      = RawMaterialBatch::create([
+            'product_id'         => $rawProduct->id,
+            'initial_quantity'   => 10.0,
+            'remaining_quantity' => 10.0,
+            'current_store_id'   => $store->id,
+            'current_worker_id'  => $cutter->id,
+            'status'             => RawMaterialBatch::STATUS_NEW,
+        ]);
+
+        $reception = StoneReception::create([
+            'receiver_id'           => $cutter->id,
+            'cutter_id'             => $cutter->id,
+            'store_id'              => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_used'     => 4.0,
+            'status'                => StoneReception::STATUS_ACTIVE,
+        ]);
+        $reception->delete();
+
+        $batch->refresh();
+        expect((float) $batch->remaining_quantity)->toBe(10.0)
+            ->and($batch->status)->toBe(RawMaterialBatch::STATUS_NEW)
+            ->and(RawMaterialMovement::where('batch_id', $batch->id)->exists())->toBeFalse();
+    });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -428,7 +500,7 @@ describe('StoneReceptionService::closeBatch()', function () {
         $batch = RawMaterialBatch::create([
             'product_id' => $rawProduct->id,
             'initial_quantity' => 100.0,
-            'remaining_quantity' => 100.0, // приёмка ниже спишет всё — остаток 0
+            'remaining_quantity' => 0.0, // приёмка ниже списала всё
             'current_store_id' => $store->id,
             'current_worker_id' => $cutter->id,
             'status' => RawMaterialBatch::STATUS_IN_WORK,

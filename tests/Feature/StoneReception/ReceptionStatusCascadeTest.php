@@ -6,7 +6,9 @@ use App\Models\StoneReception;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\Worker;
+use App\Services\StoneReceptionService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 
 // ─── Вспомогательные ─────────────────────────────────────────────────────────
 
@@ -163,7 +165,21 @@ test('редактирование приёмки не переводит пар
     expect($batch->fresh()->status)->toBe('confirmed');
 });
 
-// ─── updateStocks: первая приёмка переводит партию new → in_work ─────────────
+function createReceptionViaService(RawMaterialBatch $batch, Store $store, Worker $cutter, float $rawQty, Product $product): StoneReception
+{
+    Queue::fake();
+
+    return app(StoneReceptionService::class)->create([
+        'raw_material_batch_id' => $batch->id,
+        'store_id'              => $store->id,
+        'cutter_id'             => $cutter->id,
+        'receiver_id'           => $cutter->id,
+        'raw_quantity_used'     => $rawQty,
+        'products'              => [['product_id' => $product->id, 'quantity' => 1.0]],
+    ], false);
+}
+
+// ─── Списание при создании: первая приёмка переводит партию new → in_work ───
 
 test('создание первой приёмки переводит партию из new в in_work', function () {
     $product = Product::factory()->create(['prod_cost_coeff' => 1.0]);
@@ -179,15 +195,7 @@ test('создание первой приёмки переводит парти
         'status'             => 'new',
     ]);
 
-    // Создаём приёмку через модель, которая вызывает updateStocks в booted()
-    StoneReception::create([
-        'raw_material_batch_id' => $batch->id,
-        'store_id'              => $store->id,
-        'cutter_id'             => $cutter->id,
-        'receiver_id'           => $cutter->id,
-        'raw_quantity_used'     => 2.0,
-        'status'                => 'active',
-    ]);
+    createReceptionViaService($batch, $store, $cutter, 2.0, $product);
 
     $fresh = $batch->fresh();
     expect($fresh->status)->toBe('confirmed');    // new → confirmed (остаток > 0) ✓
@@ -208,14 +216,7 @@ test('создание приёмки не переводит партию в us
         'status'             => 'in_work',
     ]);
 
-    StoneReception::create([
-        'raw_material_batch_id' => $batch->id,
-        'store_id'              => $store->id,
-        'cutter_id'             => $cutter->id,
-        'receiver_id'           => $cutter->id,
-        'raw_quantity_used'     => 2.0, // весь остаток
-        'status'                => 'active',
-    ]);
+    createReceptionViaService($batch, $store, $cutter, 2.0, $product); // весь остаток
 
     $fresh = $batch->fresh();
     expect($fresh->status)->toBe('in_work');      // НЕ 'used' — авто-смена отключена

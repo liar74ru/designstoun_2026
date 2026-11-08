@@ -281,7 +281,7 @@ function entReceptionNoDept(?Department $batchDept, ?Department $cutterDept, flo
         'store_id'              => $store->id,
         'department_id'         => null,
         'raw_material_batch_id' => $batch?->id,
-        'raw_quantity_used'     => 0,   // created → updateStocks() пишет движение по партии
+        'raw_quantity_used'     => 0,
         'status'                => 'active',
     ]);
 

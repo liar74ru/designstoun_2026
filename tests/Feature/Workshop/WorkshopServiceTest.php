@@ -260,11 +260,25 @@ describe('WorkshopService: склады', function () {
             'packages'         => [['product_id' => $this->packageProduct->id, 'quantity' => 3.0]],
         ]), false);
 
-        $workshop->delete();
+        $service->delete($workshop);
 
         $stock = ProductStock::where('product_id', $this->packageProduct->id)
             ->where('store_id', $this->store->id)->first();
         expect((float) $stock->quantity)->toBe(0.0);
+    });
+
+    test('удаление записи в обход сервиса тару не трогает', function () {
+        $service = new WorkshopService();
+        $workshop = $service->create(basePayload($this, [
+            'product_store_id' => $this->store->id,
+            'packages'         => [['product_id' => $this->packageProduct->id, 'quantity' => 3.0]],
+        ]), false);
+
+        $workshop->delete();
+
+        $stock = ProductStock::where('product_id', $this->packageProduct->id)
+            ->where('store_id', $this->store->id)->first();
+        expect((float) $stock->quantity)->toBe(-3.0);
     });
 });
 

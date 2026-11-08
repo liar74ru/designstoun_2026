@@ -167,14 +167,14 @@
 | Раздел | Код | Тесты (`tests/Feature/StoneReception/`) |
 |---|---|---|
 | 1. Новая приёмка | `StoneReceptionController::create`, `store`, `copy`, `getBatchesJson`; `StoneReceptionService::create`; `HandlesBatchStock::getActiveBatches` | `StoneReceptionTest`, `ReceptionCopyAndApiTest` |
-| 2. Партия | `StoneReceptionService::create`, `RawMaterialBatchService::split`, `StoneReception::updateStocks` | `StoneReceptionServiceTest`, `ReceptionStatusCascadeTest`, `ReceptionCreateSplitTest` |
+| 2. Партия | `StoneReceptionService::create`, `RawMaterialBatchService::split`, `StoneReceptionService::consumeRaw` | `StoneReceptionServiceTest`, `ReceptionStatusCascadeTest`, `ReceptionCreateSplitTest` |
 | 3. Отдел | `StoneReceptionService::resolveDepartmentId`, `updateDepartment`; `StoneReception::effectiveDepartmentChain` | `ReceptionDepartmentChangeTest` |
 | 4. Статусы | `StoneReceptionService::markCompleted`, `closeBatch`, `resetStatus`; `RawMaterialBatchService::markAsUsed` / `markAsInWork` | `ReceptionActionsTest`, `ReceptionStatusCascadeTest`, `StoneReceptionServiceTest` |
 | 5. Правка | `StoneReceptionService::update`, `updateReceptionItems`, `writeReceptionLog`, `updateLogReceiver`; `HandlesBatchStock::handleBatchChanges` | `StoneReceptionTest`, `ReceptionLogTest`, `ReceptionLogReceiverTest` |
 | 6. Коэффициенты | `StoneReceptionService::updateItemCoeff`, `refreshItemCoeffs`; `Support\ItemCost`; снятые sku-правила — `stone_reception_items.disabled_modifier_keys`, `ModifierEngine::disabledSkuKeys` | `ReceptionActionsTest`, `ReceptionExtraActionsTest`, `StoneReceptionEdgingFlowTest`, `EdgingCoeffTest`, `Modifier/DisabledSkuModifierTest` |
 | 9. Список: поиск по части названия | `StoneReceptionService::getFilteredReceptions`, `getFilteredLogs`, `getBatchesWithoutReceptions` (фильтры `raw_product_search`, `product_search`); `Support\ProductSearch`; пикер — `searchName` в `partials/product-picker`, JS `product-picker.js` | `ReceptionIndexProductSearchTest`, `tests/Unit/ProductSearchTest`, `tests/Feature/ProductSearch/ProductSearchTest` |
 | 7. МойСклад | `StoneReceptionService::queueSync`; `Jobs\SyncReceptionToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\StoneReceptionSyncService::pushReception`, `syncReception`, `createProcessingForReception`, `updateProcessingProducts`, `buildReceptionDescription`, `buildCostSummary`; `DocumentNaming` | `ReceptionExtraActionsTest`, `tests/Feature/Moysklad/ProcessingSyncJobTest`, `StoneReceptionSyncServiceTest`, `StoneReceptionProcessingUpdateTest`, `ReceptionDescriptionCostTest` |
-| 8. Удаление | `StoneReceptionService::delete`, `StoneReception::booted` (`deleted`) | `StoneReceptionServiceTest`, `StoneReceptionTest` |
+| 8. Удаление | `StoneReceptionService::delete`, `returnRaw` | `StoneReceptionServiceTest`, `StoneReceptionTest` |
 | 9. Список и доступ | `StoneReceptionService::getFilteredReceptions`, `getFilteredLogs`, `getBatchesWithoutReceptions`, `getFilterData`; `StoneReceptionPolicy::modify` | `StoneReceptionDepartmentAccessTest`, `BatchesWithoutReceptionsTest`, `ReceptionIndexWorkerFilterTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |
 
 Заметки:

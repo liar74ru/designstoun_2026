@@ -124,7 +124,7 @@ class ReceptionTestHelper
     }
 
     /**
-     * Создать приёмку напрямую (без booted-хуков) для тестов,
+     * Создать приёмку напрямую (в обход сервиса) для тестов,
      * которым нужна уже готовая приёмка в БД.
      * raw_quantity_used уже списан из партии вручную.
      */
@@ -136,20 +136,18 @@ class ReceptionTestHelper
         float $rawQtyUsed = 5.0,
         array $attrs = []
     ): StoneReception {
-        // Уменьшаем партию вручную (booted не помогает — он вызывает updateStocks дважды в тестах)
+        // Списание сырья делает сервис, поэтому здесь партия уменьшается вручную
         $batch->remaining_quantity = (float) $batch->remaining_quantity - $rawQtyUsed;
         $batch->save();
 
-        return StoneReception::withoutEvents(function () use ($batch, $receiver, $cutter, $store, $rawQtyUsed, $attrs) {
-            return StoneReception::create(array_merge([
-                'receiver_id'          => $receiver->id,
-                'cutter_id'            => $cutter->id,
-                'store_id'             => $store->id,
-                'raw_material_batch_id' => $batch->id,
-                'raw_quantity_used'    => $rawQtyUsed,
-                'status'               => 'active',
-            ], $attrs));
-        });
+        return StoneReception::create(array_merge([
+            'receiver_id'           => $receiver->id,
+            'cutter_id'             => $cutter->id,
+            'store_id'              => $store->id,
+            'raw_material_batch_id' => $batch->id,
+            'raw_quantity_used'     => $rawQtyUsed,
+            'status'                => 'active',
+        ], $attrs));
     }
 
     /**

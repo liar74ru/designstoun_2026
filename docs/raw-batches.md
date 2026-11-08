@@ -185,7 +185,7 @@
 | Раздел | Код | Тесты (`tests/Feature/...`) |
 |---|---|---|
 | 2. Создание | `RawMaterialBatchController::create`, `store`, `copy`, `nextBatchNumber`, `workerBatchByProduct`; `RawMaterialBatchService::create`, `resolveDepartmentId`, `generateBatchNumber`, `findWorkerBatchByProduct` | `RawBatch/RawBatchStoreTest`, `RawMovementStore/RawMovementStoreTest`, `RawBatch/BatchNumberTest`, `RawBatch/BatchByProductTest` |
-| 3. Статусы | `RawMaterialBatch` (`statusLabel`, `canBeMarkedAsUsed`, `canBeArchived`); `RawMaterialBatchController::markAsUsed`, `markAsInWork`, `archive`; `StoneReception::updateStocks`; `StoneReceptionService::closeBatch`, `markCompleted` | `RawBatch/BatchStatusTest`, `RawBatch/RawBatchNewStatusTest`, `RawBatch/RawBatchModelTest` |
+| 3. Статусы | `RawMaterialBatch` (`statusLabel`, `canBeMarkedAsUsed`, `canBeArchived`); `RawMaterialBatchController::markAsUsed`, `markAsInWork`, `archive`; `StoneReceptionService::consumeRaw`, `closeBatch`, `markCompleted` | `RawBatch/BatchStatusTest`, `RawBatch/RawBatchNewStatusTest`, `RawBatch/RawBatchModelTest` |
 | 4. Изменение | `RawMaterialBatchController::adjust`, `update`, `destroyNew`, `destroy`; `RawMaterialBatchService::adjust`, `update`, `deleteNew`; `RawMaterialBatch::adjustBlockReason` | `RawBatch/RawMaterialBatchServiceTest`, `RawBatch/RawBatchNewStatusTest`, `RawBatch/RawBatchPagesTest`, `Moysklad/BatchSyncJobTest` |
 | 5. Передача / возврат | `RawMaterialBatchService::transfer`, `returnToStore`; `RawMaterialBatch::canBeTransferredOrReturned` | `RawBatch/RawBatchTransferTest`, `RawMovementStore/RawMovementStoreTest` |
 | 6. Разделение | `RawMaterialBatchService::split`, `StoneReceptionService::create` | `RawBatch/RawBatchSplitTest`, `StoneReception/ReceptionCreateSplitTest` |
@@ -195,7 +195,7 @@
 
 Заметки:
 
-- Статус пересчитывается при списании в `StoneReception::updateStocks` (хук `created`) и в
+- Статус пересчитывается при списании в `StoneReceptionService::consumeRaw` (создание приёмки) и в
   `HandlesBatchStock::handleBatchChanges` при правке приёмки — одним `BatchStock::syncStatus`.
   В `used` сам по себе не уходит.
 - `StoneReceptionService::create`: закрытие прежней активной приёмки, split и сама приёмка —
