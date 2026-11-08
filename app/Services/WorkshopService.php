@@ -14,20 +14,21 @@ use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
 use App\Support\DocumentNaming;
-use App\Support\ItemCost;
-use App\Support\ModifierEngine;
 use App\Support\ProductSearch;
 use App\Support\QueryParam;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
-class WorkshopService
+/** @extends ProductionDocumentService<Workshop, WorkshopItem> */
+class WorkshopService extends ProductionDocumentService
 {
     use ManagesStock;
 
@@ -500,66 +501,25 @@ class WorkshopService
         return ['success' => true, 'message' => 'Отправлено в МойСклад.'];
     }
 
-    public function updateItemCoeff(Workshop $workshop, array $validated): void
+    protected function modifierScope(): string
     {
-        DB::transaction(function () use ($workshop, $validated) {
-            foreach ($validated['items'] as $row) {
-                $item = $workshop->productItems()->with('product')->findOrFail($row['item_id']);
-
-                // База — из формы как есть, правилами не переопределяется.
-                // Сработавшие по SKU правила форма шлёт чекбоксами: неотмеченное — снято.
-                $departmentId = $workshop->effectiveDepartmentId();
-                $keys         = $row['modifiers'] ?? [];
-
-                $cost = ItemCost::computeFromBase(
-                    $item->product,
-                    (float) $row['base_coeff'],
-                    $departmentId,
-                    DepartmentModifier::SCOPE_WORKSHOP,
-                    $keys,
-                    null,
-                    (float) $row['master_base_coeff'],
-                    ModifierEngine::disabledSkuKeys(
-                        $departmentId,
-                        DepartmentModifier::SCOPE_WORKSHOP,
-                        $item->product?->sku,
-                        $keys,
-                    ),
-                );
-
-                $item->update($cost['attributes']);
-                ItemCost::syncSnapshot('workshop_item_id', $item->id, $cost['modifiers']);
-            }
-        });
+        return DepartmentModifier::SCOPE_WORKSHOP;
     }
 
-    public function refreshItemCoeffs(Workshop $workshop): void
+    protected function snapshotForeignKey(): string
     {
-        $workshop->loadMissing('items.product', 'items.modifiers');
+        return 'workshop_item_id';
+    }
 
-        DB::transaction(function () use ($workshop) {
-            foreach ($workshop->productItems()->with('product')->get() as $item) {
-                if (!$item->product || $item->product->prod_cost_coeff === null) {
-                    continue;
-                }
-
-                // Ручной выбор восстанавливается из снапшота позиции —
-                // sku-правила движок определит сам по товару, кроме снятых у позиции.
-                $departmentId = $workshop->effectiveDepartmentId();
-
-                $cost = ItemCost::compute(
-                    $item->product,
-                    $departmentId,
-                    DepartmentModifier::SCOPE_WORKSHOP,
-                    ModifierEngine::manualKeysFromSnapshot($departmentId, $item->modifiers),
-                    null,
-                    $item->disabled_modifier_keys ?? [],
-                );
-
-                $item->update($cost['attributes']);
-                ItemCost::syncSnapshot('workshop_item_id', $item->id, $cost['modifiers']);
-            }
-        });
+    /**
+     * Себестоимость есть только у продукта: сырьё и тара её не имеют.
+     *
+     * @param  Workshop  $document
+     * @return HasMany<WorkshopItem, Workshop>
+     */
+    protected function costedItems(Model $document): HasMany
+    {
+        return $document->productItems();
     }
 
     /**
@@ -649,23 +609,13 @@ class WorkshopService
      * Новая строка создаётся без ручных правил: подкол и торцовку в цехе
      * включают отдельно, через updateItemCoeff.
      */
-    private function createProductItem(Workshop $workshop, int $productId, $quantity, ?Product $prod): WorkshopItem
+    private function createProductItem(Workshop $workshop, int $productId, $quantity, ?Product $prod): void
     {
-        $cost = ItemCost::compute(
-            $prod,
-            $workshop->effectiveDepartmentId(),
-            DepartmentModifier::SCOPE_WORKSHOP,
-        );
-
-        $item = $workshop->items()->create(array_merge($cost['attributes'], [
+        $this->createCostedItem($workshop, [
             'product_id' => $productId,
             'role'       => WorkshopItem::ROLE_PRODUCT,
             'quantity'   => $quantity,
-        ]));
-
-        ItemCost::syncSnapshot('workshop_item_id', $item->id, $cost['modifiers']);
-
-        return $item;
+        ], $prod);
     }
 
     /**

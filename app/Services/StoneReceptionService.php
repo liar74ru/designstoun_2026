@@ -19,21 +19,22 @@ use App\Models\Worker;
 use App\Support\BatchStock;
 use App\Support\DepartmentSettings;
 use App\Support\DocumentNaming;
-use App\Support\ItemCost;
-use App\Support\ModifierEngine;
 use App\Support\ProductSearch;
 use App\Support\QueryParam;
 use App\Traits\HandlesBatchStock;
 use App\Traits\ManagesStock;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
-class StoneReceptionService
+/** @extends ProductionDocumentService<StoneReception, StoneReceptionItem> */
+class StoneReceptionService extends ProductionDocumentService
 {
     use HandlesBatchStock, ManagesStock;
 
@@ -668,75 +669,6 @@ class StoneReceptionService
         return true;
     }
 
-    public function updateItemCoeff(StoneReception $reception, array $validated): void
-    {
-        DB::transaction(function () use ($reception, $validated) {
-            foreach ($validated['items'] as $row) {
-                $item = $reception->items()->with('product')->findOrFail($row['item_id']);
-
-                // База берётся из формы как есть: правила её не переопределяют,
-                // поэтому повторное сохранение не сдвигает коэффициент.
-                // Сработавшие по SKU правила форма шлёт чекбоксами: неотмеченное — снято.
-                $departmentId = $this->modifierDepartmentId($reception);
-                $keys         = $row['modifiers'] ?? [];
-
-                $cost = ItemCost::computeFromBase(
-                    $item->product,
-                    (float) $row['base_coeff'],
-                    $departmentId,
-                    DepartmentModifier::SCOPE_RECEPTION,
-                    $keys,
-                    $this->batchSku($reception),
-                    (float) $row['master_base_coeff'],
-                    ModifierEngine::disabledSkuKeys(
-                        $departmentId,
-                        DepartmentModifier::SCOPE_RECEPTION,
-                        $item->product?->sku,
-                        $keys,
-                    ),
-                );
-
-                $item->update($cost['attributes']);
-                ItemCost::syncSnapshot('stone_reception_item_id', $item->id, $cost['modifiers']);
-            }
-
-            $this->syncBatchProcessingSum($reception);
-        });
-    }
-
-    public function refreshItemCoeffs(StoneReception $reception): void
-    {
-        $reception->loadMissing('items.product', 'items.modifiers');
-
-        DB::transaction(function () use ($reception) {
-            foreach ($reception->items as $item) {
-                if (!$item->product || $item->product->prod_cost_coeff === null) {
-                    continue;
-                }
-
-                // Массовый пересчёт от актуального коэффициента справочника.
-                // Ручной выбор пользователя восстанавливается из снапшота позиции:
-                // sku-правила движок определит сам, а отметки — больше неоткуда.
-                // Снятые у позиции sku-правила остаются снятыми.
-                $departmentId = $this->modifierDepartmentId($reception);
-
-                $cost = ItemCost::compute(
-                    $item->product,
-                    $departmentId,
-                    DepartmentModifier::SCOPE_RECEPTION,
-                    ModifierEngine::manualKeysFromSnapshot($departmentId, $item->modifiers),
-                    $this->batchSku($reception),
-                    $item->disabled_modifier_keys ?? [],
-                );
-
-                $item->update($cost['attributes']);
-                ItemCost::syncSnapshot('stone_reception_item_id', $item->id, $cost['modifiers']);
-            }
-
-            $this->syncBatchProcessingSum($reception);
-        });
-    }
-
     public function getActiveBatchesForWorker(Worker $worker): Collection
     {
         return $this->getActiveBatches($worker->id);
@@ -818,41 +750,44 @@ class StoneReceptionService
         $productMap = Product::whereIn('id', $productIds)->get()->keyBy('id');
 
         foreach ($products as $product) {
-            $prod = $productMap->get($product['product_id']);
-
-            $cost = ItemCost::compute(
-                $prod,
-                $this->modifierDepartmentId($reception),
-                DepartmentModifier::SCOPE_RECEPTION,
-                $product['modifiers'] ?? [],
-                $this->batchSku($reception),
-            );
-
-            $item = $reception->items()->create(array_merge($cost['attributes'], [
+            $this->createCostedItem($reception, [
                 'product_id' => $product['product_id'],
                 'quantity'   => $product['quantity'],
-            ]));
-
-            ItemCost::syncSnapshot('stone_reception_item_id', $item->id, $cost['modifiers']);
+            ], $productMap->get($product['product_id']), $product['modifiers'] ?? []);
         }
 
         $this->syncBatchProcessingSum($reception);
     }
 
-    /**
-     * Отдел для правил себестоимости — эффективный, а не голая колонка:
-     * у приёмок, созданных админом, department_id пуст, и правила молча
-     * не применились бы.
-     */
-    private function modifierDepartmentId(StoneReception $reception): ?int
+    protected function modifierScope(): string
     {
-        return $reception->effectiveDepartmentId();
+        return DepartmentModifier::SCOPE_RECEPTION;
     }
 
-    /** SKU партии сырья — от него зависит доступность правил вроде торцовки. */
-    private function batchSku(StoneReception $reception): ?string
+    protected function snapshotForeignKey(): string
     {
-        return $reception->rawMaterialBatch?->product?->sku;
+        return 'stone_reception_item_id';
+    }
+
+    /**
+     * @param  StoneReception  $document
+     * @return HasMany<StoneReceptionItem, StoneReception>
+     */
+    protected function costedItems(Model $document): HasMany
+    {
+        return $document->items();
+    }
+
+    /** @param  StoneReception  $document */
+    protected function batchSku(Model $document): ?string
+    {
+        return $document->rawMaterialBatch?->product?->sku;
+    }
+
+    /** @param  StoneReception  $document */
+    protected function afterCoeffsChanged(Model $document): void
+    {
+        $this->syncBatchProcessingSum($document);
     }
 
     private function updateReceptionItems(StoneReception $reception, array $products): void
@@ -873,22 +808,10 @@ class StoneReceptionService
             if ($existingItems->has($productId)) {
                 $existingItems[$productId]->update(['quantity' => $product['quantity']]);
             } else {
-                $prod = $productMap->get($productId);
-
-                $cost = ItemCost::compute(
-                    $prod,
-                    $this->modifierDepartmentId($reception),
-                    DepartmentModifier::SCOPE_RECEPTION,
-                    $product['modifiers'] ?? [],
-                    $this->batchSku($reception),
-                );
-
-                $item = $reception->items()->create(array_merge($cost['attributes'], [
+                $this->createCostedItem($reception, [
                     'product_id' => $productId,
                     'quantity'   => $product['quantity'],
-                ]));
-
-                ItemCost::syncSnapshot('stone_reception_item_id', $item->id, $cost['modifiers']);
+                ], $productMap->get($productId), $product['modifiers'] ?? []);
             }
         }
 

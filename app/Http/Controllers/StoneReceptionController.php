@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\InsufficientRawMaterialException;
 use App\Http\Requests\StoneReception\StoreStoneReceptionRequest;
 use App\Http\Requests\StoneReception\UpdateStoneReceptionRequest;
+use App\Http\Requests\UpdateItemCoeffsRequest;
 use App\Models\Department;
 use App\Models\RawMaterialBatch;
 use App\Models\ReceptionLog;
@@ -314,23 +315,11 @@ class StoneReceptionController extends Controller
         return back()->with('success', 'Отдел приёмки обновлён.');
     }
 
-    public function updateItemCoeff(Request $request, StoneReception $stoneReception): RedirectResponse
+    public function updateItemCoeff(UpdateItemCoeffsRequest $request, StoneReception $stoneReception): RedirectResponse
     {
         $this->authorize('modify', $stoneReception);
 
-        $validated = $request->validate([
-            'items'               => ['required', 'array'],
-            'items.*.item_id'     => ['required', 'integer'],
-            'items.*.base_coeff'        => ['required', 'numeric', 'between:-100,100'],
-            'items.*.master_base_coeff' => ['required', 'numeric', 'between:-100,100'],
-            'items.*.modifiers'         => 'nullable|array',
-            'items.*.modifiers.*'       => 'string|max:64',
-        ], [
-            'items.*.base_coeff.between'        => 'Коэффициент пильщика — от -100 до 100',
-            'items.*.master_base_coeff.between' => 'Коэффициент мастера — от -100 до 100',
-        ]);
-
-        $this->service->updateItemCoeff($stoneReception, $validated);
+        $this->service->updateItemCoeff($stoneReception, $request->validated());
 
         return back()->with('success', 'Коэффициенты обновлены');
     }

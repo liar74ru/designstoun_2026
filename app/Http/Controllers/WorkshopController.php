@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateItemCoeffsRequest;
 use App\Http\Requests\Workshop\StoreWorkshopRequest;
 use App\Http\Requests\Workshop\UpdateWorkshopRequest;
 use App\Models\Department;
@@ -221,23 +222,11 @@ class WorkshopController extends Controller
         return back()->with('success', 'Операция закрыта.');
     }
 
-    public function updateItemCoeff(Request $request, Workshop $workshop): RedirectResponse
+    public function updateItemCoeff(UpdateItemCoeffsRequest $request, Workshop $workshop): RedirectResponse
     {
         $this->authorize('modify', $workshop);
 
-        $validated = $request->validate([
-            'items'               => ['required', 'array'],
-            'items.*.item_id'     => ['required', 'integer'],
-            'items.*.base_coeff'        => ['required', 'numeric', 'between:-100,100'],
-            'items.*.master_base_coeff' => ['required', 'numeric', 'between:-100,100'],
-            'items.*.modifiers'         => 'nullable|array',
-            'items.*.modifiers.*'       => 'string|max:64',
-        ], [
-            'items.*.base_coeff.between'        => 'Коэффициент пильщика — от -100 до 100',
-            'items.*.master_base_coeff.between' => 'Коэффициент мастера — от -100 до 100',
-        ]);
-
-        $this->service->updateItemCoeff($workshop, $validated);
+        $this->service->updateItemCoeff($workshop, $request->validated());
 
         return back()->with('success', 'Коэффициенты обновлены');
     }
