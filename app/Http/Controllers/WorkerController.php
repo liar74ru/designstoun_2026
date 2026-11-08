@@ -24,7 +24,9 @@ class WorkerController extends Controller
         $positions   = array_combine(Worker::POSITIONS, Worker::POSITIONS);
         $status      = $request->input('filter.status', 'active');
 
-        return view('workers.index', compact('workers', 'departments', 'positions', 'status'));
+        $switchDepartments = $this->service->switchDepartments($request->user());
+
+        return view('workers.index', compact('workers', 'departments', 'positions', 'status', 'switchDepartments'));
     }
 
     public function create(Request $request)

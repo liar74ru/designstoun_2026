@@ -28,22 +28,31 @@
 
     @include('partials.alerts')
 
+    @php
+        $selectedDepartments = request('filter.department_id');
+    @endphp
+
     @if(auth()->user()->isAdmin())
         <div class="btn-group btn-group-sm mb-3 w-100" role="group" aria-label="Фильтр по статусу">
-            <a href="{{ route('workers.index', ['filter' => ['status' => 'active']]) }}"
+            <a href="{{ route('workers.index', ['filter' => ['status' => 'active', 'department_id' => $selectedDepartments]]) }}"
                class="btn {{ $status === 'active' ? 'btn-primary' : 'btn-outline-primary' }}">
                 <i class="bi bi-people"></i> Активные
             </a>
-            <a href="{{ route('workers.index', ['filter' => ['status' => 'archived']]) }}"
+            <a href="{{ route('workers.index', ['filter' => ['status' => 'archived', 'department_id' => $selectedDepartments]]) }}"
                class="btn {{ $status === 'archived' ? 'btn-primary' : 'btn-outline-primary' }}">
                 <i class="bi bi-archive"></i> Архивные
             </a>
-            <a href="{{ route('workers.index', ['filter' => ['status' => 'all']]) }}"
+            <a href="{{ route('workers.index', ['filter' => ['status' => 'all', 'department_id' => $selectedDepartments]]) }}"
                class="btn {{ $status === 'all' ? 'btn-primary' : 'btn-outline-primary' }}">
                 Все
             </a>
         </div>
     @endif
+
+    @include('partials.department-switcher', [
+        'departments' => $switchDepartments,
+        'routeName'   => 'workers.index',
+    ])
 
     @if($workers->count() > 0)
 

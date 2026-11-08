@@ -19,6 +19,7 @@ use App\Models\WorkshopLog;
 use App\Support\QueryParam;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 // рефакторинг v2 от 26.04.2026 — controller → service
@@ -74,6 +75,21 @@ class WorkerService
         }
 
         return $query->orderByRaw($this->positionSortSql())->orderBy('id');
+    }
+
+    /**
+     * Отделы для переключателя над списком: активные и доступные пользователю.
+     *
+     * @return Collection<int, Department>
+     */
+    public function switchDepartments(User $by): Collection
+    {
+        $accessible = $by->accessibleDepartmentIds();
+
+        return Department::where('is_active', true)
+            ->when($accessible !== null, fn ($q) => $q->whereIn('id', $accessible ?: [-1]))
+            ->orderBy('name')
+            ->get();
     }
 
     /**
