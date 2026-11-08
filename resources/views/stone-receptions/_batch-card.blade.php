@@ -46,7 +46,7 @@
         {{-- Блок: сырьё --}}
         <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
             <span class="text-muted text-truncate me-2" style="font-size:.72rem">
-                <ion-icon name="{{ \App\Models\Product::getIconBySku($batch->product?->sku) }}" class="me-1" style="vertical-align:-2px"></ion-icon>
+                <i class="bi {{ \App\Models\Product::getIconBySku($batch->product?->sku) }} me-1" style="vertical-align:-2px"></i>
                 <a href="{{ route('raw-batches.show', $batch) }}" class="text-muted">
                     {{ $batch->product->name ?? '?' }}
                 </a>

@@ -116,7 +116,7 @@
                                                 @endif
                                                 <span class="flex-shrink-0"
                                                       style="width:3px;align-self:stretch;border-radius:2px;background:{{ $row['color'] }}"></span>
-                                                <ion-icon name="{{ $row['icon'] }}" class="text-muted flex-shrink-0 mt-1"></ion-icon>
+                                                <i class="bi {{ $row['icon'] }} text-muted flex-shrink-0 mt-1"></i>
                                                 <div style="min-width:0">
                                                     <div class="fw-semibold {{ $row['done'] ? 'text-decoration-line-through text-muted' : '' }}"
                                                          style="font-size:.84rem; line-height:1.25; word-break:break-word">

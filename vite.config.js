@@ -5,8 +5,10 @@ export default defineConfig({
     plugins: [
         laravel({
             input: [
+                'resources/css/vendor.css',
                 'resources/css/app.css',
                 'resources/css/custom.css',
+                'resources/js/vendor.js',
                 'resources/js/app.js',
                 'resources/js/dropdown-tree.js',
                 'resources/js/product-picker.js',

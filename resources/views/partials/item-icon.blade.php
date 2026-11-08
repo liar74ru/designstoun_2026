@@ -16,6 +16,6 @@
         'class'     => 'me-1',
     ])
 @else
-    <ion-icon name="{{ \App\Models\Product::getIconBySku($sku) }}" class="text-secondary me-1"
-              @if(!empty($iconStyle)) style="{{ $iconStyle }}" @endif></ion-icon>
+    <i class="bi {{ \App\Models\Product::getIconBySku($sku) }} text-secondary me-1"
+       @if(!empty($iconStyle)) style="{{ $iconStyle }}" @endif></i>
 @endif

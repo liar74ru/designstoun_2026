@@ -31,7 +31,7 @@
             @foreach($rawItems as $item)
                 <div class="d-flex align-items-start text-secondary" style="font-size:.78rem;margin-bottom:.05rem">
                     <span class="text-center flex-shrink-0" style="width:.9rem">{{ $loop->first ? '' : '+' }}</span>
-                    <ion-icon name="{{ \App\Models\Product::getIconBySku($item->product?->sku) }}" class="text-secondary me-1 flex-shrink-0" style="font-size:.78rem;margin-top:.1rem"></ion-icon>
+                    <i class="bi {{ \App\Models\Product::getIconBySku($item->product?->sku) }} text-secondary me-1 flex-shrink-0" style="font-size:.78rem;margin-top:.1rem"></i>
                     <span class="flex-grow-1 me-2" style="min-width:0;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">{{ $item->product->name }}</span>
                     <span class="text-nowrap">{{ number_format($item->quantity, 3, ',', '.') }} {{ $uomOf($item->product) }}</span>
                 </div>

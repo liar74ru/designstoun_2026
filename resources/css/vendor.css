@@ -1,0 +1,7 @@
+/*
+ * Сторонние стили из npm (раньше — CDN без проверки целостности).
+ * Подключается в layouts/app до app.css: порядок прежний — сначала Bootstrap,
+ * затем Tailwind и свои стили.
+ */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import 'bootstrap-icons/font/bootstrap-icons.min.css';

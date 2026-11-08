@@ -17,7 +17,7 @@
 
         /* Название */
         .mpos-title { display: flex; gap: .35rem; align-items: flex-start; }
-        .mpos-title ion-icon { flex-shrink: 0; margin-top: .15rem; font-size: 1rem; color: var(--stone); filter: brightness(.8); }
+        .mpos-title > .bi { flex-shrink: 0; margin-top: .15rem; font-size: 1rem; color: var(--stone); filter: brightness(.8); }
         .mpos-name { font-weight: 600; font-size: .86rem; line-height: 1.25; word-break: break-word; }
         .mpos-done { margin-top: .45rem; font-size: .74rem; color: #6c757d; }
 

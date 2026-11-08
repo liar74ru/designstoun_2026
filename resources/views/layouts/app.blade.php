@@ -16,19 +16,8 @@
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css?family=Nunito:400,600,700,800&display=swap" rel="stylesheet">
 
-    <!-- Bootstrap 5.3.3 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-    <!-- Ionicons -->
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-
-    <!-- Scripts -->
-    @vite(['resources/css/app.css', 'resources/css/custom.css', 'resources/js/app.js'])
+    <!-- Bootstrap, Bootstrap Icons — из npm через Vite (resources/css/vendor.css, resources/js/vendor.js) -->
+    @vite(['resources/css/vendor.css', 'resources/css/app.css', 'resources/css/custom.css', 'resources/js/vendor.js', 'resources/js/app.js'])
     @vite(['resources/js/tree-view.js'])
     @vite(['resources/js/dropdown-tree.js'])
     @stack('styles')

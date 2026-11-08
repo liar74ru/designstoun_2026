@@ -89,26 +89,26 @@ class Product extends Model
      * Ключ — первая часть SKU до дефиса ("01".."05").
      */
     const SKU_ICONS = [
-        '01' => 'server-sharp',   // Плитняк (бесформенные плитки)
-        '02' => 'apps-outline',   // Щебень
-        '03' => 'cloud-sharp',    // Валуны
-        '04' => 'grid-outline',   // Плитка из камня
-        '05' => 'flame-sharp',    // Камень для бани
+        '01' => 'bi-layers-fill',   // Плитняк (бесформенные плитки)
+        '02' => 'bi-grid-3x3-gap',  // Щебень
+        '03' => 'bi-cloud-fill',    // Валуны
+        '04' => 'bi-grid',          // Плитка из камня
+        '05' => 'bi-fire',          // Камень для бани
     ];
 
     /**
-     * Возвращает имя Ionicons-иконки по SKU (для <ion-icon name="…">).
+     * Класс иконки Bootstrap Icons по SKU (для <i class="bi …">).
      * Сопоставление по первому сегменту SKU ("01".."05").
-     * Для неизвестных SKU — "cube-outline" как нейтральный fallback.
+     * Для неизвестных SKU — "bi-box" как нейтральный fallback.
      */
     public static function getIconBySku(?string $sku): string
     {
         if (!$sku) {
-            return 'cube-outline';
+            return 'bi-box';
         }
         $prefix = explode('-', $sku, 2)[0];
 
-        return self::SKU_ICONS[$prefix] ?? 'cube-outline';
+        return self::SKU_ICONS[$prefix] ?? 'bi-box';
     }
 
     // ─── Связи ───────────────────────────────────────────────────────────────

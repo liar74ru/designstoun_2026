@@ -130,7 +130,7 @@
                 @endphp
                 <div class="d-flex justify-content-between align-items-center" style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                     <span class="text-muted text-truncate me-2" style="font-size:.72rem">
-                        <ion-icon name="{{ \App\Models\Product::getIconBySku($log->rawMaterialBatch->product?->sku) }}" class="me-1"></ion-icon>
+                        <i class="bi {{ \App\Models\Product::getIconBySku($log->rawMaterialBatch->product?->sku) }} me-1"></i>
                         <a href="{{ route('raw-batches.show', $log->rawMaterialBatch) }}" class="text-muted">
                             {{ $log->rawMaterialBatch->product->name ?? '?' }}
                         </a>
@@ -144,7 +144,7 @@
             @else
                 <div style="border-top:1px solid rgba(108,117,125,.2);padding-top:.2rem;margin-bottom:.2rem">
                     <span class="text-muted text-truncate" style="font-size:.72rem">
-                        <ion-icon name="{{ \App\Models\Product::getIconBySku($log->rawMaterialBatch->product?->sku) }}" class="me-1"></ion-icon>{{ $log->rawMaterialBatch->product->name ?? '?' }}
+                        <i class="bi {{ \App\Models\Product::getIconBySku($log->rawMaterialBatch->product?->sku) }} me-1"></i>{{ $log->rawMaterialBatch->product->name ?? '?' }}
                     </span>
                 </div>
             @endif

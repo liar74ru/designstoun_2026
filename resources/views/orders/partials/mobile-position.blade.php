@@ -40,7 +40,7 @@
 
     <div class="mpos-main">
         <div class="mpos-title">
-            <ion-icon name="{{ $row['icon'] }}"></ion-icon>
+            <i class="bi {{ $row['icon'] }}"></i>
             <div class="mpos-name {{ $row['done'] ? 'text-decoration-line-through text-muted' : '' }}">
                 @if($row['product'])
                     @can('see-products')

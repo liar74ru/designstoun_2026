@@ -53,7 +53,7 @@
                         @if($canMark)
                             @include('orders.partials.ready-toggle', ['order' => $order, 'product' => $product])
                         @endif
-                        <ion-icon name="{{ $row['icon'] }}" class="text-muted flex-shrink-0 mt-1"></ion-icon>
+                        <i class="bi {{ $row['icon'] }} text-muted flex-shrink-0 mt-1"></i>
                         <div class="min-w-0">
                             <div style="font-size:.78rem; line-height:1.25; word-break:break-word">
                                 @if($product)
