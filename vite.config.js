@@ -11,6 +11,7 @@ export default defineConfig({
                 'resources/js/vendor.js',
                 'resources/js/app.js',
                 'resources/js/dropdown-tree.js',
+                'resources/js/product-catalog.js',
                 'resources/js/product-picker.js',
                 'resources/js/product-search.js',
                 'resources/js/tree-view.js',

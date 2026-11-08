@@ -5,6 +5,7 @@ use App\Models\OrderState;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Models\ProductStock;
+use App\Models\SkuColor;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\Moysklad\MoySkladService;
@@ -804,6 +805,57 @@ describe('ProductController groupsJson()', function () {
         expect($products[$ordered->id]['hidden'])->toBeFalse()
             ->and($products[$ordered->id]['in_order'])->toBeTrue()
             ->and($products[$other->id]['in_order'])->toBeFalse();
+    });
+
+    // Каталог на телефоне прячет и метит скрытые по флагу товара, а не по hidden:
+    // иначе товар из заявки не прятался бы переключателем «скрытые»
+    test('is_hidden — флаг товара, заявка его не снимает', function () {
+        Cache::flush();
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+        $state = OrderState::create(['id' => (string) Str::uuid(), 'name' => 'Новый', 'is_enabled' => true]);
+
+        $ordered = makeProduct(['group_id' => $groupId, 'is_hidden' => true]);
+        $visible = makeProduct(['group_id' => $groupId, 'is_hidden' => false]);
+        makeOrderWith($ordered, $state->id);
+
+        $products = treeProducts($this);
+
+        expect($products[$ordered->id]['hidden'])->toBeFalse()
+            ->and($products[$ordered->id]['is_hidden'])->toBeTrue()
+            ->and($products[$visible->id]['is_hidden'])->toBeFalse();
+    });
+
+    // Карточка каталога на телефоне ведёт на products.show по moysklad_id
+    test('ms_id товара — его moysklad_id', function () {
+        Cache::flush();
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+
+        $product = makeProduct(['group_id' => $groupId]);
+
+        expect(treeProducts($this)[$product->id]['ms_id'])->toBe($product->moysklad_id);
+    });
+
+    test('цвет карточки — по SKU из настроек цветов, неизвестный SKU — белый', function () {
+        Cache::flush();
+        SkuColor::query()->delete(); // миграция заполняет цвета по умолчанию
+        SkuColor::create(['name' => 'Кварцит', 'color' => '#AA0000', 'prefixes' => ['01']]);
+        SkuColor::create(['name' => 'Брусчатка', 'color' => '#00BB00', 'prefixes' => ['01-05']]);
+        SkuColor::forgetCache();
+        Product::forgetSkuColorMemo();
+
+        $groupId = (string) Str::uuid();
+        ProductGroup::create(['moysklad_id' => $groupId, 'name' => 'Группа', 'parent_id' => null]);
+        $group   = makeProduct(['group_id' => $groupId, 'sku' => '01-07-10']);
+        $own     = makeProduct(['group_id' => $groupId, 'sku' => '01-05-10']);
+        $unknown = makeProduct(['group_id' => $groupId, 'sku' => '09-01-10']);
+
+        $products = treeProducts($this);
+
+        expect($products[$group->id]['color'])->toBe('#AA0000')
+            ->and($products[$own->id]['color'])->toBe('#00BB00')
+            ->and($products[$unknown->id]['color'])->toBe('#FFFFFF');
     });
 
     test('заявка в неиспользуемом статусе товар не открывает', function () {

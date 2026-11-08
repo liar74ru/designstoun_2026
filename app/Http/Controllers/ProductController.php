@@ -213,7 +213,7 @@ class ProductController extends Controller
 
     /**
      * AJAX: дерево групп с продуктами для компонента выбора продукта.
-     * Кэшируется на 10 минут; отметка «есть в активной заявке» — поверх кэша, на каждый запрос.
+     * Кэшируется на 10 минут; отметка «есть в активной заявке» и цвет по SKU — поверх кэша, на каждый запрос.
      */
     public function groupsJson()
     {
@@ -223,9 +223,9 @@ class ProductController extends Controller
             return $this->productGroupService->attachProductsToTree($groups);
         });
 
-        return response()->json(
-            $this->productGroupService->markOrderedProducts($tree, $this->productGroupService->productIdsInActiveOrders())
-        );
+        $tree = $this->productGroupService->markOrderedProducts($tree, $this->productGroupService->productIdsInActiveOrders());
+
+        return response()->json($this->productGroupService->attachSkuColors($tree));
     }
 
     /**

@@ -149,6 +149,8 @@ class ProductGroupService
     /**
      * Метит товары дерева из активных заявок: in_order — первыми в быстром поиске,
      * и hidden снимается — заявленный товар виден даже с флажком hiddenByDefault.
+     * is_hidden — сам флаг товара, без этой поправки: по нему каталог на телефоне
+     * прячет скрытые и рисует их значок.
      * Накладывается поверх кэша дерева: заявки меняются чаще, чем он живёт.
      */
     public function markOrderedProducts(array $groups, array $productIds): array
@@ -158,7 +160,8 @@ class ProductGroupService
         $mark = function (array $groups) use (&$mark, $ids) {
             foreach ($groups as &$group) {
                 foreach ($group['products'] as &$product) {
-                    $product['in_order'] = isset($ids[$product['id']]);
+                    $product['is_hidden'] = $product['hidden'];
+                    $product['in_order']  = isset($ids[$product['id']]);
                     if ($product['in_order']) {
                         $product['hidden'] = false;
                     }
@@ -174,5 +177,26 @@ class ProductGroupService
         };
 
         return $mark($groups);
+    }
+
+    /**
+     * Цвет карточки товара по SKU — для каталога на телефоне, чтобы в JS не было
+     * копии правила Product::getColorBySku().
+     * Поверх кэша дерева: цвета правит админ, и дерево не должно их задерживать.
+     */
+    public function attachSkuColors(array $groups): array
+    {
+        foreach ($groups as &$group) {
+            foreach ($group['products'] as &$product) {
+                $product['color'] = Product::getColorBySku($product['sku'] ?: null);
+            }
+            unset($product);
+
+            if (!empty($group['children'])) {
+                $group['children'] = $this->attachSkuColors($group['children']);
+            }
+        }
+
+        return $groups;
     }
 }
