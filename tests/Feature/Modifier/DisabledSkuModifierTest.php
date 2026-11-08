@@ -7,6 +7,7 @@ use App\Models\StoneReceptionItem;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Models\Workshop;
+use App\Models\WorkshopItem;
 use App\Services\StoneReceptionService;
 use App\Services\WorkshopService;
 use Illuminate\Support\Facades\Cache;
@@ -182,6 +183,23 @@ describe('цех', function () {
         $item->refresh();
         expect((float) $item->effective_cost_coeff)->toBe(3.0)
             ->and($item->disabled_modifier_keys)->toBeNull();
+    });
+
+    // Себестоимость есть только у продукта: строка сырья или тары с коэффициентом
+    // увела бы зарплату не туда (ProductionDocumentService::costedItems).
+    test('строке сырья коэффициент не задаётся и не пересчитывается', function () {
+        $workshop = maskTileWorkshopItem($this)->workshop;
+        $raw      = $workshop->items()->where('role', WorkshopItem::ROLE_RAW)->firstOrFail();
+
+        postItemCoeff($this, 'workshops.update-item-coeff', $workshop, $raw, [])
+            ->assertNotFound();
+
+        app(WorkshopService::class)->refreshItemCoeffs($workshop);
+
+        $raw->refresh();
+        expect($raw->effective_cost_coeff)->toBeNull()
+            ->and($raw->worker_cost_per_m2)->toBeNull()
+            ->and($raw->modifiers)->toBeEmpty();
     });
 });
 
