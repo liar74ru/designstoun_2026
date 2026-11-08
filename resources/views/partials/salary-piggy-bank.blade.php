@@ -15,7 +15,7 @@
     $wantAmount  = round($salary['toPay'] / $step) * $step;
 @endphp
 
-<div class="card border-0 shadow-sm mb-3" id="salary">
+<div class="card border-0 shadow-sm mb-3 wd-section wd-section--salary" id="salary">
     {{-- Шапка видна и в свёрнутом блоке: статус недели и три главные цифры --}}
     <div class="card-header bg-white py-2" style="cursor:pointer" id="salary-toggle" role="button">
         <div class="d-flex justify-content-between align-items-center gap-2">
@@ -28,10 +28,19 @@
                         <i class="bi bi-clock me-1"></i>Выбор с {{ $salary['nextCutoff']->translatedFormat('D H:i') }}
                     </span>
                 @endif
+                @if($isAdmin)
+                    {{-- Клик по иконке не должен сворачивать блок --}}
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 lh-1"
+                            title="Корректировка копилки (аванс, долг, остаток)"
+                            data-bs-toggle="modal" data-bs-target="#piggy-adjust-modal"
+                            onclick="event.stopPropagation()">
+                        <i class="bi bi-sliders"></i>
+                    </button>
+                @endif
                 <i class="bi bi-chevron-down" id="salary-chevron"></i>
             </span>
         </div>
-        <div class="row g-2 mt-0">
+        <div class="row g-2 mt-0 wd-stats">
             <div class="col-4">
                 <div class="text-muted small">Начислено</div>
                 <div class="fw-bold text-nowrap">{{ $rub($salary['accrued']) }}</div>
@@ -70,9 +79,9 @@
         </div>
     </div>
     <div class="card-body py-2 px-3" id="salary-collapse" style="display:none"
-         data-force-open="{{ $errors->hasAny(['amount', 'paid_cash', 'paid_card', 'paid_tax', 'paid', 'piggy_amount', 'piggy_comment', 'edit_cash', 'edit_card', 'edit_tax', 'edit_comment', 'edit_payout']) ? 1 : 0 }}">
+         data-force-open="{{ $errors->hasAny(['amount', 'paid_cash', 'paid_card', 'paid_tax', 'paid', 'edit_cash', 'edit_card', 'edit_tax', 'edit_comment', 'edit_payout']) ? 1 : 0 }}">
 
-        <div class="d-flex justify-content-between align-items-center small text-muted mb-2">
+        <div class="d-flex justify-content-between align-items-center small text-muted mb-2 wd-part wd-part--note">
             <span>
                 @if($salary['isOpen'])
                     Неделя {{ $salary['periodFrom']->format('d.m') }} — {{ $salary['periodTo']->copy()->subSecond()->format('d.m') }}.
@@ -103,7 +112,7 @@
             </div>
         </div>
 
-        <div class="row g-2 mb-2">
+        <div class="row g-2 mb-2 wd-stats wd-part">
             <div class="col-6">
                 <div class="text-muted small" data-payout-bank-label>{{ $toBank < 0 ? 'Из копилки' : 'В копилку' }}</div>
                 <div class="fw-semibold {{ $toBank < 0 ? 'text-danger' : 'text-success' }}" data-payout-bank-value>{{ $rub(abs($toBank)) }}</div>
@@ -117,14 +126,14 @@
         </div>
 
         @if(round($salary['recalc']) != 0)
-            <div class="small mb-2 {{ $salary['recalc'] < 0 ? 'text-danger' : 'text-success' }}">
+            <div class="small mb-2 wd-part wd-part--note {{ $salary['recalc'] < 0 ? 'text-danger' : 'text-success' }}">
                 <i class="bi bi-arrow-repeat me-1"></i>Перерасчёт выданных недель:
                 {{ $salary['recalc'] > 0 ? '+' : '' }}{{ $rub($salary['recalc']) }} — при выдаче уйдёт в копилку
             </div>
         @endif
 
         @if($canEdit)
-            <form method="POST" action="{{ route('salary.request', $worker) }}" data-submit-guard class="border-top pt-2">
+            <form method="POST" action="{{ route('salary.request', $worker) }}" data-submit-guard class="border-top pt-2 wd-part">
                 @csrf
                 @method('PATCH')
                 <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
@@ -161,7 +170,7 @@
                   {{-- Скрытый остаток в разметку не выводим --}}
                   @unless($hideBalance) data-balance="{{ $salary['balance'] }}" @endunless
                   data-confirm="Отметить зарплату выданной? Период будет закрыт."
-                  class="bg-light rounded p-2 mt-2">
+                  class="bg-light rounded p-2 mt-2 wd-part wd-part--payout">
                 @csrf
                 <div class="fw-semibold small mb-2"><i class="bi bi-cash-coin me-1"></i>Выдать зарплату</div>
                 @foreach(['paid_cash' => 'Наличными', 'paid_card' => 'На карту', 'paid_tax' => 'Налог'] as $field => $label)
@@ -199,7 +208,7 @@
         @endif
 
         @if($isAdmin && ($last = $salary['lastPayout']))
-            <details class="border-top pt-2 mt-2" @if($errors->hasAny(['edit_cash', 'edit_card', 'edit_tax', 'edit_comment', 'edit_payout'])) open @endif>
+            <details class="border-top pt-2 mt-2 wd-part wd-part--more" @if($errors->hasAny(['edit_cash', 'edit_card', 'edit_tax', 'edit_comment', 'edit_payout'])) open @endif>
                 <summary class="small text-muted" style="cursor:pointer">
                     Исправить последнюю выдачу ({{ $last->period_from->format('d.m') }} — {{ $last->period_to->copy()->subSecond()->format('d.m') }})
                 </summary>
@@ -249,34 +258,9 @@
             </details>
         @endif
 
-        @if($isAdmin)
-            <details class="border-top pt-2 mt-2" @if($errors->hasAny(['piggy_amount', 'piggy_comment'])) open @endif>
-                <summary class="small text-muted" style="cursor:pointer">Корректировка копилки (аванс, долг, остаток)</summary>
-                <form method="POST" action="{{ route('salary.piggy-adjust', $worker) }}" data-submit-guard
-                      class="d-flex flex-wrap gap-2 align-items-end mt-2">
-                    @csrf
-                    <div>
-                        <label class="form-label small text-muted mb-1">Сумма, ₽ (− аванс/долг)</label>
-                        <input type="number" name="piggy_amount" step="0.01" required value="{{ old('piggy_amount') }}"
-                               class="form-control form-control-sm @error('piggy_amount') is-invalid @enderror"
-                               style="width:9rem;border-radius:.4rem">
-                    </div>
-                    <div class="flex-grow-1" style="min-width:10rem">
-                        <label class="form-label small text-muted mb-1">Комментарий</label>
-                        <input type="text" name="piggy_comment" maxlength="255" required value="{{ old('piggy_comment') }}"
-                               class="form-control form-control-sm @error('piggy_comment') is-invalid @enderror"
-                               style="border-radius:.4rem">
-                    </div>
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Провести</button>
-                    @foreach(['piggy_amount', 'piggy_comment'] as $field)
-                        @error($field) <div class="small text-danger w-100">{{ $message }}</div> @enderror
-                    @endforeach
-                </form>
-            </details>
-        @endif
 
         @if($salary['payouts']->isNotEmpty() || $salary['adjustments']->isNotEmpty())
-            <details class="border-top pt-2 mt-2">
+            <details class="border-top pt-2 mt-2 wd-part wd-part--more">
                 <summary class="small text-muted" style="cursor:pointer">История выдач и копилки</summary>
 
                 @if($salary['payouts']->isNotEmpty())
@@ -358,6 +342,45 @@
     </div>
 </div>
 
+{{-- Корректировка копилки (аванс, долг, остаток) — редкое действие админа: иконка в шапке блока,
+     форма в окне. Окно — вне карточки: у .card анимация с transform, fixed внутри неё ломается. --}}
+@if($isAdmin)
+    <div class="modal fade" id="piggy-adjust-modal" tabindex="-1" aria-labelledby="piggy-adjust-title" aria-hidden="true"
+         data-force-open="{{ $errors->hasAny(['piggy_amount', 'piggy_comment']) ? 1 : 0 }}">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title" id="piggy-adjust-title"><i class="bi bi-sliders me-1"></i>Корректировка копилки</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="small text-muted mb-2">Аванс, долг или стартовый остаток: «+» — в копилку, «−» — из копилки.</div>
+                    <form method="POST" action="{{ route('salary.piggy-adjust', $worker) }}" data-submit-guard
+                          class="d-flex flex-wrap gap-2 align-items-end">
+                        @csrf
+                        <div>
+                            <label class="form-label small text-muted mb-1">Сумма, ₽ (− аванс/долг)</label>
+                            <input type="number" name="piggy_amount" step="0.01" required value="{{ old('piggy_amount') }}"
+                                   class="form-control form-control-sm @error('piggy_amount') is-invalid @enderror"
+                                   style="width:9rem;border-radius:.4rem">
+                        </div>
+                        <div class="flex-grow-1" style="min-width:10rem">
+                            <label class="form-label small text-muted mb-1">Комментарий</label>
+                            <input type="text" name="piggy_comment" maxlength="255" required value="{{ old('piggy_comment') }}"
+                                   class="form-control form-control-sm @error('piggy_comment') is-invalid @enderror"
+                                   style="border-radius:.4rem">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Провести</button>
+                        @foreach(['piggy_amount', 'piggy_comment'] as $field)
+                            @error($field) <div class="small text-danger w-100">{{ $message }}</div> @enderror
+                        @endforeach
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -376,6 +399,12 @@
             let saved = null;
             try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
             applyState(collapse.dataset.forceOpen === '1' || saved === 'open');
+
+            // Ошибка в форме корректировки — окно открыто сразу, с сообщением у поля
+            const adjustModal = document.getElementById('piggy-adjust-modal');
+            if (adjustModal && adjustModal.dataset.forceOpen === '1') {
+                bootstrap.Modal.getOrCreateInstance(adjustModal).show();
+            }
 
             toggle.addEventListener('click', function () {
                 const isHidden = collapse.style.display === 'none';

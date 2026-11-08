@@ -7,10 +7,12 @@ use App\Models\StoneReception;
 use App\Models\SupplierOrder;
 use App\Models\User;
 use App\Models\Worker;
+use App\Models\WorkerHourEntry;
 use App\Models\Workshop;
 use App\Policies\RawMaterialBatchPolicy;
 use App\Policies\StoneReceptionPolicy;
 use App\Policies\SupplierOrderPolicy;
+use App\Policies\WorkerHourEntryPolicy;
 use App\Policies\WorkerPolicy;
 use App\Policies\WorkshopPolicy;
 use App\Support\OperationAccessor;
@@ -52,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
         );
 
         Gate::policy(Worker::class, WorkerPolicy::class);
+        Gate::policy(WorkerHourEntry::class, WorkerHourEntryPolicy::class);
         // Изменяющие действия над записью — только в своём отделе (DepartmentAccess)
         Gate::policy(StoneReception::class, StoneReceptionPolicy::class);
         Gate::policy(Workshop::class, WorkshopPolicy::class);

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Worker;
+use App\Models\WorkerHourEntry;
 use App\Services\SalaryService;
 use App\Services\WorkerDashboardService;
+use App\Services\WorkerHourService;
+use App\Support\DepartmentSettings;
 use App\Support\ProductSearch;
 use App\Support\QueryParam;
 use Illuminate\Http\Request;
@@ -16,6 +19,7 @@ class CutterWorkerDashboardController extends Controller
     public function __construct(
         private readonly WorkerDashboardService $service,
         private readonly SalaryService $salaryService,
+        private readonly WorkerHourService $hourService,
     ) {}
 
     /**
@@ -53,8 +57,20 @@ class CutterWorkerDashboardController extends Controller
             ? $this->salaryService->expectedPay($worker, $salary, $dateFrom, $dateTo, $data['totalPay'])
             : null;
 
+        // Часы ремонтных работ добавляют сам работник и админ (WorkerHourEntryPolicy::create).
+        // Нижней границы даты у админа нет — как в WorkerHourRequest.
+        $canAddHours     = $user->can('create', [WorkerHourEntry::class, $worker]);
+        $hourlyRate      = DepartmentSettings::hourlyRate($worker->department_id ? (int) $worker->department_id : null);
+        $hoursUnpaidFrom = $canAddHours && !$user->isAdmin() ? $this->hourService->unpaidFrom($worker) : null;
+
+        // Кнопка периода «За всё время»: с первой выработки или часов
+        $firstActivity = $this->service->firstActivityDate($worker->id);
+        // Блок часов свёрнут, если за текущую неделю часов нет
+        $hoursOpen = $this->service->hasHoursInCurrentWeek($worker->id);
+
         return view('workers.dashboard.show', array_merge(
-            compact('worker', 'receptions', 'dateFrom', 'dateTo', 'canSeePay', 'salary', 'expectedPay'),
+            compact('worker', 'receptions', 'dateFrom', 'dateTo', 'canSeePay', 'salary', 'expectedPay',
+                'canAddHours', 'hourlyRate', 'hoursUnpaidFrom', 'firstActivity', 'hoursOpen'),
             $data,
         ));
     }

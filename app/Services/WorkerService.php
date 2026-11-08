@@ -13,6 +13,7 @@ use App\Models\StoneReception;
 use App\Models\SupplierOrder;
 use App\Models\User;
 use App\Models\Worker;
+use App\Models\WorkerHourEntry;
 use App\Models\Workshop;
 use App\Models\WorkshopLog;
 use App\Support\QueryParam;
@@ -26,6 +27,7 @@ class WorkerService
     /** Записи, при которых работника нельзя удалить: модель => колонки со ссылкой на него. */
     private const HISTORY_REFERENCES = [
         SalaryPayout::class        => ['worker_id'],
+        WorkerHourEntry::class     => ['worker_id'],
         PiggyBankEntry::class      => ['worker_id'],
         StoneReception::class      => ['cutter_id', 'receiver_id'],
         ReceptionLog::class        => ['cutter_id', 'receiver_id'],

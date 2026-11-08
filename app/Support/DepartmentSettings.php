@@ -97,6 +97,15 @@ class DepartmentSettings
         return self::float($departmentId, 'PIECE_RATE', 390);
     }
 
+    /**
+     * Ставка за час ремонтных работ (₽/ч). По умолчанию 0: пока админ не задал ставку,
+     * часы учитываются, но не оплачиваются.
+     */
+    public static function hourlyRate(?int $departmentId): float
+    {
+        return self::float($departmentId, 'HOURLY_RATE', 0);
+    }
+
     /** Базовая ставка мастера за единицу продукции (₽/м²). */
     public static function masterBaseRate(?int $departmentId): float
     {

@@ -31,7 +31,8 @@
   - другой период — «Ожидаемая выплата» по умолчанию: начислено − 10%, до тысячи.
 - Период по умолчанию — **текущая неделя с пятницы по четверг**; в пятницу (день выдачи) —
   только что закончившаяся неделя. Кнопки «Тек. неделя»,
-  «Пред. неделя», «2 нед. назад» переключают такие же недели; поля «С» / «По» задают любой период.
+  «Пред. неделя», «2 нед. назад» переключают такие же недели, «За всё время» — с первой выработки
+  или часов работника по сегодня; поля «С» / «По» задают любой период.
 - Поле **«Продукт»** рядом с датами оставляет в сводке по отделам только выбранную плитку. Можно
   искать по части названия: начните вводить и выберите **«Все, где есть «…»»**. «Итого начислено»
   и выплата фильтр не учитывают — они всегда за весь период; сумма по фильтру показана под
@@ -63,6 +64,7 @@
   записи становится тот, кто правит (администратор выбирает приёмщика в форме). Подробности —
   в справке [Приём](stone-receptions.md) и [Цех](workshops.md).
 - В цехе деньги идут только за **продукт на выходе**. Сырьё и упаковка на зарплату не влияют.
+- Сверх выработки начисляются **часы ремонтных работ**, которые работник отметил сам — раздел 8.
 
 ## 3. Ставка за единицу
 
@@ -200,7 +202,8 @@
   Копилка пересчитывается сразу: начисленное минус новая сумма выданного. В истории у такой
   выдачи появляется отметка «исправлено» с датой, её видит и работник. Более старые выдачи не
   исправляются, разницу по ним проводят корректировкой копилки.
-- **Корректировка копилки** — аванс или долг (минус), стартовый остаток (плюс), с комментарием.
+- **Корректировка копилки** — значок с ползунками в шапке блока «Копилка и выдача» (только
+  администратору), форма открывается в окне: аванс или долг (минус), стартовый остаток (плюс), с комментарием.
   Копилка может быть отрицательной. Такая же корректировка (сумма и комментарий) в течение минуты
   считается повторным нажатием и не проводится: чтобы провести две одинаковые подряд, различите
   комментарий.
@@ -215,6 +218,28 @@
   перевести в архив, тогда история и остаток копилки сохраняются. Удалить можно лишь созданного по
   ошибке, у которого записей нет.
 
+## 8. Ремонтные работы (часы)
+
+Работы, за которые не платят с единицы продукции (ремонт станка, замена ленты и т. п.), работник
+отмечает сам — блок «Ремонтные работы» на странице выработки, кнопка «Добавить часы».
+
+- **Что указать:** дату работы, часы (от 0,25 до 24, шагом 15 минут) и, если нужно, что делали.
+- **Сколько платят:** часы × ставка за час отдела работника («Настройки» → отдел → «Ставки
+  работника»). Ставка запоминается в записи: если её потом поменяют, уже отмеченные часы
+  пересчитываться не будут. Ставка не задана (0) — часы видны, но не оплачиваются.
+- **Когда засчитываются:** сразу, по дате работы — в «Начислено», копилку и выдачу той недели.
+  Подтверждать никому не нужно.
+- **За какие дни:** только за невыплаченную неделю и не позже сегодняшнего дня. Неделю выдали —
+  её часы добавляет и правит только администратор; поправка уйдёт в копилку при следующей выдаче,
+  как исправление приёмки.
+- **Кто правит и удаляет:** сам работник и мастер его отдела — пока неделю не выдали;
+  администратор — всегда.
+- **Кто добавляет:** сам работник и администратор — на странице выработки работника, с любой
+  прошедшей датой. Мастер часы за работника не добавляет.
+- Мастер на чужой странице видит часы и комментарии, но не суммы.
+- Блок свёрнут, если за текущую неделю часов нет; открывается нажатием на заголовок. Итог часов
+  и сумма за выбранный период видны в заголовке и в свёрнутом блоке.
+
 ## Для разработчиков
 
 Документ — единый источник правил расчёта зарплаты: **меняешь правило — обнови этот файл**.
@@ -223,15 +248,19 @@
 
 | Раздел | Код | Тесты |
 |---|---|---|
-| 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`; фильтр продукта — `Support\ProductSearch::idsFromRequest`, в `getDashboardData` — `$productIds`, `filteredTotalPay`, `filterProducts`; пикер со списком в разметке — `products` у `partials/product-picker`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange` (`fridayShowsPrevious`), `SalaryService::expectedPay`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `WorkerDashboardProductFilterTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
+| 1. Где смотреть | `CutterWorkerDashboardController::show` (`$canSeePay`; фильтр продукта — `Support\ProductSearch::idsFromRequest`, в `getDashboardData` — `$productIds`, `filteredTotalPay`, `filterProducts`; пикер со списком в разметке — `products` у `partials/product-picker`), `WorkerPolicy::viewDashboard`, `WorkerDashboardService::getDefaultWeekRange` (`fridayShowsPrevious`), `firstActivityDate` («За всё время»), `SalaryService::expectedPay`; `/master-work*` — редиректы на `/my-work` | `tests/Feature/Worker/WorkerDashboardTest`, `WorkerDashboardRolesTest`, `WorkerDashboardProductFilterTest`, `tests/Feature/MasterDashboard/MasterDashboardControllerTest` |
 | 2. За что начисляется | `WorkerDashboardService::getDashboardData`, `masterReceptionLogs`, `buildProductSummary`, `buildWorkshopProductSummary`; минус за правку — `StoneReceptionService::minusShares`, `reception_log_items.charged_worker_id` | `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `tests/Feature/StoneReception/ReceptionLogTest`, `tests/Feature/StoneReception/ReceptionLogReceiverTest` |
 | 3. Ставка | `Support\RateFormula::stepped`, `Support\DepartmentSettings::pieceRate`, `masterBaseRate`, `pieceRoundStep`, `masterRoundStep`, `config/department_settings.php` | `tests/Unit/RateFormulaTest`, `tests/Feature/Modifier/ModifierEquivalenceTest`, `RateFormulaFixtureTest` + `tests/js/rate-formula.test.js` |
 | 4. Коэффициент | `Support\ModifierEngine::resolve`, `apply`, `Support\ItemCost::compute`, `config/production_modifiers.php`, `DepartmentModifierService` | `tests/Feature/Modifier/ModifierEngineTest`, `CustomModifierFlowTest`, `DepartmentModifierServiceTest`, `RateFormulaFixtureTest` + `tests/js/rate-formula.test.js` |
 | 5. Фиксация | `ItemCost::syncSnapshot`, `computeFromBase`, `ModifierEngine::manualKeysFromSnapshot`, `ProductionDocumentService::updateItemCoeff` / `refreshItemCoeffs` / `createCostedItem` (одни для приёмки и цеха) | `tests/Feature/Modifier/ModifierSnapshotTest`, `tests/Feature/StoneReception/StoneReceptionEdgingFlowTest` |
 | 7. Копилка и выдача | `SalaryService` (`openPeriod`, `cutoffBefore`, `payableTo`, `isManageable`, `recalc`, `defaultToPay`, `maxRequest`, `setRequest`, `markPaid`, `updateLastPayout`, `adjustPiggy`), `SalaryController`, `WorkerPolicy::manageSalary`, `config/salary.php`; таблицы `salary_payouts`, `piggy_bank_entries`, `workers.requested_payout`, `workers.hide_piggy_balance` (`setHideBalance`, роут `salary.hide-balance`); `partials/salary-piggy-bank`; запрет удаления — `WorkerService::delete` (`HISTORY_REFERENCES`) | `tests/Feature/Worker/SalaryPayoutTest`, `SalaryHideBalanceTest`, `WorkerControllerTest` |
+| 8. Ремонтные работы | `WorkerHourService` (`create`, `update` — сумма от ставки записи, `unpaidFrom` = `SalaryService::openPeriod()[0]`, `isUnpaid`), `WorkerHourEntryPolicy` (`create` — сам и админ, `modify`), `Salary\WorkerHourRequest`, `WorkerHourController`, роуты `worker-hours.*`; таблица `worker_hour_entries` (снапшот `hourly_rate`, `amount`); ставка — `DepartmentSettings::hourlyRate` (`HOURLY_RATE`, default 0); в начисление — `getDashboardData` (`hourEntries`, `totalHoursPay` в `totalPay`, по `work_date`); `partials/worker-hours`, `worker-hours/edit` | `tests/Feature/Worker/WorkerHoursTest`, `WorkerControllerTest` (запрет удаления) |
 | 6. Сводка | `WorkerDashboardService::modifierSignature`, `mergeProductSummaries`, `hasOutput`, `buildSummaryByDepartment`, `buildDepartmentRoles`; `partials/dashboard-{worker,master}-summary-table` | `tests/Feature/Worker/WorkerDashboardModifiersTest`, `WorkerDashboardRolesTest` |
 
 Заметки:
+
+- Часы ремонтных работ входят в `totalPay` дашборда и копилку, но **не** в дашборд предприятия
+  (`getEnterpriseDashboardData`, `grandPay`) и не в `filteredTotalPay` (у часов нет продукта).
 
 - Зарплата = Σ `quantity_delta` из `reception_logs` / `workshop_logs` (`role = product`) за период ×
   **текущий** `worker_cost_per_m2` / `master_cost_per_m2` позиции. Отсюда ретроактивность пересчёта

@@ -20,6 +20,7 @@ use App\Http\Controllers\StoreController;
 use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\WorkerController;
+use App\Http\Controllers\WorkerHourController;
 use App\Http\Controllers\WorkshopController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +48,14 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/workers/{worker}/salary/hide-balance', [SalaryController::class, 'toggleHideBalance'])
         ->middleware('can:see-worker-dashboard')
         ->name('salary.hide-balance');
+    // Часы ремонтных работ: добавляет сам работник, правят он и мастер отдела до выдачи, админ — всегда
+    // (WorkerHourEntryPolicy, проверка — в WorkerHourRequest / контроллере)
+    Route::middleware('can:see-worker-dashboard')->group(function () {
+        Route::post('/workers/{worker}/hours', [WorkerHourController::class, 'store'])->name('worker-hours.store');
+        Route::get('/worker-hours/{workerHourEntry}/edit', [WorkerHourController::class, 'edit'])->name('worker-hours.edit');
+        Route::put('/worker-hours/{workerHourEntry}', [WorkerHourController::class, 'update'])->name('worker-hours.update');
+        Route::delete('/worker-hours/{workerHourEntry}', [WorkerHourController::class, 'destroy'])->name('worker-hours.destroy');
+    });
     Route::post('/workers/{worker}/salary/paid', [SalaryController::class, 'markPaid'])
         ->middleware('can:manage-admin')
         ->name('salary.paid');

@@ -3,7 +3,9 @@
 @section('title', 'Выработка — ' . $worker->name)
 
 @section('content')
-    <div class="container py-3 py-md-4">
+    <div class="container py-3 py-md-4 wd">
+        {{-- Мобильный вид блоков: разделы внутри блоков — отдельные полосы (design-assets) --}}
+        @include('workers.dashboard.partials.design-assets')
 
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="fs-2 mb-0 fw-bold">{{ $worker->name }}</h1>
@@ -24,6 +26,9 @@
         @if($salary)
             @include('partials.salary-piggy-bank', ['worker' => $worker, 'salary' => $salary])
         @endif
+
+        {{-- Часы — над периодом: их добавляют каждый день, до списка выработки не листать --}}
+        @include('partials.worker-hours')
 
         {{-- Форма выбора периода --}}
         @php
@@ -46,13 +51,13 @@
             $productFilterOn  = $filteredTotalPay !== null;
         @endphp
 
-        <form method="GET" id="period-form" class="card shadow-sm mb-3">
+        <form method="GET" id="period-form" class="card shadow-sm mb-3 wd-section wd-section--period">
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
                  style="cursor:pointer" id="period-toggle" role="button">
                 <span class="fw-semibold text-muted small">
                     <i class="bi bi-calendar3 me-1"></i> Период:
                     <strong class="text-body ms-1">
-                        {{ $dateFrom->translatedFormat('d M Y') }} — {{ $dateTo->translatedFormat('d M Y') }}
+                        {{ $dateFrom->format('d.m.Y') }} — {{ $dateTo->format('d.m.Y') }}
                     </strong>
                     @if($productFilterOn)
                         <span class="ms-1">· <i class="bi bi-funnel"></i>
@@ -62,7 +67,7 @@
                 <i class="bi bi-chevron-down" id="period-chevron"></i>
             </div>
             <div id="period-collapse" style="display:none">
-                <div class="card-body py-2 px-3">
+                <div class="card-body py-2 px-3 wd-part">
                     <div class="d-flex flex-wrap gap-1 mb-2">
                         @foreach([0 => 'Тек. неделя', 1 => 'Пред. неделя', 2 => '2 нед. назад'] as $week => $label)
                             @php $isActive = $weekButtons[$week]['from'] === $currentFrom && $weekButtons[$week]['to'] === $currentTo; @endphp
@@ -72,6 +77,16 @@
                                 {{ $label }}
                             </button>
                         @endforeach
+                        @php
+                            $allFrom   = $firstActivity->format('Y-m-d');
+                            $allTo     = now()->format('Y-m-d');
+                            $allActive = $currentFrom === $allFrom && $currentTo === $allTo;
+                        @endphp
+                        <button type="button"
+                                class="btn btn-sm week-btn {{ $allActive ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                data-week="all" data-from="{{ $allFrom }}" data-to="{{ $allTo }}">
+                            За всё время
+                        </button>
                     </div>
                     <div class="d-flex flex-wrap gap-2 align-items-end">
                         <div>
@@ -111,10 +126,11 @@
             <div class="alert alert-info">
                 {{ $productFilterOn ? 'По выбранному продукту за период выработки нет.' : 'За выбранный период приёмок не найдено.' }}
             </div>
-        @else
+        @endif
 
-            @if($canSeePay)
-                <div class="row g-2 mb-3">
+            {{-- Итоги — и без приёмок, если есть часы ремонтных работ --}}
+            @if($canSeePay && ($departments->isNotEmpty() || $hourEntries->isNotEmpty()))
+                <div class="row g-2 mb-3 wd-tiles">
                 <div class="col-6">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body py-2 px-3">
@@ -125,10 +141,11 @@
                         <div class="fs-4 fw-bold text-success">
                             {{ number_format($totalPay, 0, ',', ' ') }} ₽
                         </div>
-                        @if($totalWorkerPay && $totalMasterPay)
+                        @if(count(array_filter([$totalWorkerPay, $totalMasterPay, $totalHoursPay])) > 1)
                             <div class="small text-muted">
-                                работник {{ number_format($totalWorkerPay, 0, ',', ' ') }} ₽
-                                · мастер {{ number_format($totalMasterPay, 0, ',', ' ') }} ₽
+                                @if($totalWorkerPay) работник {{ number_format($totalWorkerPay, 0, ',', ' ') }} ₽ @endif
+                                @if($totalMasterPay) · мастер {{ number_format($totalMasterPay, 0, ',', ' ') }} ₽ @endif
+                                @if($totalHoursPay) · ремонт {{ number_format($totalHoursPay, 0, ',', ' ') }} ₽ @endif
                             </div>
                         @endif
                         {{-- Итог — всегда за весь период: от него считаются копилка и выплата --}}
@@ -164,11 +181,12 @@
                 </div>
             @endif
 
+        @if($departments->isNotEmpty())
             {{-- Сводка по продуктам: карточка на отдел документа, внутри — таблица на роль.
                  Ставки настраиваются per-department, поэтому показываются в карточке отдела. --}}
-            <div class="fw-semibold mb-2">Сводка по продуктам за период</div>
+            <div class="fw-semibold mb-2 wd-heading">Сводка по продуктам за период</div>
             @foreach($departments as $dept)
-                <div class="card shadow-sm mb-3">
+                <div class="card shadow-sm mb-3 wd-section wd-section--dept">
                     <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
                         <span class="fw-semibold">
                             <i class="bi bi-building me-1"></i>{{ $dept['department']?->name ?? 'Без отдела' }}
@@ -223,7 +241,7 @@
             @endforeach
 
             {{-- Детализация --}}
-            <div class="card shadow-sm">
+            <div class="card shadow-sm wd-section wd-section--detail">
                 <div class="card-header bg-white p-0">
                     <div class="d-flex w-100" style="background:#e9ecef;padding:4px;gap:3px;min-width:0">
                         <button type="button" id="view-btn-batches"
@@ -385,6 +403,13 @@
 
             document.querySelectorAll('.week-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
+                    // «За всё время» — даты с сервера: с первой выработки по сегодня
+                    if (this.dataset.week === 'all') {
+                        dateFromInput.value = this.dataset.from;
+                        dateToInput.value   = this.dataset.to;
+                        form.submit();
+                        return;
+                    }
                     const weeksAgo = parseInt(this.dataset.week, 10);
                     const { from, to } = getWorkWeek(weeksAgo);
                     dateFromInput.value = formatDate(from);

@@ -176,4 +176,14 @@ class Worker extends Model
     {
         return $this->hasMany(PiggyBankEntry::class);
     }
+
+    /**
+     * Часы ремонтных работ (App\Services\WorkerHourService)
+     *
+     * @return HasMany<WorkerHourEntry, $this>
+     */
+    public function hourEntries(): HasMany
+    {
+        return $this->hasMany(WorkerHourEntry::class);
+    }
 }

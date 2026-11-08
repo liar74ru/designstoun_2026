@@ -10,6 +10,7 @@ use App\Models\ReceptionLog;
 use App\Models\ReceptionLogItem;
 use App\Models\StoneReception;
 use App\Models\Worker;
+use App\Models\WorkerHourEntry;
 use App\Models\WorkshopItem;
 use App\Models\WorkshopLog;
 use App\Models\WorkshopLogItem;
@@ -51,6 +52,39 @@ class WorkerDashboardService
         $thursday = $friday->copy()->addDays(6)->endOfDay();
 
         return [$friday, $thursday];
+    }
+
+    /**
+     * Есть ли у человека часы ремонтных работ в текущей неделе (Пт–Чт) — тогда блок часов
+     * на странице выработки раскрыт, иначе свёрнут.
+     */
+    public function hasHoursInCurrentWeek(int $workerId): bool
+    {
+        [$from, $to] = $this->getDefaultWeekRange();
+
+        return WorkerHourEntry::where('worker_id', $workerId)
+            ->whereDate('work_date', '>=', $from->toDateString())
+            ->whereDate('work_date', '<=', $to->toDateString())
+            ->exists();
+    }
+
+    /**
+     * Первый день, с которого у человека есть выработка или часы ремонтных работ, —
+     * начало периода «За всё время». Ничего нет — сегодня.
+     */
+    public function firstActivityDate(int $workerId): Carbon
+    {
+        $dates = array_filter([
+            ReceptionLog::where(fn ($q) => $q->where('cutter_id', $workerId)
+                ->orWhere('receiver_id', $workerId)
+                ->orWhereHas('items', fn ($q2) => $q2->where('charged_worker_id', $workerId)))
+                ->min('created_at'),
+            WorkshopLog::where(fn ($q) => $q->where('packer_id', $workerId)->orWhere('receiver_id', $workerId))
+                ->min('created_at'),
+            WorkerHourEntry::where('worker_id', $workerId)->min('work_date'),
+        ]);
+
+        return $dates ? Carbon::parse(min($dates))->startOfDay() : Carbon::today();
     }
 
     /**
@@ -141,10 +175,22 @@ class WorkerDashboardService
 
         $departments = $buildRoles(null);
 
+        // Часы ремонтных работ — по дате работы. Продукта у них нет: фильтр продукта их не режет,
+        // в filteredTotalPay (сводка по продукту) они не входят. whereDate — дата в SQLite
+        // хранится с временем, и строковое сравнение потеряло бы последний день.
+        $hourEntries   = WorkerHourEntry::where('worker_id', $workerId)
+            ->whereDate('work_date', '>=', $dateFrom->toDateString())
+            ->whereDate('work_date', '<=', $dateTo->toDateString())
+            ->orderByDesc('work_date')
+            ->orderByDesc('id')
+            ->get();
+        $totalHours    = (float) $hourEntries->sum('hours');
+        $totalHoursPay = (float) $hourEntries->sum('amount');
+
         // Итоги — всегда без фильтра продукта: от них считаются копилка и ожидаемая выплата.
         $totalWorkerPay = $departments->sum(fn ($dept) => $dept['worker']['totalPay'] ?? 0);
         $totalMasterPay = $departments->sum(fn ($dept) => $dept['master']['totalMasterPay'] ?? 0);
-        $totalPay       = $totalWorkerPay + $totalMasterPay;
+        $totalPay       = $totalWorkerPay + $totalMasterPay + $totalHoursPay;
 
         // Варианты фильтра «Продукт» — товары, по которым у человека есть выработка за период
         $filterProducts = $departments
@@ -173,6 +219,9 @@ class WorkerDashboardService
             'totalPay',
             'filteredTotalPay',
             'filterProducts',
+            'hourEntries',
+            'totalHours',
+            'totalHoursPay',
         );
     }
 

@@ -82,6 +82,12 @@ function makeWorkerHistory(string $kind, Worker $worker): Model
             'amount' => -500,
             'type'   => PiggyBankEntry::TYPE_ADJUSTMENT,
         ]),
+        'часы ремонтных работ' => $worker->hourEntries()->create([
+            'work_date'   => now()->toDateString(),
+            'hours'       => 2,
+            'hourly_rate' => 500,
+            'amount'      => 1000,
+        ]),
         'пильщик в приёмке'          => H::reception($batch, $other, $worker, $store),
         'приёмщик в приёмке'         => H::reception($batch, $worker, $other, $store),
         'пильщик в журнале приёмок'  => $receptionLog(['cutter_id' => $worker->id]),
@@ -321,7 +327,7 @@ describe('WorkerController destroy()', function () {
         expect(Worker::find($worker->id))->not->toBeNull()
             ->and($record->fresh())->not->toBeNull();
     })->with([
-        'выдача зарплаты', 'проводка копилки',
+        'выдача зарплаты', 'проводка копилки', 'часы ремонтных работ',
         'пильщик в приёмке', 'приёмщик в приёмке',
         'пильщик в журнале приёмок', 'приёмщик в журнале приёмок',
         'минус списан с работника',
@@ -340,7 +346,7 @@ describe('WorkerController destroy()', function () {
         // откатывает только её, и проверка ниже выполняется
         expect(fn () => DB::transaction(fn () => $worker->delete()))->toThrow(QueryException::class)
             ->and($record->fresh())->not->toBeNull();
-    })->with(['выдача зарплаты', 'проводка копилки']);
+    })->with(['выдача зарплаты', 'проводка копилки', 'часы ремонтных работ']);
 
 });
 

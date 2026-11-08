@@ -158,7 +158,7 @@ Designstoun 2026 — система учёта производства каме
 #### 2. Числовые настройки с фолбэком — таблица `department_settings`
 
 - Реестр ключей — [config/department_settings.php](config/department_settings.php): группа
-  `worker` (`PIECE_RATE`) и группа `master` (`MASTER_BASE_RATE`). `MASTER_UNDERCUT_RATE` убрана
+  `worker` (`PIECE_RATE`, `HOURLY_RATE` — ставка часов ремонтных работ, снапшот в `worker_hour_entries`) и группа `master` (`MASTER_BASE_RATE`). `MASTER_UNDERCUT_RATE` убрана
   (3.48.0): подкол мастеру — правило отдела с `master_coeff_delta`.
 - Цепочка: `настройка отдела → глобальный Setting → default в коде`. Строка отсутствует или
   пуста → наследование. Кэш `dept.{id}.settings`; правка глобальной настройки подхватывается
