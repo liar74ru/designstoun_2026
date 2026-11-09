@@ -25,7 +25,7 @@
                     <span class="badge rounded-pill bg-success-subtle text-success-emphasis">Можно менять</span>
                 @else
                     <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">
-                        <i class="bi bi-clock me-1"></i>Выбор с {{ $salary['nextCutoff']->translatedFormat('D H:i') }}
+                        <i class="bi bi-clock me-1"></i>Выбор с {{ $salary['nextCutoff']->copy()->locale('ru')->isoFormat('dd HH:mm') }}
                     </span>
                 @endif
                 @if($isAdmin)
@@ -97,7 +97,7 @@
                     Сумму к выдаче можно менять, пока зарплату не выдали.
                 @else
                     Неделя с {{ $salary['periodFrom']->format('d.m') }}: начисленное растёт с приёмками до конца четверга.
-                    Выбрать сумму — с {{ $salary['nextCutoff']->translatedFormat('D d.m H:i') }}.
+                    Выбрать сумму — с {{ $salary['nextCutoff']->copy()->locale('ru')->isoFormat('dd DD.MM HH:mm') }}.
                 @endif
             </span>
             <button type="button" class="btn btn-sm btn-link text-muted p-0" title="Как это работает"
