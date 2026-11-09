@@ -121,13 +121,16 @@ class SalaryService
 
         // Окно закрыто (неделю уже выдали) — для справки начисленное текущей недели по сейчас.
         $isOpen  = $this->isManageable($from, $to);
-        $accrued = $this->accrued($worker, $from, $isOpen ? $to : Carbon::now()->startOfSecond());
+        $parts   = $this->accruedParts($worker, $from, $isOpen ? $to : Carbon::now()->startOfSecond());
+        $accrued = round(array_sum($parts['byDepartment']), 2);
         $recalc  = $this->recalc($worker);
         $balance = $this->piggyBalance($worker);
 
-        $defaultToPay = $this->defaultToPay($accrued);
+        // Перерасчёт выданных недель — часть начисленного: от суммы считается и выдача по умолчанию
+        $total        = round($accrued + $recalc, 2);
+        $defaultToPay = $this->defaultToPay($total);
         $toPay        = $worker->requested_payout ?? $defaultToPay;
-        $toBank       = $accrued + $recalc - $toPay;
+        $toBank       = $total - $toPay;
         $payouts      = $worker->salaryPayouts()->latest('period_to')->limit(10)->get();
 
         return [
@@ -139,13 +142,15 @@ class SalaryService
             'nextCutoff'   => $this->cutoffBefore()->addWeek(),
             'accrued'      => $accrued,
             'recalc'       => $recalc,
+            'hours'        => $parts['hours'],
+            'total'        => $total,
             'defaultToPay' => $defaultToPay,
             'isRequested'  => $worker->requested_payout !== null,
             'toPay'        => $toPay,
             'toBank'       => $toBank,
             'balance'      => $balance,
             'balanceAfter' => $balance + $toBank,
-            'maxRequest'   => $this->maxRequest($accrued, $balance + $recalc),
+            'maxRequest'   => $this->maxRequest($total, $balance),
             'requestStep'  => (int) config('salary.request_step'),
             'payouts'      => $payouts,
             'lastPayout'   => $payouts->first(),
@@ -218,7 +223,7 @@ class SalaryService
                 ]);
             }
 
-            $accrued = $this->accrued($worker, $from, $to);
+            $accrued = $this->accrued($worker, $from, $to) + $this->recalc($worker);
             if ($accrued <= 0) {
                 throw ValidationException::withMessages(['amount' => 'За невыданный период нет начислений.']);
             }
@@ -228,7 +233,7 @@ class SalaryService
                 throw ValidationException::withMessages(['amount' => "Сумма должна быть кратна {$step} ₽."]);
             }
 
-            $max = $this->maxRequest($accrued, $this->piggyBalance($worker) + $this->recalc($worker));
+            $max = $this->maxRequest($accrued, $this->piggyBalance($worker));
             if ($amount > $max) {
                 // Скрытый остаток не раскрываем и через предел суммы
                 throw ValidationException::withMessages([
@@ -444,6 +449,17 @@ class SalaryService
      */
     public function accruedByDepartment(Worker $worker, Carbon $from, Carbon $to): array
     {
+        return $this->accruedParts($worker, $from, $to)['byDepartment'];
+    }
+
+    /**
+     * Начислено за [from, to): по отделам (см. accruedByDepartment) и отдельно — часы
+     * ремонтных работ, входящие в эту сумму.
+     *
+     * @return array{byDepartment: array<int, float>, hours: float}
+     */
+    private function accruedParts(Worker $worker, Carbon $from, Carbon $to): array
+    {
         $data = $this->dashboard->getDashboardData($worker->id, $from, $to->copy()->subSecond());
 
         $result = [];
@@ -456,6 +472,9 @@ class SalaryService
             $result[$id] = round(($result[$id] ?? 0) + (float) $entry->amount, 2);
         }
 
-        return $result;
+        return [
+            'byDepartment' => $result,
+            'hours'        => round((float) $data['hourEntries']->sum('amount'), 2),
+        ];
     }
 }

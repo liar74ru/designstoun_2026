@@ -3,7 +3,7 @@
 @php
     $rub      = fn ($v) => number_format((float) $v, 0, ',', ' ') . ' ₽';
     $isAdmin  = auth()->user()->isAdmin();
-    $canEdit  = $salary['isOpen'] && ($isAdmin || $salary['accrued'] > 0);
+    $canEdit  = $salary['isOpen'] && ($isAdmin || $salary['total'] > 0);
     $toBank   = $salary['toBank'];
     // Остаток копилки работник может скрыть от себя (workers.hide_piggy_balance); админ видит всегда.
     // Скрываются и проводки копилки в истории: их сумма и есть остаток.
@@ -13,21 +13,18 @@
     $balanceCls  = fn ($v) => $hideBalance ? 'text-muted' : ($v < 0 ? 'text-danger' : 'text-success');
     $step        = $salary['requestStep'];
     $wantAmount  = round($salary['toPay'] / $step) * $step;
+    // Из чего сложено начисленное: корректировка (перерасчёт выданных недель) и часы ремонтных работ
+    $recalc      = round($salary['recalc']);
+    $hours       = round($salary['hours']);
+    $signed      = fn ($v) => ($v > 0 ? '+' : '−') . $rub(abs($v));
 @endphp
 
 <div class="card border-0 shadow-sm mb-3 wd-section wd-section--salary" id="salary">
-    {{-- Шапка видна и в свёрнутом блоке: статус недели и три главные цифры --}}
+    {{-- Шапка видна и в свёрнутом блоке: название с кнопками, статус недели и три главные цифры --}}
     <div class="card-header bg-white py-2" style="cursor:pointer" id="salary-toggle" role="button">
         <div class="d-flex justify-content-between align-items-center gap-2">
             <span class="fw-semibold text-nowrap"><i class="bi bi-piggy-bank me-1"></i>Копилка и выдача</span>
-            <span class="d-flex align-items-center gap-2">
-                @if($salary['isOpen'])
-                    <span class="badge rounded-pill bg-success-subtle text-success-emphasis">Можно менять</span>
-                @else
-                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">
-                        <i class="bi bi-clock me-1"></i>Выбор с {{ $salary['nextCutoff']->copy()->locale('ru')->isoFormat('dd HH:mm') }}
-                    </span>
-                @endif
+            <span class="d-flex align-items-center gap-2 flex-shrink-0">
                 @if($isAdmin)
                     {{-- Клик по иконке не должен сворачивать блок --}}
                     <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 lh-1"
@@ -49,10 +46,38 @@
                 <i class="bi bi-chevron-down" id="salary-chevron"></i>
             </span>
         </div>
+        <div class="mt-1">
+            @if($salary['isOpen'])
+                <span class="badge rounded-pill bg-success-subtle text-success-emphasis">Можно менять</span>
+            @else
+                <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">
+                    <i class="bi bi-clock me-1"></i>Выбор с {{ $salary['nextCutoff']->copy()->locale('ru')->isoFormat('dd HH:mm') }}
+                </span>
+            @endif
+        </div>
         <div class="row g-2 mt-0 wd-stats">
             <div class="col-4">
                 <div class="text-muted small">Начислено</div>
-                <div class="fw-bold text-nowrap">{{ $rub($salary['accrued']) }}</div>
+                <div class="fw-bold text-nowrap">
+                    {{ $rub($salary['total']) }}
+                </div>
+                @if($recalc || $hours)
+                    <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                        <span class="text-muted" style="font-size:.72rem">в том числе</span>
+                        @if($recalc)
+                            <span class="badge rounded-pill {{ $recalc < 0 ? 'bg-danger-subtle text-danger-emphasis' : 'bg-success-subtle text-success-emphasis' }}"
+                                  title="Корректировка за выданные недели">
+                                <i class="bi bi-pencil-square"></i> {{ $signed($recalc) }}
+                            </span>
+                        @endif
+                        @if($hours)
+                            <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis"
+                                  title="Рабочие часы (ремонтные работы)">
+                                <i class="bi bi-tools"></i> {{ $signed($hours) }}
+                            </span>
+                        @endif
+                    </div>
+                @endif
             </div>
             <div class="col-4">
                 <div class="text-muted small text-nowrap">
@@ -113,8 +138,8 @@
                 <div>«Хочу получить» — с шагом {{ $salary['requestStep'] }} ₽@unless($isAdmin), не больше {{ $money($salary['maxRequest']) }}@endunless.
                     Меньше начисленного — остаток уйдёт в копилку, больше — возьмётся из копилки.</div>
                 <div>Начисленное до выдачи ещё может измениться (приёмки, пересчёт коэффициентов) — сумма к выдаче
-                    останется прежней, разница пройдёт через копилку. Пересчёт уже выданных недель уходит в копилку
-                    при следующей выдаче.</div>
+                    останется прежней, разница пройдёт через копилку. Пересчёт уже выданных недель («корректировка»)
+                    добавляется к начисленному следующей выдачи.</div>
                 @if($isAdmin)
                     <div>Налог входит в выданное. Начисленное − выданное уходит в копилку.</div>
                 @endif
@@ -133,13 +158,6 @@
                 </div>
             </div>
         </div>
-
-        @if(round($salary['recalc']) != 0)
-            <div class="small mb-2 wd-part wd-part--note {{ $salary['recalc'] < 0 ? 'text-danger' : 'text-success' }}">
-                <i class="bi bi-arrow-repeat me-1"></i>Перерасчёт выданных недель:
-                {{ $salary['recalc'] > 0 ? '+' : '' }}{{ $rub($salary['recalc']) }} — при выдаче уйдёт в копилку
-            </div>
-        @endif
 
         @if($canEdit)
             <form method="POST" action="{{ route('salary.request', $worker) }}" data-submit-guard class="border-top pt-2 wd-part">
@@ -174,7 +192,7 @@
 
         @if($isAdmin && $salary['isOpen'])
             <form method="POST" action="{{ route('salary.paid', $worker) }}" data-submit-guard data-payout-form
-                  data-gross="{{ $salary['accrued'] + $salary['recalc'] }}"
+                  data-gross="{{ $salary['total'] }}"
                   data-has-old="{{ session()->hasOldInput('paid_cash') ? 1 : 0 }}"
                   {{-- Скрытый остаток в разметку не выводим --}}
                   @unless($hideBalance) data-balance="{{ $salary['balance'] }}" @endunless
