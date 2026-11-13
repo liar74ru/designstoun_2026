@@ -309,6 +309,8 @@ Designstoun 2026 — система учёта производства каме
 - `orders.kind`: `customer` — заявка из МойСклад, `internal` — внутренний заказ полуфабриката
   другому отделу (`InternalOrderService`, в МойСклад не выгружается). Ссылки — по `orders.uuid`;
   всё, что трогает строки из выгрузки (удаление в синке и т.п.), ограничивай `Order::customer()`.
+- Отдел заявки — флажок заказа МойСклад с описанием «Отдел», связанный с отделом по id
+  (`departments.moysklad_attribute_id`, `Moysklad\DepartmentAttributeService`), не по имени.
 
 ### Модуль заказов поставщикам (SupplierOrder)
 

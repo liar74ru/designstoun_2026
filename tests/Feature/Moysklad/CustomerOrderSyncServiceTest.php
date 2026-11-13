@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\Store;
 use App\Services\Moysklad\CustomerOrderSyncService;
+use App\Services\Moysklad\DepartmentAttributeService;
 use App\Services\Moysklad\MoySkladService;
 use App\Services\Moysklad\OrderStateSyncService;
 use App\Services\OrderChangeService;
@@ -27,6 +28,7 @@ function customerOrderSync(): CustomerOrderSyncService
         new OrderStateSyncService(),
         app(OrderProductionService::class),
         new OrderChangeService(),
+        new DepartmentAttributeService(),
     );
 }
 

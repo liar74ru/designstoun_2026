@@ -23,9 +23,18 @@ function orderDeptAttribute(string $id, string $name, string $type = 'boolean'):
     ];
 }
 
-/** МойСклад: метаданные реквизитов на GET, ответ $putStatus на PUT заявки. */
+/**
+ * Отделы связаны с флажками МойСклад (по имени реквизита из $attributes);
+ * МойСклад: метаданные реквизитов на GET, ответ $putStatus на PUT заявки.
+ */
 function fakeOrderDeptMoysklad(array $attributes, int $putStatus = 200, array $putBody = ['id' => 'ms-1']): void
 {
+    foreach ($attributes as $attr) {
+        if ($attr['type'] === 'boolean') {
+            Department::where('name', $attr['name'])->update(['moysklad_attribute_id' => $attr['id']]);
+        }
+    }
+
     Http::fake([
         '*/entity/customerorder/metadata/attributes*' => Http::response(['rows' => $attributes], 200),
         '*/entity/customerorder/*'                    => Http::response($putBody, $putStatus),
@@ -126,9 +135,9 @@ describe('OrderController::updateDepartments()', function () {
         $order->departments()->attach($dept2->id);
 
         fakeOrderDeptMoysklad([
-            orderDeptAttribute('attr-1', 'Резка'),
-            orderDeptAttribute('attr-2', 'Цех'),
-            orderDeptAttribute('attr-3', 'Комментарий', 'string'),
+            orderDeptAttribute('c0000001-0000-0000-0000-000000000000', 'Резка'),
+            orderDeptAttribute('c0000002-0000-0000-0000-000000000000', 'Цех'),
+            orderDeptAttribute('c0000003-0000-0000-0000-000000000000', 'Комментарий', 'string'),
         ]);
 
         $this->actingAs(H::adminUser())
@@ -149,7 +158,7 @@ describe('OrderController::updateDepartments()', function () {
                 ->all();
 
             // Снятый отдел сбрасывается в false, небулев реквизит не трогаем
-            return $values === ['attr-1' => true, 'attr-2' => false];
+            return $values === ['c0000001-0000-0000-0000-000000000000' => true, 'c0000002-0000-0000-0000-000000000000' => false];
         });
     });
 
@@ -158,7 +167,7 @@ describe('OrderController::updateDepartments()', function () {
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
         $order->departments()->attach($dept->id);
 
-        fakeOrderDeptMoysklad([orderDeptAttribute('attr-1', 'Резка')]);
+        fakeOrderDeptMoysklad([orderDeptAttribute('c0000001-0000-0000-0000-000000000000', 'Резка')]);
 
         $this->actingAs(H::adminUser())
             ->from(route('orders.index'))
@@ -175,7 +184,7 @@ describe('OrderController::updateDepartments()', function () {
         $dept  = Department::create(['name' => 'Резка', 'is_active' => true]);
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
-        fakeOrderDeptMoysklad([orderDeptAttribute('attr-9', 'Другой')]);
+        fakeOrderDeptMoysklad([orderDeptAttribute('c0000009-0000-0000-0000-000000000000', 'Другой')]);
 
         $this->actingAs(H::adminUser())
             ->from(route('orders.index'))
@@ -193,7 +202,7 @@ describe('OrderController::updateDepartments()', function () {
         $order->departments()->attach($dept1->id);
 
         fakeOrderDeptMoysklad(
-            [orderDeptAttribute('attr-1', 'Резка'), orderDeptAttribute('attr-2', 'Цех')],
+            [orderDeptAttribute('c0000001-0000-0000-0000-000000000000', 'Резка'), orderDeptAttribute('c0000002-0000-0000-0000-000000000000', 'Цех')],
             412,
             ['errors' => [['error' => 'Нет прав на изменение']]],
         );
@@ -237,7 +246,7 @@ describe('OrderController::updateDepartments()', function () {
         $own   = Department::create(['name' => 'Резка', 'is_active' => true]);
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
 
-        fakeOrderDeptMoysklad([orderDeptAttribute('attr-1', 'Резка')]);
+        fakeOrderDeptMoysklad([orderDeptAttribute('c0000001-0000-0000-0000-000000000000', 'Резка')]);
 
         $this->actingAs(Access::master($own, 'orders'))
             ->from(route('orders.index'))
@@ -292,7 +301,7 @@ describe('Отделы заявки: мастер меняет только св
         $order = Order::create(['moysklad_id' => 'ms-1', 'name' => 'Заявка 1']);
         $order->departments()->attach([$own->id, $other->id]);
 
-        fakeOrderDeptMoysklad([orderDeptAttribute('attr-1', 'Резка'), orderDeptAttribute('attr-2', 'Цех')]);
+        fakeOrderDeptMoysklad([orderDeptAttribute('c0000001-0000-0000-0000-000000000000', 'Резка'), orderDeptAttribute('c0000002-0000-0000-0000-000000000000', 'Цех')]);
 
         // Модалка мастера показывает только «Резку»: пустой выбор = снять свой отдел
         $this->actingAs(Access::master($own, 'orders'))
@@ -311,7 +320,7 @@ describe('Отделы заявки: мастер меняет только св
                 ->mapWithKeys(fn ($a) => [basename($a['meta']['href']) => $a['value']])
                 ->all();
 
-            return $values === ['attr-1' => false, 'attr-2' => true];
+            return $values === ['c0000001-0000-0000-0000-000000000000' => false, 'c0000002-0000-0000-0000-000000000000' => true];
         });
     });
 

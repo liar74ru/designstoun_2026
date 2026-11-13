@@ -19,8 +19,17 @@
   МойСклад), программа не удаляет ничего.
 - Из МойСклад берутся: номер, статус, контрагент, дата заявки, планируемая дата отгрузки
   (в программе — **срок / дата готовности**), доп. реквизиты и позиции (заказано и отгружено).
-- **Отделы заявки** — это булевы доп. реквизиты МойСклад, названные так же, как отдел.
-  Галочка «Карьер» в заявке → заявка отдела «Карьер».
+- **Отделы заявки** — это флажки (булевы доп. реквизиты) заказа покупателя в МойСклад с
+  описанием «Отдел». Каждый отдел программы связан со своим флажком в карточке отдела
+  ([Настройки](app:settings) → Отделы → блок «МойСклад»): галочка в заявке → заявка этого отдела.
+  Связь хранится по id флажка, поэтому переименование отдела или флажка её не ломает, а
+  посторонний флажок с тем же именем отделом не считается.
+- **Новый отдел:** в его карточке выберите уже заведённый в МойСклад флажок или нажмите
+  «Создать флажок в МойСклад» — программа создаст его с именем отдела и описанием «Отдел».
+  Пока отдел не связан, в списке отделов у него плашка «не сопоставлен с МойСклад»: заявки из
+  МойСклад в него не попадают, и назначить его заявке из программы нельзя.
+- Отдел без связи, чьё имя совпадает с флажком «Отдел», который ещё никому не принадлежит,
+  связывается с ним автоматически при синхронизации заявок.
 - Заявка, в которой с прошлой синхронизации ничего не поменялось, пропускается.
 - Статус, срок и отделы, изменённые в программе, **сначала записываются в МойСклад**.
   Если МойСклад отказал — в программе ничего не меняется, иначе ближайшая синхронизация всё
@@ -271,6 +280,7 @@
 | Раздел | Код | Тесты (`tests/Feature/Order/`) |
 |---|---|---|
 | 1. Синхронизация | `Moysklad\CustomerOrderSyncService::pullActive`, `fetchActive`, `upsertOrder`, `updateState`, `updateDeliveryDate`, `updateDepartments` | `OrderControllerTest`, `OrderStateTest`, `OrderDeliveryDateTest`, `OrderDepartmentsTest` |
+| 1. Отдел ↔ флажок МойСклад | `departments.moysklad_attribute_id`; `Moysklad\DepartmentAttributeService` (`departmentAttributes` — фильтр по описанию «Отдел», `link`, `createFor`, `autoLink` перед `pullActive`, `attributeMeta`); `DepartmentController::updateMoyskladAttribute`/`createMoyskladAttribute` | `OrderDepartmentsTest`, `OrderDepartmentStateTest`, `../Moysklad/DepartmentAttributeTest` |
 | 2. Статусы | `OrderState` (флаги, `changedId`, `listBottomIds`, scope `untracked`), `Moysklad\OrderStateSyncService::sync`, `Admin\OrderStateController`, `OrderService::defaultStatuses` | `OrderStateTest`, `OrderStateSyncActionTest`, `OrderServiceTest` |
 | 2. Финальный статус по отделам | `OrderDepartmentStateService::apply`, `finalizeIfComplete`, `viewFor`; pivot `order_department.final_state_id`/`finalized_at`; сброс — `CustomerOrderSyncService::applyState` и `upsertOrder`; `OrderController::updateState`/`updateDepartments`; партиал `orders/partials/department-states`, параметр `deptView` у `state-picker` | `OrderDepartmentStateTest` |
 | 3. Очередь | `Support\OrderPriority::autoKey`, `Order::scopePrioritized`, `Order::scopeListOrdered`, `scopeInListBottom` (с учётом отметок отделов смотрящего), `OrderPriorityService` | `OrderPriorityTest`, `OrderDepartmentStateTest` |

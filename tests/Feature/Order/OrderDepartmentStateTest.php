@@ -6,6 +6,7 @@ use App\Models\OrderState;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\Moysklad\CustomerOrderSyncService;
+use App\Services\Moysklad\DepartmentAttributeService;
 use App\Services\Moysklad\MoySkladService;
 use App\Services\Moysklad\OrderStateSyncService;
 use App\Services\OrderChangeService;
@@ -182,7 +183,10 @@ describe('Финальный статус по отделам', function () {
         expect(dsMarks($order)[$dept1->id])->toBe(DS_DONE);
 
         $product = Product::factory()->create();
-        $boolean = fn ($name) => ['name' => $name, 'type' => 'boolean', 'value' => true];
+        // Отдел заявки — флажок МойСклад, связанный с отделом по id реквизита
+        $dept1->update(['moysklad_attribute_id' => 'b1111111-1111-1111-1111-111111111111']);
+        $dept2->update(['moysklad_attribute_id' => 'b2222222-2222-2222-2222-222222222222']);
+        $boolean = fn (Department $d) => ['id' => $d->moysklad_attribute_id, 'name' => $d->name, 'type' => 'boolean', 'value' => true];
 
         Http::fake([
             '*/entity/customerorder/metadata' => Http::response(['states' => [
@@ -206,7 +210,7 @@ describe('Финальный статус по отделам', function () {
                             'name' => $product->name,
                         ],
                     ]]],
-                    'attributes' => [$boolean('Отдел 1'), $boolean('Отдел 2')],
+                    'attributes' => [$boolean($dept1), $boolean($dept2)],
                 ]],
                 'meta' => ['size' => 1],
             ], 200),
@@ -218,6 +222,7 @@ describe('Финальный статус по отделам', function () {
             new OrderStateSyncService(),
             app(OrderProductionService::class),
             new OrderChangeService(),
+            new DepartmentAttributeService(),
         ))->pullActive();
 
         $order->refresh();

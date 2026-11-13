@@ -22,6 +22,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
         private OrderStateSyncService $stateSync,
         private OrderProductionService $production,
         private OrderChangeService $changes,
+        private DepartmentAttributeService $departmentAttributes,
     ) {
         parent::__construct();
     }
@@ -72,7 +73,11 @@ class CustomerOrderSyncService extends MoySkladBaseService
         if (! empty($rows)) {
             $counterpartyMap   = $this->resolveCounterparties($rows);
             $productMap        = $this->resolveProducts($rows);
-            $departmentNameMap = Department::pluck('id', 'name');
+            // Отдел заявки — флажок МойСклад, связанный с отделом по id реквизита.
+            // Ещё не связанные отделы сначала пробуем привязать по имени.
+            $this->departmentAttributes->autoLink();
+            $departmentAttributeMap = Department::whereNotNull('moysklad_attribute_id')
+                ->pluck('id', 'moysklad_attribute_id');
             $untrackedStateIds = OrderState::untracked()->pluck('id')->all();
             $existingOrders    = Order::whereIn('moysklad_id', array_column($rows, 'id'))
                 ->get(['moysklad_id', 'state_moysklad_id', 'sync_hash'])
@@ -81,8 +86,8 @@ class CustomerOrderSyncService extends MoySkladBaseService
                 ->all();
 
             foreach ($rows as $row) {
-                DB::transaction(function () use ($row, $counterpartyMap, $productMap, $departmentNameMap, $existingOrders, $untrackedStateIds) {
-                    $this->upsertOrder($row, $counterpartyMap, $productMap, $departmentNameMap, $existingOrders, $untrackedStateIds);
+                DB::transaction(function () use ($row, $counterpartyMap, $productMap, $departmentAttributeMap, $existingOrders, $untrackedStateIds) {
+                    $this->upsertOrder($row, $counterpartyMap, $productMap, $departmentAttributeMap, $existingOrders, $untrackedStateIds);
                 });
                 $count++;
             }
@@ -231,7 +236,7 @@ class CustomerOrderSyncService extends MoySkladBaseService
         array $row,
         array $counterpartyMap,
         array $productMap,
-        Collection $departmentNameMap,
+        Collection $departmentAttributeMap,
         array $existingOrders,
         array $untrackedStateIds,
     ): bool {
@@ -269,9 +274,9 @@ class CustomerOrderSyncService extends MoySkladBaseService
             $type  = $attr['type']  ?? null;
             $value = $attr['value'] ?? null;
             if ($type === 'boolean' && $value === true) {
-                $name = $attr['name'] ?? null;
-                if ($name !== null && $departmentNameMap->has($name)) {
-                    $matchedIds[] = $departmentNameMap->get($name);
+                $attributeId = $attr['id'] ?? null;
+                if ($attributeId !== null && $departmentAttributeMap->has($attributeId)) {
+                    $matchedIds[] = $departmentAttributeMap->get($attributeId);
                 }
             }
         }
@@ -496,9 +501,10 @@ class CustomerOrderSyncService extends MoySkladBaseService
     /**
      * Назначить заявке отделы.
      *
-     * Отдел в МойСклад — булев доп. реквизит с именем отдела (так их разбирает
-     * upsertOrder). Пишем туда, а не только локально: иначе ближайшая синхронизация
-     * перезапишет выбор. Снятые отделы сбрасываем в false.
+     * Отдел в МойСклад — флажок заказа, связанный с отделом по id реквизита
+     * (departments.moysklad_attribute_id, так их разбирает upsertOrder). Пишем туда, а не
+     * только локально: иначе ближайшая синхронизация перезапишет выбор. Флажки снятых
+     * отделов сбрасываем в false.
      *
      * @param  array<int, int>  $departmentIds
      */
@@ -530,40 +536,25 @@ class CustomerOrderSyncService extends MoySkladBaseService
         }
 
         try {
-            $metadata = $this->get('/entity/customerorder/metadata/attributes');
-            if ($metadata === null) {
-                $result['code']    = 'api_error';
-                $result['message'] = 'Не удалось получить реквизиты заказа из МойСклад';
-
-                return $result;
-            }
-
-            $attributeMeta = [];
-            foreach ($metadata['rows'] ?? [] as $attr) {
-                if (($attr['type'] ?? null) === 'boolean' && isset($attr['name'], $attr['meta'])) {
-                    $attributeMeta[$attr['name']] = $attr['meta'];
-                }
-            }
-
-            $departments = Department::orderBy('name')->get(['id', 'name']);
+            $departments = Department::orderBy('name')->get(['id', 'name', 'moysklad_attribute_id']);
 
             $missing = $departments
                 ->whereIn('id', $departmentIds)
-                ->reject(fn ($d) => isset($attributeMeta[$d->name]))
+                ->whereNull('moysklad_attribute_id')
                 ->pluck('name');
 
             if ($missing->isNotEmpty()) {
                 $result['code']    = 'no_attribute';
-                $result['message'] = 'В МойСклад нет реквизита-флажка для отдела: «'
-                    . $missing->implode('», «') . '»';
+                $result['message'] = 'Отдел не сопоставлен с флажком МойСклад: «'
+                    . $missing->implode('», «') . '». Выберите флажок в карточке отдела.';
 
                 return $result;
             }
 
             $attributes = $departments
-                ->filter(fn ($d) => isset($attributeMeta[$d->name]))
+                ->whereNotNull('moysklad_attribute_id')
                 ->map(fn ($d) => [
-                    'meta'  => $attributeMeta[$d->name],
+                    'meta'  => $this->departmentAttributes->attributeMeta($d->moysklad_attribute_id),
                     'value' => in_array($d->id, $departmentIds, true),
                 ])
                 ->values()

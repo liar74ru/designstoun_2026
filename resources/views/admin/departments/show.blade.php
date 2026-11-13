@@ -252,6 +252,90 @@
                 </div>
             </div>
 
+            {{-- 9. Связь с МойСклад: флажок отдела в заявках покупателей --}}
+            @php
+                $linkedId   = $department->moysklad_attribute_id;
+                $linkedName = $linkedId && $moyskladAttributes !== null ? ($moyskladAttributes[$linkedId] ?? null) : null;
+            @endphp
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center gap-2">
+                    <span>МойСклад: флажок отдела в заявках</span>
+                    @if($linkedId)
+                        <span class="badge text-bg-success"><i class="bi bi-link-45deg"></i> связан</span>
+                    @else
+                        <span class="badge text-bg-warning"><i class="bi bi-exclamation-triangle"></i> не сопоставлен</span>
+                    @endif
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Заявка покупателя попадает в отдел, когда в МойСклад отмечен связанный с ним флажок.
+                        Подходят булевы доп. реквизиты заказа с описанием «{{ \App\Services\Moysklad\DepartmentAttributeService::DESCRIPTION }}».
+                        Связь хранится по id: переименование отдела или флажка её не ломает.
+                    </p>
+
+                    @if($moyskladAttributes === null)
+                        <div class="alert alert-secondary small py-2 mb-0">
+                            МойСклад недоступен — список флажков не загружен.
+                            @if($linkedId)
+                                Отдел связан с реквизитом <code>{{ $linkedId }}</code>.
+                            @endif
+                        </div>
+                    @else
+                        @if($linkedId && $linkedName === null)
+                            <div class="alert alert-warning small py-2">
+                                Связанный флажок не найден в МойСклад (удалён или у него сменилось описание).
+                                Выберите другой флажок или создайте новый.
+                            </div>
+                        @elseif($linkedName !== null && $linkedName !== $department->name)
+                            <div class="text-muted small mb-2">
+                                <i class="bi bi-info-circle"></i> В МойСклад флажок называется «{{ $linkedName }}».
+                            </div>
+                        @endif
+
+                        <form method="POST" data-submit-guard
+                              action="{{ route('admin.departments.moysklad-attribute.update', $department) }}"
+                              class="row g-2 align-items-end">
+                            @csrf
+                            @method('PATCH')
+                            <div class="col-12 col-md">
+                                <label for="moysklad_attribute_id" class="form-label fw-semibold small">Флажок МойСклад</label>
+                                <select id="moysklad_attribute_id" name="moysklad_attribute_id"
+                                        class="form-select" style="border-radius:.4rem">
+                                    <option value="">— не связан —</option>
+                                    @foreach($moyskladAttributes as $attrId => $attrName)
+                                        <option value="{{ $attrId }}"
+                                            {{ $linkedId === $attrId ? 'selected' : '' }}
+                                            {{ isset($attributeOwners[$attrId]) ? 'disabled' : '' }}>
+                                            {{ $attrName }}@isset($attributeOwners[$attrId]) — отдел «{{ $attributeOwners[$attrId] }}»@endisset
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-auto">
+                                <button type="submit" class="btn btn-primary w-100 px-4">
+                                    <i class="bi bi-check-lg"></i> Сохранить
+                                </button>
+                            </div>
+                        </form>
+
+                        @unless($linkedName)
+                            <form method="POST" data-submit-guard="Создание…"
+                                  action="{{ route('admin.departments.moysklad-attribute.store', $department) }}"
+                                  data-confirm="Создать в МойСклад флажок «{{ $department->name }}» у заказов покупателей?"
+                                  class="mt-3">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="bi bi-plus-lg"></i> Создать флажок в МойСклад
+                                </button>
+                                <span class="text-muted small ms-1 d-block d-md-inline mt-1 mt-md-0">
+                                    Имя — «{{ $department->name }}», описание — «{{ \App\Services\Moysklad\DepartmentAttributeService::DESCRIPTION }}».
+                                </span>
+                            </form>
+                        @endunless
+                    @endif
+                </div>
+            </div>
+
             {{-- Зона удаления (только если нет сотрудников) --}}
             @if($workers->isEmpty())
             <div class="card shadow-sm border-danger mb-3">

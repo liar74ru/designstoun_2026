@@ -50,7 +50,14 @@
                                 <span class="badge text-bg-secondary ms-1">неактивен</span>
                             @endunless
                         </div>
-                        <div class="text-muted small">Сотрудников: {{ $dept->all_workers_count }}</div>
+                        <div class="text-muted small">
+                            Сотрудников: {{ $dept->all_workers_count }}
+                            @unless($dept->moysklad_attribute_id)
+                                <span class="badge text-bg-warning ms-1" title="Заявки МойСклад в этот отдел не попадут — выберите флажок в карточке отдела">
+                                    не сопоставлен с МойСклад
+                                </span>
+                            @endunless
+                        </div>
                     </div>
 
                     <div class="d-flex gap-1 small text-nowrap" title="Склады по умолчанию">

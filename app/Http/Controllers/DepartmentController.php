@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Services\DepartmentExpenseService;
+use App\Services\Moysklad\DepartmentAttributeService;
 use App\Services\WorkshopPresetService;
 use App\Support\DepartmentSettings;
 use Illuminate\Http\Request;
@@ -43,8 +44,11 @@ class DepartmentController extends Controller
             ->with('success', 'Отдел успешно создан.');
     }
 
-    public function show(Department $department, WorkshopPresetService $presetService)
-    {
+    public function show(
+        Department $department,
+        WorkshopPresetService $presetService,
+        DepartmentAttributeService $attributeService
+    ) {
         $workers           = $department->allWorkers()->orderBy('name')->get();
         $stores            = Store::where('archived', false)->orderBy('name')->get();
         $allWorkers        = Worker::orderBy('name')->get();
@@ -58,12 +62,51 @@ class DepartmentController extends Controller
         $globalDefaults    = Setting::whereIn('key', DepartmentSettings::keys())->pluck('value', 'key')->all();
         $expenses          = $department->expenses()->get(['id', 'name', 'amount']);
         $modifiers         = $department->modifiers;
+        // Флажки отделов в МойСклад (null — МойСклад недоступен) и чьи они уже
+        $moyskladAttributes = $attributeService->departmentAttributes();
+        $attributeOwners    = Department::whereNotNull('moysklad_attribute_id')
+            ->where('id', '!=', $department->id)
+            ->pluck('name', 'moysklad_attribute_id')
+            ->all();
 
         return view('admin.departments.show', compact(
             'department', 'workers', 'stores', 'allWorkers', 'operations', 'allowedPositions',
             'presets', 'presetGroups', 'allDepartments', 'costGroups', 'costSettings', 'globalDefaults', 'expenses',
-            'modifiers'
+            'modifiers', 'moyskladAttributes', 'attributeOwners'
         ));
+    }
+
+    /**
+     * Связать отдел с флажком-реквизитом заказа в МойСклад (пусто — отвязать).
+     */
+    public function updateMoyskladAttribute(
+        Request $request,
+        Department $department,
+        DepartmentAttributeService $service
+    ) {
+        $validated = $request->validate([
+            'moysklad_attribute_id' => ['nullable', 'uuid'],
+        ]);
+
+        $result = $service->link($department, $validated['moysklad_attribute_id'] ?? null);
+
+        return redirect()
+            ->route('admin.departments.show', $department)
+            ->withFragment('main')
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
+    }
+
+    /**
+     * Создать в МойСклад флажок отдела и связать с ним отдел.
+     */
+    public function createMoyskladAttribute(Department $department, DepartmentAttributeService $service)
+    {
+        $result = $service->createFor($department);
+
+        return redirect()
+            ->route('admin.departments.show', $department)
+            ->withFragment('main')
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
     /**

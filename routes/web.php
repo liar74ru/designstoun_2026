@@ -294,6 +294,8 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/departments/{department}/operations', [DepartmentController::class, 'updateOperations'])->name('departments.operations.update');
         Route::patch('/departments/{department}/cost-settings', [DepartmentController::class, 'updateCostSettings'])->name('departments.cost-settings.update');
         Route::patch('/departments/{department}/expenses', [DepartmentController::class, 'updateExpenses'])->name('departments.expenses.update');
+        Route::patch('/departments/{department}/moysklad-attribute', [DepartmentController::class, 'updateMoyskladAttribute'])->name('departments.moysklad-attribute.update');
+        Route::post('/departments/{department}/moysklad-attribute', [DepartmentController::class, 'createMoyskladAttribute'])->name('departments.moysklad-attribute.store');
         Route::resource('departments', DepartmentController::class)->only(['index', 'create', 'store', 'show', 'update', 'destroy']);
 
         // Пресеты цеха отдела

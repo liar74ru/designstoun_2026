@@ -19,6 +19,7 @@ class Department extends Model
         'default_raw_store_id',
         'default_product_store_id',
         'default_production_store_id',
+        'moysklad_attribute_id',
     ];
 
     protected $casts = [
