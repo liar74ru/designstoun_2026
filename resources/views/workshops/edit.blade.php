@@ -409,10 +409,14 @@
     const rawTotalEl  = document.getElementById('rawTotalQty');
     const prodTotalEl = document.getElementById('prodTotalQty');
     // Итоги — по единицам товаров строк: «2,00 м² · 5,00 шт»
+    // window.Uom задаёт app.js — модуль, он исполняется после этого скрипта. До него итоги
+    // не считаем (иначе ReferenceError обрывает скрипт), пересчёт — на DOMContentLoaded.
     function updateTotals() {
+        if (!window.Uom) return;
         rawTotalEl.textContent  = Uom.formatTotals(Uom.totalsFromRows(blocks.raw.container), 2);
         prodTotalEl.textContent = Uom.formatTotals(Uom.totalsFromRows(blocks.product.container), 2);
     }
+    document.addEventListener('DOMContentLoaded', updateTotals);
     function rowsData(container) {
         return Array.from(container.querySelectorAll('.product-picker-row')).map(row => ({
             productId: row.querySelector('input[type="hidden"]')?.value || '',
