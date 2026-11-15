@@ -160,6 +160,8 @@
         'placeholder' => 'Введите название сырья...',
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
+        'qtyStep'     => '0.0001',
+        'qtyMin'      => '0.0001',
         'showRemove'  => true,
     ])
 </template>
@@ -171,6 +173,8 @@
         'placeholder' => 'Введите вариант упаковки...',
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
+        'qtyStep'     => '0.0001',
+        'qtyMin'      => '0.0001',
         'skuPrefix'   => '07-03',
         'showRemove'  => true,
     ])
@@ -183,6 +187,8 @@
         'placeholder' => 'Введите название продукта...',
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
+        'qtyStep'     => '0.0001',
+        'qtyMin'      => '0.0001',
         'showRemove'  => true,
     ])
 </template>

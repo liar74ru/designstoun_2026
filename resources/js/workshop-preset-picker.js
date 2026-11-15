@@ -21,7 +21,7 @@ function tint(color) {
 
 /** Количество без лишних нулей: 2.500 → «2,5». */
 function qty(value) {
-    return Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 3 });
+    return Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 4 });
 }
 
 export class WorkshopPresetPicker {

@@ -15,7 +15,7 @@ class WorkshopLogItem extends Model
     ];
 
     protected $casts = [
-        'quantity_delta' => 'decimal:3',
+        'quantity_delta' => 'decimal:4',
     ];
 
     /** @return BelongsTo<WorkshopLog, $this> */

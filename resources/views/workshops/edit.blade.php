@@ -206,14 +206,14 @@
                 <div id="scaleContainer">
                     @foreach($productItems as $sIdx => $item)
                         <div class="scale-row rounded border bg-white" style="padding:.3rem .5rem;margin-bottom:.25rem"
-                             data-base="{{ number_format((float) $item->quantity, 3, '.', '') }}"
+                             data-base="{{ number_format((float) $item->quantity, 4, '.', '') }}"
                              data-product-index="{{ $sIdx }}">
                             <div class="small fw-semibold" style="margin-bottom:.15rem">{{ $item->product->name }}</div>
                             <div class="d-flex align-items-center gap-1 flex-wrap">
                                 <span class="text-muted small">{{ (float) $item->quantity }}</span>
                                 <span class="text-muted">+</span>
                                 <input type="number" class="form-control form-control-sm js-scale-delta"
-                                       style="width:90px;border-radius:.4rem" step="0.001" placeholder="0">
+                                       style="width:90px;border-radius:.4rem" step="0.0001" placeholder="0">
                                 <span class="text-muted">=</span>
                                 <span class="fw-semibold js-scale-result">{{ (float) $item->quantity }}</span>
                                 <span class="text-muted small js-scale-unit">{{ \App\Support\Uom::of($item->product) }}</span>
@@ -235,9 +235,9 @@
                         @include('partials.product-picker-row', [
                             'name' => 'raw_materials', 'index' => $ri++,
                             'value' => $item->product_id, 'label' => $item->product->name,
-                            'quantity' => number_format((float) $item->quantity, 3, '.', ''),
+                            'quantity' => rtrim(rtrim(number_format((float) $item->quantity, 4, '.', ''), '0'), '.'),
                             'placeholder' => 'Введите название сырья...', 'unit' => \App\Support\Uom::of($item->product),
-                            'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
+                            'qtyWidth' => '120px', 'qtyMode' => 'simple', 'qtyStep' => '0.0001', 'qtyMin' => '0.0001', 'showRemove' => true,
                         ])
                     @endforeach
                 </div>
@@ -256,9 +256,9 @@
                         @include('partials.product-picker-row', [
                             'name' => 'packages', 'index' => $ri++,
                             'value' => $item->product_id, 'label' => $item->product->name,
-                            'quantity' => number_format((float) $item->quantity, 3, '.', ''),
+                            'quantity' => rtrim(rtrim(number_format((float) $item->quantity, 4, '.', ''), '0'), '.'),
                             'placeholder' => 'Введите вариант упаковки...', 'unit' => \App\Support\Uom::of($item->product),
-                            'qtyWidth' => '120px', 'qtyMode' => 'simple', 'skuPrefix' => '07-03', 'showRemove' => true,
+                            'qtyWidth' => '120px', 'qtyMode' => 'simple', 'qtyStep' => '0.0001', 'qtyMin' => '0.0001', 'skuPrefix' => '07-03', 'showRemove' => true,
                         ])
                     @endforeach
                 </div>
@@ -278,9 +278,9 @@
                         @include('partials.product-picker-row', [
                             'name' => 'products', 'index' => $ri++,
                             'value' => $item->product_id, 'label' => $item->product->name,
-                            'quantity' => number_format((float) $item->quantity, 3, '.', ''),
+                            'quantity' => rtrim(rtrim(number_format((float) $item->quantity, 4, '.', ''), '0'), '.'),
                             'placeholder' => 'Введите название продукта...', 'unit' => \App\Support\Uom::of($item->product),
-                            'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
+                            'qtyWidth' => '120px', 'qtyMode' => 'simple', 'qtyStep' => '0.0001', 'qtyMin' => '0.0001', 'showRemove' => true,
                         ])
                     @endforeach
                 </div>
@@ -347,21 +347,21 @@
     @include('partials.product-picker-row', [
         'name' => 'raw_materials', 'index' => '__IDX__',
         'placeholder' => 'Введите название сырья...',
-        'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
+        'qtyWidth' => '120px', 'qtyMode' => 'simple', 'qtyStep' => '0.0001', 'qtyMin' => '0.0001', 'showRemove' => true,
     ])
 </template>
 <template id="tplPackage">
     @include('partials.product-picker-row', [
         'name' => 'packages', 'index' => '__IDX__',
         'placeholder' => 'Введите вариант упаковки...',
-        'qtyWidth' => '120px', 'qtyMode' => 'simple', 'skuPrefix' => '07-03', 'showRemove' => true,
+        'qtyWidth' => '120px', 'qtyMode' => 'simple', 'qtyStep' => '0.0001', 'qtyMin' => '0.0001', 'skuPrefix' => '07-03', 'showRemove' => true,
     ])
 </template>
 <template id="tplProduct">
     @include('partials.product-picker-row', [
         'name' => 'products', 'index' => '__IDX__',
         'placeholder' => 'Введите название продукта...',
-        'qtyWidth' => '120px', 'qtyMode' => 'simple', 'showRemove' => true,
+        'qtyWidth' => '120px', 'qtyMode' => 'simple', 'qtyStep' => '0.0001', 'qtyMin' => '0.0001', 'showRemove' => true,
     ])
 </template>
 @endsection
@@ -413,8 +413,8 @@
     // не считаем (иначе ReferenceError обрывает скрипт), пересчёт — на DOMContentLoaded.
     function updateTotals() {
         if (!window.Uom) return;
-        rawTotalEl.textContent  = Uom.formatTotals(Uom.totalsFromRows(blocks.raw.container), 2);
-        prodTotalEl.textContent = Uom.formatTotals(Uom.totalsFromRows(blocks.product.container), 2);
+        rawTotalEl.textContent  = Uom.formatTotals(Uom.totalsFromRows(blocks.raw.container), 4);
+        prodTotalEl.textContent = Uom.formatTotals(Uom.totalsFromRows(blocks.product.container), 4);
     }
     document.addEventListener('DOMContentLoaded', updateTotals);
     function rowsData(container) {
@@ -477,7 +477,7 @@
             };
         });
 
-        const round3 = v => Math.round(v * 1000) / 1000;
+        const round4 = v => Math.round(v * 10000) / 10000;
 
         function applyScale() {
             let baseSum = 0, newSum = 0;
@@ -485,7 +485,7 @@
                 const alive = r.input && document.contains(r.input);
                 r.el.style.display = alive ? '' : 'none';
                 if (!alive) return;
-                const result = round3(r.base + (parseFloat(r.delta.value) || 0));
+                const result = round4(r.base + (parseFloat(r.delta.value) || 0));
                 r.result.textContent = String(result);
                 r.result.classList.toggle('text-danger', result < 0);
                 r.input.value = result;
@@ -495,7 +495,7 @@
             if (baseSum > 0) {
                 const k = newSum / baseSum;
                 rawBases.forEach(b => {
-                    if (b.input && document.contains(b.input)) b.input.value = round3(b.base * k).toFixed(3);
+                    if (b.input && document.contains(b.input)) b.input.value = round4(b.base * k).toFixed(4);
                 });
                 packBases.forEach(b => {
                     // округление до 6 знаков перед ceil — иначе 10 × 1.2 = 12.000…002 → 13

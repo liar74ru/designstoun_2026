@@ -9,6 +9,9 @@
     @include('partials.alerts')
 
     @php
+        // Количество — до 4 знаков без хвостовых нулей: «1,2», «0,1255»
+        $fmtQty = fn ($v) => rtrim(rtrim(number_format((float) $v, 4), '0'), '.');
+
         $statusMap = [
             'active'    => ['bg-success',           'Активна'],
             'completed' => ['bg-warning text-dark', 'Закрыта'],
@@ -264,7 +267,7 @@
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
                     <span class="small fw-semibold text-muted"><i class="bi bi-box me-1"></i> Сырьё</span>
-                    <span class="text-muted small">Итого: <strong>{{ number_format($rawItems->sum('quantity'), 3) }}</strong></span>
+                    <span class="text-muted small">Итого: <strong>{{ $fmtQty($rawItems->sum('quantity')) }}</strong></span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm mb-0">
@@ -281,7 +284,7 @@
                                     <div>{{ $item->product->name }}</div>
                                     <small class="text-muted">{{ $item->product->sku }}</small>
                                 </td>
-                                <td class="text-end">{{ number_format($item->quantity, 3) }}</td>
+                                <td class="text-end">{{ $fmtQty($item->quantity) }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="2" class="text-muted text-center">—</td></tr>
@@ -311,7 +314,7 @@
                                     <div>{{ $item->product->name }}</div>
                                     <small class="text-muted">{{ $item->product->sku }}</small>
                                 </td>
-                                <td class="text-end">{{ number_format($item->quantity, 3) }}</td>
+                                <td class="text-end">{{ $fmtQty($item->quantity) }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="2" class="text-muted text-center">—</td></tr>
@@ -375,7 +378,7 @@
                                             'font'      => '.6rem',
                                         ])
                                     </td>
-                                    <td class="text-end text-nowrap">{{ number_format($item->quantity, 3) }}</td>
+                                    <td class="text-end text-nowrap">{{ $fmtQty($item->quantity) }}</td>
                                     {{-- Метка роли: верхняя строка — пильщик, нижняя — мастер --}}
                                     <td class="text-center text-muted">
                                         <div style="font-size:.7rem;line-height:1.5" title="Пильщик"><i class="bi bi-person"></i></div>
@@ -427,7 +430,7 @@
                             <tfoot class="table-light">
                                 <tr>
                                     <th>ИТОГО:</th>
-                                    <th class="text-end text-nowrap fw-semibold">{{ number_format($productItems->sum('quantity'), 3) }}</th>
+                                    <th class="text-end text-nowrap fw-semibold">{{ $fmtQty($productItems->sum('quantity')) }}</th>
                                     <th class="text-center text-muted fw-normal">
                                         <div style="font-size:.75rem;line-height:1.5" title="Пильщик"><i class="bi bi-person"></i></div>
                                         <div style="font-size:.75rem;line-height:1.5" title="Мастер"><i class="bi bi-person-gear"></i></div>
@@ -588,7 +591,7 @@
                                             <div class="small">
                                                 <span class="text-muted">[{{ $roleLabels[$i->role] ?? '' }}]</span>
                                                 {{ $i->product?->name ?? '?' }}:
-                                                <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }}">{{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, 3) }}</span>
+                                                <span class="fw-semibold {{ $delta >= 0 ? 'text-success' : 'text-danger' }}">{{ $delta >= 0 ? '+' : '' }}{{ $fmtQty($delta) }}</span>
                                             </div>
                                         @endforeach
                                     </td>

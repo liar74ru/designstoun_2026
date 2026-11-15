@@ -15,7 +15,7 @@ class WorkshopPresetItem extends Model
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:3',
+        'quantity' => 'decimal:4',
     ];
 
     /** @return BelongsTo<WorkshopPreset, $this> */

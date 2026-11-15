@@ -23,8 +23,8 @@ class WorkshopLog extends Model
     ];
 
     protected $casts = [
-        'package_quantity_delta'    => 'decimal:3',
-        'package_quantity_snapshot' => 'decimal:3',
+        'package_quantity_delta'    => 'decimal:4',
+        'package_quantity_snapshot' => 'decimal:4',
         'created_at'                => 'datetime',
     ];
 

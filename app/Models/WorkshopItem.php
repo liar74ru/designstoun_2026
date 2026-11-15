@@ -32,7 +32,7 @@ class WorkshopItem extends Model
     ];
 
     protected $casts = [
-        'quantity'                    => 'decimal:3',
+        'quantity'                    => 'decimal:4',
         'base_cost_coeff'             => 'decimal:4',
         'effective_cost_coeff'        => 'decimal:4',
         'master_base_cost_coeff'      => 'decimal:4',

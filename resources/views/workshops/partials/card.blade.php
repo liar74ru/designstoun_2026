@@ -5,6 +5,8 @@
     $skuColor     = \App\Models\Product::getColorBySku($rawItems->first()?->product?->sku);
     $skuBg        = $skuColor === '#FFFFFF' ? '#fff' : $skuColor . '18';
     $uomOf        = fn ($product) => \App\Support\Uom::of($product);
+    // Количество — до 4 знаков без хвостовых нулей: «1,2», «0,1255»
+    $fmtQty       = fn ($v) => rtrim(rtrim(number_format((float) $v, 4, ',', '.'), '0'), ',');
 @endphp
 <div style="border-radius:.35rem;border:1px solid #dee2e6;border-left:4px solid {{ $skuColor }};border-right:4px solid {{ $skuColor }};background:{{ $skuBg }};box-shadow:0 1px 2px rgba(0,0,0,.07)">
     <div style="padding:.1rem .35rem">
@@ -33,7 +35,7 @@
                     <span class="text-center flex-shrink-0" style="width:.9rem">{{ $loop->first ? '' : '+' }}</span>
                     <i class="bi {{ \App\Models\Product::getIconBySku($item->product?->sku) }} text-secondary me-1 flex-shrink-0" style="font-size:.78rem;margin-top:.1rem"></i>
                     <span class="flex-grow-1 me-2" style="min-width:0;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">{{ $item->product->name }}</span>
-                    <span class="text-nowrap">{{ number_format($item->quantity, 3, ',', '.') }} {{ $uomOf($item->product) }}</span>
+                    <span class="text-nowrap">{{ $fmtQty($item->quantity) }} {{ $uomOf($item->product) }}</span>
                 </div>
             @endforeach
             @foreach($packageItems as $item)
@@ -49,7 +51,7 @@
                 <div class="d-flex align-items-start">
                     <span class="text-center fw-bold text-primary flex-shrink-0" style="width:.9rem;font-size:.85rem">=</span>
                     <span class="flex-grow-1 fw-bold text-dark me-2" style="min-width:0;font-size:.85rem;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">{{ $item->product->name }}</span>
-                    <span class="fw-bold text-primary text-nowrap" style="font-size:.85rem">{{ number_format($item->quantity, 3, ',', '.') }} <span class="fw-normal" style="font-size:.7rem">{{ $uomOf($item->product) }}</span></span>
+                    <span class="fw-bold text-primary text-nowrap" style="font-size:.85rem">{{ $fmtQty($item->quantity) }} <span class="fw-normal" style="font-size:.7rem">{{ $uomOf($item->product) }}</span></span>
                 </div>
             @endforeach
         </div>

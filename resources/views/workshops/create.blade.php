@@ -407,6 +407,8 @@
         'placeholder' => 'Введите название сырья...',
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
+        'qtyStep'     => '0.0001',
+        'qtyMin'      => '0.0001',
         'showRemove'  => true,
     ])
 </template>
@@ -418,6 +420,8 @@
         'placeholder' => 'Введите вариант упаковки...',
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
+        'qtyStep'     => '0.0001',
+        'qtyMin'      => '0.0001',
         'skuPrefix'   => '07-03',
         'showRemove'  => true,
     ])
@@ -430,6 +434,8 @@
         'placeholder' => 'Введите название продукта...',
         'qtyWidth'    => '120px',
         'qtyMode'     => 'simple',
+        'qtyStep'     => '0.0001',
+        'qtyMin'      => '0.0001',
         'showRemove'  => true,
     ])
 </template>
@@ -506,8 +512,8 @@
     // не считаем (иначе ReferenceError обрывает скрипт), пересчёт — на DOMContentLoaded.
     function updateTotals() {
         if (!window.Uom) return;
-        rawTotalEl.textContent  = Uom.formatTotals(Uom.totalsFromRows(blocks.raw.container), 2);
-        prodTotalEl.textContent = Uom.formatTotals(Uom.totalsFromRows(blocks.product.container), 2);
+        rawTotalEl.textContent  = Uom.formatTotals(Uom.totalsFromRows(blocks.raw.container), 4);
+        prodTotalEl.textContent = Uom.formatTotals(Uom.totalsFromRows(blocks.product.container), 4);
     }
     document.addEventListener('DOMContentLoaded', updateTotals);
     document.addEventListener('product-picker:unit', updateTotals);
@@ -665,7 +671,7 @@
         rowIndex = 0;
         preset.items.forEach(it => {
             if (!blocks[it.role]) return;
-            const qty = Math.round(it.quantity * count * 1000) / 1000;
+            const qty = Math.round(it.quantity * count * 10000) / 10000;
             addRow(it.role, { productId: it.product_id, label: it.product_label, quantity: qty });
         });
     }
