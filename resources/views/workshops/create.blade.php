@@ -512,8 +512,8 @@
     // не считаем (иначе ReferenceError обрывает скрипт), пересчёт — на DOMContentLoaded.
     function updateTotals() {
         if (!window.Uom) return;
-        rawTotalEl.textContent  = Uom.formatTotals(Uom.totalsFromRows(blocks.raw.container), 4);
-        prodTotalEl.textContent = Uom.formatTotals(Uom.totalsFromRows(blocks.product.container), 4);
+        rawTotalEl.textContent  = Uom.formatTotals(Uom.totalsFromRows(blocks.raw.container), 3);
+        prodTotalEl.textContent = Uom.formatTotals(Uom.totalsFromRows(blocks.product.container), 3);
     }
     document.addEventListener('DOMContentLoaded', updateTotals);
     document.addEventListener('product-picker:unit', updateTotals);
