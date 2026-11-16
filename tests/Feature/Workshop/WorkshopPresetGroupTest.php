@@ -160,7 +160,8 @@ describe('Пресет в группах', function () {
 
         foreach ([$withGroup, $withoutGroup] as $target) {
             $this->actingAs($this->admin)
-                ->post(route('admin.departments.presets.copy', [$this->dept, $preset]), ['target_department_id' => $target->id]);
+                ->post(route('admin.departments.presets.copy', [$this->dept, $preset]), ['target_department_id' => $target->id])
+                ->assertRedirect(route('admin.departments.presets.edit', [$target, $target->presets()->first()]));
         }
 
         expect($withGroup->presets()->first()->groups->pluck('id')->all())->toBe([$targetGroup->id])

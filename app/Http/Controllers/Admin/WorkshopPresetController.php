@@ -103,12 +103,12 @@ class WorkshopPresetController extends Controller
         );
 
         $target = Department::findOrFail($validated['target_department_id']);
-        $this->service->copyToDepartment($preset, $department, $target);
+        $copy   = $this->service->copyToDepartment($preset, $department, $target);
 
+        // Копию почти всегда правят (имя, состав) — открываем её сразу.
         return redirect()
-            ->route('admin.departments.show', $target)
-            ->withFragment('workshop')
-            ->with('success', "Пресет скопирован в отдел «{$target->name}».");
+            ->route('admin.departments.presets.edit', [$target, $copy])
+            ->with('success', "Пресет скопирован в отдел «{$target->name}» — проверьте и сохраните копию.");
     }
 
     private function activeDepartments()

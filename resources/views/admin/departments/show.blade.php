@@ -772,16 +772,16 @@
         if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
     }
 
-    // Вкладка «Пресеты»: фильтр карточек по группе слева.
+    // Вкладка «Пресеты»: фильтр карточек по группе слева. Выбранная группа запоминается
+    // (свой ключ у отдела): после правки, копирования и т.п. она снова открыта.
     function initPresetFilter() {
         const box = document.querySelector('[data-preset-filterable]');
         if (!box) return;
         const createLink = document.querySelector('[data-preset-create]');
         const createBase = createLink?.getAttribute('href');
+        const storageKey = 'dept-preset-group:{{ $department->id }}';
 
-        box.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-filter-key]');
-            if (!btn) return;
+        function apply(btn) {
             const key = btn.dataset.filterKey;
 
             box.querySelectorAll('[data-filter-key]').forEach(b => {
@@ -799,7 +799,22 @@
             if (createLink) {
                 createLink.href = /^\d+$/.test(key) ? `${createBase}?group=${key}` : createBase;
             }
+        }
+
+        box.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-filter-key]');
+            if (!btn) return;
+            apply(btn);
+            try { localStorage.setItem(storageKey, btn.dataset.filterKey); } catch (_) {}
         });
+
+        // Группы уже нет (удалили, «Без группы» опустел) — остаются «Все пресеты».
+        let saved = null;
+        try { saved = localStorage.getItem(storageKey); } catch (_) {}
+        const savedBtn = saved
+            ? [...box.querySelectorAll('[data-filter-key]')].find(b => b.dataset.filterKey === saved)
+            : null;
+        if (savedBtn) apply(savedBtn);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
