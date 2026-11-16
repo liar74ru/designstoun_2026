@@ -10,6 +10,8 @@
       $scope          — область правил: 'reception' | 'workshop'
       $batchSku       — SKU партии сырья (доступность ручных правил), у цеха null
       $refreshRoute   — POST «Обновить коэф.»
+      $refreshRulesRoute — POST «Обновить правила»
+      $rulesOutdated  — правила позиций разошлись с настройками отдела (показать «Обновить правила»)
       $updateRoute    — POST сохранения правки коэффициентов
       $title, $icon   — заголовок карточки и иконка bootstrap-icons
       $emptyText      — текст, когда позиций нет
@@ -21,6 +23,7 @@
     $batchSku    = $batchSku ?? null;
     $qtyFormat   = $qtyFormat ?? fn ($qty, $uom) => \App\Support\Uom::format($qty, $uom);
     $yieldText   = $yieldText ?? null;
+    $rulesOutdated = $rulesOutdated ?? false;
     $canModify   = auth()->user()->can('modify', $document);
 @endphp
 <div class="card shadow-sm mb-3">
@@ -28,6 +31,20 @@
         <span class="small fw-semibold"><i class="bi {{ $icon }} me-1"></i> {{ $title }}</span>
         @if($items->isNotEmpty() && $canModify)
             <div class="d-flex gap-1">
+                @if($rulesOutdated)
+                    {{-- Правила отдела поменялись после расчёта: снапшот позиций держит старые --}}
+                    <form data-submit-guard method="POST"
+                          action="{{ $refreshRulesRoute }}"
+                          data-confirm="Обновить правила по настройкам отдела?&#10;Выключенные и удалённые правила снимутся, изменённые получат новые значения, новые автоматические добавятся.">
+                        @csrf
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-info"
+                                title="Правила отдела изменились после расчёта — применить текущие">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span class="d-none d-sm-inline ms-1">Обновить правила</span>
+                        </button>
+                    </form>
+                @endif
                 <form data-submit-guard method="POST"
                       action="{{ $refreshRoute }}"
                       data-confirm="Обновить коэффициенты из справочника товаров?&#10;Значения effective_cost_coeff будут пересчитаны по текущим prod_cost_coeff.">
@@ -242,7 +259,15 @@
                                          data-input-name="items[{{ $i }}]"
                                          data-active-keys="{{ $item->modifiers->pluck('key')->implode(',') }}"
                                          data-editable-auto="1"
-                                         data-disabled-keys="{{ implode(',', $item->disabled_modifier_keys ?? []) }}"></div>
+                                         data-disabled-keys="{{ implode(',', $item->disabled_modifier_keys ?? []) }}"
+                                         data-snapshot="{{ $item->modifiers->map(fn ($m) => [
+                                             'key'                => $m->key,
+                                             'name'               => $m->name,
+                                             'color'              => $m->color,
+                                             'icon'               => $m->icon,
+                                             'worker_coeff_delta' => (float) ($m->worker_coeff_delta ?? 0),
+                                             'master_coeff_delta' => (float) ($m->master_coeff_delta ?? 0),
+                                         ])->values()->toJson() }}"></div>
                                 </td>
                                 <td class="text-end">
                                     <div class="d-flex align-items-center justify-content-end" style="height:calc(1.5em + .5rem + 2px)">

@@ -63,3 +63,20 @@ describe('правила отдела: какие сработали и итог
         expect(RateFormula.masterEffectiveCoeff({ ...args, baseCoeff: c.masterBaseCoeff })).toBe(c.expected.masterCoeff);
     });
 });
+
+describe('правила панели «Коэффициенты»: снапшот главнее настроек отдела', () => {
+    test.each(fixture.resolveKeepingSnapshot)('$name', (c) => {
+        const applied = RateFormula.resolveKeepingSnapshot({
+            departmentId:  DEPARTMENT_ID,
+            scope:         c.scope,
+            sku:           c.sku ?? null,
+            submittedKeys: c.submittedKeys,
+            batchSku:      c.batchSku ?? null,
+            snapshot:      c.snapshot,
+        });
+
+        expect(applied.map((rule) => rule.key)).toEqual(c.expected.keys);
+        expect(RateFormula.effectiveCoeff({ baseCoeff: c.baseCoeff, applied })).toBe(c.expected.workerCoeff);
+        expect(RateFormula.masterEffectiveCoeff({ baseCoeff: c.masterBaseCoeff, applied })).toBe(c.expected.masterCoeff);
+    });
+});

@@ -35,14 +35,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const base = parseFloat(baseInput.value) || 0;
 
         // Ровно то же, что считает сервер (ProductionDocumentService::updateItemCoeff):
-        // база из формы плюс сумма сработавших правил, снятые sku-правила не в счёт.
+        // база из формы плюс отмеченные правила; уже применённые — со снапшотными числами.
         const ctx = {
-            departmentId: picker?.dataset.departmentId || null,
-            scope: picker?.dataset.scope || 'reception',
-            sku: picker?.dataset.sku || null,
-            manualKeys: picker ? ModifierPicker.checkedKeys(picker) : [],
-            disabledKeys: picker ? ModifierPicker.disabledKeys(picker) : [],
-            batchSku: picker?.dataset.batchSku || null,
+            applied: picker
+                ? RateFormula.resolveKeepingSnapshot({
+                    departmentId: picker.dataset.departmentId || null,
+                    scope: picker.dataset.scope || 'reception',
+                    sku: picker.dataset.sku || null,
+                    submittedKeys: ModifierPicker.submittedKeys(picker),
+                    batchSku: picker.dataset.batchSku || null,
+                    snapshot: ModifierPicker.snapshotOf(picker),
+                })
+                : [],
         };
         const effective = RateFormula.effectiveCoeff({ ...ctx, baseCoeff: base });
 
@@ -69,6 +73,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (picker) recalcRow(picker.dataset.row);
     });
 
+    // Итог считается по отмеченным чекбоксам, а их рисует modifier-picker на том же
+    // DOMContentLoaded, но позже (модуль app.js): дорисовываем сами, иначе первый итог — без правил.
+    document.querySelectorAll('.modifier-picker').forEach(picker => {
+        if (!picker.dataset.rendered) ModifierPicker.render(picker);
+    });
     document.querySelectorAll('.coeff-base-input').forEach(el => recalcRow(el.dataset.row));
 });
 </script>

@@ -330,6 +330,8 @@
                 'items'        => $productItems,
                 'scope'        => 'workshop',
                 'refreshRoute' => route('workshops.refresh-item-coeffs', $workshop),
+                'refreshRulesRoute' => route('workshops.refresh-item-rules', $workshop),
+                'rulesOutdated' => $rulesOutdated ?? false,
                 'updateRoute'  => route('workshops.update-item-coeff', $workshop),
                 'title'        => 'Продукт',
                 'icon'         => 'bi-check2-circle',

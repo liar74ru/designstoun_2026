@@ -75,6 +75,37 @@
         }
     ],
 
+    "resolveKeepingSnapshot": [
+        {
+            "name": "правило из снапшота, выключенное в отделе, остаётся со своими числами",
+            "scope": "reception", "sku": "01-01-20", "submittedKeys": ["old_bonus"],
+            "snapshot": [{ "key": "old_bonus", "worker_coeff_delta": 1, "master_coeff_delta": 0.5 }],
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": ["old_bonus"], "workerCoeff": 2, "masterCoeff": 0.5 }
+        },
+        {
+            "name": "снятое правило из снапшота уходит",
+            "scope": "reception", "sku": "01-01-20", "submittedKeys": [],
+            "snapshot": [{ "key": "old_bonus", "worker_coeff_delta": 1, "master_coeff_delta": 0.5 }],
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": [], "workerCoeff": 1, "masterCoeff": 0 }
+        },
+        {
+            "name": "у применённого правила числа снапшотные, а не текущие",
+            "scope": "reception", "sku": "04-07-20", "submittedKeys": ["mask_tile"],
+            "snapshot": [{ "key": "mask_tile", "worker_coeff_delta": 1, "master_coeff_delta": 0 }],
+            "baseCoeff": 1, "masterBaseCoeff": 0,
+            "expected": { "keys": ["mask_tile"], "workerCoeff": 2, "masterCoeff": 0 }
+        },
+        {
+            "name": "снятое sku-правило не применяется, новое ручное — по текущим числам",
+            "scope": "reception", "sku": "04-07-20", "submittedKeys": ["undercut"],
+            "snapshot": [{ "key": "mask_tile", "worker_coeff_delta": 2, "master_coeff_delta": 0 }],
+            "baseCoeff": 1, "masterBaseCoeff": 0.5,
+            "expected": { "keys": ["undercut"], "workerCoeff": -0.5, "masterCoeff": -0.25 }
+        }
+    ],
+
     "resolve": [
         {
             "name": "sku-правило срабатывает по маске",

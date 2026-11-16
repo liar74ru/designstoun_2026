@@ -67,12 +67,6 @@ parameters:
 			path: app/Models/Product.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\DepartmentModifier\:\:\$icon\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/ProductionItemModifier.php
-
-		-
 			message: '#^Match arm comparison between ''active''\|''archived''\|''returned''\|''used'' and ''confirmed'' is always false\.$#'
 			identifier: match.alwaysFalse
 			count: 2

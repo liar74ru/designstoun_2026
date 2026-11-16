@@ -124,7 +124,9 @@ class WorkshopController extends Controller
             'workshopLogs.receiver',
         ]);
 
-        return view('workshops.show', compact('workshop') + $this->service->getPlacementOptions());
+        $rulesOutdated = $this->service->hasOutdatedRules($workshop);
+
+        return view('workshops.show', compact('workshop', 'rulesOutdated') + $this->service->getPlacementOptions());
     }
 
     public function edit(Workshop $workshop): View
@@ -238,6 +240,15 @@ class WorkshopController extends Controller
         $this->service->refreshItemCoeffs($workshop);
 
         return back()->with('success', 'Коэффициенты обновлены из справочника');
+    }
+
+    public function refreshItemRules(Workshop $workshop): RedirectResponse
+    {
+        $this->authorize('modify', $workshop);
+
+        $this->service->refreshItemRules($workshop);
+
+        return back()->with('success', 'Правила обновлены по настройкам отдела');
     }
 
     public function updateStores(Request $request, Workshop $workshop): RedirectResponse

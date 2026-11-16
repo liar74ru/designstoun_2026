@@ -215,6 +215,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/stone-receptions/{stoneReception}/sync', [StoneReceptionController::class, 'syncToProcessing'])->name('stone-receptions.sync');
         Route::post('/stone-receptions/{stoneReception}/item-coeffs', [StoneReceptionController::class, 'updateItemCoeff'])->name('stone-receptions.update-item-coeff');
         Route::post('/stone-receptions/{stoneReception}/refresh-item-coeffs', [StoneReceptionController::class, 'refreshItemCoeffs'])->name('stone-receptions.refresh-item-coeffs');
+        Route::post('/stone-receptions/{stoneReception}/refresh-item-rules', [StoneReceptionController::class, 'refreshItemRules'])->name('stone-receptions.refresh-item-rules');
 
         // Правка приёмщика в записи журнала — только админ (ретроспективная атрибуция выработки)
         Route::patch('/reception-logs/{receptionLog}/receiver', [StoneReceptionController::class, 'updateLogReceiver'])
@@ -237,6 +238,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('workshops/{workshop}/sync', [WorkshopController::class, 'syncToProcessing'])->name('workshops.sync');
         Route::post('workshops/{workshop}/item-coeffs', [WorkshopController::class, 'updateItemCoeff'])->name('workshops.update-item-coeff');
         Route::post('workshops/{workshop}/refresh-item-coeffs', [WorkshopController::class, 'refreshItemCoeffs'])->name('workshops.refresh-item-coeffs');
+        Route::post('workshops/{workshop}/refresh-item-rules', [WorkshopController::class, 'refreshItemRules'])->name('workshops.refresh-item-rules');
         Route::patch('workshops/{workshop}/update-stores', [WorkshopController::class, 'updateStores'])->name('workshops.update-stores');
         Route::patch('workshops/{workshop}/update-department', [WorkshopController::class, 'updateDepartment'])
             ->name('workshops.update-department')

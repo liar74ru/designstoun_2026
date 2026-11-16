@@ -230,8 +230,15 @@ Designstoun 2026 — система учёта производства каме
 `ModifierEngine::manualKeysFromSnapshot()`.
 В правке коэффициентов на show приёмки и цеха (`data-editable-auto="1"`) sku-правила тоже
 чекбоксы: снятое сервер вычисляет `ModifierEngine::disabledSkuKeys()` и хранит у позиции в
-`disabled_modifier_keys` — его передают в `resolve()` и при `refreshItemCoeffs`, иначе правило
+`disabled_modifier_keys` — его передают в `resolve()` и при `refreshItemRules`, иначе правило
 вернётся по SKU.
+**Снапшот позиции главнее настроек отдела.** Уже применённое правило остаётся у позиции со
+своими числами, даже выключенное, удалённое или изменённое в отделе: панель «Коэффициенты»
+считает через `ModifierEngine::resolveKeepingSnapshot()` (picker дорисовывает такие правила из
+`data-snapshot` с пометкой), «Обновить коэф.» (`refreshItemCoeffs`) меняет только базу из
+справочника. К текущим правилам отдела позицию приводит только «Обновить правила»
+(`refreshItemRules`); кнопка видна, пока `ModifierEngine::snapshotOutdated()` (сравнение по ключу
+и числам) для какой-то позиции true.
 
 ### Ставки за единицу продукции
 

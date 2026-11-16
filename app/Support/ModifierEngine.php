@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Department;
 use App\Models\DepartmentModifier;
+use App\Models\ProductionItemModifier;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -119,6 +120,82 @@ class ModifierEngine
             ->pluck('key')
             ->values()
             ->all();
+    }
+
+    /**
+     * Правила позиции при сохранении панели «Коэффициенты»: снапшот главнее настроек отдела.
+     *
+     * Правило, уже применённое к позиции, остаётся со своими (снапшотными) числами, пока его
+     * не сняли в форме, — даже если в отделе его выключили, удалили, сменили маску или число.
+     * Новые правила (отмеченные ручные, сработавшие по SKU) берутся текущими. Обновить
+     * снапшот до текущих правил — refreshItemRules() («Обновить правила»).
+     *
+     * @param  string[] $submittedKeys Все ключи, отмеченные в форме
+     * @param  iterable $snapshot      Строки production_item_modifiers позиции
+     * @return Collection<int, DepartmentModifier|ProductionItemModifier>
+     */
+    public static function resolveKeepingSnapshot(
+        ?int $departmentId,
+        string $scope,
+        ?string $productSku,
+        array $submittedKeys,
+        ?string $batchSku,
+        iterable $snapshot,
+    ): Collection {
+        $snapshotByKey = collect($snapshot)->keyBy('key');
+
+        $current = self::resolve(
+            $departmentId,
+            $scope,
+            $productSku,
+            $submittedKeys,
+            $batchSku,
+            self::disabledSkuKeys($departmentId, $scope, $productSku, $submittedKeys),
+        )->map(fn (DepartmentModifier $rule) => $snapshotByKey->get($rule->key) ?? $rule);
+
+        $currentKeys = $current->pluck('key')->all();
+
+        $retired = $snapshotByKey
+            ->filter(fn ($row, $key) => in_array($key, $submittedKeys, true) && !in_array($key, $currentKeys, true))
+            ->values();
+
+        return $current->concat($retired)->values();
+    }
+
+    /**
+     * Разошёлся ли снапшот позиции с текущими правилами отдела: правило выключили, удалили,
+     * оно перестало подходить по маске, у него сменилось число или появилось новое
+     * sku-правило. Имя, цвет и иконка не в счёт — на деньги не влияют.
+     *
+     * @param  iterable $snapshot     Строки production_item_modifiers позиции
+     * @param  string[] $disabledKeys Снятые у позиции sku-правила
+     */
+    public static function snapshotOutdated(
+        ?int $departmentId,
+        string $scope,
+        ?string $productSku,
+        iterable $snapshot,
+        ?string $batchSku,
+        array $disabledKeys,
+    ): bool {
+        $signature = fn (iterable $rules) => collect($rules)
+            ->map(fn ($rule) => $rule->key . ':'
+                . round($rule->effectFor(DepartmentModifier::ROLE_WORKER), 4) . ':'
+                . round($rule->effectFor(DepartmentModifier::ROLE_MASTER), 4))
+            ->sort()
+            ->values()
+            ->all();
+
+        $current = self::resolve(
+            $departmentId,
+            $scope,
+            $productSku,
+            self::manualKeysFromSnapshot($departmentId, $snapshot),
+            $batchSku,
+            $disabledKeys,
+        );
+
+        return $signature($snapshot) !== $signature($current);
     }
 
     /**

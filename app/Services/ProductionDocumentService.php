@@ -71,22 +71,23 @@ abstract class ProductionDocumentService
 
         DB::transaction(function () use ($document, $validated, $departmentId, $scope, $batchSku) {
             foreach ($validated['items'] as $row) {
-                $item = $this->costedItems($document)->with('product')->findOrFail($row['item_id']);
+                $item = $this->costedItems($document)->with(['product', 'modifiers'])->findOrFail($row['item_id']);
 
                 // База берётся из формы как есть: правила её не переопределяют,
                 // поэтому повторное сохранение не сдвигает коэффициент.
                 // Сработавшие по SKU правила форма шлёт чекбоксами: неотмеченное — снято.
+                // Уже применённые правила остаются со своими числами, даже выключенные
+                // в отделе, — до «Обновить правила».
                 $keys = $row['modifiers'] ?? [];
+                $sku  = $item->product?->sku;
 
-                $cost = ItemCost::computeFromBase(
+                $cost = ItemCost::computeWithRules(
                     $item->product,
                     (float) $row['base_coeff'],
-                    $departmentId,
-                    $scope,
-                    $keys,
-                    $batchSku,
                     (float) $row['master_base_coeff'],
-                    ModifierEngine::disabledSkuKeys($departmentId, $scope, $item->product?->sku, $keys),
+                    $departmentId,
+                    ModifierEngine::resolveKeepingSnapshot($departmentId, $scope, $sku, $keys, $batchSku, $item->modifiers),
+                    ModifierEngine::disabledSkuKeys($departmentId, $scope, $sku, $keys),
                 );
 
                 $item->update($cost['attributes']);
@@ -98,11 +99,46 @@ abstract class ProductionDocumentService
     }
 
     /**
-     * Массовый пересчёт от актуального коэффициента справочника.
+     * «Обновить коэф.»: базы пильщика и мастера — из справочника товаров. Правила позиции
+     * не трогаются — их числа берутся из снапшота; обновить их — refreshItemRules().
      *
      * @param  TDocument  $document
      */
     public function refreshItemCoeffs(Model $document): void
+    {
+        $departmentId = $document->effectiveDepartmentId();
+
+        DB::transaction(function () use ($document, $departmentId) {
+            foreach ($this->costedItems($document)->with(['product', 'modifiers'])->get() as $item) {
+                if (!$item->product || $item->product->prod_cost_coeff === null) {
+                    continue;
+                }
+
+                $cost = ItemCost::computeWithRules(
+                    $item->product,
+                    (float) $item->product->prod_cost_coeff,
+                    (float) ($item->product->master_cost_coeff ?? 0),
+                    $departmentId,
+                    $item->modifiers,
+                    $item->disabled_modifier_keys ?? [],
+                );
+
+                $item->update($cost['attributes']);
+            }
+
+            $this->afterCoeffsChanged($document);
+        });
+    }
+
+    /**
+     * «Обновить правила»: правила позиций — по текущим настройкам отдела. Выключенные,
+     * удалённые и переставшие подходить по маске снимаются, изменённые числа обновляются,
+     * новые sku-правила добавляются. Ручной выбор восстанавливается из снапшота, снятые
+     * sku-правила остаются снятыми, базовые коэффициенты позиции не меняются.
+     *
+     * @param  TDocument  $document
+     */
+    public function refreshItemRules(Model $document): void
     {
         $departmentId = $document->effectiveDepartmentId();
         $scope        = $this->modifierScope();
@@ -110,20 +146,24 @@ abstract class ProductionDocumentService
 
         DB::transaction(function () use ($document, $departmentId, $scope, $batchSku) {
             foreach ($this->costedItems($document)->with(['product', 'modifiers'])->get() as $item) {
-                if (!$item->product || $item->product->prod_cost_coeff === null) {
-                    continue;
-                }
+                $disabledKeys = $item->disabled_modifier_keys ?? [];
 
-                // Ручной выбор пользователя восстанавливается из снапшота позиции:
-                // sku-правила движок определит сам, а отметки — больше неоткуда.
-                // Снятые у позиции sku-правила остаются снятыми.
-                $cost = ItemCost::compute(
-                    $item->product,
+                $applied = ModifierEngine::resolve(
                     $departmentId,
                     $scope,
+                    $item->product?->sku,
                     ModifierEngine::manualKeysFromSnapshot($departmentId, $item->modifiers),
                     $batchSku,
-                    $item->disabled_modifier_keys ?? [],
+                    $disabledKeys,
+                );
+
+                $cost = ItemCost::computeWithRules(
+                    $item->product,
+                    (float) ($item->base_cost_coeff ?? $item->product->prod_cost_coeff ?? 0),
+                    (float) ($item->master_base_cost_coeff ?? $item->product->master_cost_coeff ?? 0),
+                    $departmentId,
+                    $applied,
+                    $disabledKeys,
                 );
 
                 $item->update($cost['attributes']);
@@ -132,6 +172,29 @@ abstract class ProductionDocumentService
 
             $this->afterCoeffsChanged($document);
         });
+    }
+
+    /**
+     * Есть ли позиция, чьи правила разошлись с текущими правилами отдела, —
+     * тогда на show видна кнопка «Обновить правила».
+     *
+     * @param  TDocument  $document
+     */
+    public function hasOutdatedRules(Model $document): bool
+    {
+        $departmentId = $document->effectiveDepartmentId();
+        $scope        = $this->modifierScope();
+        $batchSku     = $this->batchSku($document);
+
+        return $this->costedItems($document)->with(['product', 'modifiers'])->get()
+            ->contains(fn ($item) => ModifierEngine::snapshotOutdated(
+                $departmentId,
+                $scope,
+                $item->product?->sku,
+                $item->modifiers,
+                $batchSku,
+                $item->disabled_modifier_keys ?? [],
+            ));
     }
 
     /**

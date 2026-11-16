@@ -105,10 +105,17 @@
   (например, «Подкол > 80%») ставятся потом на странице операции кнопкой **«Коэффициенты»**:
   там же можно поправить базовый коэффициент пильщику и мастеру и снять галочку с правила,
   сработавшего по артикулу, — тогда оно к строке не применяется.
-- **«Обновить коэф.»** — взять коэффициенты из справочника [товаров](products.md) и текущие
-  правила отдела; ранее отмеченные галочки сохраняются, снятые автоматические правила остаются
-  снятыми.
-- Оба действия меняют ставку строки целиком — вместе со всей её выработкой, в том числе в
+- Правило, уже применённое к строке, остаётся у неё **со своими значениями**, даже если потом
+  его в отделе выключили, удалили или поменяли. В «Коэффициентах» оно отмечено с пометкой
+  «выключено в отделе»; снимите галочку и сохраните — правило уйдёт (вернуть его потом нельзя).
+- **«Обновить коэф.»** — взять базовые коэффициенты из справочника [товаров](products.md).
+  Правила строки не меняются.
+- **«Обновить правила»** — кнопка появляется, только если правила отдела изменились после
+  расчёта. Привести правила к текущим настройкам отдела: выключенные и удалённые снимутся,
+  изменённые получат новые значения, новые автоматические добавятся. Новые ручные правила
+  просто появятся в «Коэффициентах» без галочки. Отмеченные ранее ручные правила и снятые
+  автоматические остаются как были, базовые коэффициенты не меняются.
+- Все три действия меняют ставку строки целиком — вместе со всей её выработкой, в том числе в
   прошлых неделях.
 
 ## 8. Затраты на производство и МойСклад
@@ -187,7 +194,7 @@
 | 4. Отдел | `WorkshopService::resolveDepartmentId`, `prepareWorkshopData`, `updateDepartment`; `Workshop::effectiveDepartmentChain` | `WorkshopServiceTest`, `tests/Feature/MasterDashboard/EnterpriseDashboardTest` |
 | 5. Тара | `WorkshopService::adjustPackageStock`, `adjustAllPackageStock`, `delete`, `movePackageStock`, `applyPackageDeltas`, `updateStores` | `WorkshopServiceTest` |
 | 6. Правка | `WorkshopService::update`, `syncRoleItems`, `diffItemDeltas`, `writeWorkshopLog`; JS «Итого продукта» в `workshops/edit.blade.php` (спека `docs/superpowers/specs/2026-07-19-workshop-edit-proportional-scaling-design.md`) | `WorkshopServiceTest` |
-| 7. Зарплата | `WorkshopService::createProductItem` → `ProductionDocumentService::createCostedItem`; `ProductionDocumentService::updateItemCoeff`, `refreshItemCoeffs` (общие с приёмкой, позиции — только `productItems`); `Http\Requests\UpdateItemCoeffsRequest`; `WorkshopItem::effectiveProdCost`; снятые sku-правила — `workshop_items.disabled_modifier_keys`; карточка и панель на show — `partials/production-document/products` + `coeff-edit-script` (общие с приёмкой) | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `Modifier/DisabledSkuModifierTest` |
+| 7. Зарплата | `WorkshopService::createProductItem` → `ProductionDocumentService::createCostedItem`; `ProductionDocumentService::updateItemCoeff`, `refreshItemCoeffs`, `refreshItemRules`, `hasOutdatedRules` (общие с приёмкой, позиции — только `productItems`); `Http\Requests\UpdateItemCoeffsRequest`; `WorkshopItem::effectiveProdCost`; снятые sku-правила — `workshop_items.disabled_modifier_keys`; снапшот главнее настроек — `ModifierEngine::resolveKeepingSnapshot`, `snapshotOutdated`; карточка и панель на show — `partials/production-document/products` + `coeff-edit-script` (общие с приёмкой) | `WorkshopItemTest`, `WorkshopServiceTest`, `tests/Feature/Worker/WorkerDashboardWorkshopTest`, `Modifier/DisabledSkuModifierTest`, `Modifier/RetiredModifierTest` |
 | 8. МойСклад | `WorkshopService::queueSync`; `Jobs\SyncWorkshopToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\WorkshopSyncService::pushWorkshop`, `syncWorkshop`, `createProcessingForWorkshop`, `updateProcessingProducts`, `computeProcessingSum`, `buildWorkshopDescription` (поток — `Moysklad\ProcessingSyncService::sync`, `push`, `createProcessing`, `updateProcessing`) | `tests/Feature/Moysklad/ProcessingSyncJobTest`, `WorkshopSyncServiceTest`, `WorkshopProcessingUpdateTest`, `WorkshopResetStatusTest` |
 | 9. Статусы, удаление | `WorkshopService::markCompleted`, `resetStatus`, `delete` | `WorkshopServiceTest`, `WorkshopResetStatusTest` |
 | 10. Список и доступ | `WorkshopService::getFilteredWorkshops` (порядок групп — `orderByRaw`; поиск по части названия — `raw_product_search`, `product_search` через `Support\ProductSearch`), `getFilterData`, `WorkshopPolicy::modify` | `WorkshopIndexOrderTest`, `WorkshopIndexFilterTest` (в т.ч. поиск по части названия), `WorkshopIndexWorkerFilterTest`, `WorkshopDepartmentAccessTest`, `tests/Feature/Access/RecordDepartmentAccessTest` |

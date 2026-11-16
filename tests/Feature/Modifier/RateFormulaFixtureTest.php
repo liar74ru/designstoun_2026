@@ -2,6 +2,7 @@
 
 use App\Models\Department;
 use App\Models\DepartmentModifier;
+use App\Models\ProductionItemModifier;
 use App\Support\ModifierEngine;
 use App\Support\RateFormula;
 use Illuminate\Support\Facades\Cache;
@@ -75,3 +76,26 @@ test('правила отдела: какие сработали и итогов
         ->and(ModifierEngine::masterCoeff($case['masterBaseCoeff'], $applied))
         ->toBe((float) $case['expected']['masterCoeff']);
 })->with(rateCases('resolve', fn ($c) => $c['name']));
+
+test('правила панели «Коэффициенты»: снапшот главнее настроек отдела', function (array $case) {
+    Cache::flush();
+    $department = Department::create(['name' => 'Фикстура', 'is_active' => true]);
+    foreach (rateFixture()['rules'] as $rule) {
+        $department->modifiers()->create($rule + ['is_active' => true]);
+    }
+
+    $applied = ModifierEngine::resolveKeepingSnapshot(
+        $department->id,
+        $case['scope'],
+        $case['sku'] ?? null,
+        $case['submittedKeys'],
+        $case['batchSku'] ?? null,
+        collect($case['snapshot'])->map(fn (array $row) => new ProductionItemModifier($row)),
+    );
+
+    expect($applied->pluck('key')->all())->toBe($case['expected']['keys'])
+        ->and(ModifierEngine::workerCoeff($case['baseCoeff'], $applied))
+        ->toBe((float) $case['expected']['workerCoeff'])
+        ->and(ModifierEngine::masterCoeff($case['masterBaseCoeff'], $applied))
+        ->toBe((float) $case['expected']['masterCoeff']);
+})->with(rateCases('resolveKeepingSnapshot', fn ($c) => $c['name']));

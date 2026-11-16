@@ -36,8 +36,6 @@ class ItemCost
         ?string $batchSku = null,
         array $disabledKeys = [],
     ): array {
-        $baseCoeff = (float) ($product?->prod_cost_coeff ?? 0);
-
         $applied = ModifierEngine::resolve(
             $departmentId,
             $scope,
@@ -47,17 +45,42 @@ class ItemCost
             $disabledKeys,
         );
 
-        $effCoeff    = ModifierEngine::workerCoeff($baseCoeff, $applied);
-        $masterCoeff = ModifierEngine::masterCoeff(
+        return self::computeWithRules(
+            $product,
+            (float) ($product?->prod_cost_coeff ?? 0),
             (float) ($product?->master_cost_coeff ?? 0),
+            $departmentId,
             $applied,
+            $disabledKeys,
         );
+    }
+
+    /**
+     * Расчёт от готового набора правил: текущих правил отдела, снапшота позиции или их смеси
+     * (ModifierEngine::resolveKeepingSnapshot). Обе базы задаёт вызывающий.
+     *
+     * @template TRule of DepartmentModifier|ProductionItemModifier
+     *
+     * @param  Collection<int, TRule>  $applied
+     * @param  string[]  $disabledKeys Ключи sku-правил, снятых у позиции
+     * @return array{attributes: array, modifiers: Collection<int, TRule>}
+     */
+    public static function computeWithRules(
+        ?Product $product,
+        float $baseCoeff,
+        float $masterBaseCoeff,
+        ?int $departmentId,
+        Collection $applied,
+        array $disabledKeys = [],
+    ): array {
+        $effCoeff    = ModifierEngine::workerCoeff($baseCoeff, $applied);
+        $masterCoeff = ModifierEngine::masterCoeff($masterBaseCoeff, $applied);
 
         return [
             'attributes' => [
                 'base_cost_coeff'             => $baseCoeff,
                 'effective_cost_coeff'        => $effCoeff,
-                'master_base_cost_coeff'      => (float) ($product?->master_cost_coeff ?? 0),
+                'master_base_cost_coeff'      => $masterBaseCoeff,
                 'master_effective_cost_coeff' => $masterCoeff,
                 'is_small_tile'        => StoneReceptionItem::skuIsSmallTile($product?->sku),
                 'worker_cost_per_m2'   => $product?->prodCost($effCoeff, $departmentId),
@@ -91,46 +114,36 @@ class ItemCost
         ?float $masterBaseCoeff = null,
         array $disabledKeys = [],
     ): array {
-        $result = self::compute($product, $departmentId, $scope, $manualKeys, $batchSku, $disabledKeys);
+        $applied = ModifierEngine::resolve($departmentId, $scope, $product?->sku, $manualKeys, $batchSku, $disabledKeys);
 
-        $applied  = $result['modifiers'];
-        $effCoeff = ModifierEngine::workerCoeff($baseCoeff, $applied);
-
-        $result['attributes']['base_cost_coeff']      = $baseCoeff;
-        $result['attributes']['effective_cost_coeff'] = $effCoeff;
-        $result['attributes']['worker_cost_per_m2']   = $product?->prodCost($effCoeff, $departmentId);
-
-        if ($masterBaseCoeff !== null) {
-            $masterCoeff = ModifierEngine::masterCoeff($masterBaseCoeff, $applied);
-
-            $result['attributes']['master_base_cost_coeff']      = $masterBaseCoeff;
-            $result['attributes']['master_effective_cost_coeff'] = $masterCoeff;
-            $result['attributes']['master_cost_per_m2']          = $product
-                ? RateFormula::stepped(
-                    DepartmentSettings::masterBaseRate($departmentId),
-                    $masterCoeff,
-                    DepartmentSettings::masterRoundStep($departmentId),
-                )
-                : null;
-        }
-
-        return $result;
+        return self::computeWithRules(
+            $product,
+            $baseCoeff,
+            $masterBaseCoeff ?? (float) ($product?->master_cost_coeff ?? 0),
+            $departmentId,
+            $applied,
+            $disabledKeys,
+        );
     }
 
     /**
      * Записать снапшот применённых правил, заменив прежний.
      *
-     * @param  Collection<int, DepartmentModifier> $modifiers
+     * Правила могут быть и строками прежнего снапшота (сохранённое правило, выключенное
+     * в отделе): их атрибуты снимаются до удаления строк.
+     *
+     * @template TRule of DepartmentModifier|ProductionItemModifier
+     *
+     * @param  Collection<int, TRule> $modifiers
      */
     public static function syncSnapshot(string $foreignKey, int $itemId, Collection $modifiers): void
     {
+        $rows = $modifiers->map(fn ($modifier) => ProductionItemModifier::attributesFrom($modifier))->all();
+
         ProductionItemModifier::where($foreignKey, $itemId)->delete();
 
-        foreach ($modifiers as $modifier) {
-            ProductionItemModifier::create(array_merge(
-                ProductionItemModifier::attributesFrom($modifier),
-                [$foreignKey => $itemId],
-            ));
+        foreach ($rows as $row) {
+            ProductionItemModifier::create(array_merge($row, [$foreignKey => $itemId]));
         }
     }
 }

@@ -162,7 +162,9 @@ class StoneReceptionController extends Controller
         $departments   = Department::orderBy('name')->get();
         $masterWorkers = $this->service->getMasterWorkers();
 
-        return view('stone-receptions.show', compact('stoneReception', 'stores', 'departments', 'masterWorkers'));
+        $rulesOutdated = $this->service->hasOutdatedRules($stoneReception);
+
+        return view('stone-receptions.show', compact('stoneReception', 'stores', 'departments', 'masterWorkers', 'rulesOutdated'));
     }
 
     public function edit(Request $request, StoneReception $stoneReception): View
@@ -331,6 +333,15 @@ class StoneReceptionController extends Controller
         $this->service->refreshItemCoeffs($stoneReception);
 
         return back()->with('success', 'Коэффициенты обновлены из справочника');
+    }
+
+    public function refreshItemRules(StoneReception $stoneReception): RedirectResponse
+    {
+        $this->authorize('modify', $stoneReception);
+
+        $this->service->refreshItemRules($stoneReception);
+
+        return back()->with('success', 'Правила обновлены по настройкам отдела');
     }
 
     public function getBatchesJson(Worker $worker): JsonResponse

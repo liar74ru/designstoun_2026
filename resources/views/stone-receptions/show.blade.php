@@ -242,6 +242,8 @@
                     'scope'        => 'reception',
                     'batchSku'     => $stoneReception->rawMaterialBatch?->product?->sku,
                     'refreshRoute' => route('stone-receptions.refresh-item-coeffs', $stoneReception),
+                    'refreshRulesRoute' => route('stone-receptions.refresh-item-rules', $stoneReception),
+                    'rulesOutdated' => $rulesOutdated ?? false,
                     'updateRoute'  => route('stone-receptions.update-item-coeff', $stoneReception),
                     'title'        => 'Принятая продукция',
                     'icon'         => 'bi-box-seam',

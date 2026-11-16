@@ -139,6 +139,45 @@ export function resolve({ departmentId, scope, sku = null, manualKeys = [], batc
 }
 
 /**
+ * Сработавшие по SKU правила, которых нет среди отмеченных в форме, — сняты у позиции.
+ * Зеркало ModifierEngine::disabledSkuKeys().
+ */
+export function disabledSkuKeys({ departmentId, scope, sku = null, submittedKeys = [] }) {
+    return modifiersFor(departmentId)
+        .filter((rule) => rule.trigger === 'sku'
+            && appliesToScope(rule, scope)
+            && matchesPattern(sku, rule.sku_pattern)
+            && !submittedKeys.includes(rule.key))
+        .map((rule) => rule.key);
+}
+
+/**
+ * Правила позиции в панели «Коэффициенты»: снапшот главнее настроек отдела.
+ * Уже применённое правило остаётся со своими числами, пока его не сняли, — даже
+ * выключенное или удалённое в отделе. Зеркало ModifierEngine::resolveKeepingSnapshot().
+ *
+ * @param submittedKeys все отмеченные в строке ключи (ручные, sku и правила из снапшота)
+ * @param snapshot      [{key, name, color, icon, worker_coeff_delta, master_coeff_delta}]
+ */
+export function resolveKeepingSnapshot({ departmentId, scope, sku = null, submittedKeys = [], batchSku = null, snapshot = [] }) {
+    const snapshotByKey = new Map(snapshot.map((row) => [row.key, row]));
+
+    const current = resolve({
+        departmentId,
+        scope,
+        sku,
+        manualKeys: submittedKeys,
+        batchSku,
+        disabledKeys: disabledSkuKeys({ departmentId, scope, sku, submittedKeys }),
+    }).map((rule) => snapshotByKey.get(rule.key) ?? rule);
+
+    const currentKeys = current.map((rule) => rule.key);
+    const retired = snapshot.filter((row) => submittedKeys.includes(row.key) && !currentKeys.includes(row.key));
+
+    return [...current, ...retired];
+}
+
+/**
  * Ступенчатая ставка за единицу продукции.
  * ОКРУГЛВНИЗ((ставка + ставка×доля×коэф) / шаг) × шаг
  * Эпсилон — как в RateFormula::stepped(): гасит погрешность float.
@@ -147,9 +186,13 @@ export function stepped(rate, coeff, step = 10) {
     return Math.floor((rate + rate * coeffShare() * coeff) / step + 1e-9) * step;
 }
 
-/** Итоговый коэффициент пильщика: база плюс сумма сработавших правил. */
-export function effectiveCoeff({ baseCoeff, departmentId, scope, sku = null, manualKeys = [], batchSku = null, disabledKeys = [] }) {
-    const applied = resolve({ departmentId, scope, sku, manualKeys, batchSku, disabledKeys });
+/**
+ * Итоговый коэффициент пильщика: база плюс сумма сработавших правил.
+ * `applied` — готовый набор правил (resolveKeepingSnapshot); без него правила
+ * определяются по текущим настройкам отдела.
+ */
+export function effectiveCoeff({ baseCoeff, departmentId, scope, sku = null, manualKeys = [], batchSku = null, disabledKeys = [], applied = null }) {
+    applied ??= resolve({ departmentId, scope, sku, manualKeys, batchSku, disabledKeys });
 
     return applied.reduce(
         (coeff, rule) => coeff + Number(rule.worker_coeff_delta ?? 0),
@@ -161,8 +204,8 @@ export function effectiveCoeff({ baseCoeff, departmentId, scope, sku = null, man
  * Итоговый коэффициент мастера: база мастера плюс master-слагаемые сработавших правил.
  * Зеркало ModifierEngine::masterCoeff().
  */
-export function masterEffectiveCoeff({ baseCoeff, departmentId, scope, sku = null, manualKeys = [], batchSku = null, disabledKeys = [] }) {
-    const applied = resolve({ departmentId, scope, sku, manualKeys, batchSku, disabledKeys });
+export function masterEffectiveCoeff({ baseCoeff, departmentId, scope, sku = null, manualKeys = [], batchSku = null, disabledKeys = [], applied = null }) {
+    applied ??= resolve({ departmentId, scope, sku, manualKeys, batchSku, disabledKeys });
 
     return applied.reduce(
         (coeff, rule) => coeff + Number(rule.master_coeff_delta ?? 0),
@@ -202,6 +245,8 @@ window.RateFormula = {
     availableForBatchSku,
     manualRules,
     resolve,
+    disabledSkuKeys,
+    resolveKeepingSnapshot,
     stepped,
     effectiveCoeff,
     masterEffectiveCoeff,

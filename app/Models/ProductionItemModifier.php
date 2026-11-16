@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * замороженных worker_cost_per_m2 / master_cost_per_m2.
  *
  * Заполнена ровно одна из двух FK — позиция принадлежит либо приёмке, либо цеху.
+ *
+ * @property string|null $icon Колонку добавляет миграция циклом по таблицам — larastan её не видит
  */
 class ProductionItemModifier extends Model
 {
@@ -72,11 +74,14 @@ class ProductionItemModifier extends Model
         return $this->modifier?->trigger !== DepartmentModifier::TRIGGER_SKU;
     }
 
-    /** Снимок правила для записи в снапшот позиции. */
-    public static function attributesFrom(DepartmentModifier $modifier): array
+    /**
+     * Снимок правила для записи в снапшот позиции. Строка снапшота копируется как есть:
+     * правило, выключенное в отделе, остаётся у позиции со своими числами.
+     */
+    public static function attributesFrom(DepartmentModifier|self $modifier): array
     {
         return [
-            'department_modifier_id' => $modifier->id,
+            'department_modifier_id' => $modifier instanceof self ? $modifier->department_modifier_id : $modifier->id,
             'key'                    => $modifier->key,
             'name'                   => $modifier->name,
             'color'                  => $modifier->color,

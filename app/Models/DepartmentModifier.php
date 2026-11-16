@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * ставки надбавки пересчитываются пропорционально сами. Значение правила
  * складывается с коэффициентом продукта; сработать может несколько правил
  * сразу, и порядок на результат не влияет.
+ *
+ * @property string|null $icon Колонку добавляет миграция циклом по таблицам — larastan её не видит
  */
 class DepartmentModifier extends Model
 {

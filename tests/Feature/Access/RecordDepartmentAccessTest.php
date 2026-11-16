@@ -98,10 +98,11 @@ const RDA_MUTATING = [
 
     'stone-receptions.edit', 'stone-receptions.update', 'stone-receptions.destroy', 'stone-receptions.sync',
     'stone-receptions.reset-status', 'stone-receptions.mark-completed', 'stone-receptions.update-store',
-    'stone-receptions.update-item-coeff', 'stone-receptions.refresh-item-coeffs',
+    'stone-receptions.update-item-coeff', 'stone-receptions.refresh-item-coeffs', 'stone-receptions.refresh-item-rules',
 
     'workshops.edit', 'workshops.update', 'workshops.destroy', 'workshops.sync', 'workshops.reset-status',
     'workshops.mark-completed', 'workshops.update-item-coeff', 'workshops.refresh-item-coeffs',
+    'workshops.refresh-item-rules',
     'workshops.update-stores',
 
     'supplier-orders.edit', 'supplier-orders.update', 'supplier-orders.destroy', 'supplier-orders.sync',

@@ -107,10 +107,17 @@
   правила у уже созданных позиций. Так правила ставятся задним числом. Правила, сработавшие
   автоматически по артикулу, там тоже с галочкой — её можно снять, и правило к позиции
   применяться не будет.
-- **«Обновить коэф.»** — взять коэффициенты из справочника [товаров](products.md) и текущие
-  правила отдела; ранее отмеченные галочки сохраняются, снятые автоматические правила остаются
-  снятыми.
-- Оба действия меняют ставку позиции целиком — вместе со всей её выработкой, в том числе в
+- Правило, уже применённое к позиции, остаётся у неё **со своими значениями**, даже если потом
+  его в отделе выключили, удалили или поменяли. В «Коэффициентах» оно отмечено с пометкой
+  «выключено в отделе»; снимите галочку и сохраните — правило уйдёт (вернуть его потом нельзя).
+- **«Обновить коэф.»** — взять базовые коэффициенты из справочника [товаров](products.md).
+  Правила позиции не меняются.
+- **«Обновить правила»** — кнопка появляется, только если правила отдела изменились после
+  расчёта. Привести правила к текущим настройкам отдела: выключенные и удалённые снимутся,
+  изменённые получат новые значения, новые автоматические добавятся. Новые ручные правила
+  просто появятся в «Коэффициентах» без галочки. Отмеченные ранее ручные правила и снятые
+  автоматические остаются как были, базовые коэффициенты не меняются.
+- Все три действия меняют ставку позиции целиком — вместе со всей её выработкой, в том числе в
   прошлых неделях.
 
 ## 7. Техоперация в МойСклад
@@ -172,7 +179,7 @@
 | 3. Отдел | `StoneReceptionService::resolveDepartmentId`, `updateDepartment`; `StoneReception::effectiveDepartmentChain` | `ReceptionDepartmentChangeTest` |
 | 4. Статусы | `StoneReceptionService::markCompleted`, `closeBatch`, `resetStatus`; `RawMaterialBatchService::markAsUsed` / `markAsInWork` | `ReceptionActionsTest`, `ReceptionStatusCascadeTest`, `StoneReceptionServiceTest` |
 | 5. Правка | `StoneReceptionService::update`, `updateReceptionItems`, `writeReceptionLog`, `updateLogReceiver`; `HandlesBatchStock::handleBatchChanges`; расход > 0 — `UpdateStoneReceptionRequest` (`min:0.001`: при 0 `updateProcessingProducts` не шлёт материалы, в МойСклад осталось бы старое сырьё) | `StoneReceptionTest`, `ReceptionLogTest`, `ReceptionLogReceiverTest` |
-| 6. Коэффициенты | `ProductionDocumentService::updateItemCoeff`, `refreshItemCoeffs`, `createCostedItem` (общие с цехом; приёмка — `batchSku`, `afterCoeffsChanged` → `processing_sum` партии); `Http\Requests\UpdateItemCoeffsRequest`; `Support\ItemCost`; снятые sku-правила — `stone_reception_items.disabled_modifier_keys`, `ModifierEngine::disabledSkuKeys`; карточка и панель на show — `partials/production-document/products` + `coeff-edit-script` (общие с цехом) | `ReceptionActionsTest`, `ReceptionExtraActionsTest`, `StoneReceptionEdgingFlowTest`, `EdgingCoeffTest`, `Modifier/DisabledSkuModifierTest`, `Access/RecordDepartmentAccessTest` |
+| 6. Коэффициенты | `ProductionDocumentService::updateItemCoeff`, `refreshItemCoeffs`, `refreshItemRules`, `hasOutdatedRules`, `createCostedItem` (общие с цехом; приёмка — `batchSku`, `afterCoeffsChanged` → `processing_sum` партии); `Http\Requests\UpdateItemCoeffsRequest`; `Support\ItemCost`; снятые sku-правила — `stone_reception_items.disabled_modifier_keys`, `ModifierEngine::disabledSkuKeys`; снапшот главнее настроек — `ModifierEngine::resolveKeepingSnapshot`, `snapshotOutdated`; карточка и панель на show — `partials/production-document/products` + `coeff-edit-script` (общие с цехом) | `ReceptionActionsTest`, `ReceptionExtraActionsTest`, `StoneReceptionEdgingFlowTest`, `EdgingCoeffTest`, `Modifier/DisabledSkuModifierTest`, `Modifier/RetiredModifierTest`, `Access/RecordDepartmentAccessTest` |
 | 9. Список: поиск по части названия | `StoneReceptionService::getFilteredReceptions`, `getFilteredLogs`, `getBatchesWithoutReceptions` (фильтры `raw_product_search`, `product_search`); `Support\ProductSearch`; пикер — `searchName` в `partials/product-picker`, JS `product-picker.js` | `ReceptionIndexProductSearchTest`, `tests/Unit/ProductSearchTest`, `tests/Feature/ProductSearch/ProductSearchTest` |
 | 7. МойСклад | `StoneReceptionService::queueSync`; `Jobs\SyncReceptionToMoysklad`, `Jobs\DeleteProcessingInMoysklad`; `Moysklad\StoneReceptionSyncService::pushReception`, `syncReception`, `createProcessingForReception`, `updateProcessingProducts`, `buildReceptionDescription`, `buildCostSummary` (поток — `Moysklad\ProcessingSyncService::sync`, `push`, `createProcessing`, `updateProcessing`); `DocumentNaming` | `ReceptionExtraActionsTest`, `tests/Feature/Moysklad/ProcessingSyncJobTest`, `StoneReceptionSyncServiceTest`, `StoneReceptionProcessingUpdateTest`, `ReceptionDescriptionCostTest` |
 | 8. Удаление | `StoneReceptionService::delete`, `returnRaw` | `StoneReceptionServiceTest`, `StoneReceptionTest` |

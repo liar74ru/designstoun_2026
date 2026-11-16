@@ -13,6 +13,9 @@
  * тоже чекбоксы — их можно снять у позиции. Отмеченные уходят в тот же
  * `[modifiers][]`, неотмеченное сервер считает снятым
  * (ModifierEngine::disabledSkuKeys). Снятые ранее — в data-disabled-keys.
+ * Правила из снапшота позиции (data-snapshot), которых среди текущих правил отдела
+ * нет (выключили, удалили, сменили маску), дорисовываются отмеченными с пометкой:
+ * снапшот главнее настроек, пока правило не сняли (ModifierEngine::resolveKeepingSnapshot).
  *
  * Данные — window.ProductionRates.modifiers (partials/production-rates-js).
  * Подключается глобально через app.js как window.ModifierPicker.
@@ -28,7 +31,17 @@ function readContext(container) {
         editableAuto: container.dataset.editableAuto === '1',
         activeKeys: splitKeys(container.dataset.activeKeys),
         disabledKeys: splitKeys(container.dataset.disabledKeys),
+        snapshot: parseSnapshot(container.dataset.snapshot),
     };
+}
+
+function parseSnapshot(value) {
+    try {
+        const rows = JSON.parse(value || '[]');
+        return Array.isArray(rows) ? rows : [];
+    } catch (_) {
+        return [];
+    }
 }
 
 function splitKeys(value) {
@@ -42,6 +55,17 @@ function splitKeys(value) {
 export function checkedKeys(container) {
     return Array.from(container.querySelectorAll('input[type="checkbox"]:not(.modifier-auto):checked'))
         .map((input) => input.value);
+}
+
+/** Все отмеченные в строке ключи — ручные, sku и правила из снапшота: то, что уйдёт в форму. */
+export function submittedKeys(container) {
+    return Array.from(container.querySelectorAll('input.modifier-checkbox:checked'))
+        .map((input) => input.value);
+}
+
+/** Снапшот правил позиции из data-snapshot (панель «Коэффициенты»). */
+export function snapshotOf(container) {
+    return parseSnapshot(container.dataset.snapshot);
 }
 
 /** Ключи сработавших по SKU правил, снятых пользователем в этой строке. */
@@ -143,6 +167,22 @@ function autoCheckbox(rule, { inputName, checked }) {
     return wrapper;
 }
 
+/** Правило из снапшота позиции, которого больше нет среди правил отдела. */
+function retiredCheckbox(rule, { inputName, checked }) {
+    const wrapper = autoCheckbox(rule, { inputName, checked });
+    wrapper.title = 'Правило выключено или изменено в отделе — у позиции остаётся со своими значениями, пока его не снять';
+
+    const input = wrapper.querySelector('input');
+    input.classList.replace('modifier-auto', 'modifier-retired');
+
+    const note = document.createElement('span');
+    note.className = 'text-muted small';
+    note.textContent = 'выключено в отделе';
+    wrapper.querySelector('label').append(' ', note);
+
+    return wrapper;
+}
+
 /**
  * Перерисовать список правил контейнера.
  * Отметки пользователя сохраняются: уже отрисованные чекбоксы важнее
@@ -189,6 +229,16 @@ export function render(container, { sku = null } = {}) {
                 : badge(rule)));
     }
 
+    if (ctx.editableAuto) {
+        const rendered = Array.from(container.querySelectorAll('input.modifier-checkbox')).map((input) => input.value);
+        ctx.snapshot
+            .filter((row) => !rendered.includes(row.key))
+            .forEach((row) => container.append(retiredCheckbox(row, {
+                inputName: ctx.inputName,
+                checked: wasChecked.includes(row.key),
+            })));
+    }
+
     container.dataset.rendered = '1';
 }
 
@@ -227,6 +277,8 @@ window.ModifierPicker = {
     setProductSku,
     checkedKeys,
     disabledKeys,
+    submittedKeys,
+    snapshotOf,
 };
 
 document.addEventListener('DOMContentLoaded', () => renderAll());
