@@ -354,7 +354,9 @@ raw-batches, supplier-orders, products, enterprise-dashboard, settings — то�
   не увеличивать: на это рассчитаны порядок задач и поиск по `externalCode` перед POST. Перемещение
   равно партии (`RawMaterialBatch::moveQuantity()`), дельты не отправлять. Заказы и заявки синхронные.
   Локально воркер — `make start-queue`
-- Префиксы: `ПРОГ` — приёмка сырья, `ТО` — техоперация обработки, `ЦЕХ` — техоперация цеха
+- Префиксы: `ПРОГ` — приёмка сырья. Техоперации приёмки и цеха — `ГГ-НН-<название отдела>-ПП`,
+  нумерация общая для обоих типов (`ProcessingSyncService::weeklyName()`); `ТО`/`ЦЕХ` — только
+  если отдел документа не определился
 - Паттерн синхронизации: [docs/moysklad-sync-pattern.md](docs/moysklad-sync-pattern.md)
 - Формирование processingSum: [docs/processing-sum.md](docs/processing-sum.md)
 

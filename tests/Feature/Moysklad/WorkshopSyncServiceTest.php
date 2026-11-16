@@ -3,6 +3,7 @@
 use App\Models\Department;
 use App\Models\DepartmentExpense;
 use App\Models\Product;
+use App\Models\StoneReception;
 use App\Models\Store;
 use App\Models\Worker;
 use App\Models\Workshop;
@@ -295,6 +296,41 @@ describe('WorkshopSyncService: нумерация ЦЕХ', function () {
         fakeMoyskladForWorkshop();
         app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
         assertSentProcessingName(DocumentNaming::weeklyName('ЦЕХ', 3));
+    });
+
+    test('у операции с отделом в имени — название отдела', function () {
+        $dept = Department::create(['name' => 'Галтовка', 'is_active' => true]);
+        $this->workshop->update(['department_id' => $dept->id]);
+        fakeMoyskladForWorkshop();
+        app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
+        assertSentProcessingName(DocumentNaming::weeklyName('Галтовка', 1));
+    });
+
+    test('без своего отдела в имени — отдел упаковщика', function () {
+        $dept = Department::create(['name' => 'МАФ', 'is_active' => true]);
+        $this->packer->update(['department_id' => $dept->id]);
+        fakeMoyskladForWorkshop();
+        app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
+        assertSentProcessingName(DocumentNaming::weeklyName('МАФ', 1));
+    });
+
+    test('нумерация общая с приёмками отдела, у другого отдела — своя', function () {
+        $dept  = Department::create(['name' => 'Галтовка', 'is_active' => true]);
+        $other = Department::create(['name' => 'Карьер', 'is_active' => true]);
+        $this->workshop->update(['department_id' => $dept->id]);
+        StoneReception::create([
+            'receiver_id'              => $this->receiver->id,
+            'cutter_id'                => $this->packer->id,
+            'store_id'                 => $this->store->id,
+            'raw_quantity_used'        => 1.0,
+            'status'                   => StoneReception::STATUS_ACTIVE,
+            'department_id'            => $dept->id,
+            'moysklad_processing_name' => DocumentNaming::weeklyName('Галтовка', 2),
+        ]);
+        makeNamedWorkshop($this, DocumentNaming::weeklyName('Карьер', 5))->update(['department_id' => $other->id]);
+        fakeMoyskladForWorkshop();
+        app(WorkshopSyncService::class)->createProcessingForWorkshop($this->workshop->fresh());
+        assertSentProcessingName(DocumentNaming::weeklyName('Галтовка', 3));
     });
 });
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\Moysklad;
 
+use App\Models\Department;
 use App\Models\Setting;
 use App\Models\StoneReception;
 use App\Models\Workshop;
@@ -36,7 +37,7 @@ abstract class ProcessingSyncService extends MoySkladBaseService
     /** Тип документа — для externalCode и логов: 'reception', 'workshop'. */
     abstract protected function documentType(): string;
 
-    /** Префикс имени техоперации: 'ТО', 'ЦЕХ'. */
+    /** Сегмент имени техоперации, если отдел документа не определился: 'ТО', 'ЦЕХ'. */
     abstract protected function namePrefix(): string;
 
     /**
@@ -407,21 +408,35 @@ abstract class ProcessingSyncService extends MoySkladBaseService
     }
 
     /**
-     * Имя по неделе: следующий номер среди документов того же типа с этим префиксом.
+     * Имя по неделе: «ГГ-НН-Отдел-ПП». Номер общий для приёмок и цехов отдела — следующий
+     * среди техопераций обоих типов с этим префиксом.
      *
      * @param  TDocument  $document
      */
     private function weeklyName(Model $document, Carbon $date): string
     {
-        $weekPrefix = DocumentNaming::weekPrefix($this->namePrefix(), $date);
-        $sequence   = DocumentNaming::nextSequence(
-            $document::query()
+        $segment    = $this->nameSegment($document);
+        $weekPrefix = DocumentNaming::weekPrefix($segment, $date);
+        $names      = collect([StoneReception::class, Workshop::class])
+            ->flatMap(fn (string $model) => $model::query()
                 ->where('moysklad_processing_name', 'like', $weekPrefix . '%')
-                ->pluck('moysklad_processing_name'),
-            $weekPrefix
-        );
+                ->pluck('moysklad_processing_name'));
 
-        return DocumentNaming::weeklyName($this->namePrefix(), $sequence, $date);
+        return DocumentNaming::weeklyName($segment, DocumentNaming::nextSequence($names, $weekPrefix), $date);
+    }
+
+    /**
+     * Название отдела документа (цепочка effectiveDepartmentId); отдел не определился —
+     * префикс типа документа.
+     *
+     * @param  TDocument  $document
+     */
+    protected function nameSegment(Model $document): string
+    {
+        $departmentId = $document->effectiveDepartmentId();
+        $name         = $departmentId ? trim((string) Department::whereKey($departmentId)->value('name')) : '';
+
+        return $name !== '' ? $name : $this->namePrefix();
     }
 
     private function logPrefix(string $method): string
