@@ -548,9 +548,24 @@
         })).filter(r => r.productId && r.qty > 0);
     }
 
+    // Расходы применённого шаблона: {amount, total} или null — накладные отдела.
+    // total — число из шаблона и есть вся сумма затрат (зарплаты и накладные не считаются).
+    let presetCost = null;
+    // Номер последнего пересчёта: коэффициенты грузятся асинхронно, и пересчёт, начатый
+    // раньше (например, при добавлении строк шаблона), не должен перезаписать свежий.
+    let recomputeSeq = 0;
+
     async function recomputeSuggestedCost() {
+        const run = ++recomputeSeq;
         const products = rowsData(blocks.product.container);
         const totalProduct = sumQty(blocks.product.container);
+
+        if (presetCost?.total && products.length) {
+            const suggested = Math.round(presetCost.amount * 100) / 100;
+            if (costHint) costHint.textContent = `Из шаблона: ${suggested.toFixed(2)} ₽/ед (вся сумма)`;
+            if (!costTouched) costInput.value = suggested > 0 ? suggested.toFixed(2) : '';
+            return;
+        }
 
         if (!products.length || totalProduct <= 0) {
             if (costHint) costHint.textContent = '';
@@ -569,15 +584,17 @@
             workerTotal += RateFormula.prodCost(coeff.worker, departmentId) * p.qty;
             masterTotal += RateFormula.masterCost(coeff.master, departmentId) * p.qty;
         }
+        if (run !== recomputeSeq) return;
 
         const worker   = workerTotal / totalProduct;
         const master   = masterTotal / totalProduct;
-        const overhead = RateFormula.overheadPerUnit(departmentId);
+        const overhead = presetCost ? presetCost.amount : RateFormula.overheadPerUnit(departmentId);
+        const overheadLabel = presetCost ? 'расходы шаблона' : 'накладные';
 
         const suggested = Math.round((worker + master + overhead) * 100) / 100;
         if (costHint) {
             costHint.textContent = suggested > 0
-                ? `Авторасчёт: ${suggested.toFixed(2)} ₽/ед (работник ${worker.toFixed(2)} + мастер ${master.toFixed(2)} + накладные ${overhead.toFixed(2)})`
+                ? `Авторасчёт: ${suggested.toFixed(2)} ₽/ед (работник ${worker.toFixed(2)} + мастер ${master.toFixed(2)} + ${overheadLabel} ${overhead.toFixed(2)})`
                 : '';
         }
         if (!costTouched) costInput.value = suggested > 0 ? suggested.toFixed(2) : '';
@@ -654,6 +671,7 @@
     async function loadPresets() {
         if (!presetPicker) return;
         presetPicker.setData(null);
+        presetCost = null;
         const deptId = departmentSelect.value;
         if (!deptId) { showPresetTotal(0, '— выберите отдел'); return; }
         try {
@@ -667,6 +685,10 @@
     }
 
     function applyPreset(preset, count) {
+        presetCost = preset.cost_per_unit != null
+            ? { amount: Number(preset.cost_per_unit), total: !!preset.cost_replaces_total }
+            : null;
+
         ['raw', 'package', 'product'].forEach(t => { blocks[t].container.innerHTML = ''; });
         rowIndex = 0;
         preset.items.forEach(it => {
@@ -674,6 +696,8 @@
             const qty = Math.round(it.quantity * count * 10000) / 10000;
             addRow(it.role, { productId: it.product_id, label: it.product_label, quantity: qty });
         });
+
+        recomputeSuggestedCost();
     }
 
     departmentSelect.addEventListener('change', loadPresets);

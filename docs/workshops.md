@@ -55,6 +55,8 @@
 - Выберите шаблон — под карточками появится его плашка. Укажите кол-во продукции и нажмите
   **«Применить»**: все количества шаблона умножатся на это число. Пустое поле — одна единица.
 - «Применить» **заменяет** все строки формы.
+- Если в шаблоне заполнены **«Расходы на единицу»**, подсказка «Авторасчёт» в «Затратах на
+  производство» считает по ним (см. раздел 8 «Затраты на производство и МойСклад»).
 - Шаблоны заводит администратор в карточке отдела ([Настройки](app:settings)).
 
 ## 4. Отдел операции
@@ -134,6 +136,13 @@
   очистите поле перед сохранением. На странице операции видно, что сохранено: сумма с пометкой
   «(ручной ввод)» или «Автоматически (работник + мастер + накладные)».
 - Накладные расходы берутся из карточки отдела операции («Накладные расходы отдела»).
+- **Расходы из шаблона.** Если применён шаблон с заполненными «Расходами на единицу», авторасчёт
+  в форме новой операции берёт их:
+  - «Вместо накладных отдела» — работник + мастер + расходы шаблона;
+  - «Вся сумма затрат» — затраты равны расходам шаблона, зарплаты и накладные не считаются.
+
+  Число попадает в поле затрат и сохраняется как ручное. Если очистить поле, сумма при отправке
+  в МойСклад посчитается по накладным отдела.
 - В примечание техоперации пишется история изменений: дата, работник, приёмщик и строки с
   пометками [Сырьё] / [Упаковка] / [Продукт].
 - **Отправка идёт в фоне:** операция сохраняется сразу, ждать МойСклад не нужно. Пока документ в
@@ -190,7 +199,7 @@
 | Раздел | Код | Тесты (`tests/Feature/Workshop/`) |
 |---|---|---|
 | 1–2. Состав, создание | `WorkshopController::create`, `store`, `copy`; `WorkshopService::create`, `createWorkshopItems`; `StoreWorkshopRequest` | `WorkshopServiceTest`, `WorkshopValidationTest` |
-| 3. Шаблоны | `WorkshopPresetService::getPresetsJsonFor`, `WorkshopController::getPresetsJson`, `Admin\WorkshopPresetController`, `Admin\WorkshopPresetGroupController`; JS `resources/js/workshop-preset-picker.js` (выбор по группам), `applyPreset` в `workshops/create.blade.php` | `Workshop/WorkshopPresetGroupTest` |
+| 3. Шаблоны | `WorkshopPresetService::getPresetsJsonFor`, `WorkshopController::getPresetsJson`, `Admin\WorkshopPresetController`, `Admin\WorkshopPresetGroupController`; JS `resources/js/workshop-preset-picker.js` (выбор по группам), `applyPreset` в `workshops/create.blade.php`; расходы шаблона — `workshop_presets.cost_per_unit` / `cost_replaces_total` (`WorkshopPresetService::costAttributes`), в форме цеха — `presetCost` в `recomputeSuggestedCost()` (`workshops/create.blade.php`), тест `Workshop/WorkshopPresetCostTest` | `Workshop/WorkshopPresetGroupTest` |
 | 4. Отдел | `WorkshopService::resolveDepartmentId`, `prepareWorkshopData`, `updateDepartment`; `Workshop::effectiveDepartmentChain` | `WorkshopServiceTest`, `tests/Feature/MasterDashboard/EnterpriseDashboardTest` |
 | 5. Тара | `WorkshopService::adjustPackageStock`, `adjustAllPackageStock`, `delete`, `movePackageStock`, `applyPackageDeltas`, `updateStores` | `WorkshopServiceTest` |
 | 6. Правка | `WorkshopService::update`, `syncRoleItems`, `diffItemDeltas`, `writeWorkshopLog`; JS «Итого продукта» в `workshops/edit.blade.php` (спека `docs/superpowers/specs/2026-07-19-workshop-edit-proportional-scaling-design.md`) | `WorkshopServiceTest` |

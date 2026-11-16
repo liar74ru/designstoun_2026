@@ -71,6 +71,13 @@
                             <div class="text-muted" style="font-size:.72rem">
                                 сырьё {{ $meta['raw'] }}@if($meta['package']) · тара {{ $meta['package'] }}@endif
                             </div>
+                            @if($preset->cost_per_unit !== null)
+                                <div class="text-muted" style="font-size:.72rem">
+                                    <i class="bi bi-cash-coin"></i>
+                                    расходы {{ number_format((float) $preset->cost_per_unit, 2, ',', ' ') }} ₽/ед
+                                    ({{ $preset->cost_replaces_total ? 'вся сумма' : 'вместо накладных' }})
+                                </div>
+                            @endif
                         </div>
                         <div class="card-footer bg-transparent border-0 pt-0 pb-2 px-3 d-flex justify-content-end">
                             @include('admin.departments.presets._actions')

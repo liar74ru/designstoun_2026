@@ -41,6 +41,9 @@ class WorkshopPresetRequest extends FormRequest
                     ->where('department_id', $this->route('department')->id),
             ],
 
+            'cost_per_unit'       => 'nullable|numeric|min:0|max:9999999999',
+            'cost_replaces_total' => 'nullable|boolean',
+
             'raw_materials'              => 'required|array|min:1',
             'raw_materials.*.product_id' => 'required|integer|exists:products,id',
             'raw_materials.*.quantity'   => 'required|numeric|min:0.0001',
@@ -61,6 +64,10 @@ class WorkshopPresetRequest extends FormRequest
             'name.required' => 'Укажите название пресета',
 
             'group_ids.*.exists' => 'Выберите группы этого отдела',
+
+            'cost_per_unit.numeric' => 'Расходы — число',
+            'cost_per_unit.min'     => 'Расходы не могут быть отрицательными',
+            'cost_per_unit.max'     => 'Слишком большая сумма расходов',
 
             'raw_materials.required'              => 'Добавьте хотя бы одну позицию сырья',
             'raw_materials.*.product_id.required' => 'Выберите сырьё',

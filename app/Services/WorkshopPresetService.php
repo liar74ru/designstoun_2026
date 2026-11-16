@@ -51,7 +51,7 @@ class WorkshopPresetService
     public function create(Department $department, array $data): WorkshopPreset
     {
         return DB::transaction(function () use ($department, $data) {
-            $preset = $department->ownedPresets()->create(['name' => $data['name']]);
+            $preset = $department->ownedPresets()->create(['name' => $data['name']] + $this->costAttributes($data));
             $this->syncDepartments($preset, $department, $data['department_ids'] ?? []);
             $preset->groups()->sync($data['group_ids'] ?? []);
             $this->createItems($preset, $data);
@@ -67,7 +67,7 @@ class WorkshopPresetService
     public function update(Department $department, WorkshopPreset $preset, array $data): WorkshopPreset
     {
         return DB::transaction(function () use ($department, $preset, $data) {
-            $preset->update(['name' => $data['name']]);
+            $preset->update(['name' => $data['name']] + $this->costAttributes($data));
             $this->syncDepartments($preset, $department, $data['department_ids'] ?? []);
 
             $otherGroups = $preset->groups()
@@ -122,7 +122,11 @@ class WorkshopPresetService
                 $name .= ' (копия)';
             }
 
-            $copy = $target->ownedPresets()->create(['name' => $name]);
+            $copy = $target->ownedPresets()->create([
+                'name'                => $name,
+                'cost_per_unit'       => $preset->cost_per_unit,
+                'cost_replaces_total' => $preset->cost_replaces_total,
+            ]);
 
             // Группы принадлежат отделу: берём группы источника и ищем одноимённые в целевом.
             $sourceGroups = $preset->groups()->where('workshop_preset_groups.department_id', $source->id)->pluck('name');
@@ -156,6 +160,9 @@ class WorkshopPresetService
                 'id'        => $preset->id,
                 'name'      => $preset->name,
                 'group_ids' => $preset->groups->pluck('id')->all(),
+                // Расходы шаблона для авторасчёта затрат формы цеха; null — накладные отдела
+                'cost_per_unit'       => $preset->cost_per_unit !== null ? (float) $preset->cost_per_unit : null,
+                'cost_replaces_total' => $preset->cost_replaces_total,
                 'color'     => Product::getColorBySku(
                     $preset->items->firstWhere('role', WorkshopItem::ROLE_PRODUCT)?->product?->sku
                 ),
@@ -191,6 +198,19 @@ class WorkshopPresetService
             'product_label' => $item->product?->name ?? '',
             'quantity'      => (float) $item->quantity,
         ])->values()->all();
+    }
+
+    /**
+     * Расходы на единицу из формы шаблона. Пусто — накладные отдела, тогда и переключатель
+     * сбрасывается: «вся сумма» без числа ничего не значит.
+     */
+    private function costAttributes(array $data): array
+    {
+        $cost = $data['cost_per_unit'] ?? null;
+
+        return $cost === null || $cost === ''
+            ? ['cost_per_unit' => null, 'cost_replaces_total' => false]
+            : ['cost_per_unit' => $cost, 'cost_replaces_total' => (bool) ($data['cost_replaces_total'] ?? false)];
     }
 
     private function prefillFromOldInput(array $oldInput): array

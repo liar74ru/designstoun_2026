@@ -144,6 +144,50 @@
         </div>
     </div>
 
+    {{-- ④ Расходы на единицу: заполняют «Затраты на производство» в форме новой операции --}}
+    @php
+        $costReplacesTotal = (bool) old('cost_replaces_total', $preset?->cost_replaces_total ?? false);
+    @endphp
+    <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold py-2">
+            <i class="bi bi-cash-coin me-1"></i> Расходы на единицу
+            <span class="text-muted fw-normal small">— необязательно</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-sm-5">
+                    <div class="input-group input-group-sm">
+                        <input type="number" name="cost_per_unit" id="presetCost"
+                               step="0.01" min="0"
+                               class="form-control @error('cost_per_unit') is-invalid @enderror"
+                               style="border-radius:.4rem 0 0 .4rem"
+                               placeholder="из отдела"
+                               value="{{ old('cost_per_unit', $preset?->cost_per_unit) }}">
+                        <span class="input-group-text">₽/ед</span>
+                    </div>
+                    @error('cost_per_unit')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div class="col-12 col-sm-7">
+                    <div class="btn-group btn-group-sm w-100" role="group" aria-label="Что заменяют расходы">
+                        <input type="radio" class="btn-check" name="cost_replaces_total" value="0"
+                               id="presetCostOverhead" @checked(!$costReplacesTotal)>
+                        <label class="btn btn-outline-secondary" for="presetCostOverhead">Вместо накладных отдела</label>
+                        <input type="radio" class="btn-check" name="cost_replaces_total" value="1"
+                               id="presetCostTotal" @checked($costReplacesTotal)>
+                        <label class="btn btn-outline-secondary" for="presetCostTotal">Вся сумма затрат</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-text" style="font-size:.72rem">
+                Заполняет «Затраты на производство» в форме новой операции. Пусто — работник + мастер +
+                накладные из карточки отдела. «Вместо накладных отдела» — работник + мастер + это число.
+                «Вся сумма затрат» — затраты операции равны этому числу, зарплаты и накладные не считаются.
+            </div>
+        </div>
+    </div>
+
     <div class="d-flex justify-content-end gap-2 mb-3">
         <a href="{{ route('admin.departments.show', $department) }}#workshop" class="btn btn-outline-secondary" data-back>Отмена</a>
         <button type="submit" class="btn btn-primary px-4">

@@ -12,6 +12,18 @@ class WorkshopPreset extends Model
     protected $fillable = [
         'department_id',
         'name',
+        'cost_per_unit',
+        'cost_replaces_total',
+    ];
+
+    /**
+     * cost_per_unit — расходы, ₽ за единицу продукта; null — накладные из карточки отдела.
+     * cost_replaces_total — число заменяет всю сумму затрат, иначе только накладные отдела.
+     * Действуют только в авторасчёте затрат формы новой операции цеха.
+     */
+    protected $casts = [
+        'cost_per_unit'       => 'decimal:2',
+        'cost_replaces_total' => 'boolean',
     ];
 
     /**
