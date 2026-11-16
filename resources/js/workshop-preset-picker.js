@@ -24,6 +24,28 @@ function qty(value) {
     return Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 4 });
 }
 
+/**
+ * Popper не знает про фиксированную шапку сайта и считает видимой всю высоту окна:
+ * длинный список группы, развёрнутый вверх, уходил под шапку. Отступ сверху = высота
+ * шапки — тогда вверх список откроется, только если под шапкой хватает места.
+ * Шапка меняет высоту, поэтому меряем при каждом открытии.
+ */
+function withHeaderPadding(config) {
+    const top = (document.querySelector('header')?.offsetHeight ?? 0) + 8;
+    const modifiers = config.modifiers || [];
+    const own = (name) => modifiers.find((m) => m.name === name)?.options || {};
+
+    return {
+        ...config,
+        modifiers: [
+            ...modifiers.filter((m) => !['flip', 'preventOverflow'].includes(m.name)),
+            { name: 'flip', options: { ...own('flip'), padding: { top } } },
+            // boundary у Bootstrap свой — сохраняем, добавляем только отступ
+            { name: 'preventOverflow', options: { ...own('preventOverflow'), padding: { top } } },
+        ],
+    };
+}
+
 export class WorkshopPresetPicker {
     constructor(root, { onApply } = {}) {
         this.root       = root;
@@ -99,6 +121,10 @@ export class WorkshopPresetPicker {
         this.root.innerHTML = this.sections.length
             ? this.renderCards()
             : '<div class="text-muted small py-1">У отдела нет шаблонов.</div>';
+
+        this.root.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((btn) => {
+            window.bootstrap?.Dropdown.getOrCreateInstance(btn, { popperConfig: withHeaderPadding });
+        });
     }
 
     presetStyle(preset) {
