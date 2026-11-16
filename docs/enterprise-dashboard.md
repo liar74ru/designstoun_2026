@@ -36,7 +36,7 @@
 - **Работник** — оставляет на вкладке «Плитка» выпуск одного пильщика или работника цеха;
   «ФОТ мастеров» в этом случае — зарплата мастеров за его выпуск. Приёмщик фильтром не
   учитывается. В списке сначала работники своих отделов без уволенных, остальные — по чекбоксу
-  **«все работники»**. На вкладку «Сырьё» не влияет.
+  **«все работники»**. На вкладке «Сырьё» остаются партии, которые числятся на этом работнике.
 - В полях «Сырьё» и «Продукт» можно искать **по части названия**: начните вводить и
   выберите первую строку списка **«Все, где есть «…»»** — фильтр сработает сразу по всем
   подходящим видам камня / плиткам. Регистр, «ё/е» и одинаковые на вид русские и латинские
@@ -112,7 +112,8 @@
   в [Сырьё](raw-batches.md).
 - Отдел поступления — отдел партии. Партии без отдела видны так же, как документы «Без
   отдела» на вкладке «Плитка».
-- Фильтры «Продукт» и «Работник» здесь не действуют.
+- Фильтр «Работник» оставляет партии, которые сейчас числятся на работнике (вместе с их
+  корректировками). Фильтр «Продукт» здесь не действует.
 
 ## 7. Чего в Итогах нет
 
@@ -136,7 +137,7 @@
 | 3. Журналы | `ReceptionLog` / `ReceptionLogItem`, `WorkshopLog` / `WorkshopLogItem` (`role = product`); `StoneReceptionService::writeReceptionLog`, `WorkshopService::writeWorkshopLog` | `EnterpriseDashboardTest` |
 | 4. Отдел документа | `Concerns\HasEffectiveDepartment` (`effectiveDepartmentId`, `scopeInEffectiveDepartments`), `effectiveDepartmentChain` в `StoneReception`, `Workshop`, `RawMaterialBatch`; `WorkerDashboardService::buildSummaryByDepartment` | `EnterpriseDashboardTest` |
 | 5. «Плитка» | `WorkerDashboardService::buildProductSummary`, `buildWorkshopProductSummary`, `mergeProductSummaries`, `modifierSignature`, `receptionItemFor`, `workshopItemFor`; `StoneReceptionItem::effectiveProdCost`, `WorkshopItem::effectiveProdCost` | `EnterpriseDashboardTest` |
-| 6. «Сырьё» | `WorkerDashboardService::buildIncomingRawSummary` (`movement_type` in `create`, `adjust_increase`, `adjust_decrease`) | `EnterpriseDashboardTest` |
+| 6. «Сырьё» | `WorkerDashboardService::buildIncomingRawSummary` (`movement_type` in `create`, `adjust_increase`, `adjust_decrease`; работник — `raw_material_batches.current_worker_id`) | `EnterpriseDashboardTest` |
 
 Заметки:
 

@@ -655,17 +655,31 @@ test('приёмщик фильтром по работнику не учиты�
     }
 });
 
-test('фильтр по работнику не меняет вкладку «Сырьё»', function () {
+test('фильтр по работнику оставляет на вкладке «Сырьё» только его партии', function () {
     $dept = Department::create(['name' => 'Отдел сырья', 'is_active' => true]);
 
-    makeEnterpriseReception($dept, 'Пильщик сырья', 10.0);
     entIncomingRaw($dept, 8.0, 'Ж');
+    entIncomingRaw($dept, 5.0, 'З');
 
-    $cutter = Worker::where('name', 'Пильщик сырья пильщик')->firstOrFail();
+    $worker = Worker::where('name', 'Приёмщик сырья Ж')->firstOrFail();
+    $batch  = RawMaterialBatch::where('batch_number', 'RAW-Ж')->firstOrFail();
 
-    $response = entDashboard($this, H::adminUser(), ['filter' => ['worker_id' => $cutter->id]]);
+    // Корректировка без работника в движении — учитывается через партию.
+    RawMaterialMovement::create([
+        'batch_id'      => $batch->id,
+        'movement_type' => 'adjust_increase',
+        'quantity'      => 2.0,
+    ]);
 
-    expect((float) $response->viewData('incomingRawTotal'))->toEqual(8.0);
+    $response = entDashboard($this, H::adminUser(), ['filter' => ['worker_id' => $worker->id]]);
+
+    expect((float) $response->viewData('incomingRawTotal'))->toEqual(10.0)
+        ->and($response->viewData('incomingRaw'))->toHaveCount(1)
+        ->and($response->viewData('incomingRaw')->first()['product']->id)->toBe($batch->product_id);
+
+    $all = entDashboard($this, H::adminUser());
+
+    expect((float) $all->viewData('incomingRawTotal'))->toEqual(15.0);
 });
 
 test('мастер, выбрав работника чужого отдела, не видит чужие документы', function () {

@@ -412,10 +412,10 @@ class WorkerDashboardService
             $productIds !== null ? fn ($row) => in_array($row['product']?->id, $productIds) : null,
         );
 
-        // Вкладка «Сырьё»: движения сырья не связаны с плиткой и работником —
-        // фильтры $productIds и $workerId не применяются.
+        // Вкладка «Сырьё»: движения сырья не связаны с плиткой — фильтр $productIds
+        // не применяется; $workerId — партии, которые числятся на работнике.
         $incomingRaw = $this->buildIncomingRawSummary(
-            $dateFrom, $dateTo, $scopeIds, $rawProductIds, $includeUndetermined
+            $dateFrom, $dateTo, $scopeIds, $rawProductIds, $includeUndetermined, $workerId
         );
 
         $filterWorkerIds = ReceptionLog::whereNotNull('cutter_id')->distinct()->pluck('cutter_id')
@@ -481,7 +481,8 @@ class WorkerDashboardService
         ?Carbon $dateTo,
         ?array $departmentIds = null,
         ?array $rawProductIds = null,
-        bool $includeUndetermined = false
+        bool $includeUndetermined = false,
+        $workerId = null
     ): Collection {
         return RawMaterialMovement::query()
             // Создание + корректировки партии, каждая на свою дату
@@ -499,6 +500,9 @@ class WorkerDashboardService
             ))
             ->when($rawProductIds !== null, fn ($q) => $q->whereHas('batch',
                 fn ($q2) => $q2->whereIn('product_id', $rawProductIds)))
+            // У корректировок своего работника нет — фильтр через партию.
+            ->when($workerId, fn ($q) => $q->whereHas('batch',
+                fn ($q2) => $q2->where('current_worker_id', $workerId)))
             ->with('batch.product')
             ->get()
             ->groupBy(fn ($m) => $m->batch?->product_id)
