@@ -32,7 +32,8 @@ export class WorkshopPresetPicker {
         this.byId       = {};
         this.selectedId = null;
         this.selectedSection = null; // группа, из которой выбран пресет (он может быть в нескольких)
-        this.count      = '1';
+        // Пусто = одна единица: «1» — подсказка, а не значение, чтобы не стирать её перед вводом.
+        this.count      = '';
 
         this.root.addEventListener('click', (e) => this.handleClick(e));
         this.root.addEventListener('input', (e) => {
@@ -113,7 +114,7 @@ export class WorkshopPresetPicker {
 
     countInput() {
         return `<input type="number" class="form-control form-control-sm" data-preset-count aria-label="Кол-во продукции"
-                       style="border-radius:.4rem" step="0.001" min="0.001" value="${esc(this.count)}">`;
+                       style="border-radius:.4rem" step="0.001" min="0.001" placeholder="1" value="${esc(this.count)}">`;
     }
 
     /** Состав пресета для подсказок: «Плитка ×1 · сырьё 2 · тара 1». */
