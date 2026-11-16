@@ -376,6 +376,8 @@ raw-batches, supplier-orders, products, enterprise-dashboard, settings — то�
 - `ProductPicker` (`resources/js/product-picker.js`) — выбор товара с SKU-фильтрацией
 - `WorkerPicker` (`resources/js/worker-picker.js`) — выбор работника по аналогии с `ProductPicker`
 - Перед созданием шаблона — проверяй `resources/views/partials/`, используй `@include`, не дублируй
+- Общее у show приёмки и цеха — `resources/views/partials/production-document/` (карточка продукции
+  с коэффициентами и панелью правки, её скрипт): правится один раз, различия — параметрами партиала
 
 ---
 
