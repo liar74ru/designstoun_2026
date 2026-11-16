@@ -21,9 +21,14 @@ class WorkshopPresetService
     /**
      * Пресеты отдела (свои и подключённые). Группы — только этого отдела: у пресета из
      * нескольких отделов в каждом свои группы.
+     * Порядок — по SKU продукта пресета (по нему же цвет карточки), без продукта — в конце;
+     * при равном SKU — по имени.
      */
     public function getForDepartment(Department $department): Collection
     {
+        $sku = fn (WorkshopPreset $preset): string => (string) $preset->items
+            ->firstWhere('role', WorkshopItem::ROLE_PRODUCT)?->product?->sku;
+
         return $department->presets()
             ->with([
                 'groups' => fn ($q) => $q->where('workshop_preset_groups.department_id', $department->id),
@@ -31,8 +36,16 @@ class WorkshopPresetService
                 'departments',
                 'items.product',
             ])
-            ->orderBy('name')
-            ->get();
+            ->get()
+            ->sort(function (WorkshopPreset $a, WorkshopPreset $b) use ($sku) {
+                [$skuA, $skuB] = [$sku($a), $sku($b)];
+                if (($skuA === '') !== ($skuB === '')) {
+                    return $skuA === '' ? 1 : -1;
+                }
+
+                return strnatcasecmp($skuA, $skuB) ?: strnatcasecmp($a->name, $b->name);
+            })
+            ->values();
     }
 
     public function create(Department $department, array $data): WorkshopPreset
