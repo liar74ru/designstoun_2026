@@ -191,6 +191,24 @@ foreach ($documents as $name => [$prefix, $serviceClass, $make]) {
                 ->and($item->modifiers->pluck('key')->sort()->values()->all())->toBe(['green_bonus', 'mask_tile']);
         });
 
+        test('«Обновить правила» сохраняет ручной выбор и снятое sku-правило', function () use ($make, $post, $serviceClass) {
+            [$item, $document] = $make($this);
+            // В панели отмечен ручной «Подкол», sku-правило «Плитка-маска» снято
+            $post($this, $document, $item, ['undercut'])->assertRedirect();
+            changeRule($this, 'undercut', ['worker_coeff_delta' => -1.0]);
+
+            expect(app($serviceClass)->hasOutdatedRules($document))->toBeTrue();
+
+            app($serviceClass)->refreshItemRules($document);
+
+            $item->refresh();
+            expect($item->modifiers->pluck('key')->all())->toBe(['undercut'])
+                ->and((float) $item->modifiers->first()->worker_coeff_delta)->toBe(-1.0)
+                ->and((float) $item->effective_cost_coeff)->toBe(0.0)
+                ->and($item->disabled_modifier_keys)->toBe(['mask_tile'])
+                ->and(app($serviceClass)->hasOutdatedRules($document))->toBeFalse();
+        });
+
         test('кнопка «Обновить правила» на странице — только когда правила разошлись', function () use ($make, $prefix) {
             [, $document] = $make($this);
             $show = fn () => $this->actingAs($this->admin)->get(route("{$prefix}.show", $document));
